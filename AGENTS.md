@@ -136,6 +136,26 @@ Due to the App Router's Server-First nature, we enforce these boundaries:
     *   Context: Used for fetching state and listening to updates.
 *   **Rule**: **Separation of Concerns**. Never use `ApiClient` to poll for status. Never use `Supabase` to trigger compute jobs (compute queues excepted, but here we use direct API).
 
+### 4.4 i18n (Multi-Language UI) Pattern
+We implement **client-side i18n** (App Router friendly, thick-client aligned):
+
+*   **Source of Truth**: `frontend/src/lib/i18n.ts` (supported locales + dictionaries + translator).
+*   **Provider**: `frontend/src/components/i18n/I18nProvider.tsx` is mounted inside the global `Providers` wrapper (`frontend/src/components/providers.tsx`).
+*   **Usage** (Client Components only):
+    *   `const { t, locale, setLocale } = useI18n()`
+    *   Use keys like `t("dashboard.title")` and interpolate via `t("auth.signInToContinue", { appName: "VibeDigest" })`.
+*   **Adding New Strings**:
+    *   Add a key under `messages.en` and provide equivalents for **all locales** in `SUPPORTED_LOCALES`.
+    *   Missing keys fall back to `en`; if still missing, the key itself is rendered (debug-friendly).
+*   **Persistence**:
+    *   Locale is stored in `localStorage` (`vd.locale`) and applied to `<html lang="...">`.
+    *   For Arabic (`ar`) we also set `<html dir="rtl">`.
+
+*   **Language UI**:
+    *   Reusable dropdown: `frontend/src/components/i18n/LanguageDropdown.tsx`
+    *   Settings section: `frontend/src/components/i18n/LanguageSelect.tsx` (used in `frontend/src/app/(main)/settings/page.tsx`)
+    *   Public pages: `frontend/src/components/i18n/LanguageInlineSelect.tsx` (Landing/Login top-right)
+
 ---
 
 ## 5. Architecture & Data Flow
@@ -162,12 +182,17 @@ The database schema (`tasks`, `task_outputs`) remains the authoritative state.
 ### 6.2 Concurrency via Database
 *   **Constraint**: The Database (`tasks.status`) is the **only logic lock**.
 *   **Guarantee**: `pending` state is the only valid entry point for a worker. The first worker to update status to `processing` locks the task.
-*   **Safety**: Multiple backend instances can run safely side-by-side as long as they respect the DB state machine.
+### 6.3 Deployment Architecture (Hybrid Cloud)
+*   **Frontend (Vercel)**:
+    *   **Domain**: `vibedigest.neallin.xyz` (or similar).
+    *   **Role**: Serves the Next.js UI via global Edge Network.
+    *   **Config**: `NEXT_PUBLIC_API_URL` -> `https://transcriber.neallin.xyz`.
+*   **Backend (Home Lab / Mac Mini)**:
+    *   **Domain**: `transcriber.neallin.xyz`.
+    *   **Access**: Exposed via **Cloudflare Tunnel** (cloudflared).
+    *   **Routing**: Tunnel points `*.neallin.xyz` (or specific record) -> `localhost:8000`.
+    *   **No Traefik**: Current V3 setup runs natively (`uv run`) without Docker routing.
 
-### 6.3 Vercel Deployment (Frontend)
-*   **Platform**: Vercel (Next.js native).
-*   **Connectivity**: Connects to Backend via **Cloudflare Tunnel** (Public URL).
-*   **Config**: Requires `NEXT_PUBLIC_API_URL` to point to the Tunnel URL.
 
 
 ---

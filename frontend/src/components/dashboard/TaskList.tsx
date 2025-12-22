@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Clock, CheckCircle2, AlertCircle, PlayCircle, Loader2 } from "lucide-react"
 import { createClient } from "@/lib/supabase"
+import { useI18n } from "@/components/i18n/I18nProvider"
+import { LOCALE_DATE_TAG } from "@/lib/i18n"
 
 type Task = {
     id: string
@@ -36,6 +38,19 @@ export function TaskList() {
     const [userId, setUserId] = useState<string | null>(null)
     const supabase = createClient()
     const router = useRouter()
+    const { t, locale } = useI18n()
+
+    async function fetchTasks(uid: string) {
+        setLoading(true)
+        const { data } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('user_id', uid)
+            .order('created_at', { ascending: false })
+
+        if (data) setTasks(data)
+        setLoading(false)
+    }
 
     useEffect(() => {
         // 1. Get User
@@ -87,27 +102,20 @@ export function TaskList() {
         }
     }, [userId])
 
-    const fetchTasks = async (uid: string) => {
-        setLoading(true)
-        const { data } = await supabase
-            .from('tasks')
-            .select('*')
-            .eq('user_id', uid)
-            .order('created_at', { ascending: false })
-
-        if (data) setTasks(data)
-        setLoading(false)
-    }
-
     if (loading) {
-        return <div className="text-center p-8 text-muted-foreground"><Loader2 className="animate-spin h-6 w-6 mx-auto mb-2" />Loading tasks...</div>
+        return (
+            <div className="text-center p-8 text-muted-foreground">
+                <Loader2 className="animate-spin h-6 w-6 mx-auto mb-2" />
+                {t("tasks.loadingTasks")}
+            </div>
+        )
     }
 
     if (tasks.length === 0) {
         return (
             <Card className="border-0 bg-transparent shadow-none">
                 <CardContent className="text-center py-10 text-muted-foreground">
-                    <p>No tasks found. Start your first transcription above!</p>
+                    <p>{t("tasks.noTasks")}</p>
                 </CardContent>
             </Card>
         )
@@ -116,7 +124,7 @@ export function TaskList() {
     return (
         <Card className="border-0 bg-transparent shadow-none">
             <CardHeader className="px-0">
-                <CardTitle>Recent Tasks</CardTitle>
+                <CardTitle>{t("tasks.recentTasks")}</CardTitle>
             </CardHeader>
             <CardContent className="px-0 space-y-4">
                 {tasks.map((task) => (
@@ -130,7 +138,7 @@ export function TaskList() {
                             {task.thumbnail_url ? (
                                 <img
                                     src={task.thumbnail_url}
-                                    alt={task.video_title || "Video thumbnail"}
+                                    alt={task.video_title || t("tasks.videoThumbnailAlt")}
                                     className="h-full w-full object-cover"
                                     referrerPolicy="no-referrer"
                                 />
@@ -154,7 +162,7 @@ export function TaskList() {
                                 </Badge>
                                 <span className="w-px h-3 bg-white/10 mx-1" />
                                 <Clock className="h-3 w-3" />
-                                {new Date(task.created_at).toLocaleString()}
+                                {new Date(task.created_at).toLocaleString(LOCALE_DATE_TAG[locale])}
                             </div>
                         </div>
 
@@ -166,17 +174,17 @@ export function TaskList() {
                             )}
                             {task.status === "completed" && (
                                 <Badge variant="success" className="gap-1 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25">
-                                    <CheckCircle2 className="h-3 w-3" /> Completed
+                                    <CheckCircle2 className="h-3 w-3" /> {t("tasks.completed")}
                                 </Badge>
                             )}
                             {task.status === "error" && (
                                 <Badge variant="destructive" className="gap-1">
-                                    <AlertCircle className="h-3 w-3" /> Error
+                                    <AlertCircle className="h-3 w-3" /> {t("tasks.error")}
                                 </Badge>
                             )}
                             {task.status === "pending" && (
                                 <Badge variant="secondary" className="gap-1">
-                                    Waiting...
+                                    {t("tasks.waiting")}
                                 </Badge>
                             )}
                         </div>

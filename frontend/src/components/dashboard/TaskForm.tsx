@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Sparkles, Video } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 import { ApiClient } from "@/lib/api"
+import { useI18n } from "@/components/i18n/I18nProvider"
 
 export function TaskForm() {
     const [url, setUrl] = useState("")
     const [loading, setLoading] = useState(false)
     const router = useRouter()
     const supabase = createClient()
+    const { t } = useI18n()
 
     // Simple state for checkboxes
     const [summary, setSummary] = useState(true)
@@ -33,7 +35,7 @@ export function TaskForm() {
         try {
             const { data: { session } } = await supabase.auth.getSession()
             if (!session) {
-                alert("Please login first!") // In real app, redirect to login
+                alert(t("taskForm.pleaseLogin")) // In real app, redirect to login
                 setLoading(false)
                 return
             }
@@ -57,9 +59,9 @@ export function TaskForm() {
             router.refresh() // Refresh server components or trigger SWR revalidation
             // Ideally we redirect to detail or show a toast
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(error)
-            alert(error.message)
+            alert(error instanceof Error ? error.message : String(error))
         } finally {
             setLoading(false)
         }
@@ -70,10 +72,10 @@ export function TaskForm() {
             <CardHeader>
                 <CardTitle className="text-2xl flex items-center gap-2">
                     <Sparkles className="text-primary h-6 w-6" />
-                    New Transcription
+                    {t("taskForm.title")}
                 </CardTitle>
                 <CardDescription>
-                    Paste a YouTube URL to generate an AI summary and translation.
+                    {t("taskForm.subtitle")}
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -82,7 +84,7 @@ export function TaskForm() {
                         <div className="relative flex-1">
                             <Video className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="https://youtube.com/watch?v=..."
+                                placeholder={t("taskForm.urlPlaceholder")}
                                 className="pl-9 h-11 bg-black/20"
                                 value={url}
                                 onChange={(e) => setUrl(e.target.value)}
@@ -90,7 +92,7 @@ export function TaskForm() {
                             />
                         </div>
                         <Button type="submit" size="lg" disabled={loading} className="bg-primary text-black font-semibold hover:bg-primary/90 shadow-[0_0_15px_rgba(62,207,142,0.4)] transition-all">
-                            {loading ? "Processing..." : "Generate Magic"}
+                            {loading ? t("taskForm.processing") : t("taskForm.generate")}
                         </Button>
                     </div>
 
@@ -101,7 +103,7 @@ export function TaskForm() {
                                 className="accent-primary"
                                 checked={summary}
                                 onChange={(e) => setSummary(e.target.checked)}
-                            /> Summary
+                            /> {t("taskForm.summary")}
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer hover:text-white">
                             <input
@@ -109,7 +111,7 @@ export function TaskForm() {
                                 className="accent-primary"
                                 checked={languages.includes("en")}
                                 onChange={() => toggleLanguage("en")}
-                            /> English
+                            /> {t("taskForm.english")}
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer hover:text-white">
                             <input
@@ -117,7 +119,7 @@ export function TaskForm() {
                                 className="accent-primary"
                                 checked={languages.includes("zh")}
                                 onChange={() => toggleLanguage("zh")}
-                            /> Chinese
+                            /> {t("taskForm.chinese")}
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer hover:text-white">
                             <input
@@ -125,7 +127,7 @@ export function TaskForm() {
                                 className="accent-primary"
                                 checked={languages.includes("ja")}
                                 onChange={() => toggleLanguage("ja")}
-                            /> Japanese
+                            /> {t("taskForm.japanese")}
                         </label>
                     </div>
                 </form>

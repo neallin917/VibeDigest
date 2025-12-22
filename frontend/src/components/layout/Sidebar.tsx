@@ -4,34 +4,23 @@ import { useState, useEffect } from "react"
 
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { LayoutDashboard, History, PlusCircle, Settings, LogOut } from "lucide-react"
+import { History, PlusCircle, Settings, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase"
-import { useRouter } from "next/navigation"
+import { useI18n } from "@/components/i18n/I18nProvider"
 
 const sidebarItems = [
-    {
-        title: "New Task",
-        href: "/dashboard",
-        icon: PlusCircle,
-    },
-    {
-        title: "History",
-        href: "/history",
-        icon: History,
-    },
-    {
-        title: "Settings",
-        href: "/settings",
-        icon: Settings,
-    },
-]
+    { key: "nav.newTask", href: "/dashboard", icon: PlusCircle },
+    { key: "nav.history", href: "/history", icon: History },
+    { key: "nav.settings", href: "/settings", icon: Settings },
+] as const
 
 export function Sidebar() {
     const pathname = usePathname()
     const [userEmail, setUserEmail] = useState<string | null>(null)
     const supabase = createClient()
+    const { t } = useI18n()
 
     useEffect(() => {
         supabase.auth.getUser().then(({ data: { user } }) => {
@@ -60,7 +49,7 @@ export function Sidebar() {
                         )}
                     >
                         <item.icon className="h-4 w-4" />
-                        {item.title}
+                        {t(item.key)}
                     </Link>
                 ))}
             </div>
@@ -80,7 +69,7 @@ export function Sidebar() {
                     className="w-full justify-start gap-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
                 >
                     <LogOut className="h-4 w-4" />
-                    Logout
+                    {t("auth.logout")}
                 </Button>
             </div>
         </div>

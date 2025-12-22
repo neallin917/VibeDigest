@@ -15,6 +15,7 @@
 - **Smart Processing**: Automatic audio extraction and intelligent chunking for large files.
 - **Live Dashboard**: Watch your tasks progress from queue to completion in real-time.
 - **Secure Authentication**: Integrated email and Google login support via Supabase Auth.
+- **Multi-language UI (i18n)**: Built-in UI language switcher with RTL support for Arabic.
 
 ## 🛠 Technology Stack
 
@@ -91,6 +92,19 @@ The system operates on a **Control Plane vs. Data Plane** model:
 
 -   **Control**: The frontend sends commands (like "Process Video") to the backend via HTTP.
 -   **Data**: The backend updates the database. The frontend **never** waits for the HTTP response for status; it subscribes to the database changes. this ensures the UI is always in sync with the true state of the task.
+
+## 🌍 i18n (UI Languages)
+
+- **Supported locales**: `en`, `zh`, `es`, `ar`, `fr`, `ru`, `pt`, `hi`, `ja`, `ko`
+- **Persistence**: stored in `localStorage` key `vd.locale`
+- **RTL**: Arabic (`ar`) automatically sets `<html dir="rtl">`
+- **Where users change language**:
+  - `frontend/src/app/(main)/settings/page.tsx` (Settings → Language)
+  - Public pages: Landing (`/`) and Login (`/login`) top-right
+- **Developer notes**:
+  - Source of truth: `frontend/src/lib/i18n.ts`
+  - Hook: `useI18n()` from `frontend/src/components/i18n/I18nProvider.tsx`
+  - If you add new UI strings, add keys in `messages.en` and provide translations for all supported locales.
 
 ## 📄 License
 
