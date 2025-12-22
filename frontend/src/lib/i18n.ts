@@ -31,8 +31,11 @@ export const LOCALE_DATE_TAG: Record<Locale, string> = {
   ko: "ko-KR",
 }
 
-type MessageValue = string | Messages
-type Messages = Record<string, MessageValue>
+export type MessageValue = string | Messages
+
+export interface Messages {
+  [key: string]: MessageValue
+}
 
 const messages: Record<Locale, Messages> = {
   en: {
