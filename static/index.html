@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Video Transcriber (v2)</title>
+    <!-- Dependencies -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.2/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --secondary-color: #7ed321;
+            --background-color: #f8f9fa;
+            --surface-color: #ffffff;
+            --text-color: #2c3e50;
+            --text-muted: #6c757d;
+            --border-color: #dee2e6;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: var(--surface-color);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .navbar-menu {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .nav-link {
+            cursor: pointer;
+            color: var(--text-color);
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            color: var(--primary-color);
+        }
+
+        .nav-link.active {
+            color: var(--primary-color);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        /* Views */
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--surface-color);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+        }
+
+        /* Form Elements */
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn-google {
+            background: #4285F4;
+            width: 100%;
+            justify-content: center;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Task List */
+        .task-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .task-item {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .task-item:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-pending {
+            background: #eee;
+            color: #555;
+        }
+
+        .status-processing {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .status-completed {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        /* Tabs (Detail View) */
+        .tabs {
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            color: var(--text-muted);
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .progress-bar-container {
+            height: 6px;
+            background: #eee;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--secondary-color);
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar" id="navbar">
+        <div class="navbar-brand" onclick="app.router('home')">
+            <i class="fas fa-video"></i> AI Transcriber
+        </div>
+        <div class="navbar-menu" id="navMenu" style="display: none;">
+            <a class="nav-link" onclick="app.router('home')">New Task</a>
+            <a class="nav-link" onclick="app.router('list')">My History</a>
+            <span class="nav-link" id="userEmail"></span>
+            <a class="nav-link" onclick="app.logout()">Logout</a>
+        </div>
+    </nav>
+
+    <!-- 1. LOGIN VIEW -->
+    <div id="view-login" class="view active container">
+        <div class="card" style="max-width: 400px; margin: 4rem auto; text-align: center;">
+            <h2>Welcome Back</h2>
+            <p style="color: var(--text-muted);">Sign in to access your transcription history</p>
+
+            <button class="btn btn-google" onclick="app.loginGoogle()">
+                <i class="fab fa-google"></i> Sign in with Google
+            </button>
+
+            <button class="btn" style="width: 100%; margin-top: 10px; background-color: #f6851b; color: white;"
+                onclick="app.loginWallet()">
+                <i class="fas fa-wallet"></i> Sign in with Wallet
+            </button>
+
+            <div style="margin: 20px 0; color: var(--text-muted);">- OR -</div>
+
+            <input type="email" id="email" class="form-control" placeholder="Email address">
+            <button class="btn" style="width: 100%" onclick="app.loginEmail()">Sign in with Email</button>
+        </div>
+    </div>
+
+    <!-- 2. HOME VIEW (Submit) -->
+    <div id="view-home" class="view container">
+        <div class="card">
+            <h2>Process New Video</h2>
+            <div class="form-group">
+                <label>Video URL</label>
+                <input type="text" id="videoUrl" class="form-control" placeholder="https://youtube.com/watch?v=...">
+            </div>
+
+            <div class="form-group">
+                <label>Summary Language</label>
+                <select id="summaryLang" class="form-control">
+                    <option value="zh">Chinese (Simplified)</option>
+                    <option value="en">English</option>
+                    <option value="ja">Japanese</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Also Translate To</label>
+                <!-- Simple Checkboxes for MVP -->
+                <div style="display: flex; gap: 10px;">
+                    <label><input type="checkbox" name="transTarget" value="en"> English</label>
+                    <label><input type="checkbox" name="transTarget" value="ja"> Japanese</label>
+                    <label><input type="checkbox" name="transTarget" value="zh"> Chinese</label>
+                    <label><input type="checkbox" name="transTarget" value="ko"> Korean</label>
+                </div>
+            </div>
+
+            <button class="btn" onclick="app.submitTask()">Start Processing</button>
+        </div>
+    </div>
+
+    <!-- 3. LIST VIEW (History) -->
+    <div id="view-list" class="view container">
+        <h2>My Task History <button class="btn" style="float: right; font-size: 0.8em;" onclick="app.loadTasks()"><i
+                    class="fas fa-sync"></i></button></h2>
+        <div id="taskList" class="task-list">
+            <!-- Items injected here -->
+            <p>Loading...</p>
+        </div>
+    </div>
+
+    <!-- 4. DETAIL VIEW -->
+    <div id="view-detail" class="view container">
+        <div style="margin-bottom: 1rem;">
+            <a onclick="app.router('list')" style="cursor: pointer; color: var(--primary-color);">&larr; Back to
+                List</a>
+        </div>
+
+        <div class="card">
+            <h2 id="detailTitle">Loading...</h2>
+            <p>Status: <span id="detailStatus" class="status-badge">...</span></p>
+            <div class="progress-bar-container">
+                <div id="detailProgress" class="progress-bar"></div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="app.switchTab('script')">Script</button>
+            <button class="tab-btn" onclick="app.switchTab('summary')">Summary</button>
+            <button class="tab-btn" onclick="app.switchTab('translation')">Translations</button>
+        </div>
+
+        <!-- Tab Contents -->
+        <div id="tab-script" class="tab-content active">
+            <div id="scriptContent" class="card markdown-content"></div>
+        </div>
+        <div id="tab-summary" class="tab-content">
+            <div id="summaryContent" class="card markdown-content"></div>
+        </div>
+        <div id="tab-translation" class="tab-content">
+            <div id="translationContainer"></div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+
+</html>
