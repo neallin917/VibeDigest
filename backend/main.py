@@ -1,9 +1,10 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, BackgroundTasks, Depends, Body
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, BackgroundTasks, Depends, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import os
 import asyncio
+import datetime
 import logging
 from pathlib import Path
 from typing import Optional, List
@@ -12,12 +13,14 @@ import json
 import shutil
 from urllib.parse import urlparse
 from dotenv import load_dotenv
+import stripe
 
 # Load environment variables
 load_dotenv()
 
 from video_processor import VideoProcessor
 from transcriber import Transcriber
+from transcriber import format_markdown_from_raw_segments
 from summarizer import Summarizer
 from translator import Translator
 from translator import Translator
@@ -52,7 +55,13 @@ summarizer = Summarizer()
 translator = Translator()
 translator = Translator()
 db_client = DBClient()
+db_client = DBClient()
 notifier = Notifier()
+
+# Stripe Config
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+PRO_PRICE_ID = "price_1ShU6GP16NRNsVf5dcAqHHDV"
+CREDIT_PACK_PRICE_ID = "price_1ShU6pP16NRNsVf5EdlEFgOE"
 
 # Security Dependency
 async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
@@ -98,6 +107,14 @@ async def process_video(
     Start a new video processing task.
     Creates 1 Task + N Outputs (Script, Summary, [Translations...]).
     """
+    # Normalize URL if scheme is missing
+    if not video_url.startswith(("http://", "https://")):
+        video_url = f"https://{video_url}"
+
+    # 0. Check Quota / Credits
+    if not db_client.check_and_consume_quota(user_id):
+        raise HTTPException(status_code=402, detail="Quota exceeded or insufficient credits. Please upgrade your plan.")
+
     try:
         # 1. Create Task
         task = db_client.create_task(user_id=user_id, video_url=video_url)
@@ -117,10 +134,12 @@ async def process_video(
         except Exception:
             audio_out = None
         script_out = db_client.create_task_output(task_id, user_id, kind="script")
+        # Internal output: persisted raw Whisper segments (JSON) for re-formatting without re-transcribing.
+        script_raw_out = db_client.create_task_output(task_id, user_id, kind="script_raw")
         summary_out = db_client.create_task_output(task_id, user_id, kind="summary", locale=summary_language)
         if audio_out:
             outputs.append(audio_out)
-        outputs.extend([script_out, summary_out])
+        outputs.extend([script_out, script_raw_out, summary_out])
 
         # 3. Create Translation Outputs if requested
         # Format: translate_targets='["en", "ja"]' or empty
@@ -190,6 +209,79 @@ async def submit_feedback(
     
     return {"status": "received", "message": "Thank you for your feedback!"}
 
+    return {"status": "received", "message": "Thank you for your feedback!"}
+
+@app.post("/api/webhook/stripe")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+    event = None
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, os.environ.get("STRIPE_WEBHOOK_SECRET")
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError as e:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    # Handle the event
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        mode = session.get('mode')
+        cid = session.get('customer')
+        user_id = session.get('client_reference_id')
+        
+        # Link Customer ID if present
+        if user_id and cid:
+            db_client.link_stripe_customer(user_id, cid)
+
+        # Handle Line Items? Or just mode.
+        # Ideally we check what was bought. 
+        # For simplicity, we assume mode + metadata or lookup session items if needed.
+        # But here we can check if it matches our Known Price IDs if expanded, 
+        # or simplified logic:
+        
+        if mode == 'subscription':
+            # This is a new subscription or update
+            # We treat it as 'pro'
+            # We need to get period_end from subscription object?
+            # session has 'subscription' ID.
+            sub_id = session.get('subscription')
+            sub = stripe.Subscription.retrieve(sub_id)
+            current_period_end = datetime.datetime.fromtimestamp(sub['current_period_end'])
+            
+            # Need to find user by customer_id if user_id is missing
+            # (In recurring payments, client_reference_id might be missing in webhook?)
+            # Actually invoice.payment_succeeded is better for recurring. 
+            # checkout.session.completed is for the initial signup.
+            
+            if user_id:
+                # First time signup
+                db_client.update_subscription(cid, 'pro', current_period_end.isoformat())
+                
+        elif mode == 'payment':
+            # One time payment (Credits)
+            # Verify if it is the credit pack
+            # We assume it is for now (MVP)
+            if user_id:
+                db_client.add_credits(user_id, 20)
+
+    elif event['type'] == 'invoice.payment_succeeded':
+        invoice = event['data']['object']
+        # Recurring payment success
+        cid = invoice.get('customer')
+        sub_id = invoice.get('subscription')
+        
+        if sub_id:
+            sub = stripe.Subscription.retrieve(sub_id)
+            current_period_end = datetime.datetime.fromtimestamp(sub['current_period_end'])
+            # Renew Pro
+            db_client.update_subscription(cid, 'pro', current_period_end.isoformat())
+
+    return {"status": "success"}
+
 # -------------------------------------------------------------------------
 # Background Workers
 # -------------------------------------------------------------------------
@@ -238,12 +330,26 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
         # Find Script Output ID
         outputs = db_client.get_task_outputs(task_id)
         script_output = next((o for o in outputs if o['kind'] == 'script'), None)
+        script_raw_output = next((o for o in outputs if o['kind'] == 'script_raw'), None)
         
         script_text = ""
         if script_output:
             try:
                 db_client.update_output_status(script_output['id'], status="processing", progress=10)
-                script_text = await transcriber.transcribe(audio_path)
+                script_text, raw_json, detected_language = await transcriber.transcribe_with_raw(audio_path)
+                # Persist raw segments first (single source of truth)
+                if script_raw_output:
+                    db_client.update_output_status(script_raw_output['id'], status="completed", progress=100, content=raw_json)
+
+                # Always (re)generate markdown from raw segments to ensure latest formatting rules
+                # are applied consistently without any frontend "retry" UX.
+                try:
+                    payload = json.loads(raw_json or "{}")
+                    raw_segments = payload.get("segments", [])
+                    detected_language = payload.get("language", detected_language or "unknown")
+                    script_text = format_markdown_from_raw_segments(raw_segments, detected_language=detected_language)
+                except Exception as e:
+                    logger.warning(f"Failed to regenerate formatted script from raw segments: {e}")
                 db_client.update_output_status(script_output['id'], status="completed", progress=100, content=script_text)
             except Exception as e:
                 err = f"Transcription failed: {str(e)}"
@@ -305,15 +411,77 @@ async def handle_retry_output(output_id: str, user_id: str):
     Handle logic for retrying a single output.
     Does NOT re-download video. Relies on existing Script output content if available.
     """
-    # 1. Get Output details (We assume we can fetch via DBClient with ID)
-    # Since DBClient.get_task_outputs gets list, we might implement get_output_by_id or direct SQL
-    # For now, simplistic approach:
-    # We need READ access. Service Role has it.
-    pass # Implementation requires fetching row. 
-    # Logic:
-    # if kind == 'script': re-run Download+Transcribe? (Expensive/Hard without URL).
-    # if kind == 'summary': fetch task's script content -> re-run summarize.
-    # if kind == 'translation': fetch task's script content -> re-run translate.
+    try:
+        out = db_client.get_output(output_id)
+        if not out:
+            return
+        if out.get("user_id") != user_id:
+            db_client.update_output_status(output_id, status="error", error="Not authorized")
+            return
+
+        task_id = out.get("task_id")
+        kind = out.get("kind")
+        locale = out.get("locale")
+        if not task_id or not kind:
+            db_client.update_output_status(output_id, status="error", error="Invalid output")
+            return
+
+        outputs = db_client.get_task_outputs(task_id)
+        script_output = next((o for o in outputs if o.get("kind") == "script"), None)
+        script_raw_output = next((o for o in outputs if o.get("kind") == "script_raw"), None)
+
+        if kind == "script":
+            # Prefer re-formatting from persisted raw segments.
+            if not script_raw_output or not script_raw_output.get("content"):
+                db_client.update_output_status(output_id, status="error", error="No raw transcript segments found; please create a new task to re-transcribe.")
+                return
+            try:
+                payload = json.loads(script_raw_output["content"])
+                raw_segments = payload.get("segments", [])
+                detected_language = payload.get("language", "unknown")
+                md = format_markdown_from_raw_segments(raw_segments, detected_language=detected_language)
+                db_client.update_output_status(output_id, status="completed", progress=100, content=md, error="")
+                return
+            except Exception as e:
+                db_client.update_output_status(output_id, status="error", error=f"Reformat failed: {str(e)}")
+                return
+
+        # For summary/translation, rely on existing script content.
+        if not script_output or not script_output.get("content"):
+            db_client.update_output_status(output_id, status="error", error="Missing script content; cannot retry.")
+            return
+
+        script_text = script_output["content"]
+        # Keep the existing optimization step consistent.
+        try:
+            script_text = await summarizer.optimize_transcript(script_text)
+        except Exception:
+            pass
+
+        if kind == "summary":
+            task = db_client.get_task(task_id)
+            video_title = (task or {}).get("video_title") or ""
+            try:
+                db_client.update_output_status(output_id, status="processing", progress=30, error="")
+                summary_text = await summarizer.summarize(script_text, locale or "zh", video_title)
+                db_client.update_output_status(output_id, status="completed", progress=100, content=summary_text, error="")
+            except Exception as e:
+                db_client.update_output_status(output_id, status="error", error=str(e))
+            return
+
+        if kind == "translation":
+            try:
+                db_client.update_output_status(output_id, status="processing", progress=30, error="")
+                translated = await translator.translate_text(script_text, locale or "en", None)
+                db_client.update_output_status(output_id, status="completed", progress=100, content=translated, error="")
+            except Exception as e:
+                db_client.update_output_status(output_id, status="error", error=str(e))
+            return
+
+        db_client.update_output_status(output_id, status="error", error=f"Retry not supported for kind: {kind}")
+
+    except Exception as e:
+        db_client.update_output_status(output_id, status="error", error=str(e))
 
 @app.patch("/api/tasks/{task_id}")
 async def update_task_title(
@@ -341,6 +509,37 @@ async def update_task_title(
     return {"status": "success"}
 
 
+
+@app.post("/api/create-checkout-session")
+async def create_checkout_session(
+    price_id: str = Form(...),
+    user_id: str = Depends(get_current_user)
+):
+    """Create Stripe Checkout Session."""
+    domain_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    
+    # Determine mode
+    mode = 'subscription'
+    if price_id == CREDIT_PACK_PRICE_ID:
+        mode = 'payment'
+        
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            client_reference_id=user_id,
+            line_items=[
+                {
+                    'price': price_id,
+                    'quantity': 1,
+                },
+            ],
+            mode=mode,
+            success_url=domain_url + "/settings/pricing?success=true",
+            cancel_url=domain_url + "/settings/pricing?canceled=true",
+        )
+        return {"url": checkout_session.url}
+    except Exception as e:
+        logger.error(f"Stripe session creation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

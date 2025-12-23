@@ -41,7 +41,14 @@ export function TaskForm() {
             }
 
             const formData = new FormData()
-            formData.append("video_url", url)
+
+            // Normalize URL
+            let finalUrl = url.trim()
+            if (!finalUrl.match(/^https?:\/\//i)) {
+                finalUrl = `https://${finalUrl}`
+            }
+
+            formData.append("video_url", finalUrl)
             formData.append("summary_language", "zh") // Default to Chinese as per original
 
             // Filter out summary if not checked? Backend always does summary currently.

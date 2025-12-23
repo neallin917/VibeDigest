@@ -2,6 +2,7 @@ import os
 import logging
 from typing import Optional
 import re
+import json
 from openai import OpenAI
 
 logger = logging.getLogger(__name__)
@@ -332,6 +333,152 @@ def _group_sentences_into_paragraphs(sentences: list[dict], max_chars: int = 550
     push_para()
     return paragraphs
 
+def _is_cjk_language(lang: str) -> bool:
+    """Best-effort check for CJK-like languages where whitespace is sparse."""
+    if not lang:
+        return False
+    s = str(lang).lower()
+    return any(k in s for k in ("zh", "chinese", "ja", "japanese", "ko", "korean"))
+
+
+def _paragraph_limits_for_language(lang: str) -> tuple[int, float]:
+    """
+    Tuned readability limits:
+    - CJK: shorter paragraphs feel much more readable on screen
+    - Non-CJK: can be longer
+    Returns: (max_chars, max_duration_seconds)
+    """
+    if _is_cjk_language(lang):
+        return 260, 28.0
+    return 520, 36.0
+
+
+def _group_sentences_into_paragraphs_v2(
+    sentences: list[dict],
+    *,
+    max_chars: int,
+    gap_seconds: float,
+    max_duration_seconds: float,
+) -> list[dict]:
+    """
+    Improved paragraph grouping with an additional max-duration bound.
+    This avoids giant paragraphs for continuous speech with low gaps.
+    """
+    if not sentences:
+        return []
+    paragraphs: list[dict] = []
+    cur_start = float(sentences[0]["start"])
+    cur_end = float(sentences[0]["end"])
+    cur_parts: list[str] = []
+
+    def push_para():
+        nonlocal cur_start, cur_end, cur_parts
+        txt = " ".join(cur_parts).strip()
+        txt = WHITESPACE_GLOBAL_REGEX.sub(" ", txt).strip()
+        if txt:
+            paragraphs.append({"start": cur_start, "end": cur_end, "text": txt})
+        cur_parts = []
+
+    for s in sentences:
+        s_start = float(s["start"])
+        s_end = float(s["end"])
+        gap = s_start - cur_end
+        candidate = (" ".join(cur_parts + [s["text"]])).strip()
+        next_end = s_end
+        next_duration = next_end - cur_start
+
+        should_split = False
+        if cur_parts and gap > gap_seconds:
+            should_split = True
+        elif cur_parts and len(candidate) > max_chars:
+            should_split = True
+        elif cur_parts and next_duration > max_duration_seconds:
+            should_split = True
+
+        if should_split:
+            push_para()
+            cur_start = s_start
+            cur_end = s_end
+            cur_parts = [s["text"]]
+        else:
+            if not cur_parts:
+                cur_start = s_start
+            cur_parts.append(s["text"])
+            cur_end = s_end
+
+    push_para()
+    return paragraphs
+
+def _serialize_raw_segments(all_segments: list) -> list[dict]:
+    """
+    Convert OpenAI segment objects into JSON-serializable dicts.
+    We intentionally store a minimal, stable shape for future re-formatting:
+    {start, end, duration, text}
+    """
+    raw: list[dict] = []
+    for seg in all_segments or []:
+        start = float(getattr(seg, "start", 0.0) or 0.0)
+        end = float(getattr(seg, "end", start) or start)
+        text = (getattr(seg, "text", "") or "").strip()
+        raw.append({
+            "start": start,
+            "end": end,
+            "duration": max(end - start, 0.0),
+            "text": text,
+        })
+    return raw
+
+
+def format_markdown_from_raw_segments(raw_segments: list[dict], detected_language: str = "unknown") -> str:
+    """
+    Public helper: format transcript markdown from stored raw segments (JSON).
+    This enables re-formatting without re-transcribing.
+    """
+    transcript_lines = []
+    transcript_lines.append("# Video Transcription")
+    transcript_lines.append("")
+    transcript_lines.append(f"**Detected Language:** {detected_language}")
+    transcript_lines.append("")
+    transcript_lines.append("## Transcription Content")
+    transcript_lines.append("")
+
+    # Convert raw dicts to a lightweight object-like interface expected by the merge logic.
+    class _Seg:
+        __slots__ = ("start", "end", "text")
+        def __init__(self, start: float, end: float, text: str):
+            self.start = start
+            self.end = end
+            self.text = text
+
+    all_segments = []
+    for s in raw_segments or []:
+        try:
+            start = float(s.get("start", 0.0) or 0.0)
+            end = float(s.get("end", start) or start)
+            text = str(s.get("text", "") or "")
+            all_segments.append(_Seg(start, end, text))
+        except Exception:
+            continue
+
+    sentences = _merge_segments_into_sentences(all_segments)
+    max_chars, max_dur = _paragraph_limits_for_language(detected_language)
+    paragraphs = _group_sentences_into_paragraphs_v2(
+        sentences,
+        max_chars=max_chars,
+        gap_seconds=2.0,
+        max_duration_seconds=max_dur,
+    )
+    for para in paragraphs:
+        start_time = Transcriber()._format_time(float(para["start"]))  # reuse existing formatting
+        transcript_lines.append(f"**[{start_time}]**")
+        # NOTE: A single '\n' is treated as a space in Markdown. Add a blank line so
+        # timestamp and text become separate blocks for readability.
+        transcript_lines.append("")
+        transcript_lines.append(para["text"])
+        transcript_lines.append("")
+
+    return "\n".join(transcript_lines)
+
 class Transcriber:
     """音频转录器，使用 OpenAI API 进行语音转文字"""
     
@@ -365,6 +512,16 @@ class Transcriber:
             
         Returns:
             转录文本（Markdown格式）
+        """
+        md, _, _ = await self.transcribe_with_raw(audio_path, language=language)
+        return md
+
+    async def transcribe_with_raw(self, audio_path: str, language: Optional[str] = None) -> tuple[str, str, str]:
+        """
+        Transcribe audio and also return a JSON payload of raw segments for future re-formatting.
+
+        Returns:
+            (markdown_text, raw_segments_json, detected_language)
         """
         try:
             # 检查文件是否存在
@@ -432,6 +589,14 @@ class Transcriber:
 
             logger.info(f"检测到的语言: {detected_language}")
             
+            raw_payload = {
+                "version": 1,
+                "model": self.model_name,
+                "language": detected_language,
+                "segments": _serialize_raw_segments(all_segments),
+            }
+            raw_json = json.dumps(raw_payload, ensure_ascii=False)
+
             # 组装转录结果
             transcript_lines = []
             transcript_lines.append("# Video Transcription")
@@ -446,11 +611,18 @@ class Transcriber:
             # 2) Safety-net split for overly long sentences (duration/words/segment count)
             # 3) Group sentences into paragraphs (time gap + char budget)
             sentences = _merge_segments_into_sentences(all_segments)
-            paragraphs = _group_sentences_into_paragraphs(sentences, max_chars=550, gap_seconds=2.0)
+            max_chars, max_dur = _paragraph_limits_for_language(detected_language)
+            paragraphs = _group_sentences_into_paragraphs_v2(
+                sentences,
+                max_chars=max_chars,
+                gap_seconds=2.0,
+                max_duration_seconds=max_dur,
+            )
 
             for para in paragraphs:
                 start_time = self._format_time(float(para["start"]))
                 transcript_lines.append(f"**[{start_time}]**")
+                transcript_lines.append("")
                 transcript_lines.append(para["text"])
                 transcript_lines.append("")
             
@@ -458,7 +630,7 @@ class Transcriber:
 
             logger.info("转录完成")
             
-            return transcript_text
+            return transcript_text, raw_json, detected_language
             
         except Exception as e:
             logger.error(f"转录失败: {str(e)}")

@@ -6,6 +6,10 @@ from supabase import create_client, Client
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# Pricing Constants
+FREE_LIMIT = 3
+PRO_LIMIT = 100
+
 class DBClient:
     def __init__(self):
         self.url = os.environ.get("SUPABASE_URL")
@@ -116,6 +120,19 @@ class DBClient:
             return None
         return response.data[0]
 
+    def get_output(self, output_id: str) -> Optional[Dict[str, Any]]:
+        """Fetch a task_output by ID."""
+        if not self.supabase:
+            return None
+        try:
+            response = self.supabase.table("task_outputs").select("*").eq("id", output_id).execute()
+            if not response.data:
+                return None
+            return response.data[0]
+        except Exception as e:
+            logger.error(f"Failed to fetch output {output_id}: {e}")
+            return None
+
     def get_task_outputs(self, task_id: str) -> List[Dict[str, Any]]:
         """Fetch all outputs for a task."""
         if not self.supabase:
@@ -140,3 +157,94 @@ class DBClient:
         except Exception as e:
             logger.error(f"Token validation failed: {e}")
             return None
+
+    def get_profile(self, user_id: str) -> Dict[str, Any]:
+        """Fetch user profile including credits and tier."""
+        if not self.supabase:
+            return None
+        response = self.supabase.table("profiles").select("*").eq("id", user_id).execute()
+        if not response.data:
+            # Create default profile if missing (Should be handled by trigger, but failsafe)
+            try:
+                data = {"id": user_id, "tier": "free", "usage_limit": 3}
+                self.supabase.table("profiles").insert(data).execute()
+                return data
+            except Exception as e:
+                logger.error(f"Failed to create profile: {e}")
+                return None
+        return response.data[0]
+
+    def check_and_consume_quota(self, user_id: str) -> bool:
+        """
+        Check if user has quota or credits. If yes, consume 1 and return True.
+        Priority:
+        1. Monthly usage (if usage_count < usage_limit)
+        2. Extra credits (if extra_credits > 0)
+        """
+        if not self.supabase:
+            return False
+
+        profile = self.get_profile(user_id)
+        if not profile:
+            return False
+
+        usage = profile.get("usage_count", 0)
+        limit = profile.get("usage_limit", 3)
+        extra = profile.get("extra_credits", 0)
+
+        # 1. Check Monthly Quota
+        if usage < limit:
+            try:
+                self.supabase.table("profiles").update({"usage_count": usage + 1}).eq("id", user_id).execute()
+                return True
+            except Exception as e:
+                logger.error(f"Failed to update usage: {e}")
+                return False
+
+        # 2. Check Extra Credits
+        if extra > 0:
+            try:
+                self.supabase.table("profiles").update({"extra_credits": extra - 1}).eq("id", user_id).execute()
+                return True
+            except Exception as e:
+                logger.error(f"Failed to update extra credits: {e}")
+                return False
+
+        return False
+
+    def add_credits(self, user_id: str, amount: int):
+        """Add one-time credits to a user."""
+        if not self.supabase:
+            return
+        
+        # We need atomic update, but supabase-py simplistic. 
+        # Using rpc would be better, but for now read-modify-write.
+        profile = self.get_profile(user_id)
+        if not profile:
+            return
+            
+        new_credits = profile.get("extra_credits", 0) + amount
+        self.supabase.table("profiles").update({"extra_credits": new_credits}).eq("id", user_id).execute()
+
+    def update_subscription(self, stripe_customer_id: str, tier: str, period_end: str):
+        """Update subscription status from Stripe Webhook."""
+        if not self.supabase:
+            return
+
+        # Map tier to limit
+        limit = 100 if tier == 'pro' else 3
+        
+        data = {
+            "tier": tier,
+            "usage_limit": limit,
+            "usage_count": 0, # Reset usage on new period
+            "period_end": period_end
+        }
+        
+        self.supabase.table("profiles").update(data).eq("stripe_customer_id", stripe_customer_id).execute()
+        
+    def link_stripe_customer(self, user_id: str, stripe_customer_id: str):
+        """Link a Stripe Customer ID to a user."""
+        if not self.supabase:
+            return
+        self.supabase.table("profiles").update({"stripe_customer_id": stripe_customer_id}).eq("id", user_id).execute()

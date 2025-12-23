@@ -63,4 +63,17 @@ export class ApiClient {
             body: JSON.stringify(data)
         });
     }
+
+    static async createCheckoutSession(priceId: string, token: string) {
+        const formData = new FormData();
+        formData.append("price_id", priceId);
+
+        return this.request("/api/create-checkout-session", {
+            method: "POST",
+            body: formData,
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        });
+    }
 }

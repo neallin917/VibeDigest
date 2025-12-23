@@ -2,14 +2,13 @@
 
 import { use, useState, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, FileText, Languages, PlayCircle, Subtitles, RotateCcw, Copy, Check } from "lucide-react"
+import { ArrowLeft, FileText, Languages, PlayCircle, Subtitles, Copy, Check } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { createClient } from "@/lib/supabase"
-import { ApiClient } from "@/lib/api"
 import ReactMarkdown from "react-markdown"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
@@ -85,17 +84,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
         }
     }, [id, supabase])
 
-    const handleRetry = async (outputId: string) => {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session) {
-            try {
-                await ApiClient.retryOutput(outputId, session.access_token)
-                alert(t("tasks.retryQueued"))
-            } catch (e: unknown) {
-                alert(e instanceof Error ? e.message : String(e))
-            }
-        }
-    }
+    // Retry is intentionally not exposed in the UI.
 
     if (!task) return <div className="p-10 text-center">{t("tasks.loadingTask")}</div>
 
@@ -211,14 +200,13 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                         <TabsContent value="script" className="mt-6">
                             <OutputCard
                                 output={script}
-                                onRetry={handleRetry}
                                 placeholder={t("tasks.scriptPlaceholder")}
                                 isScript={true}
                             />
                         </TabsContent>
 
                         <TabsContent value="summary" className="mt-6 space-y-4">
-                            <OutputCard output={summary} onRetry={handleRetry} placeholder={t("tasks.summaryPlaceholder")} />
+                            <OutputCard output={summary} placeholder={t("tasks.summaryPlaceholder")} />
                         </TabsContent>
 
                         <TabsContent value="translation" className="mt-6 space-y-4">
@@ -229,7 +217,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                                         <Languages className="h-4 w-4" />
                                         {t("tasks.translationTitle", { locale: (tr.locale || "").toUpperCase() })}
                                     </h3>
-                                    <OutputCard output={tr} onRetry={handleRetry} />
+                                    <OutputCard output={tr} />
                                 </div>
                             ))}
                         </TabsContent>
@@ -240,7 +228,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
     )
 }
 
-function OutputCard({ output, onRetry, placeholder, isScript = false }: { output?: Output, onRetry: (id: string) => void, placeholder?: string, isScript?: boolean }) {
+function OutputCard({ output, placeholder, isScript = false }: { output?: Output, placeholder?: string, isScript?: boolean }) {
     const { t } = useI18n()
     const [isCopied, setIsCopied] = useState(false)
 
@@ -275,9 +263,7 @@ function OutputCard({ output, onRetry, placeholder, isScript = false }: { output
             <Card className="bg-red-950/20 border-red-500/30">
                 <CardContent className="p-6 flex flex-col items-center gap-4 text-red-300">
                     <p>{t("tasks.failedToGenerate", { error: output.error_message || "" })}</p>
-                    <Button variant="outline" size="sm" onClick={() => onRetry(output.id)} className="gap-2">
-                        <RotateCcw className="h-4 w-4" /> {t("tasks.retrySegment")}
-                    </Button>
+                    <p className="text-sm text-red-200/80">{t("tasks.processingHint1")}</p>
                 </CardContent>
             </Card>
         )

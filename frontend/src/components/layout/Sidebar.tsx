@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { History, PlusCircle, Settings, LogOut } from "lucide-react"
+import { History, PlusCircle, Settings, LogOut, CreditCard } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase"
@@ -15,6 +15,7 @@ const sidebarItems = [
     { key: "nav.newTask", href: "/dashboard", icon: PlusCircle },
     { key: "nav.history", href: "/history", icon: History },
     { key: "nav.settings", href: "/settings", icon: Settings },
+    { key: "nav.pricing", href: "/settings/pricing", icon: CreditCard },
 ] as const
 
 export function Sidebar() {

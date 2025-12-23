@@ -47,6 +47,7 @@ const messages: Record<Locale, Messages> = {
       newTask: "New Task",
       history: "History",
       settings: "Settings",
+      pricing: "Pricing",
     },
     auth: {
       welcomeBack: "Welcome Back",
@@ -89,6 +90,49 @@ const messages: Record<Locale, Messages> = {
       language: "Language",
       languageHint: "Choose the UI language for this device.",
       comingSoon: "Settings features coming soon...",
+    },
+    pricing: {
+      title: "Plan",
+      subtitle: "You’re currently on a free plan. Select any of the plans or top-up options that fits your needs.",
+      free: {
+        title: "Basic",
+        price: "Free",
+        desc: "Try LongCut for free, no card required",
+        features: {
+          f1: "3 videos / month",
+          f2: "AI highlight reels",
+          f3: "Chat with transcripts",
+          f4: "Save notes",
+          f5: "Transcript translation"
+        }
+      },
+      pro: {
+        title: "Pro",
+        price: "$9.99",
+        annualPrice: "$8.33",
+        unit: "/ month",
+        desc: "Billed annually, get 2 months free",
+        features: {
+          f1: "100 videos / month",
+          f2: "Everything from basic",
+          f3: "Export transcripts"
+        },
+        button: "Upgrade",
+        manage: "Manage Subscription",
+        annual: "ANNUAL"
+      },
+      topup: {
+        title: "Top Up",
+        price: "$2.99",
+        desc: "Pay as you go, one-time payment",
+        features: {
+          f1: "20 videos per pack",
+          f2: "Never expires",
+          f3: "Use alongside any plan"
+        },
+        button: "Buy Credits"
+      },
+      currentPlan: "Current plan"
     },
     taskForm: {
       title: "New Transcription",
@@ -167,6 +211,7 @@ const messages: Record<Locale, Messages> = {
       newTask: "新任务",
       history: "历史记录",
       settings: "设置",
+      pricing: "方案",
     },
     auth: {
       welcomeBack: "欢迎回来",
@@ -203,6 +248,49 @@ const messages: Record<Locale, Messages> = {
       language: "界面语言",
       languageHint: "选择你偏好的界面语言",
       comingSoon: "更多设置即将推出...",
+    },
+    pricing: {
+      title: "方案",
+      subtitle: "您当前使用的是免费方案。请选择适合您的方案或充值包。",
+      free: {
+        title: "基础版",
+        price: "免费",
+        desc: "免费试用 LongCut，无需信用卡",
+        features: {
+          f1: "每月 3 个视频",
+          f2: "AI 精彩剪辑",
+          f3: "与字幕对话",
+          f4: "保存笔记",
+          f5: "字幕翻译"
+        }
+      },
+      pro: {
+        title: "专业版",
+        price: "$9.99",
+        annualPrice: "$8.33",
+        unit: "/ 月",
+        desc: "按年计费，赠送 2 个月",
+        features: {
+          f1: "每月 100 个视频",
+          f2: "包含基础版所有功能",
+          f3: "导出字幕"
+        },
+        button: "升级",
+        manage: "管理订阅",
+        annual: "年付"
+      },
+      topup: {
+        title: "充值包",
+        price: "$2.99",
+        desc: "即付即用，一次性付费",
+        features: {
+          f1: "每包 20 个视频",
+          f2: "永久有效",
+          f3: "可搭配任意方案使用"
+        },
+        button: "购买点数"
+      },
+      currentPlan: "当前方案"
     },
     taskForm: {
       title: "新建转写",
@@ -324,6 +412,49 @@ const messages: Record<Locale, Messages> = {
       language: "Idioma",
       languageHint: "Selecciona tu idioma preferido",
       comingSoon: "Más ajustes pronto...",
+    },
+    pricing: {
+      title: "Planes",
+      subtitle: "Actualmente estás en un plan gratuito. Selecciona cualquiera de los planes u opciones de recarga que se adapten a tus necesidades.",
+      free: {
+        title: "Básico",
+        price: "Gratis",
+        desc: "Prueba LongCut gratis, sin tarjeta",
+        features: {
+          f1: "3 videos / mes",
+          f2: "Resúmenes destacados con IA",
+          f3: "Chat con transcripciones",
+          f4: "Guardar notas",
+          f5: "Traducción de transcripciones"
+        }
+      },
+      pro: {
+        title: "Pro",
+        price: "$9.99",
+        annualPrice: "$8.33",
+        unit: "/ mes",
+        desc: "Facturado anualmente, 2 meses gratis",
+        features: {
+          f1: "100 videos / mes",
+          f2: "Todo lo del plan básico",
+          f3: "Exportar transcripciones"
+        },
+        button: "Mejorar plan",
+        manage: "Gestionar suscripción",
+        annual: "ANUAL"
+      },
+      topup: {
+        title: "Recarga",
+        price: "$2.99",
+        desc: "Paga lo que usas, pago único",
+        features: {
+          f1: "20 videos por paquete",
+          f2: "Nunca caduca",
+          f3: "Úsalo junto con cualquier plan"
+        },
+        button: "Comprar créditos"
+      },
+      currentPlan: "Plan actual"
     },
     tasks: {
       urlPlaceholder: "Pega enlace de YouTube, Bilibili...",
@@ -943,6 +1074,49 @@ const messages: Record<Locale, Messages> = {
       languageHint: "表示言語を選択してください",
       comingSoon: "その他の設定は近日公開...",
     },
+    pricing: {
+      title: "プラン",
+      subtitle: "現在、無料プランをご利用中です。ニーズに合ったプランやチャージオプションを選択してください。",
+      free: {
+        title: "ベーシック",
+        price: "無料",
+        desc: "LongCutを無料で試す（カード不要）",
+        features: {
+          f1: "毎月動画3本まで",
+          f2: "AIハイライトリール",
+          f3: "字幕とのチャット",
+          f4: "ノートの保存",
+          f5: "字幕翻訳"
+        }
+      },
+      pro: {
+        title: "プロ",
+        price: "$9.99",
+        annualPrice: "$8.33",
+        unit: "/ 月",
+        desc: "年払い（2ヶ月分無料）",
+        features: {
+          f1: "毎月動画100本まで",
+          f2: "ベーシックプランの全機能",
+          f3: "字幕のエクスポート"
+        },
+        button: "アップグレード",
+        manage: "サブスクリプション管理",
+        annual: "年払い"
+      },
+      topup: {
+        title: "チャージ",
+        price: "$2.99",
+        desc: "必要な分だけ購入（買い切り）",
+        features: {
+          f1: "1パック20本分",
+          f2: "有効期限なし",
+          f3: "どのプランでも併用可能"
+        },
+        button: "クレジットを購入"
+      },
+      currentPlan: "現在のプラン"
+    },
     tasks: {
       urlPlaceholder: "動画リンクを入力...",
       processing: "処理中",
@@ -1030,6 +1204,49 @@ const messages: Record<Locale, Messages> = {
       languageHint: "선호하는 언어를 선택하세요",
       comingSoon: "더 많은 설정이 곧 제공됩니다...",
     },
+    pricing: {
+      title: "요금제",
+      subtitle: "현재 무료 요금제를 사용 중입니다. 필요에 맞는 요금제나 충전 옵션을 선택하세요.",
+      free: {
+        title: "베이직",
+        price: "무료",
+        desc: "LongCut 무료 체험 (카드 불필요)",
+        features: {
+          f1: "매월 동영상 3개",
+          f2: "AI 하이라이트 릴",
+          f3: "대본과 채팅",
+          f4: "노트 저장",
+          f5: "대본 번역"
+        }
+      },
+      pro: {
+        title: "프로",
+        price: "$9.99",
+        annualPrice: "$8.33",
+        unit: "/ 월",
+        desc: "연간 결제 (2개월 무료)",
+        features: {
+          f1: "매월 동영상 100개",
+          f2: "베이직의 모든 기능",
+          f3: "대본 내보내기"
+        },
+        button: "업그레이드",
+        manage: "구독 관리",
+        annual: "연간"
+      },
+      topup: {
+        title: "충전",
+        price: "$2.99",
+        desc: "필요한 만큼 구매 (일회성 결제)",
+        features: {
+          f1: "팩당 동영상 20개",
+          f2: "만료 없음",
+          f3: "모든 요금제와 함께 사용 가능"
+        },
+        button: "크레딧 구매"
+      },
+      currentPlan: "현재 요금제"
+    },
     tasks: {
       urlPlaceholder: "비디오 링크 입력...",
       processing: "처리 중",
@@ -1073,7 +1290,7 @@ const messages: Record<Locale, Messages> = {
   },
 }
 
-function resolvePath(obj: Messages, key: string): string | undefined {
+function resolvePath(obj: Messages, key: string): MessageValue | undefined {
   const parts = key.split(".").filter(Boolean)
   let cur: MessageValue = obj
   for (const p of parts) {
@@ -1081,7 +1298,7 @@ function resolvePath(obj: Messages, key: string): string | undefined {
     cur = (cur as Messages)[p]
     if (cur === undefined) return undefined
   }
-  return typeof cur === "string" ? cur : undefined
+  return cur
 }
 
 function format(template: string, vars?: Record<string, string | number>): string {
@@ -1114,9 +1331,15 @@ export function getBestLocaleFromNavigator(navigatorLanguage?: string | null): L
 export function createTranslator(locale: Locale) {
   return (key: string, vars?: Record<string, string | number>) => {
     const primary = resolvePath(messages[locale], key)
-    if (primary) return format(primary, vars)
+    if (primary !== undefined) {
+      if (typeof primary === 'string') return format(primary, vars)
+      return primary as any
+    }
     const fallback = resolvePath(messages[DEFAULT_LOCALE], key)
-    if (fallback) return format(fallback, vars)
+    if (fallback !== undefined) {
+      if (typeof fallback === 'string') return format(fallback, vars)
+      return fallback as any
+    }
     return key
   }
 }

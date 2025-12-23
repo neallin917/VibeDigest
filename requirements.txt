@@ -9,3 +9,5 @@ aiofiles>=24.1.0
 supabase>=2.0.0
 pydub>=0.25.1
 resend>=0.17.0
+
+stripe>=8.0.0

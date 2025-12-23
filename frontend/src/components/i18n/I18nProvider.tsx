@@ -14,7 +14,7 @@ const STORAGE_KEY = "vd.locale"
 type I18nContextValue = {
   locale: Locale
   setLocale: (locale: Locale) => void
-  t: (key: string, vars?: Record<string, string | number>) => string
+  t: (key: string, vars?: Record<string, string | number>) => any
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null)

@@ -101,6 +101,10 @@ docker-compose -f docker-compose.test.yml up -d
 ### 3.3 Database (Supabase)
 *   **Role**: Single Source of Truth for task state.
 *   **Realtime**: Enabled for `tasks` and `task_outputs` tables.
+*   **Pricing**: `profiles` table tracks credits/usage. (New in v3.3)
+    *   `tier`: 'free' | 'pro'
+    *   `usage_count`: Monthly resets
+    *   `extra_credits`: Top-up packs
 
 ---
 
