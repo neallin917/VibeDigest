@@ -1,4 +1,4 @@
-# AGENTS.md — VibeDigest Architecture & Vibe Coding Guide (v3.2)
+# AGENTS.md — VibeDigest Architecture & Vibe Coding Guide (v3.3)
 
 > **Note to AI Agents**: This document is the Single Source of Truth for the project's architecture. Before writing code, READ this file. If you make architectural changes, UPDATE this file.
 
@@ -17,9 +17,10 @@ VibeDigest is a full-stack tool engineered to download videos, transcribe audio,
 ### 1.1 Directory Structure & File Placement
 
 - `backend/`: **Backend Source** (Python)
-    - `main.py`: FastAPI entry point.
-    - `db_client.py`: Supabase Service Role interactions.
+    - `main.py`: FastAPI entry point (Control Plane).
+    - `db_client.py`: Supabase Service Role interactions (Data Plane).
     - `transcriber.py`: OpenAI Whisper Integration + `pydub` Chunking.
+    - `notifier.py`: Email notifications via Resend.
     - `*.py`: Stateless processors (yt-dlp).
 - `frontend/`: **Frontend Source** (Next.js/TypeScript)
     - `src/app/`: App Router pages.
@@ -30,59 +31,140 @@ VibeDigest is a full-stack tool engineered to download videos, transcribe audio,
     - `src/middleware.ts`: Auth Gatekeeper.
     - `src/components/ui/`: Reusable UI components (Button, Card, etc.).
     - `src/lib/`: Utilities (`utils.ts`), API clients (`api.ts`), Supabase client (`supabase.ts`).
-- `scripts/`: Utility scripts (e.g., `start.py`).
+- `scripts/`: Utility scripts.
+    - `start.py`: Production runner script.
 - `requirements.txt`: Python dependencies.
 - `frontend/package.json`: Node.js dependencies.
 
 ---
 
-## 2. Technology Stack
+## 2. Key Commands
 
-### 2.1 Frontend (Thick Client)
+Quick reference for common development and deployment operations.
+
+### Frontend
+```bash
+# Start Development Server (Next.js)
+npm run dev
+
+# Run Line/Static Analysis
+npm run lint
+
+# Build for Production
+npm run build
+```
+
+### Backend (Python)
+*Note: All Python commands MUST be run with `uv`.*
+
+```bash
+# Start FastAPI Server Locally (Dev)
+uv run main.py
+
+# Start Production Worker Runner
+uv run scripts/start.py
+
+# Install/Sync Dependencies
+uv pip install -r requirements.txt
+```
+
+### Infrastructure (Docker)
+```bash
+# Start Full Stack (Traefik + Backend)
+docker-compose up -d
+
+# Rebuild Backend Container (Required after requirements change)
+docker-compose up --build -d transcriber-backend
+
+# Run Test Backend (Port 8001)
+docker-compose -f docker-compose.test.yml up -d
+```
+
+---
+
+## 3. Technology Stack
+
+### 3.1 Frontend (Thick Client)
 *   **Framework**: Next.js 14 (React 19, App Router).
 *   **Language**: TypeScript.
 *   **Styling**: TailwindCSS v4, `lucide-react` (icons), `clsx/tailwind-merge`.
 *   **Animations**: Framer Motion.
-*   **Auth**: 
-    *   **Web2**: Supabase Auth (Email OTP, Google OAuth).
-    *   **Web3**: Removed.
-*   **Data Fetching**: Supabase Client (Realtime) + Custom `ApiClient` for backend commands.
+*   **Auth**: Supabase Auth (Email OTP, Google OAuth).
+*   **Data Fetching**: Supabase Client (Realtime) + Custom `ApiClient` for commands.
 
-### 2.2 Routing & Middleware
-*   **Public Routes**: `/` (Landing), `/login`.
-*   **Protected Routes**: `/dashboard/*`.
-*   **Middleware**: Enforces session check.
-    *   No Session -> Redirect `/dashboard` to `/login`.
-    *   Has Session -> Redirect `/login` & `/` to `/dashboard`.
-
-### 2.3 Backend (Service Worker)
+### 3.2 Backend (Service Worker)
 *   **Framework**: FastAPI (Python 3.10+).
 *   **Role**: Stateless worker. **Triggered via HTTP**, writes state to Supabase.
-*   **Key Libs**: `openai`, `yt-dlp`, `pydub`.
-*   **Audio Processing**: Automatic chunking for files > 25MB.
-*   **Package Manager**: `uv` (Required). All Python commands MUST be run with `uv run`.
-*   **Docker**: If running in Docker, you MUST rebuild the container (`docker-compose up --build -d transcriber-backend`) after updating `requirements.txt`.
+*   **Key Libs**: `openai`, `yt-dlp`, `pydub`, `resend`.
+*   **Package Manager**: `uv` (Required).
 
-### 2.3 Database (Supabase)
+### 3.3 Database (Supabase)
 *   **Role**: Single Source of Truth for task state.
 *   **Realtime**: Enabled for `tasks` and `task_outputs` tables.
 
 ---
 
-## 3. Design System & Pattern ("The Vibe")
+## 4. Architecture & Core Application Flow
 
-### 3.1 Visual Language
+### 4.1 The "Control Plane vs. Data Plane" Model
+*   **Control Plane (HTTP)**: Frontend calls Python Backend (`POST /api/process-video`) to **start** work.
+*   **Data Plane (Realtime)**: Frontend subscribes to Supabase (`supabase.channel`) to **watch** work.
+*   **Rule**: Frontend **NEVER** waits for the HTTP response to update the UI. It waits for the **Database** to update via Realtime.
+
+### 4.2 Core Application Flow (Step-by-Step)
+
+1.  **Submission**:
+    *   User submits YouTube URL in `TaskForm`.
+    *   Frontend calls `ApiClient.processVideo()`.
+2.  **Scheduling**:
+    *   Backend `main.py` receives request.
+    *   Background Task spawned (`FastAPI.BackgroundTasks`).
+    *   Immediate HTTP 200 OK returned with `task_id`.
+3.  **Processing (Async)**:
+    *   Worker checks Supabase: Is this video already done?
+    *   If New:
+        *   Sets `tasks.status = 'processing'`.
+        *   Downloads audio (`yt-dlp`).
+        *   Transcribes (`OpenAI Whisper`).
+        *   Generates Summary (`OpenAI ChatCompletion`).
+    *   If Cached:
+        *   Skips processing, returns existing `output_id`.
+4.  **Completion & Notification**:
+    *   Worker updates `tasks.status = 'completed'` and inserts `task_outputs`.
+    *   Worker triggers `notifier.py` to send email (if enabled).
+5.  **UI Update**:
+    *   Supabase Realtime pushes change to Frontend.
+    *   Frontend updates `TaskCard` from "Processing" to "Done".
+
+### 4.3 Core Data Models
+**Table: `tasks`**
+*   `id` (UUID): Primary Key.
+*   `user_id` (UUID): Owner.
+*   `video_url` (Text): Input.
+*   `status` (Enum): `pending` | `processing` | `completed` | `failed`.
+*   `is_deleted` (Boolean): Soft delete flag (default `false`).
+
+**Table: `task_outputs`**
+*   `id` (UUID): Primary Key.
+*   `task_id` (UUID): FK to `tasks`.
+*   `transcript` (JSON): Full transcription segments.
+*   `summary` (Text): AI generated summary.
+
+---
+
+## 5. Design System & Pattern ("The Vibe")
+
+### 5.1 Visual Language
 *   **Theme**: Deep Dark (`#1C1C1C` background).
 *   **Accents**: Emerald Green (`#3ECF8E`) for primary actions/success.
 *   **Surfaces**: "Glass" effect (Black with 20-40% opacity + blur).
 *   **Borders**: Subtle white opacity (`border-white/10`).
 
-### 3.2 Component Pattern
+### 5.2 Component Pattern
 *   **Atomic Design**: Small, reusable components in `src/components/ui/`.
-*   **Composition**: Use `children` prop for layout containers (Cards, Layouts).
+*   **Composition**: Use `children` prop for layout containers.
 *   **Styling**: Use `cn()` utility to merge Tailwind classes.
     ```tsx
-    // Example
     export function Button({ className, ...props }) {
       return <button className={cn("bg-primary text-white", className)} {...props} />
     }
@@ -90,194 +172,95 @@ VibeDigest is a full-stack tool engineered to download videos, transcribe audio,
 
 ---
 
-## 4. Coding Patterns & Standards (Strict Alignment)
+## 6. Coding Patterns & Standards (Strict Alignment)
 
-To ensure consistency, all Agents MUST follow these implementation patterns.
-
-### 4.1 Next.js Architecture Bounds (CRITICAL)
-Due to the App Router's Server-First nature, we enforce these boundaries:
-
+### 6.1 Next.js Architecture Bounds
 1.  **Client Components (`"use client"`)**:
-    *   **MUST** be used for:
-        *   Files using `createClient` (from `@/lib/supabase`).
-        *   Files using `ApiClient` (interactivity).
-        *   Realtime Subscriptions (`supabase.channel`).
-        *   Event Handlers (`onClick`, `onSubmit`).
-    *   **Rule**: If you import `react` hooks (`useState`, `useEffect`), you MUST add `"use client"` at the top.
-
+    *   Required for: `createClient` (Supabase), `ApiClient`, `useState`, `useEffect`.
 2.  **Server Components (Default)**:
-    *   **MUST NOT** import `@/lib/supabase` (It is a Browser Client).
-    *   **MUST NOT** use `ApiClient` (It relies on browser `fetch` / cookies).
-    *   **Usage**: Use Server Components *only* for static layout shell or initial data fetching if we implement `@supabase/ssr` Server Client (Not yet implemented in v3.1). **Currently, most Logic is Client-Side.**
+    *   Used only for static shells/layouts.
+    *   **MUST NOT** import `@/lib/supabase` (Browser Client).
 
-### 4.2 Frontend Component Pattern
+### 6.2 Frontend Component Pattern
 *   **Library**: `class-variance-authority` (CVA) + `clsx` + `tailwind-merge`.
-*   **Structure**:
-    ```tsx
-    // 1. Define Variants
-    const buttonVariants = cva("base-classes", {
-        variants: { variant: { default: "...", supa: "..." } }
-    })
-    
-    // 2. Export Component
-    export const Button = forwardRef(({ className, variant, ...props }, ref) => (
-        <button className={cn(buttonVariants({ variant }), className)} ref={ref} {...props} />
-    ))
-    ```
-*   **Rule**: Do not write raw tailwind classes for variant logic inside the generic component body. Use CVA.
+*   **Rule**: Do not write raw tailwind classes for variant logic. Use CVA.
 
-### 4.3 Data Fetching Pattern
-*   **Command (Write)**: Use `ApiClient` (Static Class).
-    *   Path: `src/lib/api.ts`
-    *   Usage: `await ApiClient.processVideo(...)`
-    *   Context: Used for triggering backend actions (POST).
-*   **Query (Read)**: Use `Supabase Client` (Realtime).
-    *   Path: `src/lib/supabase.ts`
-    *   Usage: `supabase.from('tasks').select('*')` or `.channel().on(...)`
-    *   Context: Used for fetching state and listening to updates.
-*   **Rule**: **Separation of Concerns**. Never use `ApiClient` to poll for status. Never use `Supabase` to trigger compute jobs (compute queues excepted, but here we use direct API).
+### 6.3 Data Fetching Pattern
+*   **Command (Write)**: `ApiClient` (`src/lib/api.ts`).
+*   **Query (Read)**: `Supabase Client` (`src/lib/supabase.ts`).
+*   **Rule**: **Separation of Concerns**. Never use `ApiClient` to poll. Never use `Supabase` to trigger compute.
 
-### 4.4 i18n (Multi-Language UI) Pattern
-We implement **client-side i18n** (App Router friendly, thick-client aligned):
-
-*   **Source of Truth**: `frontend/src/lib/i18n.ts` (supported locales + dictionaries + translator).
-*   **Provider**: `frontend/src/components/i18n/I18nProvider.tsx` is mounted inside the global `Providers` wrapper (`frontend/src/components/providers.tsx`).
-*   **Usage** (Client Components only):
-    *   `const { t, locale, setLocale } = useI18n()`
-    *   Use keys like `t("dashboard.title")` and interpolate via `t("auth.signInToContinue", { appName: "VibeDigest" })`.
-*   **Adding New Strings**:
-    *   Add a key under `messages.en` and provide equivalents for **all locales** in `SUPPORTED_LOCALES`.
-    *   Missing keys fall back to `en`; if still missing, the key itself is rendered (debug-friendly).
-*   **Persistence**:
-    *   Locale is stored in `localStorage` (`vd.locale`) and applied to `<html lang="...">`.
-    *   For Arabic (`ar`) we also set `<html dir="rtl">`.
-
-*   **Language UI**:
-    *   Reusable dropdown: `frontend/src/components/i18n/LanguageDropdown.tsx`
-    *   Settings section: `frontend/src/components/i18n/LanguageSelect.tsx` (used in `frontend/src/app/(main)/settings/page.tsx`)
-    *   Public pages: `frontend/src/components/i18n/LanguageInlineSelect.tsx` (Landing/Login top-right)
-    *   **Task Form Sync**: The `TaskForm` automatically initializes its target translation language to match the current system UI locale (`useI18n().locale`). This ensures a seamless "What you see is what you get" experience for users.
-
-### 4.5 Task Submission UI Pattern
-*   **Split Layout**: Task configuration is split into distinct visual groups to avoid ambiguity:
-    *   **Features**: Checkboxes (e.g., Summary).
-    *   **Translation**: Radio buttons (Single Select) for target language.
-*   **Behavior**: content is separate from controls.
-
+### 6.4 i18n (Multi-Language UI)
+*   **Client-Side Strategy**: `src/lib/i18n.ts`.
+*   **Usage**: `const { t } = useI18n()`.
+*   **Persistence**: `localStorage` (`vd.locale`).
+*   **Fallback**: English (`en`).
 
 ---
 
-## 5. Architecture & Data Flow
+## 7. Concurrency & Deployment Model
 
-### 5.1 The "Control Plane vs. Data Plane" Model
-*   **Control Plane (HTTP)**: Frontend calls Python Backend (`POST /api/process-video`) to **start** work.
-*   **Data Plane (Realtime)**: Frontend subscribes to Supabase (`supabase.channel`) to **watch** work.
-*   **Rule**: Frontend **NEVER** waits for the HTTP response to update the UI. It waits for the **Database** to update via Realtime.
-
-### 5.2 State Machine (Database)
-The database schema (`tasks`, `task_outputs`) remains the authoritative state.
-*   `tasks.status`: `pending` -> `processing` -> `completed` | `error`
-*   **Updates**: Only the Backend (via `db_client.py`) can write to these tables. Frontend has **Read-Only** access.
-
----
-
-## 6. Concurrency & Deployment Model
-
-### 6.1 Backend Worker Model
+### 7.1 Backend Worker Logic
 *   **Type**: HTTP Triggered Worker (Push Model).
-*   **Mechanism**: `POST /api/process-video` -> FastAPI `BackgroundTasks`.
-*   **Scaling**: Support for **Horizontal Scaling** (Multi-Instance). Each request spawns an async task.
+*   **Concurrency**: Controlled by Database Locking (`tasks.status`).
+    *   `pending` -> `processing` transition is the atomic lock.
 
-### 6.2 Concurrency via Database
-*   **Constraint**: The Database (`tasks.status`) is the **only logic lock**.
-*   **Guarantee**: `pending` state is the only valid entry point for a worker. The first worker to update status to `processing` locks the task.
-### 6.3 Deployment Architecture (Hybrid Cloud)
-*   **Frontend (Vercel)**:
-    *   **Domain**: `vibedigest.neallin.xyz` (or similar).
-    *   **Role**: Serves the Next.js UI via global Edge Network.
-    *   **Config**: `NEXT_PUBLIC_API_URL` -> `https://transcriber.neallin.xyz`.
-*   **Backend (Home Lab / Mac Mini)**:
-    *   **Domain**: `transcriber.neallin.xyz`.
-    *   **Access**: Exposed via **Cloudflare Tunnel** (cloudflared).
-    *   **Routing**: Tunnel -> Traefik (Docker) -> Docker Internal DNS -> Backend Container.
-    *   **Container**: `transcriber-backend` (Python 3.11, Port 8000).
-    *   **Traefik Integration**: Auto-discovered via Docker labels (`traefik.enable=true`).
+### 7.2 Hybrid Deployment
+*   **Frontend**: Vercel (Global Edge).
+*   **Backend**: Home Lab / Mac Mini (Cloudflare Tunnel).
+    *   Exposed via `cloudflared` -> Traefik -> Docker Container.
 
-
+### 7.3 Environment Separation
+*   **Production**: `vibedigest.neallin.xyz` (Prod DB).
+*   **Development**: `localhost` or Preview URL (Dev DB).
+*   **Rule**: "Prod is Sacred". Never test against Prod DB.
 
 ---
 
-## 7. Identity & Authentication
+## 8. Identity & Secrets Management
 
-### 7.1 The "Single Identity Source" Rule
-*   **Source of Truth**: The `auth.users` table in Supabase.
-*   **Web3 Deprecation**: Wallet login is **disabled**. Do not re-enable without a full SIWE implementation plan.
+### 8.1 Authentication
+*   **Source of Truth**: Supabase `auth.users`.
+*   **Web3**: Disabled.
+*   **Validation**: Backend validates `Authorization: Bearer <JWT>` header.
 
-### 7.2 Identity Merging Policy
-*   **Strict Isolation**: **Email Account != Wallet Account**.
-*   **No Auto-Merge**: System MUST NOT automatically link a wallet to an email user based on inference. Merging must be explicit and authenticated (Feature Pending).
-*   **Risk**: Auto-merging leads to account hijacking if a wallet is compromised or shared.
-
----
-
-## 8. Secrets Management (Expanded)
-
-### 8.1 Critical Secrets (Backend Only)
-*   `SUPABASE_SERVICE_KEY`: Grants `service_role` (Admin) access.
-    *   **Location**: `backend/.env` ONLY.
-    *   **Usage**: Used by `db_client.py` to write updates to `tasks`.
-    *   **Risk**: If leaked, attacker can wipe database. **NEVER commit to Git.**
-*   `OPENAI_API_KEY`: Required for transcription and summarization.
-    *   **Location**: `backend/.env`.
-
-### 8.2 Public Config (Frontend)
-*   `NEXT_PUBLIC_SUPABASE_URL`: API Endpoint.
-*   `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Public Client Key.
-    *   **Location**: `frontend/.env.local`.
-    *   **Usage**: Used by `@/lib/supabase` for Realtime and valid RLS queries.
-    *   **Safety**: Safe to expose in browser (protected by RLS).
-*   `NEXT_PUBLIC_API_URL`: Backend Public URL.
-    *   **Location**: `frontend/.env.local` (Local) / Vercel Env Vars (Prod).
-    *   **Value**: `http://localhost:8000` (Local) / `https://transcriber.neallin.xyz` (Prod).
-
-
-### 8.3 Token Validation
-*   **Rule**: The Backend must never trust `user_id` passed in the HTTP Body.
-*   **Mechanism**: Backend **MUST** validate the `Authorization: Bearer <JWT>` header using Supabase Auth to derive the true `user_id`.
+### 8.2 Secrets Reference
+| Secret | Location | Purpose | Safety |
+| :--- | :--- | :--- | :--- |
+| `SUPABASE_SERVICE_KEY` | Backend `.env` | Admin DB Access | **CRITICAL (Private)** |
+| `OPENAI_API_KEY` | Backend `.env` | AI Generation | **CRITICAL (Private)** |
+| `RESEND_API_KEY` | Backend `.env` | Email Sending | **CRITICAL (Private)** |
+| `NEXT_PUBLIC_SUPABASE_URL` | Frontend `.env` | Public API URL | Public |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Frontend `.env` | Public Client Key | Public |
 
 ---
 
-## 9. API Contract (Minimal Principle)
+## 9. API Contract
 
-### 9.1 Core Endpoints
-*   `POST /api/process-video`:
-    *   **Input**: `video_url`, `summary_language`, `translate_targets`.
-    *   **Output**: `task_id` (Immediate acknowledgment).
-    *   **Behavior**: Spawns background task. Does **NOT** wait for completion.
-*   `POST /api/retry-output`:
-    *   **Input**: `output_id`.
-    *   **Output**: `message` (Queued).
+### Core Endpoints
+*   `POST /api/process-video`: Start video processing.
+    *   Input: `{ video_url, language, ... }`
+*   `POST /api/retry-output`: Retry failed task.
 
-### 9.2 Non-Existent Endpoints
-*   **NO** `GET /api/tasks`: Frontend reads from Supabase directly.
-*   **NO** `GET /api/status`: Frontend reads from Supabase Realtime.
-*   **NO** `DELETE /api/tasks`: Frontend calls Supabase (subject to RLS).
+### Forbidden Patterns
+*   **NO** `GET /api/status`: Use Supabase Realtime.
+*   **NO** `DELETE /api/tasks`: Use Supabase Client (Soft Delete `is_deleted=true`).
 
 ---
 
-## 10. Implementation Rules for Agents
+## 10. Implementation Rules
 
-1.  **Adding UI**: Check `src/components/ui` first. Do not hardcode CSS if a component exists (Card, Button, Badge).
-2.  **New Page**: Create `page.tsx` in `src/app/`. Use `layout.tsx` for shared persistence.
-3.  **Backend Changes**: If modifying `main.py`, ensure `db_client.py` handles the DB logic. Keep `main.py` control-focused.
-4.  **Formatting**: Run `npm run lint` for frontend changes.
+1.  **Adding UI**: Check `src/components/ui` first.
+2.  **New Page**: Create `page.tsx` in `src/app/`.
+3.  **Backend Changes**: `main.py` = Control; `db_client.py` = Data.
+4.  **Formatting**: Run `npm run lint` before commit.
 
 ---
 
-## 11. Roadmap & Status
+## 11. Roadmap
 
-*   [x] **Next.js Migration**: Completed.
-*   [x] **OpenAI Backend Migration**: Completed (v3.2).
-*   [x] **Login Page**: Restored (Email/Google).
-*   [x] **Web3 Support**: Removed (v3.1).
-*   [x] **Cloud Deployment**: Hybrid (Vercel Frontend + Home Lab Backend).
+*   [x] **Next.js Migration**
+*   [x] **OpenAI Backend Migration**
+*   [x] **Email Notifications (Resend)**
+*   [ ] **Vector Search (Embeddings)**
+*   [ ] **Stripe Integration**

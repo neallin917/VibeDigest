@@ -310,29 +310,7 @@ async def update_task_title(
         
     return {"status": "success"}
 
-@app.delete("/api/tasks/{task_id}")
-async def delete_task_endpoint(
-    task_id: str,
-    user_id: str = Depends(get_current_user)
-):
-    """
-    Delete a task.
-    Secure endpoint: checks ownership.
-    """
-    # 1. Verify Ownership
-    task = db_client.get_task(task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    
-    if task['user_id'] != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
 
-    # 2. Delete
-    success = db_client.delete_task(task_id)
-    if not success:
-        raise HTTPException(status_code=500, detail="Delete failed")
-        
-    return {"status": "success"}
 
 if __name__ == "__main__":
     import uvicorn

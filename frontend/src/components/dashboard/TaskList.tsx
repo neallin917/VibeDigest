@@ -57,6 +57,7 @@ export function TaskList() {
             .from('tasks')
             .select('*')
             .eq('user_id', uid)
+            .eq('is_deleted', false)
             .order('created_at', { ascending: false })
 
         if (data) setTasks(data)
@@ -136,15 +137,20 @@ export function TaskList() {
         // We can just keep modal open until done.
 
         try {
-            const token = await getToken()
-            if (!token) throw new Error("No token")
+            // Soft delete via Supabase directly
+            const { error } = await supabase
+                .from('tasks')
+                .update({ is_deleted: true })
+                .eq('id', taskId)
 
-            await ApiClient.deleteTask(taskId, token)
+            if (error) throw error
+
+            // await ApiClient.deleteTask(taskId, token)
             setTasks(tasks.filter(t => t.id !== taskId))
             setDeleteConfirmation({ isOpen: false, taskId: null })
         } catch (error) {
             console.error('Error deleting task:', error)
-            alert(t("tasks.deleteError"))
+            alert(t("tasks.deleteError") + ": " + (error instanceof Error ? error.message : JSON.stringify(error)))
             // Ideally also close on error or show error in modal
             setDeleteConfirmation({ isOpen: false, taskId: null })
         } finally {

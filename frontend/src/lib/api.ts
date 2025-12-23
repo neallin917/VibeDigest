@@ -40,14 +40,7 @@ export class ApiClient {
         });
     }
 
-    static async deleteTask(taskId: string, token: string) {
-        return this.request(`/api/tasks/${taskId}`, {
-            method: "DELETE",
-            headers: {
-                "Authorization": `Bearer ${token}`
-            }
-        });
-    }
+
 
     static async updateTaskTitle(taskId: string, title: string, token: string) {
         return this.request(`/api/tasks/${taskId}`, {
