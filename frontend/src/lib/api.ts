@@ -39,4 +39,35 @@ export class ApiClient {
             }
         });
     }
+
+    static async deleteTask(taskId: string, token: string) {
+        return this.request(`/api/tasks/${taskId}`, {
+            method: "DELETE",
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        });
+    }
+
+    static async updateTaskTitle(taskId: string, title: string, token: string) {
+        return this.request(`/api/tasks/${taskId}`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ video_title: title })
+        });
+    }
+
+    static async submitFeedback(data: { category: string; message: string; contact_email?: string }, token: string) {
+        return this.request("/api/feedback", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+        });
+    }
 }

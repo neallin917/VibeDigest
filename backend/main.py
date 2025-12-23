@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, BackgroundTasks, Depends
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, BackgroundTasks, Depends, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -19,7 +19,9 @@ from video_processor import VideoProcessor
 from transcriber import Transcriber
 from summarizer import Summarizer
 from translator import Translator
+from translator import Translator
 from db_client import DBClient
+from pydantic import BaseModel
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
@@ -70,6 +72,11 @@ async def get_config():
         "supabase_url": os.getenv("SUPABASE_URL"),
         "supabase_key": os.getenv("SUPABASE_KEY")
     }
+
+class FeedbackModel(BaseModel):
+    category: str
+    message: str
+    contact_email: Optional[str] = None
 
 # -------------------------------------------------------------------------
 # API Endpoints
@@ -144,6 +151,22 @@ async def retry_output(
     background_tasks.add_task(handle_retry_output, output_id, user_id)
     
     return {"message": "Retry queued"}
+
+@app.post("/api/feedback")
+async def submit_feedback(
+    feedback: FeedbackModel,
+    user_id: str = Depends(get_current_user)
+):
+    """
+    Submit user feedback/complaint.
+    Currently logs to stdout/file.
+    """
+    logger.info(f"FEEDBACK [{feedback.category}] from {user_id}: {feedback.message} (Contact: {feedback.contact_email})")
+    
+    # In a real app, save to DB or send email
+    # db_client.save_feedback(...)
+    
+    return {"status": "received", "message": "Thank you for your feedback!"}
 
 # -------------------------------------------------------------------------
 # Background Workers
@@ -252,6 +275,55 @@ async def handle_retry_output(output_id: str, user_id: str):
     # if kind == 'script': re-run Download+Transcribe? (Expensive/Hard without URL).
     # if kind == 'summary': fetch task's script content -> re-run summarize.
     # if kind == 'translation': fetch task's script content -> re-run translate.
+
+@app.patch("/api/tasks/{task_id}")
+async def update_task_title(
+    task_id: str,
+    payload: dict = Body(...),
+    user_id: str = Depends(get_current_user)
+):
+    """
+    Update task details (title).
+    Secure endpoint: checks ownership.
+    """
+    # 1. Verify Ownership
+    task = db_client.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    if task['user_id'] != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # 2. Update
+    new_title = payload.get("video_title")
+    if new_title:
+        db_client.update_task_status(task_id, video_title=new_title)
+        
+    return {"status": "success"}
+
+@app.delete("/api/tasks/{task_id}")
+async def delete_task_endpoint(
+    task_id: str,
+    user_id: str = Depends(get_current_user)
+):
+    """
+    Delete a task.
+    Secure endpoint: checks ownership.
+    """
+    # 1. Verify Ownership
+    task = db_client.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    if task['user_id'] != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # 2. Delete
+    success = db_client.delete_task(task_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Delete failed")
+        
+    return {"status": "success"}
 
 if __name__ == "__main__":
     import uvicorn

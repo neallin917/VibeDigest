@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase"
 import { useI18n } from "@/components/i18n/I18nProvider"
+import { FeedbackDialog } from "./FeedbackDialog"
 
 const sidebarItems = [
     { key: "nav.newTask", href: "/dashboard", icon: PlusCircle },
@@ -60,6 +61,9 @@ export function Sidebar() {
                         {userEmail}
                     </div>
                 )}
+
+                <FeedbackDialog />
+
                 <Button
                     variant="ghost"
                     onClick={async () => {

@@ -42,11 +42,7 @@ export default function LandingPage() {
               {t("landing.getStarted")} <ArrowRight className="h-5 w-5" />
             </Button>
           </Link>
-          <Link href="https://github.com/your-repo">
-            <Button variant="outline" size="lg" className="h-12 px-8 text-lg border-white/10 hover:bg-white/5">
-              {t("landing.github")}
-            </Button>
-          </Link>
+
         </div>
 
         {/* Feature Grid */}
@@ -69,10 +65,7 @@ export default function LandingPage() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-white/5 py-8 text-center text-sm text-muted-foreground">
-        <p>{t("landing.footer")}</p>
-      </footer>
+
     </div>
   )
 }
