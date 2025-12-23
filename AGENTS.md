@@ -155,6 +155,14 @@ We implement **client-side i18n** (App Router friendly, thick-client aligned):
     *   Reusable dropdown: `frontend/src/components/i18n/LanguageDropdown.tsx`
     *   Settings section: `frontend/src/components/i18n/LanguageSelect.tsx` (used in `frontend/src/app/(main)/settings/page.tsx`)
     *   Public pages: `frontend/src/components/i18n/LanguageInlineSelect.tsx` (Landing/Login top-right)
+    *   **Task Form Sync**: The `TaskForm` automatically initializes its target translation language to match the current system UI locale (`useI18n().locale`). This ensures a seamless "What you see is what you get" experience for users.
+
+### 4.5 Task Submission UI Pattern
+*   **Split Layout**: Task configuration is split into distinct visual groups to avoid ambiguity:
+    *   **Features**: Checkboxes (e.g., Summary).
+    *   **Translation**: Radio buttons (Single Select) for target language.
+*   **Behavior**: content is separate from controls.
+
 
 ---
 

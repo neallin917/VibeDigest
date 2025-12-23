@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -9,23 +9,23 @@ import { Sparkles, Video } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 import { ApiClient } from "@/lib/api"
 import { useI18n } from "@/components/i18n/I18nProvider"
+import { SUPPORTED_LOCALES, LOCALE_LABEL } from "@/lib/i18n"
 
 export function TaskForm() {
     const [url, setUrl] = useState("")
     const [loading, setLoading] = useState(false)
     const router = useRouter()
     const supabase = createClient()
-    const { t } = useI18n()
+    const { t, locale } = useI18n()
 
     // Simple state for checkboxes
     const [summary, setSummary] = useState(true)
-    const [languages, setLanguages] = useState<string[]>([])
+    const [language, setLanguage] = useState<string>(locale)
 
-    const toggleLanguage = (lang: string) => {
-        setLanguages(prev =>
-            prev.includes(lang) ? prev.filter(l => l !== lang) : [...prev, lang]
-        )
-    }
+    // Sync task language with system locale changes
+    useEffect(() => {
+        setLanguage(locale)
+    }, [locale])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -48,9 +48,7 @@ export function TaskForm() {
             // We act as if 'summary' checkbox controls visibility or priority? 
             // For now, let's just stick to backend default which includes summary.
 
-            if (languages.length > 0) {
-                formData.append("translate_targets", JSON.stringify(languages))
-            }
+            formData.append("translate_targets", JSON.stringify([language]))
 
             const res = await ApiClient.processVideo(formData, session.access_token)
             console.log("Task Created:", res)
@@ -96,39 +94,39 @@ export function TaskForm() {
                         </Button>
                     </div>
 
-                    <div className="flex gap-4 text-sm text-muted-foreground">
-                        <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                            <input
-                                type="checkbox"
-                                className="accent-primary"
-                                checked={summary}
-                                onChange={(e) => setSummary(e.target.checked)}
-                            /> {t("taskForm.summary")}
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                            <input
-                                type="checkbox"
-                                className="accent-primary"
-                                checked={languages.includes("en")}
-                                onChange={() => toggleLanguage("en")}
-                            /> {t("taskForm.english")}
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                            <input
-                                type="checkbox"
-                                className="accent-primary"
-                                checked={languages.includes("zh")}
-                                onChange={() => toggleLanguage("zh")}
-                            /> {t("taskForm.chinese")}
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                            <input
-                                type="checkbox"
-                                className="accent-primary"
-                                checked={languages.includes("ja")}
-                                onChange={() => toggleLanguage("ja")}
-                            /> {t("taskForm.japanese")}
-                        </label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                        <div className="space-y-3">
+                            <div className="text-sm font-medium text-muted-foreground/80 uppercase tracking-wider text-xs">{t("taskForm.features")}</div>
+                            <div className="flex flex-wrap gap-4">
+                                <label className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors p-2 rounded-lg hover:bg-white/5 border border-transparent hover:border-white/10">
+                                    <input
+                                        type="checkbox"
+                                        className="accent-primary h-4 w-4 rounded"
+                                        checked={summary}
+                                        onChange={(e) => setSummary(e.target.checked)}
+                                    />
+                                    <span className="text-sm font-medium">{t("taskForm.summary")}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <div className="text-sm font-medium text-muted-foreground/80 uppercase tracking-wider text-xs">{t("taskForm.translateTo")}</div>
+                            <div className="flex flex-wrap gap-3">
+                                {SUPPORTED_LOCALES.map((localeKey) => (
+                                    <label key={localeKey} className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors p-2 rounded-lg hover:bg-white/5 border border-transparent hover:border-white/10">
+                                        <input
+                                            type="radio"
+                                            name="language"
+                                            className="accent-primary h-4 w-4"
+                                            checked={language === localeKey}
+                                            onChange={() => setLanguage(localeKey)}
+                                        />
+                                        <span className="text-sm font-medium">{LOCALE_LABEL[localeKey]}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </form>
             </CardContent>

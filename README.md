@@ -103,6 +103,7 @@ The system operates on a **Control Plane vs. Data Plane** model:
   - Source of truth: `frontend/src/lib/i18n.ts`
   - Hook: `useI18n()` from `frontend/src/components/i18n/I18nProvider.tsx`
   - If you add new UI strings, add keys in `messages.en` and provide translations for all supported locales.
+  - **Smart Defaults**: The "New Task" form automatically selects the translation target language matching your current UI language preference.
 
 ## 📄 License
 
