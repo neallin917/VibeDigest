@@ -21,6 +21,7 @@ from summarizer import Summarizer
 from translator import Translator
 from translator import Translator
 from db_client import DBClient
+from notifier import Notifier
 from pydantic import BaseModel
 
 # Configure Logging
@@ -48,7 +49,9 @@ video_processor = VideoProcessor()
 transcriber = Transcriber()
 summarizer = Summarizer()
 translator = Translator()
+translator = Translator()
 db_client = DBClient()
+notifier = Notifier()
 
 # Security Dependency
 async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
@@ -154,17 +157,23 @@ async def retry_output(
 
 @app.post("/api/feedback")
 async def submit_feedback(
+    background_tasks: BackgroundTasks,
     feedback: FeedbackModel,
     user_id: str = Depends(get_current_user)
 ):
     """
     Submit user feedback/complaint.
-    Currently logs to stdout/file.
     """
     logger.info(f"FEEDBACK [{feedback.category}] from {user_id}: {feedback.message} (Contact: {feedback.contact_email})")
     
-    # In a real app, save to DB or send email
-    # db_client.save_feedback(...)
+    # Send email in background
+    background_tasks.add_task(
+        notifier.send_feedback_email,
+        feedback.category,
+        feedback.message,
+        user_id,
+        feedback.contact_email
+    )
     
     return {"status": "received", "message": "Thank you for your feedback!"}
 

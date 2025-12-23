@@ -61,6 +61,7 @@ VibeDigest is a full-stack tool engineered to download videos, transcribe audio,
 *   **Key Libs**: `openai`, `yt-dlp`, `pydub`.
 *   **Audio Processing**: Automatic chunking for files > 25MB.
 *   **Package Manager**: `uv` (Required). All Python commands MUST be run with `uv run`.
+*   **Docker**: If running in Docker, you MUST rebuild the container (`docker-compose up --build -d transcriber-backend`) after updating `requirements.txt`.
 
 ### 2.3 Database (Supabase)
 *   **Role**: Single Source of Truth for task state.

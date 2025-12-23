@@ -55,7 +55,11 @@
     *Configure Environment*: Create `backend/.env` with:
     - `SUPABASE_URL`
     - `SUPABASE_SERVICE_KEY`
+    - `SUPABASE_SERVICE_KEY`
     - `OPENAI_API_KEY`
+    - `RESEND_API_KEY` (Optional, for Feedback emails)
+
+    > **Note**: If you update `requirements.txt`, run `docker-compose up --build -d transcriber-backend`.
 
 3.  **Frontend Setup**
     ```bash

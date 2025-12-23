@@ -136,6 +136,8 @@ const messages: Record<Locale, Messages> = {
       deleteTaskTitle: "Delete Task",
       cancel: "Cancel",
       confirm: "Yes",
+      copyToClipboard: "Copy as Markdown",
+      copied: "Copied!",
     },
     feedback: {
       title: "Send Feedback",
@@ -253,6 +255,8 @@ const messages: Record<Locale, Messages> = {
       deleteTaskTitle: "删除任务",
       cancel: "取消",
       confirm: "是",
+      copyToClipboard: "复制为 Markdown",
+      copied: "已复制！",
     },
     feedback: {
       title: "发送反馈",

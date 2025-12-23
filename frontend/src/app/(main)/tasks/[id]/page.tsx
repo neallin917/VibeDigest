@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, FileText, Languages, PlayCircle, Subtitles, RotateCcw } from "lucide-react"
+import { ArrowLeft, FileText, Languages, PlayCircle, Subtitles, RotateCcw, Copy, Check } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -197,6 +197,18 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
 function OutputCard({ output, onRetry, placeholder, isScript = false }: { output?: Output, onRetry: (id: string) => void, placeholder?: string, isScript?: boolean }) {
     const { t } = useI18n()
+    const [isCopied, setIsCopied] = useState(false)
+
+    const handleCopy = async () => {
+        if (!output?.content) return
+        try {
+            await navigator.clipboard.writeText(output.content)
+            setIsCopied(true)
+            setTimeout(() => setIsCopied(false), 2000)
+        } catch (err) {
+            console.error('Failed to copy:', err)
+        }
+    }
 
     if (!output) {
         return (
@@ -241,8 +253,19 @@ function OutputCard({ output, onRetry, placeholder, isScript = false }: { output
     }
 
     return (
-        <Card className="bg-black/20 border-white/5">
-            <CardContent className="p-8">
+        <Card className="bg-black/20 border-white/5 relative group">
+            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-2 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10"
+                    onClick={handleCopy}
+                >
+                    {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    {isCopied ? t("tasks.copied") : t("tasks.copyToClipboard")}
+                </Button>
+            </div>
+            <CardContent className="p-8 pt-10">
                 <div className="prose prose-invert prose-lg max-w-none prose-headings:text-primary prose-a:text-primary prose-strong:text-white prose-strong:font-bold">
                     <ReactMarkdown
                         components={{
