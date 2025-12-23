@@ -47,13 +47,10 @@
     cd ai-video-transcriber
     ```
 
-2.  **Backend Setup**
+2.  **Backend Setup (Docker)**
     ```bash
-    # Install uv if you haven't already
-    pip install uv
-
-    # Install dependencies
-    uv sync
+    # Ensure Docker Desktop is running
+    docker-compose up -d
     ```
     *Configure Environment*: Create `backend/.env` with:
     - `SUPABASE_URL`
@@ -73,9 +70,10 @@
 ### Usage
 
 1.  **Start the Backend Worker**
-    From the root directory:
+    The backend runs in the background via Docker.
+    To view logs:
     ```bash
-    uv run python scripts/start.py
+    docker logs -f transcriber-backend
     ```
 
 2.  **Launch the User Interface**

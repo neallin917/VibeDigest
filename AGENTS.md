@@ -190,8 +190,9 @@ The database schema (`tasks`, `task_outputs`) remains the authoritative state.
 *   **Backend (Home Lab / Mac Mini)**:
     *   **Domain**: `transcriber.neallin.xyz`.
     *   **Access**: Exposed via **Cloudflare Tunnel** (cloudflared).
-    *   **Routing**: Tunnel points `*.neallin.xyz` (or specific record) -> `localhost:8000`.
-    *   **No Traefik**: Current V3 setup runs natively (`uv run`) without Docker routing.
+    *   **Routing**: Tunnel -> Traefik (Docker) -> Docker Internal DNS -> Backend Container.
+    *   **Container**: `transcriber-backend` (Python 3.11, Port 8000).
+    *   **Traefik Integration**: Auto-discovered via Docker labels (`traefik.enable=true`).
 
 
 

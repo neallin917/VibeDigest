@@ -20,21 +20,30 @@ type I18nContextValue = {
 const I18nContext = createContext<I18nContextValue | null>(null)
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => {
+  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE)
+
+  // Hydrate locale: match server (default) first, then switch to user preference on client
+  useEffect(() => {
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY)
-      if (isLocale(stored)) return stored
-      return getBestLocaleFromNavigator(window.navigator.language)
+      if (isLocale(stored)) {
+        setLocaleState(stored)
+      } else {
+        const navigatorLocale = getBestLocaleFromNavigator(window.navigator.language)
+        if (navigatorLocale !== DEFAULT_LOCALE) {
+          setLocaleState(navigatorLocale)
+        }
+      }
     } catch {
-      return DEFAULT_LOCALE
+      // ignore
     }
-  })
+  }, [])
 
+  // Sync document attributes
   useEffect(() => {
     try {
       document.documentElement.lang = locale
       document.documentElement.dir = locale === "ar" ? "rtl" : "ltr"
-      window.localStorage.setItem(STORAGE_KEY, locale)
     } catch {
       // ignore
     }
@@ -42,6 +51,11 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next)
+    try {
+      window.localStorage.setItem(STORAGE_KEY, next)
+    } catch {
+      // ignore
+    }
   }, [])
 
   const t = useMemo(() => createTranslator(locale), [locale])

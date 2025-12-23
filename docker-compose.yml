@@ -1,0 +1,40 @@
+services:
+  transcriber-backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: transcriber-backend
+    restart: unless-stopped
+    # ---------------------------------------------------------
+    # AGILITY CONFIGURATION (DEV MODE)
+    # ---------------------------------------------------------
+    volumes:
+      # Sync source code instantly. Editing 'backend' folder updates container.
+      - ./backend:/app
+      # Persist downloads and temp if needed (or keep ephemeral)
+      - ./temp:/app/temp
+      - ./downloads:/app/downloads
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    # ---------------------------------------------------------
+    # ---------------------------------------------------------
+    env_file:
+      - ./backend/.env
+    environment:
+      # Overrides or additional vars if needed
+      - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-base}
+    networks:
+      - traefik
+
+    labels:
+      - "traefik.enable=true"
+      # Router
+      - "traefik.http.routers.transcriber.rule=Host(`transcriber.neallin.xyz`)"
+      - "traefik.http.routers.transcriber.entrypoints=web"
+      # TLS Removed: Cloudflare Tunnel terminates SSL -> sends HTTP to Traefik:80 (web)
+
+      # Service
+      - "traefik.http.services.transcriber.loadbalancer.server.port=8000"
+
+networks:
+  traefik:
+    external: true
