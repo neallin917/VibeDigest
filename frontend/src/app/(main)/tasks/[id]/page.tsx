@@ -13,6 +13,7 @@ import { ApiClient } from "@/lib/api"
 import ReactMarkdown from "react-markdown"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
+import { VideoEmbed } from "@/components/tasks/VideoEmbed"
 
 type Task = {
     id: string
@@ -117,7 +118,12 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                             <h1 className="text-2xl font-bold">{task.video_title || task.video_url}</h1>
                             <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                 <PlayCircle className="h-4 w-4" />
-                                <a href={task.video_url} target="_blank" className="hover:text-primary hover:underline truncate max-w-md block">
+                                <a
+                                    href={task.video_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="hover:text-primary hover:underline truncate max-w-md block"
+                                >
                                     {task.video_url}
                                 </a>
                             </div>
@@ -128,6 +134,9 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                     </div>
                 </CardHeader>
                 <CardContent>
+                    <div className="mb-6">
+                        <VideoEmbed videoUrl={task.video_url} title={task.video_title} />
+                    </div>
                     {(task.status === "processing" || task.status === "pending") && (
                         <div className="space-y-4 mb-8 p-6 bg-primary/5 rounded-xl border border-primary/10">
                             <div className="flex items-center gap-3">
