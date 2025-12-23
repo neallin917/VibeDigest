@@ -138,6 +138,8 @@ const messages: Record<Locale, Messages> = {
       confirm: "Yes",
       copyToClipboard: "Copy as Markdown",
       copied: "Copied!",
+      audioUnavailable: "Audio embed is unavailable.",
+      openOriginalLink: "Open original link",
     },
     feedback: {
       title: "Send Feedback",
@@ -257,6 +259,8 @@ const messages: Record<Locale, Messages> = {
       confirm: "是",
       copyToClipboard: "复制为 Markdown",
       copied: "已复制！",
+      audioUnavailable: "音频内嵌暂不可用，",
+      openOriginalLink: "点击打开原链接",
     },
     feedback: {
       title: "发送反馈",

@@ -13,12 +13,14 @@ import { ApiClient } from "@/lib/api"
 import ReactMarkdown from "react-markdown"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
-import { VideoEmbed } from "@/components/tasks/VideoEmbed"
+import { VideoEmbed, supportsVideoEmbed } from "@/components/tasks/VideoEmbed"
+import { AudioEmbed } from "@/components/tasks/AudioEmbed"
 
 type Task = {
     id: string
     video_url: string
     video_title: string
+    thumbnail_url?: string
     status: string
     progress: number
     created_at: string
@@ -26,7 +28,7 @@ type Task = {
 
 type Output = {
     id: string
-    kind: string // script, summary, translation
+    kind: string // script, summary, translation, audio
     locale?: string
     status: string
     progress: number
@@ -100,6 +102,28 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
     const script = outputs.find(o => o.kind === 'script')
     const summary = outputs.find(o => o.kind === 'summary')
     const translations = outputs.filter(o => o.kind === 'translation')
+    const audio = outputs.find(o => o.kind === 'audio')
+    const hasVideo = supportsVideoEmbed(task.video_url)
+
+    // audio.content can be either:
+    // - plain URL string (legacy)
+    // - JSON: { audioUrl: string, coverUrl?: string }
+    let audioUrl: string | null = null
+    let audioCoverUrl: string | undefined = task.thumbnail_url
+    if (audio?.content) {
+        const raw = audio.content.trim()
+        if (raw.startsWith("{")) {
+            try {
+                const parsed = JSON.parse(raw) as { audioUrl?: string; coverUrl?: string }
+                if (parsed.audioUrl) audioUrl = parsed.audioUrl
+                if (parsed.coverUrl) audioCoverUrl = parsed.coverUrl
+            } catch {
+                audioUrl = audio.content
+            }
+        } else {
+            audioUrl = audio.content
+        }
+    }
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
@@ -135,7 +159,19 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                 </CardHeader>
                 <CardContent>
                     <div className="mb-6">
-                        <VideoEmbed videoUrl={task.video_url} title={task.video_title} />
+                        {hasVideo ? <VideoEmbed videoUrl={task.video_url} title={task.video_title} /> : null}
+                        {!hasVideo && audio?.status === "completed" && audioUrl ? (
+                            <AudioEmbed audioUrl={audioUrl} title={task.video_title} coverUrl={audioCoverUrl} />
+                        ) : null}
+                        {!hasVideo && (!audio || audio.status === "error") ? (
+                            <div className="mt-3 text-sm text-muted-foreground">
+                                {t("tasks.audioUnavailable")}{" "}
+                                <a className="text-primary hover:underline" href={task.video_url} target="_blank" rel="noopener noreferrer">
+                                    {t("tasks.openOriginalLink")}
+                                </a>
+                                。
+                            </div>
+                        ) : null}
                     </div>
                     {(task.status === "processing" || task.status === "pending") && (
                         <div className="space-y-4 mb-8 p-6 bg-primary/5 rounded-xl border border-primary/10">

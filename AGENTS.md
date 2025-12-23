@@ -141,14 +141,22 @@ docker-compose -f docker-compose.test.yml up -d
 *   `id` (UUID): Primary Key.
 *   `user_id` (UUID): Owner.
 *   `video_url` (Text): Input.
+*   `thumbnail_url` (Text): Best-effort cover image (e.g. YouTube thumbnail / Bilibili cover / Xiaoyuzhou episode cover).
 *   `status` (Enum): `pending` | `processing` | `completed` | `failed`.
 *   `is_deleted` (Boolean): Soft delete flag (default `false`).
 
 **Table: `task_outputs`**
 *   `id` (UUID): Primary Key.
 *   `task_id` (UUID): FK to `tasks`.
-*   `transcript` (JSON): Full transcription segments.
-*   `summary` (Text): AI generated summary.
+*   `kind` (Text/Enum): Output type.
+    *   `script`: Transcript markdown (read-only content).
+    *   `summary`: AI summary markdown/text.
+    *   `translation`: Translated transcript/summary.
+    *   `audio` (Xiaoyuzhou only): JSON payload in `content` with:
+        *   `audioUrl`: Direct playable audio URL (no Supabase Storage usage).
+        *   `coverUrl`: Episode cover URL (prefer Xiaoyuzhou `__NEXT_DATA__.props.pageProps.episode.image.*PicUrl`).
+*   `content` (Text): Output payload (string or JSON string depending on kind).
+*   `status` (Enum): `pending` | `processing` | `completed` | `error`.
 
 ---
 

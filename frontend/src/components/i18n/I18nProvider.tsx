@@ -20,17 +20,23 @@ type I18nContextValue = {
 const I18nContext = createContext<I18nContextValue | null>(null)
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    // Lazy init (client-only). Avoid setState inside an effect which can cause cascading renders.
+  // IMPORTANT: keep SSR and first client render consistent to avoid hydration mismatch.
+  // We intentionally start with DEFAULT_LOCALE, then sync from localStorage/navigator after mount.
+  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE)
+
+  // Load persisted locale after mount (client-only)
+  useEffect(() => {
     try {
-      if (typeof window === "undefined") return DEFAULT_LOCALE
       const stored = window.localStorage.getItem(STORAGE_KEY)
-      if (isLocale(stored)) return stored
-      return getBestLocaleFromNavigator(window.navigator.language)
+      if (isLocale(stored)) {
+        setLocaleState(stored)
+        return
+      }
+      setLocaleState(getBestLocaleFromNavigator(window.navigator.language))
     } catch {
-      return DEFAULT_LOCALE
+      // ignore
     }
-  })
+  }, [])
 
   // Sync document attributes
   useEffect(() => {

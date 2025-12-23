@@ -1,9 +1,336 @@
 import os
 import logging
 from typing import Optional
+import re
 from openai import OpenAI
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Transcript readability formatting (sentence merging + safeguards)
+# ---------------------------------------------------------------------------
+
+# Hard safeguards so we never return a single, video-length "sentence" when
+# captions don't include punctuation (common with auto-generated transcripts).
+MAX_SENTENCE_DURATION_SECONDS = 24.0  # keep chunks short for navigation
+MAX_SENTENCE_WORDS = 80
+MAX_SEGMENTS_PER_SENTENCE = 20
+
+SENTENCE_PUNCTUATION_REGEX = re.compile(r"[.!?\u3002\uff01\uff1f\u203c\u2047\u2048]")
+WHITESPACE_GLOBAL_REGEX = re.compile(r"\s+")
+PUNCTUATION_OR_SPACE_REGEX = re.compile(r"[\s,;!?]")
+DIGIT_REGEX = re.compile(r"\d")
+NON_PERIOD_SENTENCE_ENDING_REGEX = re.compile(r"[!?\u3002\uff01\uff1f\u203c\u2047\u2048]$")
+
+# Common patterns to avoid treating "." as sentence-ending for URLs/abbrevs/extensions.
+COMMON_TLDS = {
+    "com", "org", "net", "edu", "gov", "co", "io", "ai", "dev",
+    "txt", "pdf", "jpg", "png", "gif", "doc", "zip", "html", "js", "ts"
+}
+COMMON_ABBREVS = {"dr", "mr", "mrs", "ms", "vs", "etc", "inc", "ltd", "jr", "sr"}
+
+
+def _count_words_or_units(text: str) -> int:
+    """
+    Count "units" for length bounding.
+    - If text has spaces, count words.
+    - Otherwise (e.g. CJK without spaces), approximate by counting non-space characters.
+    """
+    if not text:
+        return 0
+    s = text.strip()
+    if not s:
+        return 0
+    if " " in s or "\t" in s or "\n" in s:
+        return len([w for w in re.split(r"\s+", s) if w])
+    # No spaces -> likely CJK; count visible chars as rough units
+    return len([ch for ch in s if not ch.isspace()])
+
+
+def _is_sentence_ending_period(text: str, period_index: int) -> bool:
+    before = text[period_index - 1] if period_index - 1 >= 0 else ""
+    after = text[period_index + 1] if period_index + 1 < len(text) else ""
+
+    # Decimal number: digit before and digit after (e.g., "2.2", "3.14")
+    if before and after and DIGIT_REGEX.search(before) and DIGIT_REGEX.search(after):
+        return False
+
+    # Check for common TLDs and file extensions (e.g., ".com", ".org", ".txt")
+    after_period = text[period_index + 1: period_index + 5].lower()
+    for pattern in COMMON_TLDS:
+        if after_period.startswith(pattern):
+            char_after_pattern = text[period_index + 1 + len(pattern): period_index + 2 + len(pattern)]
+            if not char_after_pattern or PUNCTUATION_OR_SPACE_REGEX.search(char_after_pattern):
+                return False
+
+    # Common abbreviations (check 1-3 chars before period)
+    before_period = text[max(0, period_index - 3): period_index].lower()
+    for abbrev in COMMON_ABBREVS:
+        if before_period.endswith(abbrev):
+            return False
+
+    return True
+
+
+def _ends_with_sentence(text: str) -> bool:
+    trimmed = (text or "").strip()
+    if not trimmed:
+        return False
+
+    # Non-period sentence endings
+    if NON_PERIOD_SENTENCE_ENDING_REGEX.search(trimmed):
+        return True
+
+    # Period - verify it's truly sentence-ending
+    if trimmed.endswith("."):
+        return _is_sentence_ending_period(trimmed, len(trimmed) - 1)
+
+    return False
+
+
+def _find_true_sentence_punct_positions(text: str) -> list[int]:
+    """Return indices of punctuation that are truly sentence-ending."""
+    trimmed = (text or "").strip()
+    if not trimmed:
+        return []
+    positions: list[int] = []
+    for m in SENTENCE_PUNCTUATION_REGEX.finditer(trimmed):
+        idx = m.start()
+        ch = trimmed[idx]
+        if ch != ".":
+            positions.append(idx)
+        else:
+            if _is_sentence_ending_period(trimmed, idx):
+                positions.append(idx)
+    return positions
+
+
+def _find_early_punctuation_split(text: str) -> int:
+    """
+    Find sentence-ending punctuation near the beginning of text (within first 2 words/units).
+    Returns the index position right after the punctuation, or -1 if none found.
+    """
+    trimmed = (text or "").strip()
+    if not trimmed:
+        return -1
+    positions = _find_true_sentence_punct_positions(trimmed)
+    if not positions:
+        return -1
+    first_idx = positions[0]
+    before = trimmed[:first_idx].strip()
+    units = _count_words_or_units(before)
+    if 0 <= units <= 2:
+        return first_idx + 1
+    return -1
+
+
+def _find_late_punctuation_split(text: str) -> int:
+    """
+    Find sentence-ending punctuation near the end of text (within last 2 words/units).
+    Returns the index position right after the punctuation, or -1 if none found.
+    """
+    trimmed = (text or "").strip()
+    if not trimmed:
+        return -1
+    positions = _find_true_sentence_punct_positions(trimmed)
+    if not positions:
+        return -1
+    last_idx = positions[-1]
+    after = trimmed[last_idx + 1:].strip()
+    units = _count_words_or_units(after)
+    if 1 <= units <= 2:
+        return last_idx + 1
+    return -1
+
+
+def _split_long_sentence_segments(segments: list) -> list[dict]:
+    """
+    Split an over-long sentence (represented by a list of OpenAI segment objects) into bounded chunks.
+    Chunks are split on segment boundaries to preserve timestamps.
+    """
+    chunks: list[dict] = []
+    chunk_segments = []
+    chunk_units = 0
+    chunk_duration = 0.0
+    chunk_start = None
+
+    def push_chunk():
+        nonlocal chunk_segments, chunk_units, chunk_duration, chunk_start
+        if not chunk_segments:
+            return
+        text = " ".join([(getattr(s, "text", "") or "").strip() for s in chunk_segments]).strip()
+        text = WHITESPACE_GLOBAL_REGEX.sub(" ", text).strip()
+        start = chunk_start if chunk_start is not None else float(getattr(chunk_segments[0], "start", 0.0) or 0.0)
+        end = float(getattr(chunk_segments[-1], "end", start) or start)
+        chunks.append({"start": start, "end": end, "segments": list(chunk_segments), "text": text})
+        chunk_segments = []
+        chunk_units = 0
+        chunk_duration = 0.0
+        chunk_start = None
+
+    for seg in segments:
+        seg_text = (getattr(seg, "text", "") or "").strip()
+        seg_units = _count_words_or_units(seg_text)
+        seg_start = float(getattr(seg, "start", 0.0) or 0.0)
+        seg_end = float(getattr(seg, "end", seg_start) or seg_start)
+        seg_duration = max(seg_end - seg_start, 0.0)
+
+        next_duration = chunk_duration + seg_duration
+        next_units = chunk_units + seg_units
+        next_seg_count = len(chunk_segments) + 1
+
+        exceeds_duration = bool(chunk_segments) and next_duration > MAX_SENTENCE_DURATION_SECONDS
+        exceeds_units = bool(chunk_segments) and next_units > MAX_SENTENCE_WORDS
+        exceeds_segments = bool(chunk_segments) and next_seg_count > MAX_SEGMENTS_PER_SENTENCE
+
+        if exceeds_duration or exceeds_units or exceeds_segments:
+            push_chunk()
+
+        if chunk_start is None:
+            chunk_start = seg_start
+        chunk_segments.append(seg)
+        chunk_units += seg_units
+        chunk_duration += seg_duration
+
+    push_chunk()
+    return chunks
+
+
+def _merge_segments_into_sentences(all_segments: list) -> list[dict]:
+    """
+    Merge OpenAI Whisper segments into sentence-like chunks for better readability.
+    Returns list of dicts: {start, end, text, segments}
+    """
+    if not all_segments:
+        return []
+
+    merged: list[dict] = []
+    current_text_parts: list[str] = []
+    current_segments: list = []
+    carryover_text = ""
+    sentence_start = None
+
+    def flush_sentence():
+        nonlocal current_text_parts, current_segments, sentence_start
+        if not current_text_parts and not current_segments:
+            return
+        text = " ".join([p for p in current_text_parts if p]).strip()
+        text = WHITESPACE_GLOBAL_REGEX.sub(" ", text).strip()
+        if not text:
+            current_text_parts = []
+            current_segments = []
+            sentence_start = None
+            return
+        start = sentence_start if sentence_start is not None else float(getattr(current_segments[0], "start", 0.0) or 0.0)
+        end = float(getattr(current_segments[-1], "end", start) or start)
+        # Safety net: split extreme sentences by boundaries
+        chunks = _split_long_sentence_segments(current_segments)
+        if len(chunks) <= 1:
+            merged.append({"start": start, "end": end, "text": text, "segments": list(current_segments)})
+        else:
+            for c in chunks:
+                if c["text"]:
+                    merged.append(c)
+        current_text_parts = []
+        current_segments = []
+        sentence_start = None
+
+    for seg in all_segments:
+        text = (getattr(seg, "text", "") or "").strip()
+        if carryover_text:
+            text = (carryover_text + " " + text).strip()
+            carryover_text = ""
+
+        # Skip empty segments, but keep timing continuity by including seg if we're in a sentence
+        if not text:
+            if current_text_parts:
+                current_segments.append(seg)
+            continue
+
+        # Early punctuation: ". You should" should attach to previous sentence
+        early_split_pos = _find_early_punctuation_split(text)
+        if early_split_pos > 0 and current_text_parts:
+            before = text[:early_split_pos].strip()
+            after = text[early_split_pos:].strip()
+            if before:
+                current_text_parts.append(before)
+            current_segments.append(seg)
+            flush_sentence()
+            if not after:
+                continue
+            text = after
+
+        # Late punctuation: split when punctuation appears near end (so trailing 1-2 words carry to next sentence)
+        late_split_pos = _find_late_punctuation_split(text)
+        if late_split_pos > 0:
+            before = text[:late_split_pos].strip()
+            after = text[late_split_pos:].strip()
+            if sentence_start is None:
+                sentence_start = float(getattr(seg, "start", 0.0) or 0.0)
+            if before:
+                current_text_parts.append(before)
+            current_segments.append(seg)
+            flush_sentence()
+            if after:
+                carryover_text = after
+            continue
+
+        # Add segment to current sentence
+        if sentence_start is None:
+            sentence_start = float(getattr(seg, "start", 0.0) or 0.0)
+        current_text_parts.append(text)
+        current_segments.append(seg)
+
+        if _ends_with_sentence(text):
+            flush_sentence()
+
+    # Remaining
+    if current_text_parts:
+        flush_sentence()
+    if carryover_text.strip():
+        merged.append({"start": float(getattr(all_segments[-1], "start", 0.0) or 0.0),
+                       "end": float(getattr(all_segments[-1], "end", 0.0) or 0.0),
+                       "text": carryover_text.strip(),
+                       "segments": [all_segments[-1]]})
+    return merged
+
+
+def _group_sentences_into_paragraphs(sentences: list[dict], max_chars: int = 550, gap_seconds: float = 2.0) -> list[dict]:
+    """
+    Group sentence chunks into paragraphs based on time gaps and character budget.
+    Returns list of dicts: {start, end, text}
+    """
+    if not sentences:
+        return []
+    paragraphs: list[dict] = []
+    cur_start = sentences[0]["start"]
+    cur_end = sentences[0]["end"]
+    cur_parts: list[str] = []
+
+    def push_para():
+        nonlocal cur_start, cur_end, cur_parts
+        txt = " ".join(cur_parts).strip()
+        txt = WHITESPACE_GLOBAL_REGEX.sub(" ", txt).strip()
+        if txt:
+            paragraphs.append({"start": cur_start, "end": cur_end, "text": txt})
+        cur_parts = []
+
+    for s in sentences:
+        gap = float(s["start"]) - float(cur_end)
+        candidate = (" ".join(cur_parts + [s["text"]])).strip()
+        if cur_parts and (gap > gap_seconds or len(candidate) > max_chars):
+            push_para()
+            cur_start = s["start"]
+            cur_end = s["end"]
+            cur_parts = [s["text"]]
+        else:
+            if not cur_parts:
+                cur_start = s["start"]
+            cur_parts.append(s["text"])
+            cur_end = s["end"]
+
+    push_para()
+    return paragraphs
 
 class Transcriber:
     """音频转录器，使用 OpenAI API 进行语音转文字"""
@@ -113,53 +440,18 @@ class Transcriber:
             transcript_lines.append("")
             transcript_lines.append("## Transcription Content")
             transcript_lines.append("")
-            
-            # 优化后的格式: 分段聚合 (Paragraph Aggregation)
-            # 策略: 
-            # 1. 如果两句之间间隔超过 2.0秒 -> 新段落
-            # 2. 如果当前段落累计超 500字符 -> 新段落
-            
-            paragraphs = []
-            if all_segments:
-                current_para = {
-                    "start": all_segments[0].start,
-                    "text": all_segments[0].text.strip(),
-                    "end": all_segments[0].end
-                }
-                
-                for i in range(1, len(all_segments)):
-                    seg = all_segments[i]
-                    text = seg.text.strip()
-                    if not text:
-                        continue
-                        
-                    # 计算间隔
-                    gap = seg.start - current_para["end"]
-                    current_len = len(current_para["text"])
-                    
-                    # 触发新段落条件
-                    should_split = (gap > 2.0) or (current_len > 500)
-                    
-                    if should_split:
-                        paragraphs.append(current_para)
-                        current_para = {
-                            "start": seg.start,
-                            "text": text,
-                            "end": seg.end
-                        }
-                    else:
-                        # 合并
-                        current_para["text"] += " " + text
-                        current_para["end"] = seg.end
-                
-                # 添加最后一段
-                paragraphs.append(current_para)
+
+            # Readability-first formatting:
+            # 1) Merge segments into sentence-like chunks using punctuation heuristics
+            # 2) Safety-net split for overly long sentences (duration/words/segment count)
+            # 3) Group sentences into paragraphs (time gap + char budget)
+            sentences = _merge_segments_into_sentences(all_segments)
+            paragraphs = _group_sentences_into_paragraphs(sentences, max_chars=550, gap_seconds=2.0)
 
             for para in paragraphs:
-                start_time = self._format_time(para["start"])
-                text = para["text"]
-                # 加粗时间戳，段落间空行
-                transcript_lines.append(f"**[{start_time}]** {text}")
+                start_time = self._format_time(float(para["start"]))
+                transcript_lines.append(f"**[{start_time}]**")
+                transcript_lines.append(para["text"])
                 transcript_lines.append("")
             
             transcript_text = "\n".join(transcript_lines)

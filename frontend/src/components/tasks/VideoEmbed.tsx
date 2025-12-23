@@ -67,6 +67,12 @@ function getYouTubeVideoId(inputUrl: string): string | null {
   }
 }
 
+export function supportsVideoEmbed(videoUrl: string): boolean {
+  const bilibili = getBilibiliVideoId(videoUrl)
+  if (bilibili?.bvid || bilibili?.aid) return true
+  return Boolean(getYouTubeVideoId(videoUrl))
+}
+
 export function VideoEmbed({ videoUrl, title }: { videoUrl: string; title?: string }) {
   const bilibili = getBilibiliVideoId(videoUrl)
   if (bilibili?.bvid || bilibili?.aid) {

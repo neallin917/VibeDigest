@@ -10,6 +10,7 @@ from typing import Optional, List
 import uuid
 import json
 import shutil
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -105,8 +106,20 @@ async def process_video(
 
         # 2. Create Outputs (Script & Summary are default)
         outputs = []
+        # Create an audio output for sites without video embedding (e.g. podcasts)
+        # Stores only a direct URL (no Supabase Storage usage).
+        audio_out = None
+        try:
+            host = urlparse(video_url).hostname or ""
+            host = host.replace("www.", "")
+            if host.endswith("xiaoyuzhoufm.com"):
+                audio_out = db_client.create_task_output(task_id, user_id, kind="audio")
+        except Exception:
+            audio_out = None
         script_out = db_client.create_task_output(task_id, user_id, kind="script")
         summary_out = db_client.create_task_output(task_id, user_id, kind="summary", locale=summary_language)
+        if audio_out:
+            outputs.append(audio_out)
         outputs.extend([script_out, summary_out])
 
         # 3. Create Translation Outputs if requested
@@ -196,12 +209,29 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
         # A. Download
         logger.info(f"Downloading {video_url}...")
         try:
-            audio_path, video_title, thumbnail_url = await video_processor.download_and_convert(video_url, TEMP_DIR)
+            audio_path, video_title, thumbnail_url, direct_audio_url = await video_processor.download_and_convert(video_url, TEMP_DIR)
             # Update Title and Thumbnail in DB
             db_client.update_task_status(task_id, progress=30, video_title=video_title, thumbnail_url=thumbnail_url)
         except Exception as e:
             db_client.update_task_status(task_id, status="error", error=f"Download failed: {str(e)}")
             return
+
+        # A2. Save direct audio URL (best effort; no storage upload)
+        try:
+            outputs = db_client.get_task_outputs(task_id)
+            audio_output = next((o for o in outputs if o['kind'] == 'audio'), None)
+            if audio_output:
+                if direct_audio_url:
+                    # Store as JSON to support richer UI (coverUrl), while frontend remains backward-compatible.
+                    payload = {
+                        "audioUrl": direct_audio_url,
+                        "coverUrl": thumbnail_url,
+                    }
+                    db_client.update_output_status(audio_output['id'], status="completed", progress=100, content=json.dumps(payload, ensure_ascii=False))
+                else:
+                    db_client.update_output_status(audio_output['id'], status="error", error="No direct audio URL available")
+        except Exception as e:
+            logger.warning(f"Failed to update audio output: {e}")
 
         # B. Transcribe
         db_client.update_task_status(task_id, progress=40)

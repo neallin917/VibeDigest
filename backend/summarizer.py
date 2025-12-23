@@ -496,13 +496,21 @@ class Summarizer:
 
     def _remove_timestamps_and_meta(self, text: str) -> str:
         """仅移除时间戳行与明显元信息（标题、检测语言等），保留原文口语/重复。"""
+        import re
+        ts_prefix = re.compile(r"^\*\*\[[0-9:]{2,8}\]\*\*\s*")
         lines = text.split('\n')
         kept = []
         for line in lines:
             s = line.strip()
             # 跳过时间戳与元信息
-            if (s.startswith('**[') and s.endswith(']**')):
-                continue
+            if s.startswith('**[') and ']**' in s:
+                # New format: timestamp-only line like "**[00:12]**"
+                if s.endswith(']**') and len(s) <= 14:
+                    continue
+                # Old format: inline timestamp prefix like "**[00:12]** text"
+                line = ts_prefix.sub("", line).strip()
+                if not line:
+                    continue
             if s.startswith('# '):
                 # 跳过顶级标题（通常是视频标题，可在最终加回）
                 continue
@@ -608,17 +616,27 @@ class Summarizer:
         """
         从原始转录中提取纯文本，移除时间戳和元数据
         """
+        import re
+        ts_prefix = re.compile(r"^\*\*\[[0-9:]{2,8}\]\*\*\s*")
         lines = raw_transcript.split('\n')
         text_lines = []
         
         for line in lines:
             line = line.strip()
             # 跳过时间戳、标题、元数据
-            if (line.startswith('**[') and line.endswith(']**') or
-                line.startswith('#') or
+            if not line:
+                continue
+            if line.startswith('**[') and ']**' in line:
+                # Timestamp-only line
+                if line.endswith(']**') and len(line) <= 14:
+                    continue
+                # Inline timestamp prefix -> strip and keep remainder
+                line = ts_prefix.sub("", line).strip()
+                if not line:
+                    continue
+            if (line.startswith('#') or
                 line.startswith('**检测语言:**') or
-                line.startswith('**语言概率:**') or
-                not line):
+                line.startswith('**语言概率:**')):
                 continue
             text_lines.append(line)
         
@@ -669,13 +687,22 @@ class Summarizer:
         基本的转录文本清理：移除时间戳和标题信息
         当GPT优化失败时的后备方案
         """
+        import re
+        ts_prefix = re.compile(r"^\*\*\[[0-9:]{2,8}\]\*\*\s*")
         lines = raw_transcript.split('\n')
         cleaned_lines = []
         
         for line in lines:
             # 跳过时间戳行
-            if line.strip().startswith('**[') and line.strip().endswith(']**'):
-                continue
+            stripped = line.strip()
+            if stripped.startswith('**[') and ']**' in stripped:
+                # Timestamp-only
+                if stripped.endswith(']**') and len(stripped) <= 14:
+                    continue
+                # Inline prefix
+                line = ts_prefix.sub("", line).strip()
+                if not line:
+                    continue
             # 跳过标题行
             if line.strip().startswith('# ') or line.strip().startswith('## '):
                 continue

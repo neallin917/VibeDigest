@@ -3,6 +3,11 @@ import yt_dlp
 import logging
 from pathlib import Path
 from typing import Optional
+import re
+from urllib.parse import urlparse
+from urllib.request import Request, urlopen
+from urllib.error import URLError, HTTPError
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +31,150 @@ class VideoProcessor:
             'no_warnings': True,
             'noplaylist': True,  # 强制只下载单个视频，不下载播放列表
         }
+
+    def _is_xiaoyuzhou_url(self, url: str) -> bool:
+        try:
+            host = (urlparse(url).hostname or "").replace("www.", "")
+            return host.endswith("xiaoyuzhoufm.com")
+        except Exception:
+            return False
+
+    def _fetch_og_image(self, page_url: str, timeout_seconds: float = 8.0) -> Optional[str]:
+        """
+        Fetch episode page HTML and extract og:image.
+        Best-effort, used only for xiaoyuzhou episode pages.
+        """
+        try:
+            req = Request(
+                page_url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (compatible; VibeDigest/1.0)",
+                    "Accept": "text/html,application/xhtml+xml",
+                },
+                method="GET",
+            )
+            with urlopen(req, timeout=timeout_seconds) as resp:
+                raw = resp.read(1024 * 1024)  # cap 1MB
+            html = raw.decode("utf-8", errors="ignore")
+
+            m = re.search(
+                r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']',
+                html,
+                flags=re.IGNORECASE,
+            )
+            if m:
+                return m.group(1).strip()
+
+            m = re.search(
+                r'<meta[^>]+name=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']',
+                html,
+                flags=re.IGNORECASE,
+            )
+            if m:
+                return m.group(1).strip()
+
+            return None
+        except (HTTPError, URLError, TimeoutError) as e:
+            logger.warning(f"获取 og:image 失败（非致命）: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"解析 og:image 失败（非致命）: {e}")
+            return None
+
+    def _fetch_xiaoyuzhou_episode_cover(self, page_url: str, timeout_seconds: float = 8.0) -> Optional[str]:
+        """
+        Xiaoyuzhou episode pages embed richer data in __NEXT_DATA__.
+        This is usually the true episode cover, while og:image may be podcast/author cover.
+        """
+        try:
+            req = Request(
+                page_url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (compatible; VibeDigest/1.0)",
+                    "Accept": "text/html,application/xhtml+xml",
+                },
+                method="GET",
+            )
+            with urlopen(req, timeout=timeout_seconds) as resp:
+                raw = resp.read(1024 * 1024)  # cap 1MB
+            html = raw.decode("utf-8", errors="ignore")
+
+            m = re.search(
+                r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>',
+                html,
+                flags=re.IGNORECASE | re.DOTALL,
+            )
+            if not m:
+                return None
+
+            data = json.loads(m.group(1))
+            episode = (
+                (data.get("props") or {})
+                .get("pageProps", {})
+                .get("episode", {})
+            )
+            image = (episode.get("image") or {}) if isinstance(episode, dict) else {}
+
+            # Prefer largest, fall back
+            for k in ("largePicUrl", "middlePicUrl", "smallPicUrl", "picUrl", "thumbnailUrl"):
+                v = image.get(k)
+                if isinstance(v, str) and v:
+                    return v
+            return None
+        except Exception as e:
+            logger.warning(f"解析 xiaoyuzhou episode 封面失败（非致命）: {e}")
+            return None
+
+    def _extract_direct_audio_url_from_info(self, info: dict) -> Optional[str]:
+        """
+        Best-effort: extract a direct audio URL from yt-dlp info dict.
+        This avoids uploading to any storage; frontend can play via <audio src>.
+        """
+        if not info:
+            return None
+
+        # Playlist / wrapper
+        if isinstance(info.get("entries"), list) and info["entries"]:
+            first = info["entries"][0]
+            if isinstance(first, dict):
+                info = first
+
+        # Prefer audio-only formats
+        formats = info.get("formats") or []
+        audio_formats = []
+        for f in formats:
+            if not isinstance(f, dict):
+                continue
+            url = f.get("url")
+            if not url:
+                continue
+            vcodec = f.get("vcodec")
+            acodec = f.get("acodec")
+            if vcodec == "none" and acodec and acodec != "none":
+                audio_formats.append(f)
+
+        def score(f: dict) -> float:
+            # Prefer higher bitrate; fall back to whatever exists.
+            for k in ("abr", "tbr", "asr"):
+                v = f.get(k)
+                try:
+                    if v is not None:
+                        return float(v)
+                except Exception:
+                    continue
+            return 0.0
+
+        if audio_formats:
+            best = sorted(audio_formats, key=score, reverse=True)[0]
+            return best.get("url")
+
+        # Fallback: some extractors provide a single URL directly
+        url = info.get("url")
+        if isinstance(url, str) and url:
+            return url
+        return None
     
-    async def download_and_convert(self, url: str, output_dir: Path) -> tuple[str, str, Optional[str]]:
+    async def download_and_convert(self, url: str, output_dir: Path) -> tuple[str, str, Optional[str], Optional[str]]:
         """
         下载视频并转换为m4a格式
         
@@ -61,6 +208,7 @@ class VideoProcessor:
                 info = await asyncio.to_thread(ydl.extract_info, url, False)
                 video_title = info.get('title', 'unknown')
                 expected_duration = info.get('duration') or 0
+                direct_audio_url = self._extract_direct_audio_url_from_info(info)
                 logger.info(f"视频标题: {video_title}")
                 
                 # 下载视频（放到线程池避免阻塞事件循环）
@@ -107,9 +255,18 @@ class VideoProcessor:
             
             # Extract thumbnail (best effort)
             thumbnail = info.get('thumbnail')
+            # For xiaoyuzhou, prefer episode cover from og:image over podcast/author cover
+            if self._is_xiaoyuzhou_url(url):
+                episode_cover = self._fetch_xiaoyuzhou_episode_cover(url)
+                if episode_cover:
+                    thumbnail = episode_cover
+                else:
+                    og_image = self._fetch_og_image(url)
+                    if og_image:
+                        thumbnail = og_image
             
             logger.info(f"音频文件已保存: {audio_file}")
-            return audio_file, video_title, thumbnail
+            return audio_file, video_title, thumbnail, direct_audio_url
             
         except Exception as e:
             logger.error(f"下载视频失败: {str(e)}")
