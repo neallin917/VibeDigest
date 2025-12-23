@@ -16,6 +16,7 @@
 - **Live Dashboard**: Watch your tasks progress from queue to completion in real-time.
 - **Secure Authentication**: Integrated email and Google login support via Supabase Auth.
 - **Multi-language UI (i18n)**: Built-in UI language switcher with RTL support for Arabic.
+- **Flexible Pricing**: Hybrid model (Subscription + Pay-as-you-go) with Annual billing options and transparent usage tracking.
 
 ## 🛠 Technology Stack
 

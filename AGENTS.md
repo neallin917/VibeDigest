@@ -105,6 +105,9 @@ docker-compose -f docker-compose.test.yml up -d
     *   `tier`: 'free' | 'pro'
     *   `usage_count`: Monthly resets
     *   `extra_credits`: Top-up packs
+    *   **Logic**:
+        *   **Annual Support**: Frontend handles toggle (`isAnnual`) to switch Stripe Price IDs.
+        *   **Localization**: Plan names/features are fully localized in `i18n.ts`.
 
 ---
 
