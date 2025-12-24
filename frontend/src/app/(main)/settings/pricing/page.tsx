@@ -34,25 +34,106 @@ export default function PricingPage() {
     const [profile, setProfile] = useState<Profile | null>(null)
     const [supabase] = useState(() => createClient())
 
-    // ... hidden code ...
+    const [mounted, setMounted] = useState(false)
 
-    {/* Payment Method Toggle (after quota) */ }
+    const fetchProfile = async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+            const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+            setProfile(data as Profile)
+        }
+    }
+
+    useEffect(() => {
+        setMounted(true)
+        fetchProfile()
+    }, [])
+
+    if (!mounted) {
+        return null // Prevent hydration mismatch by rendering only on client
+    }
+
+    const handleCheckout = async (priceId: string) => {
+        setLoading(true)
+        try {
+            const { data: { session } } = await supabase.auth.getSession()
+            if (!session) return
+
+            let url = ""
+            if (paymentMethod === 'crypto') {
+                const res = await ApiClient.createCryptoCharge(priceId, session.access_token)
+                url = res.url
+            } else {
+                const res = await ApiClient.createCheckoutSession(priceId, session.access_token)
+                url = res.url
+            }
+
+            if (url) {
+                window.location.href = url
+            }
+        } catch (error) {
+            console.error("Checkout failed:", error)
+            alert("Failed to start checkout. Please try again.")
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const isPro = profile?.tier === 'pro'
+
+    const freeFeatureKeys = [
+        "pricing.free.features.f1",
+        "pricing.free.features.f2",
+        "pricing.free.features.f3",
+        "pricing.free.features.f4",
+        "pricing.free.features.f5",
+    ] as const
+
+    const proFeatureKeys = [
+        "pricing.pro.features.f1",
+        "pricing.pro.features.f2",
+        "pricing.pro.features.f3",
+    ] as const
+
+    const topupFeatureKeys = [
+        "pricing.topup.features.f1",
+        "pricing.topup.features.f2",
+        "pricing.topup.features.f3",
+    ] as const
+
+    return (
+        <div className="space-y-8 max-w-5xl mx-auto py-8 px-4 md:px-0">
+            <div className="text-center space-y-4">
+                <Heading as="h1" variant="h1">
+                    {t("pricing.title")}
+                </Heading>
+                <Text tone="muted" className="max-w-2xl mx-auto">
+                    {t("pricing.subtitle")}
+                </Text>
+            </div>
+
+            {/* Usage & Quota (moved from Dashboard) */}
+            <div className="max-w-md mx-auto">
+                <UsageCard />
+            </div>
+
+            {/* Payment Method Toggle (after quota) - HIDDEN temporally to disable Stripe */}
             <div className="flex flex-col items-center justify-center gap-2 pt-2">
-                <span className="text-sm font-medium text-muted-foreground uppercase tracking-widest">
+                {/* <span className="text-sm font-medium text-muted-foreground uppercase tracking-widest">
                     {t("pricing.paymentMethod")}
                 </span>
                 <div className="flex items-center gap-2 p-1 bg-secondary/50 rounded-full border border-border/50">
                     <Button
                         variant={paymentMethod === 'card' ? 'secondary' : 'ghost'}
-                        onClick={() => alert("Card payments are temporarily unavailable. Please use Crypto (USDC).")}
-                        className="rounded-full px-6 transition-all opacity-50 cursor-not-allowed"
+                        onClick={() => setPaymentMethod('card')}
+                        className="rounded-full px-6 transition-all"
                         size="sm"
                     >
                         <CreditCard className="w-4 h-4 mr-2" />
-                        {t("pricing.card")} <span className="ml-1 text-[10px] bg-muted px-1 rounded">Soon</span>
+                        {t("pricing.card")}
                     </Button>
                     <Button
-                        variant={'secondary'}
+                        variant={paymentMethod === 'crypto' ? 'secondary' : 'ghost'}
                         onClick={() => setPaymentMethod('crypto')}
                         className="rounded-full px-6 transition-all"
                         size="sm"
@@ -60,10 +141,10 @@ export default function PricingPage() {
                         <Zap className="w-4 h-4 mr-2 text-yellow-500" />
                         {t("pricing.crypto")}
                     </Button>
-                </div>
+                </div> */}
                 {paymentMethod === 'crypto' && (
                     <p className="text-xs text-yellow-500 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20 animate-in fade-in slide-in-from-top-1">
-                        {t("pricing.cryptoWarning")}
+                        {t("pricing.cryptoWarning")} (USDC Only)
                     </p>
                 )}
             </div>
@@ -244,12 +325,12 @@ export default function PricingPage() {
                 </Card>
             </div>
 
-    {/* Footer Links (Compliance) */ }
-    <div className="flex justify-center gap-6 text-sm text-muted-foreground underline pb-8">
-        <Link href="/policies/refund" className="hover:text-foreground transition-colors">{t("pricing.policies.refund")}</Link>
-        <Link href="/policies/terms" className="hover:text-foreground transition-colors">{t("pricing.policies.terms")}</Link>
-    </div>
-        </div >
+            {/* Footer Links (Compliance) */}
+            <div className="flex justify-center gap-6 text-sm text-muted-foreground underline pb-8">
+                <Link href="/policies/refund" className="hover:text-foreground transition-colors">{t("pricing.policies.refund")}</Link>
+                <Link href="/policies/terms" className="hover:text-foreground transition-colors">{t("pricing.policies.terms")}</Link>
+            </div>
+        </div>
     )
 }
 
