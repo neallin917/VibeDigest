@@ -6,6 +6,7 @@ import { ArrowRight, Zap, Globe, FileText } from "lucide-react"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import type { LucideIcon } from "lucide-react"
 import { LanguageInlineSelect } from "@/components/i18n/LanguageInlineSelect"
+import { Layers } from "lucide-react"
 
 export default function LandingPage() {
   const { t } = useI18n()
@@ -46,7 +47,7 @@ export default function LandingPage() {
         </div>
 
         {/* Feature Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 max-w-5xl w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-16 max-w-6xl w-full">
           <FeatureCard
             icon={Zap}
             title={t("landing.feature1Title")}
@@ -61,6 +62,11 @@ export default function LandingPage() {
             icon={Globe}
             title={t("landing.feature3Title")}
             desc={t("landing.feature3Desc")}
+          />
+          <FeatureCard
+            icon={Layers}
+            title={t("landing.feature4Title")}
+            desc={t("landing.feature4Desc")}
           />
         </div>
       </main>

@@ -63,18 +63,20 @@ const messages: Record<Locale, Messages> = {
       logout: "Logout",
     },
     landing: {
-      titlePrefix: "Turn Videos into",
+      titlePrefix: "Turn Videos & Podcasts into",
       titleEmphasis: "Insights",
       subtitle:
-        "Stop watching 2-hour videos. Get instant transcripts, AI summaries, and multi-language translations in seconds.",
+        "YouTube, Bilibili, and Xiaoyuzhou supported. Get transcripts, AI summaries, and translations in seconds.",
       getStarted: "Get Started",
       github: "GitHub",
       feature1Title: "Instant Transcription",
-      feature1Desc: "Powered by OpenAI Whisper. High accuracy, lightning speed.",
+      feature1Desc: "Powered by AI — for videos and podcasts.",
       feature2Title: "AI Summaries",
       feature2Desc: "Get the key takeaways without watching the whole video.",
       feature3Title: "Multi-Language",
-      feature3Desc: "Translate content into Chinese, Japanese, and English automatically.",
+      feature3Desc: "Translate content into any language you want — automatically.",
+      feature4Title: "Multi-Platform",
+      feature4Desc: "Works with YouTube / Bilibili / Xiaoyuzhou.",
       footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
     },
     dashboard: {
@@ -137,7 +139,15 @@ const messages: Record<Locale, Messages> = {
         },
         button: "Buy Credits"
       },
-      currentPlan: "Current plan"
+      currentPlan: "Current plan",
+      paymentMethod: "Payment Method",
+      card: "Credit Card",
+      crypto: "USDC",
+      cryptoWarning: "USDC Only. Please ensure you use the correct network. Transfers are non-refundable.",
+      policies: {
+        refund: "Refund Policy",
+        terms: "Terms of Service"
+      }
     },
     taskForm: {
       title: "New Transcription",
@@ -206,6 +216,52 @@ const messages: Record<Locale, Messages> = {
         other: "Other",
       },
     },
+    policies: {
+      common: {
+        lastUpdated: "Last Updated: December 2024",
+        contactTitle: "Contact Us",
+        contactText: "For any questions regarding these terms, please contact:",
+        contactRefundText: "To request a refund or for payment support, please email us at:",
+      },
+      refund: {
+        title: "Refund Policy",
+        general: {
+          title: "1. General Policy",
+          content: "VibeDigest strives to provide high-quality services. If you are not satisfied with our service due to technical failures, you may request a refund within <strong>7 days</strong> of purchase."
+        },
+        crypto: {
+          title: "2. Crypto Payments (USDC)",
+          noticeTitle: "Important Notice for Cryptocurrency Transactions",
+          noticeContent: "Due to the irreversible nature of blockchain transactions, we have strict policies for crypto payments:",
+          list: {
+            noRefunds: "<strong>No Automatic Refunds:</strong> Crypto transactions cannot be reversed. Any refund must be processed manually.",
+            networkErrors: "<strong>Network Errors:</strong> VibeDigest is not responsible for funds lost due to sending assets on the wrong network (e.g., sending ERC-20 USDC to a Polygon address when not supported). <strong>Please ensure you select the correct network.</strong>",
+            underpayments: "<strong>Underpayments:</strong> If you send less than the required amount, your order may not be automatically fulfilled. Please contact support.",
+            gas: "<strong>Gas Fees:</strong> Transaction fees (Gas) are non-refundable."
+          }
+        }
+      },
+      terms: {
+        title: "Terms of Service",
+        service: {
+          title: "1. Service Description",
+          content: "VibeDigest provides AI-powered video transcription, summarization, and translation services. By using our services, you agree to these terms."
+        },
+        payments: {
+          title: "2. Payments",
+          content: "We accept payments via Credit Card (Stripe) and Cryptocurrency (Coinbase Commerce).",
+          list: {
+            l1: "Prices are in USD.",
+            l2: "We strictly adhere to OFAC regulations and do not provide services to sanctioned countries or individuals.",
+            l3: "We reserve the right to refuse service to anyone for any reason at any time."
+          }
+        },
+        responsibilities: {
+          title: "3. User Responsibilities",
+          content: "You are responsible for maintaining the confidentiality of your account and for all activities that occur under your account. You agree not to use the service for any illegal or unauthorized purpose."
+        }
+      }
+    },
   },
   zh: {
     brand: {
@@ -230,6 +286,25 @@ const messages: Record<Locale, Messages> = {
       sendMagicLink: "发送登录链接",
       checkYourEmail: "请检查你的邮箱",
       logout: "登出",
+    },
+    // NOTE: `src/app/page.tsx` uses `landing.*` keys.
+    // We keep the older `home.*` keys for backwards compatibility, but `landing.*`
+    // must exist to avoid falling back to English.
+    landing: {
+      titlePrefix: "将视频与播客转化为",
+      titleEmphasis: "洞察",
+      subtitle: "支持 YouTube、Bilibili、小宇宙。秒级获得转写、AI 摘要与翻译。",
+      getStarted: "开始使用",
+      github: "GitHub",
+      feature1Title: "即时转写",
+      feature1Desc: "AI 驱动，视频与播客都能一键转写。",
+      feature2Title: "AI 摘要",
+      feature2Desc: "不看完整视频也能抓住关键要点。",
+      feature3Title: "多语言",
+      feature3Desc: "随心翻译成你想要的任何语言，自动完成。",
+      feature4Title: "多平台",
+      feature4Desc: "支持 YouTube / Bilibili / 小宇宙。",
+      footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
     },
     home: {
       titleEmphasis: "AI 视频",
@@ -310,7 +385,15 @@ const messages: Record<Locale, Messages> = {
         },
         button: "购买点数"
       },
-      currentPlan: "当前方案"
+      currentPlan: "当前方案",
+      paymentMethod: "支付方式",
+      card: "信用卡",
+      crypto: "USDC",
+      cryptoWarning: "仅支持 USDC。请确保使用正确的网络。转账不可退款。",
+      policies: {
+        refund: "退款政策",
+        terms: "服务条款"
+      }
     },
     taskForm: {
       title: "新建转写",
@@ -387,6 +470,52 @@ const messages: Record<Locale, Messages> = {
         other: "其他",
       },
     },
+    policies: {
+      common: {
+        lastUpdated: "最后更新于：2024年12月",
+        contactTitle: "联系我们",
+        contactText: "如有任何疑问，请联系：",
+        contactRefundText: "如需申请退款或寻求支付支持，请发送邮件至：",
+      },
+      refund: {
+        title: "退款政策",
+        general: {
+          title: "1. 一般政策",
+          content: "VibeDigest 致力于提供高质量的服务。如果您因技术故障对我们的服务不满意，可以在购买后 <strong>7天</strong> 内申请退款。"
+        },
+        crypto: {
+          title: "2. 加密货币支付 (USDC)",
+          noticeTitle: "加密货币交易重要须知",
+          noticeContent: "由于区块链交易的不可逆转性，我们对加密货币支付制定了严格的政策：",
+          list: {
+            noRefunds: "<strong>不可自动退款：</strong> 加密货币交易无法撤销。任何退款必须人工处理。",
+            networkErrors: "<strong>网络错误：</strong> 因网络选择错误导致的资金丢失（例如将 ERC-20 USDC 发送到不支持的 Polygon 地址），VibeDigest 概不负责。<strong>请务必确保选择正确的网络。</strong>",
+            underpayments: "<strong>支付金额不足：</strong> 如果您发送的金额少于所需金额，订单可能无法自动完成。请联系支持人员。",
+            gas: "<strong>Gas 费：</strong> 交易手续费 (Gas) 不可退还。"
+          }
+        }
+      },
+      terms: {
+        title: "服务条款",
+        service: {
+          title: "1. 服务描述",
+          content: "VibeDigest 提供基于 AI 的视频转写、摘要和翻译服务。使用我们的服务即表示您同意这些条款。"
+        },
+        payments: {
+          title: "2. 支付",
+          content: "我们接受信用卡 (Stripe) 和加密货币 (Coinbase Commerce) 支付。",
+          list: {
+            l1: "价格以美元 (USD) 计。",
+            l2: "我们严格遵守 OFAC 法规，不向受制裁国家或个人提供服务。",
+            l3: "我们保留随时以任何理由拒绝向任何人提供服务的权利。"
+          }
+        },
+        responsibilities: {
+          title: "3. 用户责任",
+          content: "您有责任维护您账户的机密性，并对您账户下发生的所有活动负责。您同意不将本服务用于任何非法或未经授权的目的。"
+        }
+      }
+    },
   },
   es: {
     brand: {
@@ -408,6 +537,23 @@ const messages: Record<Locale, Messages> = {
       sendMagicLink: "Enviar enlace mágico",
       checkYourEmail: "Revisa tu correo",
       logout: "Cerrar sesión",
+    },
+    landing: {
+      titlePrefix: "Convierte videos y podcasts en",
+      titleEmphasis: "Insights",
+      subtitle:
+        "Compatible con YouTube, Bilibili y Xiaoyuzhou. Obtén transcripciones, resúmenes con IA y traducciones en segundos.",
+      getStarted: "Empezar",
+      github: "GitHub",
+      feature1Title: "Transcripción instantánea",
+      feature1Desc: "Impulsado por IA — para videos y podcasts.",
+      feature2Title: "Resúmenes con IA",
+      feature2Desc: "Obtén lo esencial sin ver todo el video.",
+      feature3Title: "Multi-idioma",
+      feature3Desc: "Traduce contenido al idioma que quieras, automáticamente.",
+      feature4Title: "Multi-plataforma",
+      feature4Desc: "Funciona con YouTube / Bilibili / Xiaoyuzhou.",
+      footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
     },
     home: {
       titleEmphasis: "Video IA",
@@ -552,6 +698,23 @@ const messages: Record<Locale, Messages> = {
       checkYourEmail: "تفقد بريدك",
       logout: "تسجيل الخروج",
     },
+    landing: {
+      titlePrefix: "حوّل الفيديوهات والبودكاست إلى",
+      titleEmphasis: "رؤى",
+      subtitle:
+        "يدعم YouTube وBilibili وXiaoyuzhou. احصل على نصوص وملخصات وترجمات خلال ثوانٍ.",
+      getStarted: "ابدأ الآن",
+      github: "GitHub",
+      feature1Title: "تفريغ فوري",
+      feature1Desc: "مدعوم بالذكاء الاصطناعي — للفيديو والبودكاست.",
+      feature2Title: "ملخصات بالذكاء الاصطناعي",
+      feature2Desc: "احصل على أهم النقاط دون مشاهدة الفيديو كاملًا.",
+      feature3Title: "متعدد اللغات",
+      feature3Desc: "ترجم المحتوى إلى أي لغة تريدها — تلقائيًا.",
+      feature4Title: "متعدد المنصات",
+      feature4Desc: "يعمل مع YouTube / Bilibili / Xiaoyuzhou.",
+      footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
+    },
     home: {
       titleEmphasis: "فيديو AI",
       subtitle: "تلخيص وملاحظات ذكية",
@@ -654,6 +817,23 @@ const messages: Record<Locale, Messages> = {
       sendMagicLink: "Envoyer le lien magique",
       checkYourEmail: "Vérifiez votre email",
       logout: "Déconnexion",
+    },
+    landing: {
+      titlePrefix: "Transformez des vidéos et podcasts en",
+      titleEmphasis: "Insights",
+      subtitle:
+        "Compatible avec YouTube, Bilibili et Xiaoyuzhou. Transcriptions, résumés IA et traductions en quelques secondes.",
+      getStarted: "Commencer",
+      github: "GitHub",
+      feature1Title: "Transcription instantanée",
+      feature1Desc: "Propulsé par l’IA — pour vidéos et podcasts.",
+      feature2Title: "Résumés IA",
+      feature2Desc: "Obtenez l’essentiel sans regarder toute la vidéo.",
+      feature3Title: "Multi-langues",
+      feature3Desc: "Traduisez automatiquement dans la langue de votre choix.",
+      feature4Title: "Multi-plateforme",
+      feature4Desc: "Fonctionne avec YouTube / Bilibili / Xiaoyuzhou.",
+      footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
     },
     home: {
       titleEmphasis: "Vidéo IA",
@@ -758,6 +938,23 @@ const messages: Record<Locale, Messages> = {
       checkYourEmail: "Проверьте почту",
       logout: "Выйти",
     },
+    landing: {
+      titlePrefix: "Преобразуйте видео и подкасты в",
+      titleEmphasis: "инсайты",
+      subtitle:
+        "Поддерживаются YouTube, Bilibili и Xiaoyuzhou. Транскрипты, AI‑резюме и переводы за секунды.",
+      getStarted: "Начать",
+      github: "GitHub",
+      feature1Title: "Мгновенная транскрипция",
+      feature1Desc: "На базе ИИ — для видео и подкастов.",
+      feature2Title: "AI‑резюме",
+      feature2Desc: "Ключевые выводы без просмотра всего видео.",
+      feature3Title: "Многоязычность",
+      feature3Desc: "Автоматический перевод на любой язык по вашему выбору.",
+      feature4Title: "Мультиплатформенность",
+      feature4Desc: "Работает с YouTube / Bilibili / Xiaoyuzhou.",
+      footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
+    },
     home: {
       titleEmphasis: "AI Видео",
       subtitle: "Умные конспекты и заметки",
@@ -860,6 +1057,23 @@ const messages: Record<Locale, Messages> = {
       sendMagicLink: "Enviar link mágico",
       checkYourEmail: "Verifique seu e-mail",
       logout: "Sair",
+    },
+    landing: {
+      titlePrefix: "Transforme vídeos e podcasts em",
+      titleEmphasis: "Insights",
+      subtitle:
+        "Compatível com YouTube, Bilibili e Xiaoyuzhou. Transcrições, resumos com IA e traduções em segundos.",
+      getStarted: "Começar",
+      github: "GitHub",
+      feature1Title: "Transcrição instantânea",
+      feature1Desc: "Com IA — para vídeos e podcasts.",
+      feature2Title: "Resumos com IA",
+      feature2Desc: "Os principais pontos sem ver o vídeo inteiro.",
+      feature3Title: "Multi-idioma",
+      feature3Desc: "Traduza automaticamente para qualquer idioma que você quiser.",
+      feature4Title: "Multi-plataforma",
+      feature4Desc: "Funciona com YouTube / Bilibili / Xiaoyuzhou.",
+      footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
     },
     home: {
       titleEmphasis: "Vídeo IA",
@@ -964,6 +1178,23 @@ const messages: Record<Locale, Messages> = {
       checkYourEmail: "अपना ईमेल चेक करें",
       logout: "लॉग आउट",
     },
+    landing: {
+      titlePrefix: "वीडियो और पॉडकास्ट को बदलें",
+      titleEmphasis: "इनसाइट्स",
+      subtitle:
+        "YouTube, Bilibili और Xiaoyuzhou समर्थित। सेकंडों में ट्रांसक्रिप्ट, AI सारांश और अनुवाद पाएं।",
+      getStarted: "शुरू करें",
+      github: "GitHub",
+      feature1Title: "तुरंत ट्रांसक्रिप्शन",
+      feature1Desc: "AI द्वारा संचालित — वीडियो और पॉडकास्ट के लिए।",
+      feature2Title: "AI सारांश",
+      feature2Desc: "पूरा वीडियो देखे बिना मुख्य बातें पाएं।",
+      feature3Title: "बहु-भाषा",
+      feature3Desc: "किसी भी मनचाही भाषा में अपने-आप अनुवाद करें।",
+      feature4Title: "मल्टी-प्लैटफ़ॉर्म",
+      feature4Desc: "YouTube / Bilibili / Xiaoyuzhou के साथ काम करता है।",
+      footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
+    },
     home: {
       titleEmphasis: "AI वीडियो",
       subtitle: "स्मार्ट सारांश और नोट्स",
@@ -1066,6 +1297,23 @@ const messages: Record<Locale, Messages> = {
       sendMagicLink: "ログインリンクを送信",
       checkYourEmail: "メールを確認してください",
       logout: "ログアウト",
+    },
+    landing: {
+      titlePrefix: "動画とポッドキャストを",
+      titleEmphasis: "インサイト",
+      subtitle:
+        "YouTube / Bilibili / Xiaoyuzhou に対応。文字起こし、AI要約、翻訳を数秒で。",
+      getStarted: "始める",
+      github: "GitHub",
+      feature1Title: "即時文字起こし",
+      feature1Desc: "AI搭載 — 動画もポッドキャストも。",
+      feature2Title: "AI要約",
+      feature2Desc: "動画を全部見なくても要点を把握。",
+      feature3Title: "多言語",
+      feature3Desc: "好きな言語へ自動で翻訳できます。",
+      feature4Title: "マルチプラットフォーム",
+      feature4Desc: "YouTube / Bilibili / Xiaoyuzhou に対応。",
+      footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
     },
     home: {
       titleEmphasis: "AI 動画",
@@ -1193,6 +1441,23 @@ const messages: Record<Locale, Messages> = {
       sendMagicLink: "로그인 링크 보내기",
       checkYourEmail: "이메일을 확인하세요",
       logout: "로그아웃",
+    },
+    landing: {
+      titlePrefix: "영상과 팟캐스트를",
+      titleEmphasis: "인사이트",
+      subtitle:
+        "YouTube / Bilibili / Xiaoyuzhou 지원. 대본, AI 요약, 번역을 몇 초 만에.",
+      getStarted: "시작하기",
+      github: "GitHub",
+      feature1Title: "즉시 전사",
+      feature1Desc: "AI 기반 — 영상과 팟캐스트 모두.",
+      feature2Title: "AI 요약",
+      feature2Desc: "전체 영상을 보지 않고도 핵심만 파악하세요.",
+      feature3Title: "다국어",
+      feature3Desc: "원하는 어떤 언어로든 자동 번역합니다.",
+      feature4Title: "멀티 플랫폼",
+      feature4Desc: "YouTube / Bilibili / Xiaoyuzhou 지원.",
+      footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
     },
     home: {
       titleEmphasis: "AI 비디오",
