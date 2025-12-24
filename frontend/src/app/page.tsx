@@ -7,6 +7,7 @@ import { useI18n } from "@/components/i18n/I18nProvider"
 import type { LucideIcon } from "lucide-react"
 import { LanguageInlineSelect } from "@/components/i18n/LanguageInlineSelect"
 import { Layers } from "lucide-react"
+import { Heading, Text } from "@/components/ui/typography"
 
 export default function LandingPage() {
   const { t } = useI18n()
@@ -18,28 +19,27 @@ export default function LandingPage() {
       </div>
 
       {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-8">
+      <main className="flex-1 flex flex-col items-center justify-center px-6 py-14 md:py-16 lg:py-20 text-center space-y-8">
         <div className="space-y-4 max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-            </span>
-            {t("brand.versionTag")}
-          </div>
-
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-white/50">
+          <Heading
+            as="h1"
+            variant="display"
+            className="bg-clip-text text-transparent bg-gradient-to-r from-white to-white/50"
+          >
             {t("landing.titlePrefix")} <span className="text-primary">{t("landing.titleEmphasis")}</span>
-          </h1>
+          </Heading>
 
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <Text tone="muted" className="max-w-2xl mx-auto">
             {t("landing.subtitle")}
-          </p>
+          </Text>
         </div>
 
         <div className="flex gap-4">
           <Link href="/login">
-            <Button size="lg" className="h-12 px-8 text-lg gap-2 bg-primary text-black hover:bg-primary/90 shadow-[0_0_20px_rgba(62,207,142,0.3)]">
+            <Button
+              size="xl"
+              className="px-8 gap-2 bg-primary text-black hover:bg-primary/90 shadow-[0_0_20px_rgba(62,207,142,0.3)]"
+            >
               {t("landing.getStarted")} <ArrowRight className="h-5 w-5" />
             </Button>
           </Link>
@@ -47,7 +47,7 @@ export default function LandingPage() {
         </div>
 
         {/* Feature Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-16 max-w-6xl w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-12 md:mt-16 max-w-6xl w-full">
           <FeatureCard
             icon={Zap}
             title={t("landing.feature1Title")}
@@ -82,8 +82,12 @@ function FeatureCard({ icon: Icon, title, desc }: { icon: LucideIcon, title: str
       <div className="h-10 w-10 rounded-lg bg-black/40 flex items-center justify-center">
         <Icon className="h-5 w-5 text-primary" />
       </div>
-      <h3 className="text-xl font-semibold">{title}</h3>
-      <p className="text-muted-foreground">{desc}</p>
+      <Heading as="h3" variant="h3">
+        {title}
+      </Heading>
+      <Text tone="muted" variant="bodySm">
+        {desc}
+      </Text>
     </div>
   )
 }

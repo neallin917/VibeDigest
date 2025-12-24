@@ -76,7 +76,7 @@ export function TaskForm() {
     return (
         <Card className="w-full glass">
             <CardHeader>
-                <CardTitle className="text-2xl flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2">
                     <Sparkles className="text-primary h-6 w-6" />
                     {t("taskForm.title")}
                 </CardTitle>

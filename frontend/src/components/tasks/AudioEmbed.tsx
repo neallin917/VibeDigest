@@ -2,6 +2,7 @@ import React from "react"
 
 import { ApplePodcastsIcon } from "@/components/icons/ApplePodcastsIcon"
 import { XiaoyuzhouIcon } from "@/components/icons/XiaoyuzhouIcon"
+import { Heading } from "@/components/ui/typography"
 
 export function AudioEmbed({
   audioUrl,
@@ -55,9 +56,9 @@ export function AudioEmbed({
               </div>
             )}
 
-            <h3 className="text-lg md:text-xl font-bold leading-tight text-white mb-2 line-clamp-2">
+            <Heading as="h3" variant="mediaTitle" className="mb-2">
               {title || "Episode"}
-            </h3>
+            </Heading>
             {/* Optional: Add date or "Podcast" subtitle if available in data */}
           </div>
 

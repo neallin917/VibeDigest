@@ -1,5 +1,6 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { headingVariants, textVariants } from "@/components/ui/typography"
 
 const Card = React.forwardRef<
     HTMLDivElement,
@@ -35,7 +36,7 @@ const CardTitle = React.forwardRef<
     <h3
         ref={ref}
         className={cn(
-            "text-lg font-semibold leading-none tracking-tight",
+            headingVariants({ variant: "h3" }),
             className
         )}
         {...props}
@@ -49,7 +50,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <p
         ref={ref}
-        className={cn("text-sm text-muted-foreground", className)}
+        className={cn(textVariants({ variant: "bodySm", tone: "muted" }), className)}
         {...props}
     />
 ))

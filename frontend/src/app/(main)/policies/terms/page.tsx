@@ -1,24 +1,33 @@
 "use client"
 
 import { useI18n } from "@/components/i18n/I18nProvider"
+import { Heading, Text } from "@/components/ui/typography"
 
 export default function TermsOfService() {
     const { t } = useI18n()
 
     return (
         <div className="max-w-3xl mx-auto py-12 px-4 space-y-6">
-            <h1 className="text-3xl font-bold">{t("policies.terms.title")}</h1>
-            <p className="text-muted-foreground">{t("policies.common.lastUpdated")}</p>
+            <Heading as="h1" variant="h1">
+                {t("policies.terms.title")}
+            </Heading>
+            <Text tone="muted" variant="bodySm">
+                {t("policies.common.lastUpdated")}
+            </Text>
 
             <section className="space-y-4">
-                <h2 className="text-xl font-semibold">{t("policies.terms.service.title")}</h2>
+                <Heading as="h2" variant="h2" className="font-semibold">
+                    {t("policies.terms.service.title")}
+                </Heading>
                 <p>
                     {t("policies.terms.service.content")}
                 </p>
             </section>
 
             <section className="space-y-4">
-                <h2 className="text-xl font-semibold">{t("policies.terms.payments.title")}</h2>
+                <Heading as="h2" variant="h2" className="font-semibold">
+                    {t("policies.terms.payments.title")}
+                </Heading>
                 <p>
                     {t("policies.terms.payments.content")}
                 </p>
@@ -30,14 +39,18 @@ export default function TermsOfService() {
             </section>
 
             <section className="space-y-4">
-                <h2 className="text-xl font-semibold">{t("policies.terms.responsibilities.title")}</h2>
+                <Heading as="h2" variant="h2" className="font-semibold">
+                    {t("policies.terms.responsibilities.title")}
+                </Heading>
                 <p>
                     {t("policies.terms.responsibilities.content")}
                 </p>
             </section>
 
             <section className="space-y-4">
-                <h2 className="text-xl font-semibold">{t("policies.common.contactTitle")}</h2>
+                <Heading as="h2" variant="h2" className="font-semibold">
+                    {t("policies.common.contactTitle")}
+                </Heading>
                 <p>
                     {t("policies.common.contactText")}
                     <a href="mailto:support@vibedigest.com" className="text-blue-500 hover:underline ml-1">support@vibedigest.com</a>

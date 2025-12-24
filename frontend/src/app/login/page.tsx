@@ -59,7 +59,7 @@ export default function LoginPage() {
                     <div className="mx-auto bg-primary/20 p-3 rounded-full w-fit mb-2">
                         <Sparkles className="h-6 w-6 text-primary" />
                     </div>
-                    <CardTitle className="text-2xl font-bold">{t("auth.welcomeBack")}</CardTitle>
+                    <CardTitle className="font-bold">{t("auth.welcomeBack")}</CardTitle>
                     <CardDescription>{t("auth.signInToContinue", { appName: t("brand.name") })}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">

@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { FeedbackDialog } from "./FeedbackDialog"
 import { NAV_ITEMS } from "@/components/layout/navItems"
+import { Heading, Text } from "@/components/ui/typography"
 
 export function Sidebar() {
     const pathname = usePathname()
@@ -27,9 +28,14 @@ export function Sidebar() {
     return (
         <div className="hidden md:flex h-dvh w-64 flex-col border-r bg-card">
             <div className="p-6">
-                <h1 className="text-xl font-bold flex items-center gap-2">
-                    <span className="text-primary text-2xl">⚡</span> {t("brand.appName")}
-                </h1>
+                <div className="flex items-center gap-2">
+                    <Text as="span" className="text-primary" weight="semibold">
+                        ⚡
+                    </Text>
+                    <Heading as="h1" variant="h3" className="m-0">
+                        {t("brand.appName")}
+                    </Heading>
+                </div>
             </div>
 
             <div className="flex-1 px-4 py-2 space-y-1">

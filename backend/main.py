@@ -63,6 +63,7 @@ notifier = Notifier()
 # Stripe Config
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 PRO_PRICE_ID = "price_1ShU6GP16NRNsVf5dcAqHHDV"
+PRO_ANNUAL_PRICE_ID = "price_1ShVNXP16NRNsVf56kArMPa4"
 CREDIT_PACK_PRICE_ID = "price_1ShU6pP16NRNsVf5EdlEFgOE"
 
 # Coinbase Config
@@ -320,16 +321,14 @@ async def create_crypto_charge(
     
     # Validation/Mapping
     if price_id == CREDIT_PACK_PRICE_ID:
-        amount = 5.00 # Example Price, adjust to real price! 
-        # Wait, previous code didn't specify price in Stripe (it's in Stripe Dashboard).
-        # We need to know the price. 
-        # Assuming $5.00 for 20 credits for now (MVP).
-        # TODO: Sync price from DB or Config.
-        amount = 5.00 
-        name = "20 Credits Top-up"
+        amount = 5.00 # 20 Credits
+        name = "20 Credits Top-up (One-time)"
     elif price_id == PRO_PRICE_ID:
-        amount = 19.00 # Example
+        amount = 9.90 # Pro Month
         name = "Pro Plan (1 Month)"
+    elif price_id == PRO_ANNUAL_PRICE_ID:
+        amount = 99.00 # Pro Annual
+        name = "Pro Plan (1 Year)"
     else:
          raise HTTPException(status_code=400, detail="Invalid Price ID")
 

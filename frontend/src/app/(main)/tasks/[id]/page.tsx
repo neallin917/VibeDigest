@@ -14,6 +14,7 @@ import { useI18n } from "@/components/i18n/I18nProvider"
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 import { VideoEmbed, supportsVideoEmbed } from "@/components/tasks/VideoEmbed"
 import { AudioEmbed } from "@/components/tasks/AudioEmbed"
+import { Heading } from "@/components/ui/typography"
 
 type Task = {
     id: string
@@ -128,9 +129,9 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                 <CardHeader className="pb-4 p-4 md:p-6">
                     <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-start">
                         <div className="space-y-1">
-                            <h1 className="text-lg md:text-2xl font-bold leading-snug break-words">
+                            <Heading as="h1" variant="pageTitle">
                                 {task.video_title || task.video_url}
-                            </h1>
+                            </Heading>
                         </div>
                         <Badge variant={task.status === "completed" ? "success" : task.status === "error" ? "destructive" : "processing"} className="text-xs md:text-sm px-3 py-1 self-start">
                             {task.status.toUpperCase()}
