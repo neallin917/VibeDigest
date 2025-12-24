@@ -28,7 +28,7 @@ const textVariants = cva("", {
 
 export interface TextProps
   extends React.HTMLAttributes<HTMLElement>,
-    VariantProps<typeof textVariants> {
+  VariantProps<typeof textVariants> {
   as?: "p" | "span" | "div" | "label"
 }
 
@@ -37,7 +37,7 @@ export const Text = React.forwardRef<HTMLElement, TextProps>(
     const Comp = as
     return (
       <Comp
-        ref={ref}
+        ref={ref as any}
         className={cn(textVariants({ variant, tone, weight }), className)}
         {...props}
       />
@@ -72,7 +72,7 @@ const headingVariants = cva("tracking-tight", {
 
 export interface HeadingProps
   extends React.HTMLAttributes<HTMLHeadingElement>,
-    VariantProps<typeof headingVariants> {
+  VariantProps<typeof headingVariants> {
   as?: "h1" | "h2" | "h3"
 }
 
@@ -81,7 +81,7 @@ export const Heading = React.forwardRef<HTMLHeadingElement, HeadingProps>(
     const Comp = as
     return (
       <Comp
-        ref={ref}
+        ref={ref as any}
         className={cn(headingVariants({ variant, tone }), className)}
         {...props}
       />
