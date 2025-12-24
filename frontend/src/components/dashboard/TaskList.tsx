@@ -30,6 +30,8 @@ const getPlatformFromUrl = (url: string) => {
         if (hostname.includes('bilibili')) return 'Bilibili'
         if (hostname.includes('youtube') || hostname.includes('youtu.be')) return 'YouTube'
         if (hostname.includes('tiktok')) return 'TikTok'
+        if (hostname.includes('apple.com')) return 'Apple Podcast'
+        if (hostname.includes('xiaoyuzhoufm.com')) return 'Xiaoyuzhou'
         return 'Web'
     } catch {
         return 'Link'
@@ -286,11 +288,7 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                                             </Button>
                                         </div>
                                     </div>
-                                    {task.video_title && (
-                                        <p className="text-xs text-muted-foreground truncate hover:text-white/80 transition-colors">
-                                            {task.video_url}
-                                        </p>
-                                    )}
+
                                 </>
                             )}
                             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
