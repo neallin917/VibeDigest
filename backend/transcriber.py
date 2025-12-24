@@ -434,13 +434,10 @@ def format_markdown_from_raw_segments(raw_segments: list[dict], detected_languag
     Public helper: format transcript markdown from stored raw segments (JSON).
     This enables re-formatting without re-transcribing.
     """
-    transcript_lines = []
-    transcript_lines.append("# Video Transcription")
-    transcript_lines.append("")
-    transcript_lines.append(f"**Detected Language:** {detected_language}")
-    transcript_lines.append("")
-    transcript_lines.append("## Transcription Content")
-    transcript_lines.append("")
+    # NOTE: Keep the transcript content clean and UI-friendly.
+    # The frontend already shows "original script language", so we avoid repeating
+    # "Detected Language" and "Transcription Content" headings inside the markdown.
+    transcript_lines: list[str] = []
 
     # Convert raw dicts to a lightweight object-like interface expected by the merge logic.
     class _Seg:
@@ -599,12 +596,8 @@ class Transcriber:
 
             # 组装转录结果
             transcript_lines = []
-            transcript_lines.append("# Video Transcription")
-            transcript_lines.append("")
-            transcript_lines.append(f"**Detected Language:** {detected_language}")
-            transcript_lines.append("")
-            transcript_lines.append("## Transcription Content")
-            transcript_lines.append("")
+            # NOTE: Keep transcript markdown free of redundant headings.
+            # The UI already presents language metadata separately.
 
             # Readability-first formatting:
             # 1) Merge segments into sentence-like chunks using punctuation heuristics

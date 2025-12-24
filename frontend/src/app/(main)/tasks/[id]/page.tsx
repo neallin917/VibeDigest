@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, FileText, Languages, Subtitles, Copy, Check } from "lucide-react"
+import { ArrowLeft, FileText, Subtitles, Copy, Check } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -36,12 +36,24 @@ type Output = {
     error_message?: string
 }
 
+type StructuredSummaryV1 = {
+    version: number
+    language: string
+    overview: string
+    keypoints: Array<{
+        title: string
+        detail: string
+        terms?: string[]
+        evidence?: string
+    }>
+}
+
 export default function TaskDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
     const [task, setTask] = useState<Task | null>(null)
     const [outputs, setOutputs] = useState<Output[]>([])
-    // Changed default to 'script' to show transcription first as per user request
-    const [activeTab, setActiveTab] = useState("script")
+    // Default to summary (primary UX)
+    const [activeTab, setActiveTab] = useState("summary")
     const supabase = createClient()
     const { t } = useI18n()
 
@@ -91,9 +103,27 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
     const script = outputs.find(o => o.kind === 'script')
     const summary = outputs.find(o => o.kind === 'summary')
-    const translations = outputs.filter(o => o.kind === 'translation')
+    const scriptRaw = outputs.find(o => o.kind === 'script_raw')
     const audio = outputs.find(o => o.kind === 'audio')
     const hasVideo = supportsVideoEmbed(task.video_url)
+
+    const detectedLanguageCode = (() => {
+        if (!scriptRaw?.content) return "unknown"
+        try {
+            const payload = JSON.parse(scriptRaw.content) as { language?: string }
+            return (payload.language || "unknown").toLowerCase()
+        } catch {
+            return "unknown"
+        }
+    })()
+
+    const detectedLanguageLabel = (() => {
+        const key = `languages.${detectedLanguageCode}`
+        const maybe = t(key)
+        // createTranslator returns key when missing; treat that as "unknown"
+        if (maybe === key) return detectedLanguageCode
+        return maybe
+    })()
 
     // audio.content can be either:
     // - plain URL string (legacy)
@@ -172,42 +202,32 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                         </div>
                     )}
 
-                    <Tabs defaultValue="script" value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <TabsList className="grid w-full grid-cols-3 bg-secondary/50 p-1 h-11">
-                            <TabsTrigger value="script" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-black font-medium">
-                                <Subtitles className="hidden sm:block h-4 w-4" /> {t("tasks.tabScript")}
-                            </TabsTrigger>
+                    <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2 bg-secondary/50 p-1 h-11">
                             <TabsTrigger value="summary" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-black font-medium">
                                 <FileText className="hidden sm:block h-4 w-4" /> {t("tasks.tabSummary")}
                             </TabsTrigger>
-                            <TabsTrigger value="translation" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-black font-medium">
-                                <Languages className="hidden sm:block h-4 w-4" /> {t("tasks.tabTranslation")}
+                            <TabsTrigger value="script" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-black font-medium">
+                                <Subtitles className="hidden sm:block h-4 w-4" /> {t("tasks.tabScript")}
                             </TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="script" className="mt-4 md:mt-6">
-                            <OutputCard
-                                output={script}
-                                placeholder={t("tasks.scriptPlaceholder")}
-                                isScript={true}
+                        <TabsContent value="summary" className="mt-4 md:mt-6 space-y-4">
+                            <SummarySection
+                                taskTitle={task.video_title}
+                                summary={summary}
+                                summaryPlaceholder={t("tasks.summaryPlaceholder")}
+                                t={t}
                             />
                         </TabsContent>
 
-                        <TabsContent value="summary" className="mt-4 md:mt-6 space-y-4">
-                            <OutputCard output={summary} placeholder={t("tasks.summaryPlaceholder")} />
-                        </TabsContent>
-
-                        <TabsContent value="translation" className="mt-4 md:mt-6 space-y-4">
-                            {translations.length === 0 && <div className="text-center p-8 text-muted-foreground bg-black/20 rounded-xl">{t("tasks.noTranslations")}</div>}
-                            {translations.map((tr) => (
-                                <div key={tr.id}>
-                                    <h3 className="mb-3 font-semibold text-primary/80 flex items-center gap-2">
-                                        <Languages className="h-4 w-4" />
-                                        {t("tasks.translationTitle", { locale: (tr.locale || "").toUpperCase() })}
-                                    </h3>
-                                    <OutputCard output={tr} />
-                                </div>
-                            ))}
+                        <TabsContent value="script" className="mt-4 md:mt-6 space-y-4">
+                            <FullScriptSection
+                                script={script}
+                                scriptPlaceholder={t("tasks.scriptPlaceholder")}
+                                detectedLanguageLabel={detectedLanguageLabel}
+                                t={t}
+                            />
                         </TabsContent>
                     </Tabs>
                 </CardContent>
@@ -216,14 +236,209 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
     )
 }
 
+function SummarySection({
+    taskTitle,
+    summary,
+    summaryPlaceholder,
+    t,
+}: {
+    taskTitle?: string
+    summary?: Output
+    summaryPlaceholder: string
+    t: (key: string, vars?: Record<string, string | number>) => string
+}) {
+    const [isCopied, setIsCopied] = useState(false)
+
+    const parsed = (() => {
+        if (!summary?.content) return null
+        try {
+            const obj = JSON.parse(summary.content) as StructuredSummaryV1
+            if (!obj || typeof obj !== "object") return null
+            if (typeof obj.overview !== "string") return null
+            if (!Array.isArray(obj.keypoints)) return null
+            return obj
+        } catch {
+            return null
+        }
+    })()
+
+    const toMarkdown = (data: StructuredSummaryV1) => {
+        const lines: string[] = []
+        if (taskTitle) lines.push(`# ${taskTitle}`, "")
+        lines.push(`## ${t("tasks.summaryStructured.overviewTitle")}`, "", data.overview.trim(), "")
+        lines.push(`## ${t("tasks.summaryStructured.keypointsTitle")}`, "")
+        for (const kp of data.keypoints) {
+            const title = (kp.title || "").trim()
+            const detail = (kp.detail || "").trim()
+            const evidence = (kp.evidence || "").trim()
+            const terms = Array.isArray(kp.terms) ? kp.terms.filter(Boolean) : []
+            if (!title && !detail) continue
+            lines.push(`- **${title || detail.slice(0, 48)}**${detail ? `: ${detail}` : ""}`)
+            if (terms.length) lines.push(`  - ${t("tasks.summaryStructured.termsLabel")}: ${terms.join(", ")}`)
+            if (evidence) lines.push(`  - ${t("tasks.summaryStructured.evidenceLabel")}: ${evidence}`)
+        }
+        return lines.join("\n").trim() + "\n"
+    }
+
+    const handleCopy = async () => {
+        if (!summary?.content) return
+        try {
+            const textToCopy = parsed ? toMarkdown(parsed) : summary.content
+            await navigator.clipboard.writeText(textToCopy)
+            setIsCopied(true)
+            setTimeout(() => setIsCopied(false), 2000)
+        } catch (err) {
+            console.error("Failed to copy:", err)
+        }
+    }
+
+    if (!summary) {
+        return (
+            <Card className="bg-black/20 border-white/5 min-h-[220px] md:min-h-[300px] flex items-center justify-center">
+                <CardContent className="text-center text-muted-foreground p-6 md:p-10">
+                    <div className="mb-4 flex justify-center">
+                        <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center mx-auto">
+                            <FileText className="h-6 w-6 opacity-50" />
+                        </div>
+                    </div>
+                    {summaryPlaceholder || t("tasks.contentPending")}
+                </CardContent>
+            </Card>
+        )
+    }
+
+    if (summary.status === "error") {
+        return (
+            <Card className="bg-red-950/20 border-red-500/30">
+                <CardContent className="p-6 flex flex-col items-center gap-4 text-red-300">
+                    <p>{t("tasks.failedToGenerate", { error: summary.error_message || "" })}</p>
+                    <p className="text-sm text-red-200/80">{t("tasks.processingHint1")}</p>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    if (summary.status === "processing" || summary.status === "pending") {
+        return (
+            <Card className="bg-black/20 border-white/5 min-h-[220px] md:min-h-[300px] flex items-center justify-center">
+                <CardContent className="p-6 md:p-10 text-center space-y-4">
+                    <div className="flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
+                    <div>
+                        <p className="font-medium text-foreground">{t("tasks.generatingContent")}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{t("tasks.percentComplete", { percent: summary.progress })}</p>
+                    </div>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    if (!parsed) {
+        // Backward compatibility: old markdown summaries
+        return <OutputCard output={summary} placeholder={summaryPlaceholder} />
+    }
+
+    return (
+        <Card className="bg-black/20 border-white/5 relative group">
+            <div className="absolute top-3 right-3 md:top-4 md:right-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-2 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10"
+                    onClick={handleCopy}
+                >
+                    {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    {isCopied ? t("tasks.copied") : t("tasks.copyToClipboard")}
+                </Button>
+            </div>
+
+            <CardContent className="p-4 pt-12 md:p-8 md:pt-10 space-y-6">
+                <div>
+                    <div className="text-xs font-semibold tracking-wider text-muted-foreground/80 uppercase mb-2">
+                        {t("tasks.summaryStructured.overviewTitle")}
+                    </div>
+                    <div className="text-base leading-relaxed text-foreground/95 whitespace-pre-wrap">
+                        {parsed.overview}
+                    </div>
+                </div>
+
+                <div>
+                    <div className="text-xs font-semibold tracking-wider text-muted-foreground/80 uppercase mb-3">
+                        {t("tasks.summaryStructured.keypointsTitle")}
+                    </div>
+                    <div className="space-y-3">
+                        {parsed.keypoints.map((kp, idx) => (
+                            <div
+                                key={`${idx}-${kp.title}`}
+                                className="rounded-xl border border-white/10 bg-black/25 p-4"
+                            >
+                                <div className="font-semibold text-primary/90">
+                                    {kp.title}
+                                </div>
+                                {kp.detail ? (
+                                    <div className="mt-2 text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">
+                                        {kp.detail}
+                                    </div>
+                                ) : null}
+
+                                {Array.isArray(kp.terms) && kp.terms.length ? (
+                                    <div className="mt-3 text-xs text-muted-foreground">
+                                        <span className="font-medium">{t("tasks.summaryStructured.termsLabel")}:</span>{" "}
+                                        {kp.terms.join(", ")}
+                                    </div>
+                                ) : null}
+
+                                {kp.evidence ? (
+                                    <div className="mt-2 text-xs text-muted-foreground">
+                                        <span className="font-medium">{t("tasks.summaryStructured.evidenceLabel")}:</span>{" "}
+                                        {kp.evidence}
+                                    </div>
+                                ) : null}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
+function FullScriptSection({
+    script,
+    scriptPlaceholder,
+    detectedLanguageLabel,
+    t,
+}: {
+    script?: Output
+    scriptPlaceholder: string
+    detectedLanguageLabel: string
+    t: (key: string, vars?: Record<string, string | number>) => string
+}) {
+    return (
+        <Card className="bg-black/20 border-white/5">
+            <CardHeader className="pb-2">
+                <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">
+                        {t("tasks.originalScriptLanguage", { language: detectedLanguageLabel })}
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+                <OutputCard output={script} placeholder={scriptPlaceholder} isScript={true} />
+            </CardContent>
+        </Card>
+    )
+}
+
 function OutputCard({ output, placeholder, isScript = false }: { output?: Output, placeholder?: string, isScript?: boolean }) {
     const { t } = useI18n()
     const [isCopied, setIsCopied] = useState(false)
 
+    const cleanedContent = isScript ? stripRedundantTranscriptHeaders(output?.content) : output?.content
+
     const handleCopy = async () => {
-        if (!output?.content) return
+        if (!cleanedContent) return
         try {
-            await navigator.clipboard.writeText(output.content)
+            await navigator.clipboard.writeText(cleanedContent)
             setIsCopied(true)
             setTimeout(() => setIsCopied(false), 2000)
         } catch (err) {
@@ -294,10 +509,31 @@ function OutputCard({ output, placeholder, isScript = false }: { output?: Output
                             strong: ({ ...props }) => <strong className="text-primary font-mono bg-primary/10 px-1 rounded" {...props} />
                         }}
                     >
-                        {output.content}
+                        {cleanedContent}
                     </ReactMarkdown>
                 </div>
             </CardContent>
         </Card>
     )
+}
+
+function stripRedundantTranscriptHeaders(content?: string) {
+    if (!content) return content
+
+    // Backend previously included these headings inside the script markdown.
+    // The task detail UI already renders "original script language" above the card,
+    // so this becomes redundant/noisy. We keep this cleanup for backward compatibility
+    // with existing saved outputs.
+    const lines = content.split("\n")
+    const filtered = lines.filter((line) => {
+        const trimmed = line.trim()
+        if (!trimmed) return true
+        if (/^\*\*Detected Language:\*\*/i.test(trimmed)) return false
+        if (/^##\s*Transcription Content\b/i.test(trimmed)) return false
+        if (/^#\s*Video Transcription\b/i.test(trimmed)) return false
+        return true
+    })
+
+    // Collapse excessive blank lines introduced by removing headers
+    return filtered.join("\n").replace(/\n{3,}/g, "\n\n").trim()
 }

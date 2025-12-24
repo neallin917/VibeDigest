@@ -12,6 +12,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 import { Sparkles, Video } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 import { ApiClient } from "@/lib/api"
@@ -21,6 +29,7 @@ import { SUPPORTED_LOCALES, LOCALE_LABEL } from "@/lib/i18n"
 export function TaskForm() {
     const [url, setUrl] = useState("")
     const [loading, setLoading] = useState(false)
+    const [showQuotaDialog, setShowQuotaDialog] = useState(false)
     const router = useRouter()
     const supabase = createClient()
     const { t, locale } = useI18n()
@@ -54,9 +63,7 @@ export function TaskForm() {
             }
 
             formData.append("video_url", finalUrl)
-            formData.append("summary_language", "zh") // Default to Chinese as per original
-
-            formData.append("translate_targets", JSON.stringify([language]))
+            formData.append("summary_language", language)
 
             const res = await ApiClient.processVideo(formData, session.access_token)
             console.log("Task Created:", res)
@@ -67,7 +74,12 @@ export function TaskForm() {
 
         } catch (error: unknown) {
             console.error(error)
-            alert(error instanceof Error ? error.message : String(error))
+            const errorMsg = error instanceof Error ? error.message : String(error)
+            if (errorMsg.includes("Quota exceeded") || errorMsg.includes("insufficient credits")) {
+                setShowQuotaDialog(true)
+            } else {
+                alert(errorMsg)
+            }
         } finally {
             setLoading(false)
         }
@@ -110,14 +122,14 @@ export function TaskForm() {
 
                             <div className="w-[150px] sm:w-[220px] space-y-1">
                                 <div className="text-xs font-medium text-muted-foreground/80 uppercase tracking-wider">
-                                    {t("taskForm.translateTo")}
+                                    {t("taskForm.summaryLanguage")}
                                 </div>
                                 <Select value={language} onValueChange={setLanguage}>
                                     <SelectTrigger
                                         className="w-full h-11 bg-black/20 border-white/10 hover:bg-black/25"
                                         size="default"
                                     >
-                                        <SelectValue placeholder={t("taskForm.translateTo")} />
+                                        <SelectValue placeholder={t("taskForm.summaryLanguage")} />
                                     </SelectTrigger>
                                     <SelectContent align="start">
                                         {SUPPORTED_LOCALES.map((localeKey) => (
@@ -132,6 +144,25 @@ export function TaskForm() {
                     </div>
                 </form>
             </CardContent>
-        </Card>
+
+            <Dialog open={showQuotaDialog} onOpenChange={setShowQuotaDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{t("taskForm.quotaExceeded.title")}</DialogTitle>
+                        <DialogDescription>
+                            {t("taskForm.quotaExceeded.description")}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowQuotaDialog(false)}>
+                            {t("taskForm.quotaExceeded.cancel")}
+                        </Button>
+                        <Button onClick={() => router.push("/settings/pricing")}>
+                            {t("taskForm.quotaExceeded.confirm")}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </Card >
     )
 }

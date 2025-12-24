@@ -27,17 +27,27 @@ const textVariants = cva("", {
 })
 
 export interface TextProps
-  extends React.HTMLAttributes<HTMLElement>,
-  VariantProps<typeof textVariants> {
+  extends VariantProps<typeof textVariants> {
   as?: "p" | "span" | "div" | "label"
 }
 
-export const Text = React.forwardRef<HTMLElement, TextProps>(
-  ({ as = "p", className, variant, tone, weight, ...props }, ref) => {
-    const Comp = as
+type TextAs = NonNullable<TextProps["as"]>
+
+export type PolymorphicTextProps<TAs extends TextAs = "p"> =
+  React.ComponentPropsWithoutRef<TAs> &
+  VariantProps<typeof textVariants> & {
+    as?: TAs
+  }
+
+export const Text = React.forwardRef(
+  <TAs extends TextAs = "p">(
+    { as, className, variant, tone, weight, ...props }: PolymorphicTextProps<TAs>,
+    ref: React.ForwardedRef<React.ElementRef<TAs>>
+  ) => {
+    const Comp = (as ?? "p") as any
     return (
       <Comp
-        ref={ref as any}
+        ref={ref}
         className={cn(textVariants({ variant, tone, weight }), className)}
         {...props}
       />
@@ -71,17 +81,27 @@ const headingVariants = cva("tracking-tight", {
 })
 
 export interface HeadingProps
-  extends React.HTMLAttributes<HTMLHeadingElement>,
-  VariantProps<typeof headingVariants> {
+  extends VariantProps<typeof headingVariants> {
   as?: "h1" | "h2" | "h3"
 }
 
-export const Heading = React.forwardRef<HTMLHeadingElement, HeadingProps>(
-  ({ as = "h2", className, variant, tone, ...props }, ref) => {
-    const Comp = as
+type HeadingAs = NonNullable<HeadingProps["as"]>
+
+export type PolymorphicHeadingProps<TAs extends HeadingAs = "h2"> =
+  React.ComponentPropsWithoutRef<TAs> &
+  VariantProps<typeof headingVariants> & {
+    as?: TAs
+  }
+
+export const Heading = React.forwardRef(
+  <TAs extends HeadingAs = "h2">(
+    { as, className, variant, tone, ...props }: PolymorphicHeadingProps<TAs>,
+    ref: React.ForwardedRef<React.ElementRef<TAs>>
+  ) => {
+    const Comp = (as ?? "h2") as any
     return (
       <Comp
-        ref={ref as any}
+        ref={ref}
         className={cn(headingVariants({ variant, tone }), className)}
         {...props}
       />

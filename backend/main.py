@@ -12,6 +12,7 @@ import uuid
 import json
 import shutil
 from urllib.parse import urlparse
+from urllib.parse import urlunparse
 from dotenv import load_dotenv
 import stripe
 from coinbase_commerce.client import Client as CoinbaseClient
@@ -24,7 +25,6 @@ from video_processor import VideoProcessor
 from transcriber import Transcriber
 from transcriber import format_markdown_from_raw_segments
 from summarizer import Summarizer
-from translator import Translator
 from translator import Translator
 from db_client import DBClient
 from notifier import Notifier
@@ -55,8 +55,6 @@ video_processor = VideoProcessor()
 transcriber = Transcriber()
 summarizer = Summarizer()
 translator = Translator()
-translator = Translator()
-db_client = DBClient()
 db_client = DBClient()
 notifier = Notifier()
 
@@ -118,6 +116,16 @@ async def process_video(
     if not video_url.startswith(("http://", "https://")):
         video_url = f"https://{video_url}"
 
+    # Normalize common hosts (best-effort). Some providers (e.g., Bilibili) are stricter about hostnames.
+    try:
+        parsed = urlparse(video_url)
+        host = (parsed.hostname or "").lower()
+        if host == "bilibili.com":
+            # Prefer canonical hostname
+            video_url = urlunparse(parsed._replace(netloc="www.bilibili.com"))
+    except Exception:
+        pass
+
     # 0. Check Quota / Credits
     if not db_client.check_and_consume_quota(user_id):
         raise HTTPException(status_code=402, detail="Quota exceeded or insufficient credits. Please upgrade your plan.")
@@ -148,18 +156,12 @@ async def process_video(
             outputs.append(audio_out)
         outputs.extend([script_out, script_raw_out, summary_out])
 
-        # 3. Create Translation Outputs if requested
-        # Format: translate_targets='["en", "ja"]' or empty
+        # 3. Translation outputs are deprecated in v3.3:
+        # Summary is generated directly in the requested language, so we no longer create
+        # task_outputs(kind="translation"). We keep the translate_targets parameter for
+        # backward compatibility with older clients.
         if translate_targets:
-            try:
-                targets = json.loads(translate_targets)
-                if isinstance(targets, list):
-                    for target in targets:
-                        # Don't create if same as summary language or source? (Optional logic)
-                        tr_out = db_client.create_task_output(task_id, user_id, kind="translation", locale=target)
-                        outputs.append(tr_out)
-            except:
-                logger.warning("Failed to parse translate_targets JSON")
+            logger.info("translate_targets provided but ignored (translation outputs deprecated).")
 
         # 4. Start Background Processing
         background_tasks.add_task(run_pipeline, task_id, video_url, summary_language)
@@ -468,10 +470,11 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
         script_raw_output = next((o for o in outputs if o['kind'] == 'script_raw'), None)
         
         script_text = ""
+        script_text_with_timestamps = ""
         if script_output:
             try:
                 db_client.update_output_status(script_output['id'], status="processing", progress=10)
-                script_text, raw_json, detected_language = await transcriber.transcribe_with_raw(audio_path)
+                script_text_with_timestamps, raw_json, detected_language = await transcriber.transcribe_with_raw(audio_path)
                 # Persist raw segments first (single source of truth)
                 if script_raw_output:
                     db_client.update_output_status(script_raw_output['id'], status="completed", progress=100, content=raw_json)
@@ -482,10 +485,9 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
                     payload = json.loads(raw_json or "{}")
                     raw_segments = payload.get("segments", [])
                     detected_language = payload.get("language", detected_language or "unknown")
-                    script_text = format_markdown_from_raw_segments(raw_segments, detected_language=detected_language)
+                    script_text_with_timestamps = format_markdown_from_raw_segments(raw_segments, detected_language=detected_language)
                 except Exception as e:
                     logger.warning(f"Failed to regenerate formatted script from raw segments: {e}")
-                db_client.update_output_status(script_output['id'], status="completed", progress=100, content=script_text)
             except Exception as e:
                 err = f"Transcription failed: {str(e)}"
                 db_client.update_output_status(script_output['id'], status="error", error=err)
@@ -494,9 +496,13 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
                 return
 
         # C. Optimization (Optional step, usually part of Summary or specific output)
-        if script_text:
-             optimized_script = await summarizer.optimize_transcript(script_text)
-             script_text = optimized_script # Use optimized for downstream
+        if script_text_with_timestamps:
+            # This produces a timestamp-free, meta-free clean transcript for UI display.
+            optimized_script = await summarizer.optimize_transcript(script_text_with_timestamps)
+            script_text = optimized_script  # Use optimized for downstream + store in DB
+
+        if script_output and script_text:
+            db_client.update_output_status(script_output['id'], status="completed", progress=100, content=script_text)
 
         # D. Summarize
         summary_output = next((o for o in outputs if o['kind'] == 'summary'), None)
@@ -508,17 +514,14 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
             except Exception as e:
                 db_client.update_output_status(summary_output['id'], status="error", error=str(e))
 
-        # E. Translate
+        # E. Translate (Deprecated): no translation outputs created in current UX.
+        # Keep backward compatibility: if older tasks already have translation outputs, still process them.
         translation_outputs = [o for o in outputs if o['kind'] == 'translation']
         for t_out in translation_outputs:
             if script_text:
                 try:
                     db_client.update_output_status(t_out['id'], status="processing", progress=20)
-                    # Detect language first? Existing translator logic...
-                    # For V2, let's assume direct translation from Script.
                     target_lang = t_out.get('locale', 'en')
-                    # We might need source lang. Transcriber usually returns it. 
-                    # For now passing "auto" or letting translator handle it.
                     translated = await translator.translate_text(script_text, target_lang, None)
                     db_client.update_output_status(t_out['id'], status="completed", progress=100, content=translated)
                 except Exception as e:
@@ -574,8 +577,9 @@ async def handle_retry_output(output_id: str, user_id: str):
                 payload = json.loads(script_raw_output["content"])
                 raw_segments = payload.get("segments", [])
                 detected_language = payload.get("language", "unknown")
-                md = format_markdown_from_raw_segments(raw_segments, detected_language=detected_language)
-                db_client.update_output_status(output_id, status="completed", progress=100, content=md, error="")
+                md_with_ts = format_markdown_from_raw_segments(raw_segments, detected_language=detected_language)
+                clean = await summarizer.optimize_transcript(md_with_ts)
+                db_client.update_output_status(output_id, status="completed", progress=100, content=clean, error="")
                 return
             except Exception as e:
                 db_client.update_output_status(output_id, status="error", error=f"Reformat failed: {str(e)}")

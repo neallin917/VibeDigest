@@ -15,6 +15,12 @@ class VideoProcessor:
     """视频处理器，使用yt-dlp下载和转换视频"""
     
     def __init__(self):
+        # A conservative desktop UA helps with providers that block default agents.
+        self._default_user_agent = (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        )
         self.ydl_opts = {
             'format': 'bestaudio/best',  # 优先下载最佳音频源
             'outtmpl': '%(title)s.%(ext)s',
@@ -31,6 +37,35 @@ class VideoProcessor:
             'no_warnings': True,
             'noplaylist': True,  # 强制只下载单个视频，不下载播放列表
         }
+
+    def _build_http_headers(self, url: str) -> dict:
+        """
+        Build best-effort headers to reduce 403/anti-bot blocks.
+        For Bilibili, optionally inject cookies via env:
+        - BILIBILI_COOKIE: full Cookie header string
+        - BILIBILI_SESSDATA: value for SESSDATA cookie (common)
+        """
+        headers = {
+            "User-Agent": self._default_user_agent,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        }
+        try:
+            host = (urlparse(url).hostname or "").lower().replace("www.", "")
+        except Exception:
+            host = ""
+
+        if host.endswith("bilibili.com"):
+            headers["Referer"] = "https://www.bilibili.com/"
+            headers["Origin"] = "https://www.bilibili.com"
+            cookie = os.getenv("BILIBILI_COOKIE", "").strip()
+            sessdata = os.getenv("BILIBILI_SESSDATA", "").strip()
+            if cookie:
+                headers["Cookie"] = cookie
+            elif sessdata:
+                # Minimal cookie; many public videos work with just SESSDATA when required.
+                headers["Cookie"] = f"SESSDATA={sessdata}"
+        return headers
 
     def _is_xiaoyuzhou_url(self, url: str) -> bool:
         try:
@@ -197,6 +232,7 @@ class VideoProcessor:
             # 更新yt-dlp选项
             ydl_opts = self.ydl_opts.copy()
             ydl_opts['outtmpl'] = output_template
+            ydl_opts["http_headers"] = self._build_http_headers(url)
             
             logger.info(f"开始下载视频: {url}")
             
@@ -204,13 +240,25 @@ class VideoProcessor:
             # 在FastAPI中，IO密集型操作可以直接await
             import asyncio
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                # 获取视频信息（放到线程池避免阻塞事件循环）
-                info = await asyncio.to_thread(ydl.extract_info, url, False)
+                try:
+                    # 获取视频信息（放到线程池避免阻塞事件循环）
+                    info = await asyncio.to_thread(ydl.extract_info, url, False)
+                except Exception as e:
+                    msg = str(e)
+                    # Give a more actionable hint for common provider blocks
+                    if "403" in msg and "Forbidden" in msg and "BiliBili" in msg:
+                        raise Exception(
+                            "Bilibili blocked the request (HTTP 403). "
+                            "If this is a restricted/anti-bot page, set BILIBILI_SESSDATA or BILIBILI_COOKIE in backend/.env "
+                            "and retry."
+                        ) from e
+                    raise
+
                 video_title = info.get('title', 'unknown')
                 expected_duration = info.get('duration') or 0
                 direct_audio_url = self._extract_direct_audio_url_from_info(info)
                 logger.info(f"视频标题: {video_title}")
-                
+
                 # 下载视频（放到线程池避免阻塞事件循环）
                 await asyncio.to_thread(ydl.download, [url])
             

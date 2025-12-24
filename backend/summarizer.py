@@ -2,6 +2,8 @@ import os
 import openai
 import logging
 from typing import Optional
+import json
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +57,9 @@ class Summarizer:
         """
         try:
             if not self.client:
-                logger.warning("OpenAI API不可用，返回原始转录")
-                return raw_transcript
+                # Still strip timestamps/meta so UI never shows timestamps even in fallback mode.
+                logger.warning("OpenAI API不可用，返回去时间戳/元信息后的转录")
+                return self._remove_timestamps_and_meta(raw_transcript)
 
             # 预处理：仅移除时间戳与元信息，保留全部口语/重复内容
             preprocessed = self._remove_timestamps_and_meta(raw_transcript)
@@ -74,6 +77,113 @@ class Summarizer:
             logger.error(f"优化转录文本失败: {str(e)}")
             logger.info("返回原始转录文本")
             return raw_transcript
+
+    # ---------------------------------------------------------------------
+    # Structured Summary (JSON) - v1
+    # ---------------------------------------------------------------------
+
+    def _extract_first_json_object(self, text: str) -> Optional[str]:
+        """Best-effort: extract the first JSON object substring from model output."""
+        if not text:
+            return None
+        s = text.strip()
+        # Remove code fences if any
+        s = re.sub(r"^```(?:json)?\s*", "", s, flags=re.IGNORECASE)
+        s = re.sub(r"\s*```$", "", s)
+        # Find first '{' and last '}' after it
+        start = s.find("{")
+        end = s.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            return None
+        return s[start : end + 1]
+
+    def _validate_summary_json_v1(self, obj: dict, target_language: str) -> dict:
+        """Coerce/validate summary JSON to our v1 schema."""
+        if not isinstance(obj, dict):
+            raise ValueError("Summary JSON must be an object")
+
+        version = obj.get("version", 1)
+        language = obj.get("language", target_language)
+        overview = obj.get("overview", "")
+        keypoints = obj.get("keypoints", [])
+
+        if not isinstance(version, int):
+            version = 1
+        if not isinstance(language, str) or not language:
+            language = target_language
+        if not isinstance(overview, str):
+            overview = str(overview) if overview is not None else ""
+
+        normalized_kps = []
+        if isinstance(keypoints, list):
+            for kp in keypoints:
+                if not isinstance(kp, dict):
+                    continue
+                title = kp.get("title", "")
+                detail = kp.get("detail", "")
+                evidence = kp.get("evidence", "")
+                terms = kp.get("terms", [])
+                if not isinstance(title, str):
+                    title = str(title) if title is not None else ""
+                if not isinstance(detail, str):
+                    detail = str(detail) if detail is not None else ""
+                if not isinstance(evidence, str):
+                    evidence = str(evidence) if evidence is not None else ""
+                if not isinstance(terms, list):
+                    terms = []
+                terms = [str(x) for x in terms if isinstance(x, (str, int, float))]
+                title = title.strip()
+                detail = detail.strip()
+                evidence = evidence.strip()
+                if not title and not detail:
+                    continue
+                normalized_kps.append(
+                    {
+                        "title": title or detail[:48] or "Key Point",
+                        "detail": detail,
+                        "terms": terms,
+                        "evidence": evidence,
+                    }
+                )
+
+        return {
+            "version": int(version),
+            "language": language,
+            "overview": overview.strip(),
+            "keypoints": normalized_kps,
+        }
+
+    def _fallback_summary_json_v1(self, transcript: str, target_language: str) -> str:
+        """Deterministic fallback: always return valid JSON (v1)."""
+        cleaned = self._remove_timestamps_and_meta(transcript or "")
+        cleaned = cleaned.strip()
+        overview = cleaned[:900].strip()
+        if len(cleaned) > 900:
+            overview = overview + "…"
+
+        keypoints = []
+        # Take first few non-empty lines/paragraphs as coarse keypoints.
+        parts = [p.strip() for p in re.split(r"\n\s*\n", cleaned) if p.strip()]
+        for p in parts[:8]:
+            snippet = p[:260].strip()
+            if len(p) > 260:
+                snippet += "…"
+            keypoints.append(
+                {
+                    "title": snippet[:48] + ("…" if len(snippet) > 48 else ""),
+                    "detail": snippet,
+                    "terms": [],
+                    "evidence": "",
+                }
+            )
+
+        payload = {
+            "version": 1,
+            "language": target_language,
+            "overview": overview,
+            "keypoints": keypoints,
+        }
+        return json.dumps(payload, ensure_ascii=False)
 
     def _estimate_tokens(self, text: str) -> int:
         """
@@ -998,8 +1108,8 @@ Core requirements:
         """
         try:
             if not self.client:
-                logger.warning("OpenAI API不可用，生成备用摘要")
-                return self._generate_fallback_summary(transcript, target_language, video_title)
+                logger.warning("OpenAI API不可用，生成备用结构化摘要(JSON)")
+                return self._fallback_summary_json_v1(transcript, target_language)
             
             # 估算转录文本长度，决定是否需要分块摘要
             estimated_tokens = self._estimate_tokens(transcript)
@@ -1007,131 +1117,167 @@ Core requirements:
             
             if estimated_tokens <= max_summarize_tokens:
                 # 短文本直接摘要
-                return await self._summarize_single_text(transcript, target_language, video_title)
+                return await self._summarize_single_text_json(transcript, target_language)
             else:
                 # 长文本分块摘要
                 logger.info(f"文本较长({estimated_tokens} tokens)，启用分块摘要")
-                return await self._summarize_with_chunks(transcript, target_language, video_title, max_summarize_tokens)
+                return await self._summarize_with_chunks_json(transcript, target_language, max_summarize_tokens)
             
         except Exception as e:
             logger.error(f"生成摘要失败: {str(e)}")
-            return self._generate_fallback_summary(transcript, target_language, video_title)
+            return self._fallback_summary_json_v1(transcript, target_language)
 
-    async def _summarize_single_text(self, transcript: str, target_language: str, video_title: str = None) -> str:
-        """
-        对单个文本进行摘要
-        """
-        # 获取目标语言名称
-        language_name = self.language_map.get(target_language, "中文（简体）")
+    async def _summarize_single_text_json(self, transcript: str, target_language: str) -> str:
+        """Generate structured summary JSON (v1) for a single text."""
+        language_name = self.language_map.get(target_language, "English")
         
-        # 构建英文提示词，适用于所有目标语言
-        system_prompt = f"""You are a professional content analyst. Please generate a comprehensive, well-structured summary in {language_name} for the following text.
+        system_prompt = f"""You are a professional content analyst and knowledge distiller.
+Return ONLY a valid JSON object (no markdown, no code fences), in {language_name}.
 
-Summary Requirements:
-1. Extract the main topics and core viewpoints from the text
-2. Maintain clear logical structure, highlighting the core arguments
-3. Include important discussions, viewpoints, and conclusions
-4. Use concise and clear language
-5. Appropriately preserve the speaker's expression style and key opinions
+You must output this exact schema:
+{{
+  "version": 1,
+  "language": "{target_language}",
+  "overview": string,
+  "keypoints": [
+    {{
+      "title": string,
+      "detail": string,
+      "terms": string[],
+      "evidence": string
+    }}
+  ]
+}}
 
-Paragraph Organization Requirements (Core):
-1. **Organize by semantic and logical themes** - Start a new paragraph whenever the topic shifts, discussion focus changes, or when transitioning from one viewpoint to another
-2. **Each paragraph should focus on one main point or theme**
-3. **Paragraphs must be separated by blank lines (double line breaks \\n\\n)**
-4. **Consider the logical flow of content and reasonably divide paragraph boundaries**
+Content requirements:
+- overview: a concise but information-dense introduction that captures the full talk's purpose, scope, and main arc.
+- keypoints: 10–18 items (depending on length). High signal, minimal fluff.
+  Each item must be self-contained and readable: a clear claim/insight (title) + explanation/context (detail).
+  If there are concrete numbers/examples/quotes, put them into evidence.
+  Put important terms/names into terms.
+- Coverage: ensure keypoints cover early/middle/late parts; do NOT ignore the second half.
+- Faithfulness: do not invent facts; if uncertain, say so in evidence.
+"""
 
-Format Requirements:
-1. Use Markdown format with double line breaks between paragraphs
-2. Each paragraph should be a complete logical unit
-3. Write entirely in {language_name}
-4. Aim for substantial content (600-1200 words when appropriate)"""
-
-        user_prompt = f"""Based on the following content, write a comprehensive, well-structured summary in {language_name}:
-
+        user_prompt = f"""Summarize the following transcript into the required JSON schema in {language_name}.
+Transcript:
 {transcript}
+"""
 
-Requirements:
-- Focus on natural paragraphs, avoiding decorative headings
-- Cover all key ideas and arguments, preserving important examples and data
-- Ensure balanced coverage of both early and later content
-- Use restrained but comprehensive language
-- Organize content logically with proper paragraph breaks"""
-
-        logger.info(f"正在生成{language_name}摘要...")
+        logger.info(f"正在生成结构化{language_name}摘要(JSON)...")
         
-        # 调用OpenAI API
         response = self.client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": user_prompt},
             ],
-            max_tokens=3500,  # 控制在安全范围内，避免超出模型限制
-            temperature=0.3
+            max_tokens=2200,
+            temperature=0.2,
         )
         
-        summary = response.choices[0].message.content
+        raw = (response.choices[0].message.content or "").strip()
+        json_text = self._extract_first_json_object(raw) or raw
+        try:
+            obj = json.loads(json_text)
+            obj = self._validate_summary_json_v1(obj, target_language)
+            return json.dumps(obj, ensure_ascii=False)
+        except Exception as e:
+            logger.warning(f"Summary JSON parse/validate failed, falling back. Error: {e}")
+            return self._fallback_summary_json_v1(transcript, target_language)
 
-        return self._format_summary_with_meta(summary, target_language, video_title)
+    async def _summarize_with_chunks_json(self, transcript: str, target_language: str, max_tokens: int) -> str:
+        """Chunked summarization -> structured JSON (v1)."""
+        language_name = self.language_map.get(target_language, "English")
 
-    async def _summarize_with_chunks(self, transcript: str, target_language: str, video_title: str, max_tokens: int) -> str:
-        """
-        分块摘要长文本
-        """
-        language_name = self.language_map.get(target_language, "中文（简体）")
-
-        # 使用JS策略：按字符进行智能分块（段落>句子）
         chunks = self._smart_chunk_text(transcript, max_chars_per_chunk=4000)
-        logger.info(f"分割为 {len(chunks)} 个块进行摘要")
+        logger.info(f"分割为 {len(chunks)} 个块进行结构化摘要(JSON)")
         
-        chunk_summaries = []
-        
-        # 每块生成局部摘要
+        per_chunk_keypoints: list[dict] = []
         for i, chunk in enumerate(chunks):
-            logger.info(f"正在摘要第 {i+1}/{len(chunks)} 块...")
-            
-            system_prompt = f"""You are a summarization expert. Please write a high-density summary for this text chunk in {language_name}.
+            logger.info(f"正在摘要第 {i+1}/{len(chunks)} 块(提取要点)...")
+            system_prompt = f"""You extract high-signal keypoints from a transcript chunk.
+Return ONLY JSON (no markdown). Language: {language_name}.
 
-This is part {i+1} of {len(chunks)} of the complete content (Part {i+1}/{len(chunks)}).
+Schema:
+{{
+  "keypoints": [
+    {{
+      "title": string,
+      "detail": string,
+      "terms": string[],
+      "evidence": string
+    }}
+  ]
+}}
 
-Output preferences: Focus on natural paragraphs, use minimal bullet points if necessary; highlight new information and its relationship to the main narrative; avoid vague repetition and formatted headings; moderate length (suggested 120-220 words)."""
-
-            user_prompt = f"""[Part {i+1}/{len(chunks)}] Summarize the key points of the following text in {language_name} (natural paragraphs preferred, minimal bullet points, 120-220 words):
-
+Rules:
+- 5–10 keypoints per chunk (depending on chunk density).
+- Prefer concrete, knowledge-rich points. Keep each item self-contained.
+- Do not invent facts; if uncertain, note it in evidence.
+"""
+            user_prompt = f"""[Chunk {i+1}/{len(chunks)}] Extract keypoints from this text:
 {chunk}
-
-Avoid using any subheadings or decorative separators, output content only."""
-
+"""
             try:
-                response = self.client.chat.completions.create(
+                resp = self.client.chat.completions.create(
                     model="gpt-4o",
                     messages=[
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
+                        {"role": "user", "content": user_prompt},
                     ],
-                    max_tokens=1000,  # 提升分块摘要容量以涵盖更多细节
-                    temperature=0.3
+                    max_tokens=1200,
+                    temperature=0.2,
                 )
-                
-                chunk_summary = response.choices[0].message.content
-                chunk_summaries.append(chunk_summary)
-                
+                raw = (resp.choices[0].message.content or "").strip()
+                json_text = self._extract_first_json_object(raw) or raw
+                obj = json.loads(json_text)
+                kps = obj.get("keypoints", [])
+                if isinstance(kps, list):
+                    for kp in kps:
+                        if isinstance(kp, dict):
+                            per_chunk_keypoints.append(kp)
             except Exception as e:
-                logger.error(f"摘要第 {i+1} 块失败: {e}")
-                # 失败时生成简单摘要
-                simple_summary = f"第{i+1}部分内容概述：" + chunk[:200] + "..."
-                chunk_summaries.append(simple_summary)
-        
-        # 合并所有局部摘要（带编号），如分块较多则分层整合（不引入小标题）
-        combined_summaries = "\n\n".join([f"[Part {idx+1}]\n" + s for idx, s in enumerate(chunk_summaries)])
+                logger.warning(f"Chunk keypoints extraction failed: {e}")
+                continue
 
-        logger.info("正在整合最终摘要...")
-        if len(chunk_summaries) > 10:
-            final_summary = await self._integrate_hierarchical_summaries(chunk_summaries, target_language)
-        else:
-            final_summary = await self._integrate_chunk_summaries(combined_summaries, target_language)
+        # Integrate into final JSON (overview + deduped keypoints)
+        system_prompt = f"""You are a content integration expert.
+Return ONLY a valid JSON object (no markdown), in {language_name}, matching this schema:
+{{
+  "version": 1,
+  "language": "{target_language}",
+  "overview": string,
+  "keypoints": [{{"title": string, "detail": string, "terms": string[], "evidence": string}}]
+}}
 
-        return self._format_summary_with_meta(final_summary, target_language, video_title)
+Rules:
+- Deduplicate similar points.
+- Keep 12–20 strongest points total, covering early/middle/late content.
+- overview must be a dense, readable intro.
+"""
+        user_prompt = f"""Integrate the following extracted keypoints into the final JSON schema.
+Keypoints JSON list:
+{json.dumps(per_chunk_keypoints, ensure_ascii=False)}
+"""
+        try:
+            resp = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=2000,
+                temperature=0.2,
+            )
+            raw = (resp.choices[0].message.content or "").strip()
+            json_text = self._extract_first_json_object(raw) or raw
+            obj = json.loads(json_text)
+            obj = self._validate_summary_json_v1(obj, target_language)
+            return json.dumps(obj, ensure_ascii=False)
+        except Exception as e:
+            logger.warning(f"Final integration JSON failed, falling back. Error: {e}")
+            return self._fallback_summary_json_v1(transcript, target_language)
 
     def _smart_chunk_text(self, text: str, max_chars_per_chunk: int = 3500) -> list:
         """智能分块（先段落后句子），按字符上限切分。"""

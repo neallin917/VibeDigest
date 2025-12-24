@@ -126,7 +126,7 @@ export function FeedbackDialog() {
                             type="email"
                             value={contactEmail}
                             onChange={(e) => setContactEmail(e.target.value)}
-                            placeholder="name@example.com"
+                            placeholder={t("feedback.contactEmailPlaceholder")}
                             className="bg-muted border-white/5"
                         />
                     </div>
