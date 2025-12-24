@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, FileText, Languages, PlayCircle, Subtitles, Copy, Check, ExternalLink } from "lucide-react"
+import { ArrowLeft, FileText, Languages, Subtitles, Copy, Check } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -131,28 +131,6 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                             <h1 className="text-lg md:text-2xl font-bold leading-snug break-words">
                                 {task.video_title || task.video_url}
                             </h1>
-                            <div className="flex flex-wrap items-center gap-2 text-muted-foreground text-sm">
-                                <PlayCircle className="h-4 w-4" />
-                                <a
-                                    href={task.video_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="hover:text-primary hover:underline truncate max-w-[260px] sm:max-w-md block"
-                                >
-                                    {task.video_url}
-                                </a>
-                                <Button
-                                    asChild
-                                    variant="ghost"
-                                    size="sm"
-                                    className="sm:hidden h-7 px-2 gap-1"
-                                >
-                                    <a href={task.video_url} target="_blank" rel="noopener noreferrer">
-                                        <ExternalLink className="h-3.5 w-3.5" />
-                                        {t("tasks.openOriginalLink")}
-                                    </a>
-                                </Button>
-                            </div>
                         </div>
                         <Badge variant={task.status === "completed" ? "success" : task.status === "error" ? "destructive" : "processing"} className="text-xs md:text-sm px-3 py-1 self-start">
                             {task.status.toUpperCase()}
@@ -163,15 +141,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                     <div className="mb-6">
                         {hasVideo ? <VideoEmbed videoUrl={task.video_url} title={task.video_title} /> : null}
                         {!hasVideo && audio?.status === "completed" && audioUrl ? (
-                            <AudioEmbed audioUrl={audioUrl} title={task.video_title} coverUrl={audioCoverUrl} />
+                            <AudioEmbed audioUrl={audioUrl} title={task.video_title} coverUrl={audioCoverUrl} sourceUrl={task.video_url} />
                         ) : null}
                         {!hasVideo && (!audio || audio.status === "error") ? (
                             <div className="mt-3 text-sm text-muted-foreground">
-                                {t("tasks.audioUnavailable")}{" "}
-                                <a className="text-primary hover:underline" href={task.video_url} target="_blank" rel="noopener noreferrer">
-                                    {t("tasks.openOriginalLink")}
-                                </a>
-                                。
+                                {t("tasks.audioUnavailable")}
                             </div>
                         ) : null}
                     </div>

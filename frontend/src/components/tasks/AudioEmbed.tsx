@@ -1,42 +1,73 @@
 import React from "react"
 
+import { ApplePodcastsIcon } from "@/components/icons/ApplePodcastsIcon"
+import { XiaoyuzhouIcon } from "@/components/icons/XiaoyuzhouIcon"
+
 export function AudioEmbed({
   audioUrl,
   title,
   coverUrl,
+  sourceUrl,
 }: {
   audioUrl: string
   title?: string
   coverUrl?: string
+  sourceUrl?: string
 }) {
   if (!audioUrl) return null
 
+  // Determine if it looks like an Apple Podcast (square-ish large image)
+  // Or simply always use the "card" layout if there's a cover.
+  // The user screenshot shows a card layout with image on left/top and metadata.
+
+  // Actually, for better adaptation, let's look at the implementation.
+  // We want to avoid the "video" aspect ratio wrapper if it's a square image.
+
+  const isXiaoyuzhou = sourceUrl?.includes("xiaoyuzhoufm.com")
+  const isApple = sourceUrl?.includes("apple.com")
+
   return (
     <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
-      {coverUrl ? (
-        <div className="relative aspect-video w-full overflow-hidden bg-black/40">
-          <img
-            src={coverUrl}
-            alt={title || "Audio cover"}
-            className="h-full w-full object-cover"
-            referrerPolicy="no-referrer"
-          />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-          {title ? (
-            <div className="absolute bottom-3 left-4 right-4">
-              <div className="text-sm font-semibold text-white line-clamp-2 drop-shadow">
-                {title}
-              </div>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+      <div className="flex flex-col md:flex-row">
+        {coverUrl ? (
+          <div className="relative shrink-0 md:w-64 aspect-square bg-black/40 overflow-hidden">
+            <img
+              src={coverUrl}
+              alt={title || "Audio cover"}
+              className="h-full w-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+        ) : null}
 
-      <div className="p-4">
-        <audio className="w-full" controls preload="none">
-          <source src={audioUrl} />
-          Your browser does not support the audio element.
-        </audio>
+        <div className="flex-1 flex flex-col justify-between p-4 md:p-6 gap-4">
+          <div>
+            {isXiaoyuzhou && (
+              <div className="flex items-center gap-2 text-xs font-semibold tracking-wider text-[#3D9DE1] uppercase mb-2">
+                <XiaoyuzhouIcon className="w-4 h-4 text-[#3D9DE1]" />
+                Xiaoyuzhou
+              </div>
+            )}
+            {isApple && (
+              <div className="flex items-center gap-2 text-xs font-semibold tracking-wider text-[#a855f7] uppercase mb-2">
+                <ApplePodcastsIcon className="w-4 h-4" />
+                Apple Podcasts
+              </div>
+            )}
+
+            <h3 className="text-lg md:text-xl font-bold leading-tight text-white mb-2 line-clamp-2">
+              {title || "Episode"}
+            </h3>
+            {/* Optional: Add date or "Podcast" subtitle if available in data */}
+          </div>
+
+          <div className="w-full">
+            <audio className="w-full" controls preload="none">
+              <source src={audioUrl} />
+              Your browser does not support the audio element.
+            </audio>
+          </div>
+        </div>
       </div>
     </div>
   )

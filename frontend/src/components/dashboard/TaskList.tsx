@@ -228,10 +228,10 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                     <div
                         key={task.id}
                         onClick={() => router.push(`/tasks/${task.id}`)}
-                        className="flex items-center gap-4 p-4 rounded-xl border border-white/5 bg-card hover:bg-card/80 hover:border-white/10 transition-all cursor-pointer group"
+                        className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-white/5 bg-card hover:bg-card/80 hover:border-white/10 transition-all cursor-pointer group"
                     >
                         {/* Thumbnail Placeholder */}
-                        <div className="h-16 w-28 bg-black/40 rounded-lg flex items-center justify-center text-muted-foreground group-hover:text-white transition-colors overflow-hidden relative">
+                        <div className="h-14 w-24 sm:h-16 sm:w-28 bg-black/40 rounded-lg flex items-center justify-center text-muted-foreground group-hover:text-white transition-colors overflow-hidden relative">
                             {task.thumbnail_url ? (
                                 <img
                                     src={task.thumbnail_url}
@@ -274,10 +274,10 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                             ) : (
                                 <>
                                     <div className="flex items-center gap-2">
-                                        <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                                        <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
                                             {task.video_title || task.video_url}
                                         </h4>
-                                        <div className="hidden group-hover:flex items-center opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                        <div className="hidden group-hover:flex items-center opacity-0 group-hover:opacity-100 transition-all duration-200 shrink-0">
                                             <Button
                                                 size="icon"
                                                 variant="ghost"
@@ -297,29 +297,35 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                                 </Badge>
                                 <span className="w-px h-3 bg-white/10 mx-1" />
                                 <Clock className="h-3 w-3" />
-                                {new Date(task.created_at).toLocaleString(LOCALE_DATE_TAG[locale])}
+                                {new Date(task.created_at).toLocaleString(LOCALE_DATE_TAG[locale], {
+                                    year: 'numeric',
+                                    month: 'numeric',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
                             </div>
                         </div>
 
                         <div>
                             {task.status === "processing" && (
                                 <Badge variant="processing" className="gap-1 bg-blue-500/15 text-blue-500 hover:bg-blue-500/25">
-                                    <span className="animate-pulse">●</span> {task.progress}%
+                                    <span className="animate-pulse">●</span> <span className="hidden sm:inline">{task.progress}%</span>
                                 </Badge>
                             )}
                             {task.status === "completed" && (
                                 <Badge variant="success" className="gap-1 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25">
-                                    <CheckCircle2 className="h-3 w-3" /> {t("tasks.completed")}
+                                    <CheckCircle2 className="h-3 w-3" /> <span className="hidden sm:inline">{t("tasks.completed")}</span>
                                 </Badge>
                             )}
                             {task.status === "error" && (
                                 <Badge variant="destructive" className="gap-1">
-                                    <AlertCircle className="h-3 w-3" /> {t("tasks.error")}
+                                    <AlertCircle className="h-3 w-3" /> <span className="hidden sm:inline">{t("tasks.error")}</span>
                                 </Badge>
                             )}
                             {task.status === "pending" && (
                                 <Badge variant="secondary" className="gap-1">
-                                    {t("tasks.waiting")}
+                                    <span className="hidden sm:inline">{t("tasks.waiting")}</span>
                                 </Badge>
                             )}
 

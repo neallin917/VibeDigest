@@ -35,9 +35,6 @@ export function MobileHeader() {
       <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-4">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-primary font-bold">{t("brand.appName")}</span>
-          {userEmail ? (
-            <span className="text-xs text-muted-foreground truncate">{userEmail}</span>
-          ) : null}
         </div>
 
         <Dialog>
@@ -50,6 +47,12 @@ export function MobileHeader() {
             <DialogHeader className="text-left">
               <DialogTitle className="text-base">{t("nav.menu")}</DialogTitle>
             </DialogHeader>
+
+            {userEmail ? (
+              <div className="-mt-1 pb-3 text-xs text-muted-foreground truncate border-b border-white/10">
+                {userEmail}
+              </div>
+            ) : null}
 
             <div className="space-y-2">
               {NAV_ITEMS.map((item) => (

@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { Sparkles, Video } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 import { ApiClient } from "@/lib/api"
@@ -18,8 +25,6 @@ export function TaskForm() {
     const supabase = createClient()
     const { t, locale } = useI18n()
 
-    // Simple state for checkboxes
-    const [summary, setSummary] = useState(true)
     const [language, setLanguage] = useState<string>(locale)
 
     // Sync task language with system locale changes
@@ -51,10 +56,6 @@ export function TaskForm() {
             formData.append("video_url", finalUrl)
             formData.append("summary_language", "zh") // Default to Chinese as per original
 
-            // Filter out summary if not checked? Backend always does summary currently.
-            // We act as if 'summary' checkbox controls visibility or priority? 
-            // For now, let's just stick to backend default which includes summary.
-
             formData.append("translate_targets", JSON.stringify([language]))
 
             const res = await ApiClient.processVideo(formData, session.access_token)
@@ -85,8 +86,8 @@ export function TaskForm() {
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="flex gap-4">
-                        <div className="relative flex-1">
+                    <div className="space-y-3">
+                        <div className="relative">
                             <Video className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
                                 placeholder={t("taskForm.urlPlaceholder")}
@@ -96,42 +97,36 @@ export function TaskForm() {
                                 disabled={loading}
                             />
                         </div>
-                        <Button type="submit" size="lg" disabled={loading} className="bg-primary text-black font-semibold hover:bg-primary/90 shadow-[0_0_15px_rgba(62,207,142,0.4)] transition-all">
-                            {loading ? t("taskForm.processing") : t("taskForm.generate")}
-                        </Button>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                        <div className="space-y-3">
-                            <div className="text-sm font-medium text-muted-foreground/80 uppercase tracking-wider text-xs">{t("taskForm.features")}</div>
-                            <div className="flex flex-wrap gap-4">
-                                <label className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors p-2 rounded-lg hover:bg-white/5 border border-transparent hover:border-white/10">
-                                    <input
-                                        type="checkbox"
-                                        className="accent-primary h-4 w-4 rounded"
-                                        checked={summary}
-                                        onChange={(e) => setSummary(e.target.checked)}
-                                    />
-                                    <span className="text-sm font-medium">{t("taskForm.summary")}</span>
-                                </label>
-                            </div>
-                        </div>
+                        <div className="flex items-end gap-3">
+                            <Button
+                                type="submit"
+                                size="lg"
+                                disabled={loading}
+                                className="flex-1 bg-primary text-black font-semibold hover:bg-primary/90 shadow-[0_0_15px_rgba(62,207,142,0.4)] transition-all"
+                            >
+                                {loading ? t("taskForm.processing") : t("taskForm.generate")}
+                            </Button>
 
-                        <div className="space-y-3">
-                            <div className="text-sm font-medium text-muted-foreground/80 uppercase tracking-wider text-xs">{t("taskForm.translateTo")}</div>
-                            <div className="flex flex-wrap gap-3">
-                                {SUPPORTED_LOCALES.map((localeKey) => (
-                                    <label key={localeKey} className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors p-2 rounded-lg hover:bg-white/5 border border-transparent hover:border-white/10">
-                                        <input
-                                            type="radio"
-                                            name="language"
-                                            className="accent-primary h-4 w-4"
-                                            checked={language === localeKey}
-                                            onChange={() => setLanguage(localeKey)}
-                                        />
-                                        <span className="text-sm font-medium">{LOCALE_LABEL[localeKey]}</span>
-                                    </label>
-                                ))}
+                            <div className="w-[150px] sm:w-[220px] space-y-1">
+                                <div className="text-xs font-medium text-muted-foreground/80 uppercase tracking-wider">
+                                    {t("taskForm.translateTo")}
+                                </div>
+                                <Select value={language} onValueChange={setLanguage}>
+                                    <SelectTrigger
+                                        className="w-full h-11 bg-black/20 border-white/10 hover:bg-black/25"
+                                        size="default"
+                                    >
+                                        <SelectValue placeholder={t("taskForm.translateTo")} />
+                                    </SelectTrigger>
+                                    <SelectContent align="start">
+                                        {SUPPORTED_LOCALES.map((localeKey) => (
+                                            <SelectItem key={localeKey} value={localeKey}>
+                                                {LOCALE_LABEL[localeKey]}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                     </div>

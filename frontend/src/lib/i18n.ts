@@ -66,7 +66,7 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "Turn Videos & Podcasts into",
       titleEmphasis: "Insights",
       subtitle:
-        "YouTube, Bilibili, and Xiaoyuzhou supported. Get transcripts, AI summaries, and translations in seconds.",
+        "YouTube, Apple Podcasts, Bilibili, and Xiaoyuzhou supported. Get transcripts, AI summaries, and translations in seconds.",
       getStarted: "Get Started",
       github: "GitHub",
       feature1Title: "Instant Transcription",
@@ -76,7 +76,7 @@ const messages: Record<Locale, Messages> = {
       feature3Title: "Multi-Language",
       feature3Desc: "Translate content into any language you want — automatically.",
       feature4Title: "Multi-Platform",
-      feature4Desc: "Works with YouTube / Bilibili / Xiaoyuzhou.",
+      feature4Desc: "Works with YouTube / Apple Podcasts / Bilibili / Xiaoyuzhou.",
       footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
     },
     dashboard: {
@@ -293,7 +293,7 @@ const messages: Record<Locale, Messages> = {
     landing: {
       titlePrefix: "将视频与播客转化为",
       titleEmphasis: "洞察",
-      subtitle: "支持 YouTube、Bilibili、小宇宙。秒级获得转写、AI 摘要与翻译。",
+      subtitle: "支持 YouTube、Apple Podcasts、Bilibili、小宇宙。秒级获得转写、AI 摘要与翻译。",
       getStarted: "开始使用",
       github: "GitHub",
       feature1Title: "即时转写",
@@ -303,7 +303,7 @@ const messages: Record<Locale, Messages> = {
       feature3Title: "多语言",
       feature3Desc: "随心翻译成你想要的任何语言，自动完成。",
       feature4Title: "多平台",
-      feature4Desc: "支持 YouTube / Bilibili / 小宇宙。",
+      feature4Desc: "支持 YouTube / Apple Podcasts / Bilibili / 小宇宙。",
       footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
     },
     home: {
@@ -451,7 +451,7 @@ const messages: Record<Locale, Messages> = {
       confirm: "是",
       copyToClipboard: "复制为 Markdown",
       copied: "已复制！",
-      audioUnavailable: "音频内嵌暂不可用，",
+      audioUnavailable: "音频内嵌暂不可用。",
       openOriginalLink: "点击打开原链接",
     },
     feedback: {
@@ -542,7 +542,7 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "Convierte videos y podcasts en",
       titleEmphasis: "Insights",
       subtitle:
-        "Compatible con YouTube, Bilibili y Xiaoyuzhou. Obtén transcripciones, resúmenes con IA y traducciones en segundos.",
+        "Compatible con YouTube, Apple Podcasts, Bilibili y Xiaoyuzhou. Obtén transcripciones, resúmenes con IA y traducciones en segundos.",
       getStarted: "Empezar",
       github: "GitHub",
       feature1Title: "Transcripción instantánea",
@@ -552,7 +552,7 @@ const messages: Record<Locale, Messages> = {
       feature3Title: "Multi-idioma",
       feature3Desc: "Traduce contenido al idioma que quieras, automáticamente.",
       feature4Title: "Multi-plataforma",
-      feature4Desc: "Funciona con YouTube / Bilibili / Xiaoyuzhou.",
+      feature4Desc: "Funciona con YouTube / Apple Podcasts / Bilibili / Xiaoyuzhou.",
       footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
     },
     home: {
@@ -702,7 +702,7 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "حوّل الفيديوهات والبودكاست إلى",
       titleEmphasis: "رؤى",
       subtitle:
-        "يدعم YouTube وBilibili وXiaoyuzhou. احصل على نصوص وملخصات وترجمات خلال ثوانٍ.",
+        "يدعم YouTube وApple Podcasts وBilibili وXiaoyuzhou. احصل على نصوص وملخصات وترجمات خلال ثوانٍ.",
       getStarted: "ابدأ الآن",
       github: "GitHub",
       feature1Title: "تفريغ فوري",
@@ -712,7 +712,7 @@ const messages: Record<Locale, Messages> = {
       feature3Title: "متعدد اللغات",
       feature3Desc: "ترجم المحتوى إلى أي لغة تريدها — تلقائيًا.",
       feature4Title: "متعدد المنصات",
-      feature4Desc: "يعمل مع YouTube / Bilibili / Xiaoyuzhou.",
+      feature4Desc: "يعمل مع YouTube / Apple Podcasts / Bilibili / Xiaoyuzhou.",
       footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
     },
     home: {
@@ -822,7 +822,7 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "Transformez des vidéos et podcasts en",
       titleEmphasis: "Insights",
       subtitle:
-        "Compatible avec YouTube, Bilibili et Xiaoyuzhou. Transcriptions, résumés IA et traductions en quelques secondes.",
+        "Compatible avec YouTube, Apple Podcasts, Bilibili et Xiaoyuzhou. Transcriptions, résumés IA et traductions en quelques secondes.",
       getStarted: "Commencer",
       github: "GitHub",
       feature1Title: "Transcription instantanée",
@@ -832,7 +832,7 @@ const messages: Record<Locale, Messages> = {
       feature3Title: "Multi-langues",
       feature3Desc: "Traduisez automatiquement dans la langue de votre choix.",
       feature4Title: "Multi-plateforme",
-      feature4Desc: "Fonctionne avec YouTube / Bilibili / Xiaoyuzhou.",
+      feature4Desc: "Fonctionne avec YouTube / Apple Podcasts / Bilibili / Xiaoyuzhou.",
       footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
     },
     home: {
@@ -942,7 +942,7 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "Преобразуйте видео и подкасты в",
       titleEmphasis: "инсайты",
       subtitle:
-        "Поддерживаются YouTube, Bilibili и Xiaoyuzhou. Транскрипты, AI‑резюме и переводы за секунды.",
+        "Поддерживаются YouTube, Apple Podcasts, Bilibili и Xiaoyuzhou. Транскрипты, AI‑резюме и переводы за секунды.",
       getStarted: "Начать",
       github: "GitHub",
       feature1Title: "Мгновенная транскрипция",
@@ -952,7 +952,7 @@ const messages: Record<Locale, Messages> = {
       feature3Title: "Многоязычность",
       feature3Desc: "Автоматический перевод на любой язык по вашему выбору.",
       feature4Title: "Мультиплатформенность",
-      feature4Desc: "Работает с YouTube / Bilibili / Xiaoyuzhou.",
+      feature4Desc: "Работает с YouTube / Apple Podcasts / Bilibili / Xiaoyuzhou.",
       footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
     },
     home: {
@@ -1062,7 +1062,7 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "Transforme vídeos e podcasts em",
       titleEmphasis: "Insights",
       subtitle:
-        "Compatível com YouTube, Bilibili e Xiaoyuzhou. Transcrições, resumos com IA e traduções em segundos.",
+        "Compatível com YouTube, Apple Podcasts, Bilibili e Xiaoyuzhou. Transcrições, resumos com IA e traduções em segundos.",
       getStarted: "Começar",
       github: "GitHub",
       feature1Title: "Transcrição instantânea",
@@ -1072,7 +1072,7 @@ const messages: Record<Locale, Messages> = {
       feature3Title: "Multi-idioma",
       feature3Desc: "Traduza automaticamente para qualquer idioma que você quiser.",
       feature4Title: "Multi-plataforma",
-      feature4Desc: "Funciona com YouTube / Bilibili / Xiaoyuzhou.",
+      feature4Desc: "Funciona com YouTube / Apple Podcasts / Bilibili / Xiaoyuzhou.",
       footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
     },
     home: {
@@ -1182,7 +1182,7 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "वीडियो और पॉडकास्ट को बदलें",
       titleEmphasis: "इनसाइट्स",
       subtitle:
-        "YouTube, Bilibili और Xiaoyuzhou समर्थित। सेकंडों में ट्रांसक्रिप्ट, AI सारांश और अनुवाद पाएं।",
+        "YouTube, Apple Podcasts, Bilibili और Xiaoyuzhou समर्थित। सेकंडों में ट्रांसक्रिप्ट, AI सारांश और अनुवाद पाएं।",
       getStarted: "शुरू करें",
       github: "GitHub",
       feature1Title: "तुरंत ट्रांसक्रिप्शन",
@@ -1192,7 +1192,7 @@ const messages: Record<Locale, Messages> = {
       feature3Title: "बहु-भाषा",
       feature3Desc: "किसी भी मनचाही भाषा में अपने-आप अनुवाद करें।",
       feature4Title: "मल्टी-प्लैटफ़ॉर्म",
-      feature4Desc: "YouTube / Bilibili / Xiaoyuzhou के साथ काम करता है।",
+      feature4Desc: "YouTube / Apple Podcasts / Bilibili / Xiaoyuzhou के साथ काम करता है।",
       footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
     },
     home: {
@@ -1302,7 +1302,7 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "動画とポッドキャストを",
       titleEmphasis: "インサイト",
       subtitle:
-        "YouTube / Bilibili / Xiaoyuzhou に対応。文字起こし、AI要約、翻訳を数秒で。",
+        "YouTube / Apple Podcasts / Bilibili / Xiaoyuzhou に対応。文字起こし、AI要約、翻訳を数秒で。",
       getStarted: "始める",
       github: "GitHub",
       feature1Title: "即時文字起こし",
@@ -1312,7 +1312,7 @@ const messages: Record<Locale, Messages> = {
       feature3Title: "多言語",
       feature3Desc: "好きな言語へ自動で翻訳できます。",
       feature4Title: "マルチプラットフォーム",
-      feature4Desc: "YouTube / Bilibili / Xiaoyuzhou に対応。",
+      feature4Desc: "YouTube / Apple Podcasts / Bilibili / Xiaoyuzhou に対応。",
       footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
     },
     home: {
@@ -1446,7 +1446,7 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "영상과 팟캐스트를",
       titleEmphasis: "인사이트",
       subtitle:
-        "YouTube / Bilibili / Xiaoyuzhou 지원. 대본, AI 요약, 번역을 몇 초 만에.",
+        "YouTube / Apple Podcasts / Bilibili / Xiaoyuzhou 지원. 대본, AI 요약, 번역을 몇 초 만에.",
       getStarted: "시작하기",
       github: "GitHub",
       feature1Title: "즉시 전사",
@@ -1456,7 +1456,7 @@ const messages: Record<Locale, Messages> = {
       feature3Title: "다국어",
       feature3Desc: "원하는 어떤 언어로든 자동 번역합니다.",
       feature4Title: "멀티 플랫폼",
-      feature4Desc: "YouTube / Bilibili / Xiaoyuzhou 지원.",
+      feature4Desc: "YouTube / Apple Podcasts / Bilibili / Xiaoyuzhou 지원.",
       footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
     },
     home: {

@@ -17,6 +17,7 @@
 - **Secure Authentication**: Integrated email and Google login support via Supabase Auth.
 - **Multi-language UI (i18n)**: Built-in UI language switcher with RTL support for Arabic.
 - **Flexible Pricing**: Hybrid model (Subscription + Pay-as-you-go) with Annual billing options and transparent usage tracking.
+- **Payments (Optional)**: Card payments via Stripe, and crypto checkout via Coinbase Commerce.
 
 ## 🛠 Technology Stack
 
@@ -59,6 +60,10 @@
     - `SUPABASE_SERVICE_KEY`
     - `OPENAI_API_KEY`
     - `RESEND_API_KEY` (Optional, for Feedback emails)
+    - `STRIPE_SECRET_KEY` (Optional, for Pricing / Stripe Checkout)
+    - `COINBASE_API_KEY` (Optional, for Crypto Checkout)
+    - `COINBASE_WEBHOOK_SECRET` (Optional, for Coinbase webhook verification)
+    - `FRONTEND_URL` (Optional, used for payment redirect URLs; defaults to `http://localhost:3000`)
 
     > **Note**: If you update `requirements.txt`, run `docker-compose up --build -d transcriber-backend`.
 
@@ -109,6 +114,11 @@ The system operates on a **Control Plane vs. Data Plane** model:
   - Hook: `useI18n()` from `frontend/src/components/i18n/I18nProvider.tsx`
   - If you add new UI strings, add keys in `messages.en` and provide translations for all supported locales.
   - **Smart Defaults**: The "New Task" form automatically selects the translation target language matching your current UI language preference.
+
+## 🧱 Database Migrations (Supabase)
+
+- **Pricing schema**: `backend/sql/01_pricing_schema.sql`
+- **Payment orders (Stripe + Coinbase)**: `backend/sql/02_payment_orders.sql`
 
 ## 📄 License
 

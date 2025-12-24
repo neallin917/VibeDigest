@@ -248,3 +248,51 @@ class DBClient:
         if not self.supabase:
             return
         self.supabase.table("profiles").update({"stripe_customer_id": stripe_customer_id}).eq("id", user_id).execute()
+
+    # -------------------------------------------------------------------------
+    # Payment / Order Methods (Unified)
+    # -------------------------------------------------------------------------
+    def create_payment_order(self, user_id: str, provider: str, amount_fiat: float, currency_fiat: str = "USD") -> Dict[str, Any]:
+        """Create a new payment order."""
+        if not self.supabase:
+            return None
+        
+        data = {
+            "user_id": user_id,
+            "provider": provider,
+            "amount_fiat": amount_fiat,
+            "currency_fiat": currency_fiat,
+            "status": "pending"
+        }
+        res = self.supabase.table("payment_orders").insert(data).execute()
+        return res.data[0] if res.data else None
+
+    def update_payment_order(self, order_id: str, provider_payment_id: str = None, status: str = None, amount_crypto: float = None, currency_crypto: str = None, metadata: Dict = None):
+        """Update payment order details."""
+        if not self.supabase:
+            return
+        
+        data = {}
+        if provider_payment_id: data["provider_payment_id"] = provider_payment_id
+        if status: data["status"] = status
+        if amount_crypto is not None: data["amount_crypto"] = amount_crypto
+        if currency_crypto: data["currency_crypto"] = currency_crypto
+        if metadata: data["metadata"] = metadata
+        
+        data["updated_at"] = "now()"
+        
+        self.supabase.table("payment_orders").update(data).eq("id", order_id).execute()
+
+    def get_payment_order(self, order_id: str) -> Optional[Dict[str, Any]]:
+        """Get payment order by ID."""
+        if not self.supabase:
+            return None
+        res = self.supabase.table("payment_orders").select("*").eq("id", order_id).execute()
+        return res.data[0] if res.data else None
+    
+    def get_payment_order_by_provider_id(self, provider_payment_id: str) -> Optional[Dict[str, Any]]:
+        """Get payment order by provider's ID (session_id or charge_code)."""
+        if not self.supabase:
+            return None
+        res = self.supabase.table("payment_orders").select("*").eq("provider_payment_id", provider_payment_id).execute()
+        return res.data[0] if res.data else None

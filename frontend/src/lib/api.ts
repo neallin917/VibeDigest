@@ -80,4 +80,17 @@ export class ApiClient {
             }
         });
     }
+
+    static async createCryptoCharge(priceId: string, token: string) {
+        const formData = new FormData();
+        formData.append("price_id", priceId);
+
+        return this.request("/api/create-crypto-charge", {
+            method: "POST",
+            body: formData,
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        });
+    }
 }

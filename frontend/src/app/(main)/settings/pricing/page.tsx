@@ -1,15 +1,17 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { Check, Loader2, CreditCard, Database } from "lucide-react"
+import { Check, Loader2, CreditCard, Database, Zap } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 import { ApiClient } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { UsageCard } from "@/components/dashboard/UsageCard"
 
 type Profile = {
     tier: 'free' | 'pro' | string
@@ -26,6 +28,7 @@ const CREDIT_PACK_PRICE_ID = "price_1ShU6pP16NRNsVf5EdlEFgOE"
 export default function PricingPage() {
     const { t } = useI18n()
     const [isAnnual, setIsAnnual] = useState(true)
+    const [paymentMethod, setPaymentMethod] = useState<'card' | 'crypto'>('card')
     const [loading, setLoading] = useState(false)
     const [profile, setProfile] = useState<Profile | null>(null)
     const [supabase] = useState(() => createClient())
@@ -55,7 +58,15 @@ export default function PricingPage() {
             const { data: { session } } = await supabase.auth.getSession()
             if (!session) return
 
-            const { url } = await ApiClient.createCheckoutSession(priceId, session.access_token)
+            let url = ""
+            if (paymentMethod === 'crypto') {
+                const res = await ApiClient.createCryptoCharge(priceId, session.access_token)
+                url = res.url
+            } else {
+                const res = await ApiClient.createCheckoutSession(priceId, session.access_token)
+                url = res.url
+            }
+
             if (url) {
                 window.location.href = url
             }
@@ -96,10 +107,43 @@ export default function PricingPage() {
                 <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
                     {t("pricing.subtitle")}
                 </p>
+            </div>
 
-                <div className="flex items-center justify-center gap-4 pt-4" title="2 months free with annual billing">
-                    {/* Toggle moved to Pro Card */}
+            {/* Usage & Quota (moved from Dashboard) */}
+            <div className="max-w-md mx-auto">
+                <UsageCard />
+            </div>
+
+            {/* Payment Method Toggle (after quota) */}
+            <div className="flex flex-col items-center justify-center gap-2 pt-2">
+                <span className="text-sm font-medium text-muted-foreground uppercase tracking-widest">
+                    {t("pricing.paymentMethod")}
+                </span>
+                <div className="flex items-center gap-2 p-1 bg-secondary/50 rounded-full border border-border/50">
+                    <Button
+                        variant={paymentMethod === 'card' ? 'secondary' : 'ghost'}
+                        onClick={() => setPaymentMethod('card')}
+                        className="rounded-full px-6 transition-all"
+                        size="sm"
+                    >
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        {t("pricing.card")}
+                    </Button>
+                    <Button
+                        variant={paymentMethod === 'crypto' ? 'secondary' : 'ghost'}
+                        onClick={() => setPaymentMethod('crypto')}
+                        className="rounded-full px-6 transition-all"
+                        size="sm"
+                    >
+                        <Zap className="w-4 h-4 mr-2 text-yellow-500" />
+                        {t("pricing.crypto")}
+                    </Button>
                 </div>
+                {paymentMethod === 'crypto' && (
+                    <p className="text-xs text-yellow-500 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20 animate-in fade-in slide-in-from-top-1">
+                        {t("pricing.cryptoWarning")}
+                    </p>
+                )}
             </div>
 
             <div className="grid md:grid-cols-3 gap-8">
@@ -125,11 +169,11 @@ export default function PricingPage() {
                                 .map((k) => t(k))
                                 .filter((v) => v && !v.startsWith("pricing."))
                                 .map((feature, i) => (
-                                <li key={i} className="flex items-center gap-2">
-                                    <Database className="h-4 w-4 text-muted-foreground" />
-                                    <span>{feature}</span>
-                                </li>
-                            ))}
+                                    <li key={i} className="flex items-center gap-2">
+                                        <Database className="h-4 w-4 text-muted-foreground" />
+                                        <span>{feature}</span>
+                                    </li>
+                                ))}
                         </ul>
                     </CardContent>
                     <CardFooter>
@@ -181,11 +225,11 @@ export default function PricingPage() {
                                 .map((k) => t(k))
                                 .filter((v) => v && !v.startsWith("pricing."))
                                 .map((feature, i) => (
-                                <li key={i} className="flex items-center gap-2">
-                                    <Check className="h-4 w-4 text-emerald-500" />
-                                    <span>{feature}</span>
-                                </li>
-                            ))}
+                                    <li key={i} className="flex items-center gap-2">
+                                        <Check className="h-4 w-4 text-emerald-500" />
+                                        <span>{feature}</span>
+                                    </li>
+                                ))}
                         </ul>
                     </CardContent>
                     <CardFooter>
@@ -220,11 +264,11 @@ export default function PricingPage() {
                                 .map((k) => t(k))
                                 .filter((v) => v && !v.startsWith("pricing."))
                                 .map((feature, i) => (
-                                <li key={i} className="flex items-center gap-2">
-                                    <CreditCard className="h-4 w-4 text-blue-400" />
-                                    <span>{feature}</span>
-                                </li>
-                            ))}
+                                    <li key={i} className="flex items-center gap-2">
+                                        <CreditCard className="h-4 w-4 text-blue-400" />
+                                        <span>{feature}</span>
+                                    </li>
+                                ))}
                         </ul>
                     </CardContent>
                     <CardFooter>
@@ -236,25 +280,11 @@ export default function PricingPage() {
                 </Card>
             </div>
 
-            {profile && (
-                <div className="mt-12 p-6 rounded-xl border border-white/10 bg-white/5 backdrop-blur-lg">
-                    <h3 className="text-lg font-semibold mb-4">Your Usage</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="p-4 rounded-lg bg-black/20">
-                            <div className="text-sm text-muted-foreground">Current Plan</div>
-                            <div className="text-xl font-mono capitalize text-emerald-400">{profile.tier}</div>
-                        </div>
-                        <div className="p-4 rounded-lg bg-black/20">
-                            <div className="text-sm text-muted-foreground">Monthly Usage</div>
-                            <div className="text-xl font-mono">{profile.usage_count} / {profile.usage_limit}</div>
-                        </div>
-                        <div className="p-4 rounded-lg bg-black/20">
-                            <div className="text-sm text-muted-foreground">Extra Credits</div>
-                            <div className="text-xl font-mono text-blue-400">{profile.extra_credits}</div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Footer Links (Compliance) */}
+            <div className="flex justify-center gap-6 text-sm text-muted-foreground underline pb-8">
+                <Link href="/policies/refund" className="hover:text-foreground transition-colors">{t("pricing.policies.refund")}</Link>
+                <Link href="/policies/terms" className="hover:text-foreground transition-colors">{t("pricing.policies.terms")}</Link>
+            </div>
         </div>
     )
 }
