@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, FileText, Languages, PlayCircle, Subtitles, Copy, Check } from "lucide-react"
+import { ArrowLeft, FileText, Languages, PlayCircle, Subtitles, Copy, Check, ExternalLink } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -115,7 +115,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-4xl mx-auto space-y-4 md:space-y-6 px-1 sm:px-0">
             <div className="flex items-center gap-4">
                 <Link href="/history">
                     <Button variant="ghost" size="sm" className="gap-2 pl-0 hover:pl-2 transition-all">
@@ -125,28 +125,41 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
             </div>
 
             <Card className="glass">
-                <CardHeader className="pb-4">
-                    <div className="flex justify-between items-start">
+                <CardHeader className="pb-4 p-4 md:p-6">
+                    <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-start">
                         <div className="space-y-1">
-                            <h1 className="text-2xl font-bold">{task.video_title || task.video_url}</h1>
-                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                            <h1 className="text-lg md:text-2xl font-bold leading-snug break-words">
+                                {task.video_title || task.video_url}
+                            </h1>
+                            <div className="flex flex-wrap items-center gap-2 text-muted-foreground text-sm">
                                 <PlayCircle className="h-4 w-4" />
                                 <a
                                     href={task.video_url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="hover:text-primary hover:underline truncate max-w-md block"
+                                    className="hover:text-primary hover:underline truncate max-w-[260px] sm:max-w-md block"
                                 >
                                     {task.video_url}
                                 </a>
+                                <Button
+                                    asChild
+                                    variant="ghost"
+                                    size="sm"
+                                    className="sm:hidden h-7 px-2 gap-1"
+                                >
+                                    <a href={task.video_url} target="_blank" rel="noopener noreferrer">
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                        {t("tasks.openOriginalLink")}
+                                    </a>
+                                </Button>
                             </div>
                         </div>
-                        <Badge variant={task.status === "completed" ? "success" : task.status === "error" ? "destructive" : "processing"} className="text-sm px-3 py-1">
+                        <Badge variant={task.status === "completed" ? "success" : task.status === "error" ? "destructive" : "processing"} className="text-xs md:text-sm px-3 py-1 self-start">
                             {task.status.toUpperCase()}
                         </Badge>
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4 md:p-6 pt-0">
                     <div className="mb-6">
                         {hasVideo ? <VideoEmbed videoUrl={task.video_url} title={task.video_title} /> : null}
                         {!hasVideo && audio?.status === "completed" && audioUrl ? (
@@ -185,19 +198,19 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                     )}
 
                     <Tabs defaultValue="script" value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <TabsList className="grid w-full grid-cols-3 bg-secondary/50 p-1">
-                            <TabsTrigger value="script" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-black font-medium">
-                                <Subtitles className="h-4 w-4" /> {t("tasks.tabScript")}
+                        <TabsList className="grid w-full grid-cols-3 bg-secondary/50 p-1 h-11">
+                            <TabsTrigger value="script" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-black font-medium">
+                                <Subtitles className="hidden sm:block h-4 w-4" /> {t("tasks.tabScript")}
                             </TabsTrigger>
-                            <TabsTrigger value="summary" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-black font-medium">
-                                <FileText className="h-4 w-4" /> {t("tasks.tabSummary")}
+                            <TabsTrigger value="summary" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-black font-medium">
+                                <FileText className="hidden sm:block h-4 w-4" /> {t("tasks.tabSummary")}
                             </TabsTrigger>
-                            <TabsTrigger value="translation" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-black font-medium">
-                                <Languages className="h-4 w-4" /> {t("tasks.tabTranslation")}
+                            <TabsTrigger value="translation" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-black font-medium">
+                                <Languages className="hidden sm:block h-4 w-4" /> {t("tasks.tabTranslation")}
                             </TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="script" className="mt-6">
+                        <TabsContent value="script" className="mt-4 md:mt-6">
                             <OutputCard
                                 output={script}
                                 placeholder={t("tasks.scriptPlaceholder")}
@@ -205,11 +218,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                             />
                         </TabsContent>
 
-                        <TabsContent value="summary" className="mt-6 space-y-4">
+                        <TabsContent value="summary" className="mt-4 md:mt-6 space-y-4">
                             <OutputCard output={summary} placeholder={t("tasks.summaryPlaceholder")} />
                         </TabsContent>
 
-                        <TabsContent value="translation" className="mt-6 space-y-4">
+                        <TabsContent value="translation" className="mt-4 md:mt-6 space-y-4">
                             {translations.length === 0 && <div className="text-center p-8 text-muted-foreground bg-black/20 rounded-xl">{t("tasks.noTranslations")}</div>}
                             {translations.map((tr) => (
                                 <div key={tr.id}>
@@ -245,9 +258,9 @@ function OutputCard({ output, placeholder, isScript = false }: { output?: Output
 
     if (!output) {
         return (
-            <Card className="bg-black/20 border-white/5 min-h-[300px] flex items-center justify-center">
-                <CardContent className="text-center text-muted-foreground p-10">
-                    <div className="mb-4 flex justifying-center">
+            <Card className="bg-black/20 border-white/5 min-h-[220px] md:min-h-[300px] flex items-center justify-center">
+                <CardContent className="text-center text-muted-foreground p-6 md:p-10">
+                    <div className="mb-4 flex justify-center">
                         <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center mx-auto">
                             {isScript ? <Subtitles className="h-6 w-6 opacity-50" /> : <FileText className="h-6 w-6 opacity-50" />}
                         </div>
@@ -271,8 +284,8 @@ function OutputCard({ output, placeholder, isScript = false }: { output?: Output
 
     if (output.status === 'processing' || output.status === 'pending') {
         return (
-            <Card className="bg-black/20 border-white/5 min-h-[300px] flex items-center justify-center">
-                <CardContent className="p-10 text-center space-y-4">
+            <Card className="bg-black/20 border-white/5 min-h-[220px] md:min-h-[300px] flex items-center justify-center">
+                <CardContent className="p-6 md:p-10 text-center space-y-4">
                     <div className="flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
                     <div>
                         <p className="font-medium text-foreground">{t("tasks.generatingContent")}</p>
@@ -285,7 +298,7 @@ function OutputCard({ output, placeholder, isScript = false }: { output?: Output
 
     return (
         <Card className="bg-black/20 border-white/5 relative group">
-            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+            <div className="absolute top-3 right-3 md:top-4 md:right-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
                 <Button
                     variant="ghost"
                     size="sm"
@@ -296,8 +309,8 @@ function OutputCard({ output, placeholder, isScript = false }: { output?: Output
                     {isCopied ? t("tasks.copied") : t("tasks.copyToClipboard")}
                 </Button>
             </div>
-            <CardContent className="p-8 pt-10">
-                <div className="prose prose-invert prose-lg max-w-none prose-headings:text-primary prose-a:text-primary prose-strong:text-white prose-strong:font-bold">
+            <CardContent className="p-4 pt-12 md:p-8 md:pt-10">
+                <div className="prose prose-invert prose-base md:prose-lg max-w-none prose-headings:text-primary prose-a:text-primary prose-strong:text-white prose-strong:font-bold">
                     <ReactMarkdown
                         components={{
                             // Customize timestamp rendering if needed, 

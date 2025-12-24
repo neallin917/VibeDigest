@@ -24,12 +24,15 @@ VibeDigest is a full-stack tool engineered to download videos, transcribe audio,
     - `*.py`: Stateless processors (yt-dlp).
 - `frontend/`: **Frontend Source** (Next.js/TypeScript)
     - `src/app/`: App Router pages.
-        - `(main)/`: **Protected Route Group** (Sidebar Enabled).
+        - `(main)/`: **Protected Route Group** (Responsive Navigation Shell).
+            - Desktop (`md+`): Sidebar navigation.
+            - Mobile (`< md`): Sticky top header + bottom tab navigation.
             - `dashboard/`, `history/`, `settings/`, `tasks/`.
         - `page.tsx`: Public Landing Page.
         - `login/`: Auth Page.
     - `src/middleware.ts`: Auth Gatekeeper.
     - `src/components/ui/`: Reusable UI components (Button, Card, etc.).
+    - `src/components/layout/`: App shell & navigation (`Sidebar`, `MobileNav`, shared `navItems`).
     - `src/lib/`: Utilities (`utils.ts`), API clients (`api.ts`), Supabase client (`supabase.ts`).
 - `scripts/`: Utility scripts.
     - `start.py`: Production runner script.
@@ -210,6 +213,7 @@ docker-compose -f docker-compose.test.yml up -d
 *   **Usage**: `const { t } = useI18n()`.
 *   **Persistence**: `localStorage` (`vd.locale`).
 *   **Fallback**: English (`en`).
+*   **Brand / App Name**: Use `t("brand.name")` for the product name and `t("brand.appName")` for the UI app label (avoid hard-coded strings in headers/menus).
 
 ---
 

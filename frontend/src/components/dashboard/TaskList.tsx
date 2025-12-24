@@ -36,7 +36,7 @@ const getPlatformFromUrl = (url: string) => {
     }
 }
 
-export function TaskList() {
+export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
     const [tasks, setTasks] = useState<Task[]>([])
     const [loading, setLoading] = useState(true)
     const [userId, setUserId] = useState<string | null>(null)
@@ -211,14 +211,16 @@ export function TaskList() {
 
     return (
         <Card className="border-0 bg-transparent shadow-none">
-            <CardHeader className="px-0 flex flex-row items-center justify-between space-y-0">
-                <CardTitle className="flex items-center gap-2">
-                    {t("tasks.recentTasks")}
-                    <Badge variant="secondary" className="ml-2 bg-white/10 text-xs font-normal">
-                        {tasks.length}
-                    </Badge>
-                </CardTitle>
-            </CardHeader>
+            {showHeader ? (
+                <CardHeader className="px-0 flex flex-row items-center justify-between space-y-0">
+                    <CardTitle className="flex items-center gap-2">
+                        {t("tasks.recentTasks")}
+                        <Badge variant="secondary" className="ml-2 bg-white/10 text-xs font-normal">
+                            {tasks.length}
+                        </Badge>
+                    </CardTitle>
+                </CardHeader>
+            ) : null}
             <CardContent className="px-0 space-y-4">
                 {tasks.map((task) => (
                     <div

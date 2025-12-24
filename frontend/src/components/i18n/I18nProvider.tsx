@@ -14,7 +14,7 @@ const STORAGE_KEY = "vd.locale"
 type I18nContextValue = {
   locale: Locale
   setLocale: (locale: Locale) => void
-  t: (key: string, vars?: Record<string, string | number>) => any
+  t: (key: string, vars?: Record<string, string | number>) => string
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null)
@@ -26,15 +26,19 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   // Load persisted locale after mount (client-only)
   useEffect(() => {
+    let cancelled = false
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY)
-      if (isLocale(stored)) {
-        setLocaleState(stored)
-        return
-      }
-      setLocaleState(getBestLocaleFromNavigator(window.navigator.language))
+      const next = isLocale(stored) ? stored : getBestLocaleFromNavigator(window.navigator.language)
+      // Avoid synchronous setState inside effect body (React 19 lint rule).
+      Promise.resolve().then(() => {
+        if (!cancelled) setLocaleState(next)
+      })
     } catch {
       // ignore
+    }
+    return () => {
+      cancelled = true
     }
   }, [])
 

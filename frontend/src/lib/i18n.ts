@@ -41,6 +41,7 @@ const messages: Record<Locale, Messages> = {
   en: {
     brand: {
       name: "VibeDigest",
+      appName: "Transcriber",
       versionTag: "VibeDigest v3.0",
     },
     nav: {
@@ -48,6 +49,7 @@ const messages: Record<Locale, Messages> = {
       history: "History",
       settings: "Settings",
       pricing: "Pricing",
+      menu: "Menu",
     },
     auth: {
       welcomeBack: "Welcome Back",
@@ -78,6 +80,12 @@ const messages: Record<Locale, Messages> = {
     dashboard: {
       title: "Dashboard",
       subtitle: "Manage your video transcriptions and summaries.",
+      usage: {
+        title: "Usage & Quota",
+        monthly: "Monthly Credits",
+        plan: "Plan",
+        extra: "Extra"
+      }
     },
     history: {
       title: "Transcription History",
@@ -100,8 +108,6 @@ const messages: Record<Locale, Messages> = {
         desc: "Try LongCut for free, no card required",
         features: {
           f1: "3 videos / month",
-          f2: "AI highlight reels",
-          f3: "Chat with transcripts",
           f4: "Save notes",
           f5: "Transcript translation"
         }
@@ -114,8 +120,7 @@ const messages: Record<Locale, Messages> = {
         desc: "Billed annually, get 2 months free",
         features: {
           f1: "100 videos / month",
-          f2: "Everything from basic",
-          f3: "Export transcripts"
+          f2: "Everything from basic"
         },
         button: "Upgrade",
         manage: "Manage Subscription",
@@ -187,7 +192,7 @@ const messages: Record<Locale, Messages> = {
     },
     feedback: {
       title: "Send Feedback",
-      subtitle: "Help us improve VibeDigest",
+      subtitle: "Help us improve {appName}",
       category: "Category",
       message: "Message",
       contactEmail: "Contact Email (Optional)",
@@ -205,6 +210,7 @@ const messages: Record<Locale, Messages> = {
   zh: {
     brand: {
       name: "AI 视频笔记",
+      appName: "转写器",
       versionTag: "Alpha",
     },
     nav: {
@@ -212,6 +218,7 @@ const messages: Record<Locale, Messages> = {
       history: "历史记录",
       settings: "设置",
       pricing: "方案",
+      menu: "菜单",
     },
     auth: {
       welcomeBack: "欢迎回来",
@@ -237,6 +244,16 @@ const messages: Record<Locale, Messages> = {
       feature3Desc: "自动整理你的视频学习笔记，随时回顾。",
       footer: "由 Supabase & Next.js 驱动",
     },
+    dashboard: {
+      title: "工作台",
+      subtitle: "管理你的视频转写与摘要。",
+      usage: {
+        title: "用量与额度",
+        monthly: "月度额度",
+        plan: "方案",
+        extra: "额外包",
+      },
+    },
     history: {
       title: "历史记录",
       subtitle: "查看你之前的视频笔记",
@@ -245,6 +262,12 @@ const messages: Record<Locale, Messages> = {
     settings: {
       title: "设置",
       subtitle: "管理你的偏好设置",
+      usage: {
+        title: "用量与额度",
+        monthly: "月度额度",
+        plan: "方案",
+        extra: "额外包"
+      },
       language: "界面语言",
       languageHint: "选择你偏好的界面语言",
       comingSoon: "更多设置即将推出...",
@@ -258,8 +281,6 @@ const messages: Record<Locale, Messages> = {
         desc: "免费试用 LongCut，无需信用卡",
         features: {
           f1: "每月 3 个视频",
-          f2: "AI 精彩剪辑",
-          f3: "与字幕对话",
           f4: "保存笔记",
           f5: "字幕翻译"
         }
@@ -272,8 +293,7 @@ const messages: Record<Locale, Messages> = {
         desc: "按年计费，赠送 2 个月",
         features: {
           f1: "每月 100 个视频",
-          f2: "包含基础版所有功能",
-          f3: "导出字幕"
+          f2: "包含基础版所有功能"
         },
         button: "升级",
         manage: "管理订阅",
@@ -307,6 +327,7 @@ const messages: Record<Locale, Messages> = {
       translateTo: "翻译目标",
     },
     tasks: {
+      recentTasks: "最近任务",
       urlPlaceholder: "输入 YouTube, Bilibili, TikTok 链接...",
       processing: "处理中",
       generate: "生成笔记",
@@ -352,7 +373,7 @@ const messages: Record<Locale, Messages> = {
     },
     feedback: {
       title: "发送反馈",
-      subtitle: "帮助我们改进 VibeDigest",
+      subtitle: "帮助我们改进 {appName}",
       category: "分类",
       message: "内容",
       contactEmail: "联系邮箱 (可选)",
@@ -422,8 +443,6 @@ const messages: Record<Locale, Messages> = {
         desc: "Prueba LongCut gratis, sin tarjeta",
         features: {
           f1: "3 videos / mes",
-          f2: "Resúmenes destacados con IA",
-          f3: "Chat con transcripciones",
           f4: "Guardar notas",
           f5: "Traducción de transcripciones"
         }
@@ -436,8 +455,7 @@ const messages: Record<Locale, Messages> = {
         desc: "Facturado anualmente, 2 meses gratis",
         features: {
           f1: "100 videos / mes",
-          f2: "Todo lo del plan básico",
-          f3: "Exportar transcripciones"
+          f2: "Todo lo del plan básico"
         },
         button: "Mejorar plan",
         manage: "Gestionar suscripción",
@@ -1083,8 +1101,6 @@ const messages: Record<Locale, Messages> = {
         desc: "LongCutを無料で試す（カード不要）",
         features: {
           f1: "毎月動画3本まで",
-          f2: "AIハイライトリール",
-          f3: "字幕とのチャット",
           f4: "ノートの保存",
           f5: "字幕翻訳"
         }
@@ -1097,8 +1113,7 @@ const messages: Record<Locale, Messages> = {
         desc: "年払い（2ヶ月分無料）",
         features: {
           f1: "毎月動画100本まで",
-          f2: "ベーシックプランの全機能",
-          f3: "字幕のエクスポート"
+          f2: "ベーシックプランの全機能"
         },
         button: "アップグレード",
         manage: "サブスクリプション管理",
@@ -1213,8 +1228,6 @@ const messages: Record<Locale, Messages> = {
         desc: "LongCut 무료 체험 (카드 불필요)",
         features: {
           f1: "매월 동영상 3개",
-          f2: "AI 하이라이트 릴",
-          f3: "대본과 채팅",
           f4: "노트 저장",
           f5: "대본 번역"
         }
@@ -1227,8 +1240,7 @@ const messages: Record<Locale, Messages> = {
         desc: "연간 결제 (2개월 무료)",
         features: {
           f1: "매월 동영상 100개",
-          f2: "베이직의 모든 기능",
-          f3: "대본 내보내기"
+          f2: "베이직의 모든 기능"
         },
         button: "업그레이드",
         manage: "구독 관리",
@@ -1329,16 +1341,16 @@ export function getBestLocaleFromNavigator(navigatorLanguage?: string | null): L
 }
 
 export function createTranslator(locale: Locale) {
-  return (key: string, vars?: Record<string, string | number>) => {
+  return (key: string, vars?: Record<string, string | number>): string => {
     const primary = resolvePath(messages[locale], key)
     if (primary !== undefined) {
       if (typeof primary === 'string') return format(primary, vars)
-      return primary as any
+      return key
     }
     const fallback = resolvePath(messages[DEFAULT_LOCALE], key)
     if (fallback !== undefined) {
       if (typeof fallback === 'string') return format(fallback, vars)
-      return fallback as any
+      return key
     }
     return key
   }

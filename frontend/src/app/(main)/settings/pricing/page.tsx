@@ -6,10 +6,17 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { Check, Loader2, CreditCard, Zap, Database } from "lucide-react"
+import { Check, Loader2, CreditCard, Database } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 import { ApiClient } from "@/lib/api"
 import { cn } from "@/lib/utils"
+
+type Profile = {
+    tier: 'free' | 'pro' | string
+    usage_count: number
+    usage_limit: number
+    extra_credits: number
+}
 
 // Price IDs
 const PRO_MONTHLY_PRICE_ID = "price_1ShU6GP16NRNsVf5dcAqHHDV"
@@ -20,7 +27,7 @@ export default function PricingPage() {
     const { t } = useI18n()
     const [isAnnual, setIsAnnual] = useState(true)
     const [loading, setLoading] = useState(false)
-    const [profile, setProfile] = useState<any>(null)
+    const [profile, setProfile] = useState<Profile | null>(null)
     const [supabase] = useState(() => createClient())
 
     const [mounted, setMounted] = useState(false)
@@ -29,7 +36,7 @@ export default function PricingPage() {
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
             const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-            setProfile(data)
+            setProfile(data as Profile)
         }
     }
 
@@ -61,6 +68,26 @@ export default function PricingPage() {
     }
 
     const isPro = profile?.tier === 'pro'
+
+    const freeFeatureKeys = [
+        "pricing.free.features.f1",
+        "pricing.free.features.f2",
+        "pricing.free.features.f3",
+        "pricing.free.features.f4",
+        "pricing.free.features.f5",
+    ] as const
+
+    const proFeatureKeys = [
+        "pricing.pro.features.f1",
+        "pricing.pro.features.f2",
+        "pricing.pro.features.f3",
+    ] as const
+
+    const topupFeatureKeys = [
+        "pricing.topup.features.f1",
+        "pricing.topup.features.f2",
+        "pricing.topup.features.f3",
+    ] as const
 
     return (
         <div className="space-y-8 max-w-5xl mx-auto py-8">
@@ -94,7 +121,10 @@ export default function PricingPage() {
                     </CardHeader>
                     <CardContent className="flex-1">
                         <ul className="space-y-3 text-sm">
-                            {(Object.values(t("pricing.free.features") as any) as string[]).map((feature, i) => (
+                            {freeFeatureKeys
+                                .map((k) => t(k))
+                                .filter((v) => v && !v.startsWith("pricing."))
+                                .map((feature, i) => (
                                 <li key={i} className="flex items-center gap-2">
                                     <Database className="h-4 w-4 text-muted-foreground" />
                                     <span>{feature}</span>
@@ -147,7 +177,10 @@ export default function PricingPage() {
                     </CardHeader>
                     <CardContent className="flex-1">
                         <ul className="space-y-3 text-sm">
-                            {(Object.values(t("pricing.pro.features") as any) as string[]).map((feature, i) => (
+                            {proFeatureKeys
+                                .map((k) => t(k))
+                                .filter((v) => v && !v.startsWith("pricing."))
+                                .map((feature, i) => (
                                 <li key={i} className="flex items-center gap-2">
                                     <Check className="h-4 w-4 text-emerald-500" />
                                     <span>{feature}</span>
@@ -183,7 +216,10 @@ export default function PricingPage() {
                     </CardHeader>
                     <CardContent className="flex-1">
                         <ul className="space-y-3 text-sm">
-                            {(Object.values(t("pricing.topup.features") as any) as string[]).map((feature, i) => (
+                            {topupFeatureKeys
+                                .map((k) => t(k))
+                                .filter((v) => v && !v.startsWith("pricing."))
+                                .map((feature, i) => (
                                 <li key={i} className="flex items-center gap-2">
                                     <CreditCard className="h-4 w-4 text-blue-400" />
                                     <span>{feature}</span>

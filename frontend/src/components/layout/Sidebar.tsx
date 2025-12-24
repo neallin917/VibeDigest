@@ -4,19 +4,13 @@ import { useState, useEffect } from "react"
 
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { History, PlusCircle, Settings, LogOut, CreditCard } from "lucide-react"
+import { LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { FeedbackDialog } from "./FeedbackDialog"
-
-const sidebarItems = [
-    { key: "nav.newTask", href: "/dashboard", icon: PlusCircle },
-    { key: "nav.history", href: "/history", icon: History },
-    { key: "nav.settings", href: "/settings", icon: Settings },
-    { key: "nav.pricing", href: "/settings/pricing", icon: CreditCard },
-] as const
+import { NAV_ITEMS } from "@/components/layout/navItems"
 
 export function Sidebar() {
     const pathname = usePathname()
@@ -31,15 +25,15 @@ export function Sidebar() {
     }, [])
 
     return (
-        <div className="flex h-screen w-64 flex-col border-r bg-card">
+        <div className="hidden md:flex h-dvh w-64 flex-col border-r bg-card">
             <div className="p-6">
                 <h1 className="text-xl font-bold flex items-center gap-2">
-                    <span className="text-primary text-2xl">⚡</span> Transcriber
+                    <span className="text-primary text-2xl">⚡</span> {t("brand.appName")}
                 </h1>
             </div>
 
             <div className="flex-1 px-4 py-2 space-y-1">
-                {sidebarItems.map((item) => (
+                {NAV_ITEMS.map((item) => (
                     <Link
                         key={item.href}
                         href={item.href}

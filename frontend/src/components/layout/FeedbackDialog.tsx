@@ -90,7 +90,7 @@ export function FeedbackDialog() {
                 <DialogHeader>
                     <DialogTitle>{t("feedback.title")}</DialogTitle>
                     <DialogDescription>
-                        {t("feedback.subtitle")}
+                        {t("feedback.subtitle", { appName: t("brand.name") })}
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
