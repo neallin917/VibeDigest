@@ -28,6 +28,7 @@ from summarizer import Summarizer
 from translator import Translator
 from db_client import DBClient
 from notifier import Notifier
+from supadata_client import SupadataClient
 from pydantic import BaseModel
 
 # Configure Logging
@@ -57,6 +58,7 @@ summarizer = Summarizer()
 translator = Translator()
 db_client = DBClient()
 notifier = Notifier()
+supadata_client = SupadataClient()
 
 # Stripe Config
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
@@ -435,15 +437,55 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
         # Update Task Status
         db_client.update_task_status(task_id, status="processing", progress=10)
 
-        # A. Download
-        logger.info(f"Downloading {video_url}...")
-        try:
-            audio_path, video_title, thumbnail_url, direct_audio_url = await video_processor.download_and_convert(video_url, TEMP_DIR)
-            # Update Title and Thumbnail in DB
-            db_client.update_task_status(task_id, progress=30, video_title=video_title, thumbnail_url=thumbnail_url)
-        except Exception as e:
-            db_client.update_task_status(task_id, status="error", error=f"Download failed: {str(e)}")
-            return
+        # Try Supadata first if it's a supported URL (YouTube usually)
+        # We can try for all, let the client decide or handle error.
+        supadata_result = None
+        
+        # Simple heuristic to prioritize Supadata for YouTube
+        is_youtube = "youtube.com" in video_url or "youtu.be" in video_url
+        if is_youtube:
+            try:
+                # 30% progress for "Fetching Transcript"
+                db_client.update_task_status(task_id, status="processing", progress=20)
+                md, raw, lang = await supadata_client.get_transcript_async(video_url)
+                if md and raw:
+                    supadata_result = (md, raw, lang)
+                    logger.info("Supadata transcript fetched successfully.")
+            except Exception as e:
+                logger.warning(f"Supadata attempt failed: {e}")
+
+        audio_path = None
+        video_title = "Unknown"
+        thumbnail_url = None
+        direct_audio_url = None
+        
+        if supadata_result:
+            # OPTION A: Supadata Succeeded.
+            # We skip heavy download. But we need Metadata (Title, Thumb, AudioURL).
+            logger.info("Using Supadata result. Fetching metadata only...")
+            try:
+                # Quick metadata fetch
+                video_title, thumbnail_url, direct_audio_url = await video_processor.extract_info_only(video_url)
+                # Update DB
+                db_client.update_task_status(task_id, progress=30, video_title=video_title, thumbnail_url=thumbnail_url)
+            except Exception as e:
+                # If metadata fails, we might technically proceed with "Unknown" title?
+                # But safer to maybe fallback to full download flow if we really need consistent state?
+                # For now, log and proceed with what we have.
+                logger.error(f"Metadata fetch failed: {e}")
+                db_client.update_task_status(task_id, status="error", error=f"Metadata failed: {str(e)}")
+                return
+        else:
+            # OPTION B: Fallback (Supadata missing or failed).
+            # A. Download
+            logger.info(f"Downloading {video_url} (Supadata skipped/failed)...")
+            try:
+                audio_path, video_title, thumbnail_url, direct_audio_url = await video_processor.download_and_convert(video_url, TEMP_DIR)
+                # Update Title and Thumbnail in DB
+                db_client.update_task_status(task_id, progress=30, video_title=video_title, thumbnail_url=thumbnail_url)
+            except Exception as e:
+                db_client.update_task_status(task_id, status="error", error=f"Download failed: {str(e)}")
+                return
 
         # A2. Save direct audio URL (best effort; no storage upload)
         try:
@@ -469,25 +511,39 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
         script_output = next((o for o in outputs if o['kind'] == 'script'), None)
         script_raw_output = next((o for o in outputs if o['kind'] == 'script_raw'), None)
         
+        
         script_text = ""
         script_text_with_timestamps = ""
         if script_output:
             try:
-                db_client.update_output_status(script_output['id'], status="processing", progress=10)
-                script_text_with_timestamps, raw_json, detected_language = await transcriber.transcribe_with_raw(audio_path)
-                # Persist raw segments first (single source of truth)
-                if script_raw_output:
-                    db_client.update_output_status(script_raw_output['id'], status="completed", progress=100, content=raw_json)
+                if supadata_result:
+                    # Use Supadata result
+                    logger.info("Using Supadata transcript for output.")
+                    script_text_with_timestamps, raw_json, detected_language = supadata_result
+                    db_client.update_output_status(script_output['id'], status="processing", progress=10)
+                    
+                    if script_raw_output:
+                        db_client.update_output_status(script_raw_output['id'], status="completed", progress=100, content=raw_json)
+                else:
+                    # Use OpenAI Whisper
+                    if not audio_path:
+                        raise Exception("Audio path missing for local transcription")
+                        
+                    db_client.update_output_status(script_output['id'], status="processing", progress=10)
+                    script_text_with_timestamps, raw_json, detected_language = await transcriber.transcribe_with_raw(audio_path)
+                    
+                    if script_raw_output:
+                        db_client.update_output_status(script_raw_output['id'], status="completed", progress=100, content=raw_json)
+                    
+                    # Always (re)generate... logic is same
+                    try:
+                        payload = json.loads(raw_json or "{}")
+                        raw_segments = payload.get("segments", [])
+                        detected_language = payload.get("language", detected_language or "unknown")
+                        script_text_with_timestamps = format_markdown_from_raw_segments(raw_segments, detected_language=detected_language)
+                    except Exception as e:
+                        logger.warning(f"Failed to regenerate formatted script: {e}")
 
-                # Always (re)generate markdown from raw segments to ensure latest formatting rules
-                # are applied consistently without any frontend "retry" UX.
-                try:
-                    payload = json.loads(raw_json or "{}")
-                    raw_segments = payload.get("segments", [])
-                    detected_language = payload.get("language", detected_language or "unknown")
-                    script_text_with_timestamps = format_markdown_from_raw_segments(raw_segments, detected_language=detected_language)
-                except Exception as e:
-                    logger.warning(f"Failed to regenerate formatted script from raw segments: {e}")
             except Exception as e:
                 err = f"Transcription failed: {str(e)}"
                 db_client.update_output_status(script_output['id'], status="error", error=err)

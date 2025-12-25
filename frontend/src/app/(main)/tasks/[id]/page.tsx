@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useState, useEffect } from "react"
+import { use, useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { ArrowLeft, FileText, Subtitles, Copy, Check } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -15,6 +15,8 @@ import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 import { VideoEmbed, supportsVideoEmbed } from "@/components/tasks/VideoEmbed"
 import { AudioEmbed } from "@/components/tasks/AudioEmbed"
 import { Heading } from "@/components/ui/typography"
+import { TranscriptTimeline } from "@/components/tasks/TranscriptTimeline"
+import { TranscriptKeyframesPanel } from "@/components/tasks/TranscriptKeyframesPanel"
 
 type Task = {
     id: string
@@ -48,14 +50,34 @@ type StructuredSummaryV1 = {
     }>
 }
 
+type MediaController = {
+    seek: (seconds: number) => void
+}
+
 export default function TaskDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
     const [task, setTask] = useState<Task | null>(null)
     const [outputs, setOutputs] = useState<Output[]>([])
     // Default to summary (primary UX)
     const [activeTab, setActiveTab] = useState("summary")
+    const [mediaController, setMediaController] = useState<MediaController | null>(null)
     const supabase = createClient()
     const { t } = useI18n()
+
+    // IMPORTANT: keep hooks order stable across renders.
+    // Do not place hooks after conditional returns (e.g. when task is null on first render).
+    const handleMediaReady = useCallback((ctrl: MediaController) => {
+        setMediaController(ctrl)
+    }, [])
+
+    const handleSeek = useCallback((seconds: number) => {
+        if (!mediaController) return
+        try {
+            mediaController.seek(seconds)
+        } catch {
+            // ignore
+        }
+    }, [mediaController])
 
     async function fetchTask() {
         const { data } = await supabase.from('tasks').select('*').eq('id', id).single()
@@ -174,9 +196,9 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                         </CardHeader>
                         <CardContent className="p-4 md:p-6 pt-0">
                             <div className="mb-6">
-                                {hasVideo ? <VideoEmbed videoUrl={task.video_url} title={task.video_title} /> : null}
+                                {hasVideo ? <VideoEmbed videoUrl={task.video_url} title={task.video_title} onReady={handleMediaReady} /> : null}
                                 {!hasVideo && audio?.status === "completed" && audioUrl ? (
-                                    <AudioEmbed audioUrl={audioUrl} title={task.video_title} coverUrl={audioCoverUrl} sourceUrl={task.video_url} />
+                                    <AudioEmbed audioUrl={audioUrl} title={task.video_title} coverUrl={audioCoverUrl} sourceUrl={task.video_url} onReady={handleMediaReady} />
                                 ) : null}
                                 {!hasVideo && (!audio || audio.status === "error") ? (
                                     <div className="mt-3 text-sm text-muted-foreground">
@@ -184,6 +206,13 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                                     </div>
                                 ) : null}
                             </div>
+
+                            <TranscriptKeyframesPanel
+                                scriptRawContent={scriptRaw?.content}
+                                canSeek={Boolean(mediaController)}
+                                onSeek={handleSeek}
+                            />
+
                             {(task.status === "processing" || task.status === "pending") && (
                                 <div className="space-y-4 mb-8 p-6 bg-primary/5 rounded-xl border border-primary/10">
                                     <div className="flex items-center gap-3">
@@ -228,8 +257,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                                 <TabsContent value="script" className="mt-4 md:mt-6 space-y-4">
                                     <FullScriptSection
                                         script={script}
+                                        scriptRawContent={scriptRaw?.content}
                                         scriptPlaceholder={t("tasks.scriptPlaceholder")}
                                         detectedLanguageLabel={detectedLanguageLabel}
+                                        canSeek={Boolean(mediaController)}
+                                        onSeek={handleSeek}
                                         t={t}
                                     />
                                 </TabsContent>
@@ -410,13 +442,19 @@ function SummarySection({
 
 function FullScriptSection({
     script,
+    scriptRawContent,
     scriptPlaceholder,
     detectedLanguageLabel,
+    canSeek,
+    onSeek,
     t,
 }: {
     script?: Output
+    scriptRawContent?: string
     scriptPlaceholder: string
     detectedLanguageLabel: string
+    canSeek: boolean
+    onSeek: (seconds: number) => void
     t: (key: string, vars?: Record<string, string | number>) => string
 }) {
     return (
@@ -429,7 +467,12 @@ function FullScriptSection({
                 </div>
             </CardHeader>
             <CardContent className="pt-0">
-                <OutputCard output={script} placeholder={scriptPlaceholder} isScript={true} />
+                <TranscriptTimeline
+                    scriptRawContent={scriptRawContent}
+                    canSeek={canSeek}
+                    onSeek={onSeek}
+                    emptyFallback={<OutputCard output={script} placeholder={scriptPlaceholder} isScript={true} />}
+                />
             </CardContent>
         </Card>
     )

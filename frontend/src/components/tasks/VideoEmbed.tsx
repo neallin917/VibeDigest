@@ -1,4 +1,10 @@
-import React from "react"
+"use client"
+
+import React, { useEffect, useState } from "react"
+
+import { YouTubePlayer } from "@/components/tasks/YouTubePlayer"
+
+type OnReady = (ctrl: { seek: (seconds: number) => void }) => void
 
 function getBilibiliVideoId(inputUrl: string): { bvid?: string; aid?: string; page?: string } | null {
   try {
@@ -73,39 +79,63 @@ export function supportsVideoEmbed(videoUrl: string): boolean {
   return Boolean(getYouTubeVideoId(videoUrl))
 }
 
-export function VideoEmbed({ videoUrl, title }: { videoUrl: string; title?: string }) {
+export function VideoEmbed({
+  videoUrl,
+  title,
+  onReady,
+}: {
+  videoUrl: string
+  title?: string
+  onReady?: OnReady
+}) {
   const bilibili = getBilibiliVideoId(videoUrl)
-  if (bilibili?.bvid || bilibili?.aid) {
-    const params = new URLSearchParams()
-    if (bilibili.bvid) params.set("bvid", bilibili.bvid)
-    if (bilibili.aid) params.set("aid", bilibili.aid)
-    if (bilibili.page) params.set("page", bilibili.page)
-    params.set("high_quality", "1")
-    params.set("danmaku", "0")
-
-    const src = `https://player.bilibili.com/player.html?${params.toString()}`
-
-    return (
-      <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
-        <div className="aspect-video w-full">
-          <iframe
-            className="h-full w-full"
-            src={src}
-            title={title || "Embedded video player"}
-            loading="lazy"
-            allow="fullscreen"
-            referrerPolicy="strict-origin-when-cross-origin"
-            allowFullScreen
-          />
-        </div>
-      </div>
-    )
-  }
+  if (bilibili?.bvid || bilibili?.aid) return <BilibiliPlayer bilibili={bilibili} title={title} onReady={onReady} />
 
   const youtubeId = getYouTubeVideoId(videoUrl)
   if (!youtubeId) return null
 
-  const src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeId)}`
+  // Use IFrame Player API for seek support.
+  return <YouTubePlayer videoId={youtubeId} title={title} onReady={onReady} />
+
+}
+
+function BilibiliPlayer({
+  bilibili,
+  title,
+  onReady,
+}: {
+  bilibili: { bvid?: string; aid?: string; page?: string }
+  title?: string
+  onReady?: OnReady
+}) {
+  // Bilibili does not provide a stable public JS API for iframe embeds.
+  // Best-effort seek: reload iframe with a `t=` parameter (seconds). If unsupported, UX remains unchanged.
+  const [seekSeconds, setSeekSeconds] = useState<number | null>(null)
+
+  useEffect(() => {
+    onReady?.({
+      seek: (seconds: number) => {
+        const s = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0))
+        setSeekSeconds(s)
+      },
+    })
+    // We only register the controller once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const params = new URLSearchParams()
+  if (bilibili.bvid) params.set("bvid", bilibili.bvid)
+  if (bilibili.aid) params.set("aid", bilibili.aid)
+  if (bilibili.page) params.set("page", bilibili.page)
+  params.set("high_quality", "1")
+  params.set("danmaku", "0")
+  if (seekSeconds !== null) {
+    params.set("t", String(seekSeconds))
+    params.set("autoplay", "1")
+  }
+
+  const src = `https://player.bilibili.com/player.html?${params.toString()}`
+  const iframeKey = seekSeconds === null ? "bili-base" : `bili-t-${seekSeconds}`
 
   return (
     <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
@@ -115,9 +145,10 @@ export function VideoEmbed({ videoUrl, title }: { videoUrl: string; title?: stri
           src={src}
           title={title || "Embedded video player"}
           loading="lazy"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allow="fullscreen"
           referrerPolicy="strict-origin-when-cross-origin"
           allowFullScreen
+          key={iframeKey}
         />
       </div>
     </div>

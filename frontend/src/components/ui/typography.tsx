@@ -33,18 +33,33 @@ export interface TextProps
 
 type TextAs = NonNullable<TextProps["as"]>
 
-export type PolymorphicTextProps<TAs extends TextAs = "p"> =
-  React.ComponentPropsWithoutRef<TAs> &
-  VariantProps<typeof textVariants> & {
-    as?: TAs
-  }
+type AsProp<T extends React.ElementType> = {
+  as?: T
+}
 
-export const Text = React.forwardRef(
-  <TAs extends TextAs = "p">(
-    { as, className, variant, tone, weight, ...props }: PolymorphicTextProps<TAs>,
-    ref: React.ForwardedRef<React.ElementRef<TAs>>
+type PropsToOmit<T extends React.ElementType, P> = keyof (AsProp<T> & P)
+
+type PolymorphicComponentProps<T extends React.ElementType, Props = {}> =
+  React.PropsWithChildren<Props & AsProp<T>> &
+  Omit<React.ComponentPropsWithoutRef<T>, PropsToOmit<T, Props>>
+
+type PolymorphicRef<T extends React.ElementType> = React.ComponentPropsWithRef<T>["ref"]
+
+type TextOwnProps = VariantProps<typeof textVariants>
+
+export type PolymorphicTextProps<T extends React.ElementType = TextAs> = PolymorphicComponentProps<T, TextOwnProps>
+
+type TextComponent = <T extends React.ElementType = "p">(
+  props: PolymorphicTextProps<T> & { ref?: PolymorphicRef<T> }
+) => React.ReactElement | null
+
+// NOTE: React.forwardRef cannot express generics directly. We implement with `any` and cast to a generic component type.
+const TextBase = React.forwardRef(
+  (
+    { as, className, variant, tone, weight, ...props }: PolymorphicTextProps<any>,
+    ref: React.ForwardedRef<any>
   ) => {
-    const Comp = (as ?? "p") as TAs
+    const Comp = (as ?? "p") as React.ElementType
     return (
       <Comp
         ref={ref}
@@ -54,7 +69,8 @@ export const Text = React.forwardRef(
     )
   }
 )
-Text.displayName = "Text"
+TextBase.displayName = "Text"
+export const Text = TextBase as unknown as TextComponent
 
 const headingVariants = cva("tracking-tight", {
   variants: {
@@ -87,18 +103,19 @@ export interface HeadingProps
 
 type HeadingAs = NonNullable<HeadingProps["as"]>
 
-export type PolymorphicHeadingProps<TAs extends HeadingAs = "h2"> =
-  React.ComponentPropsWithoutRef<TAs> &
-  VariantProps<typeof headingVariants> & {
-    as?: TAs
-  }
+type HeadingOwnProps = VariantProps<typeof headingVariants>
+export type PolymorphicHeadingProps<T extends React.ElementType = HeadingAs> = PolymorphicComponentProps<T, HeadingOwnProps>
 
-export const Heading = React.forwardRef(
-  <TAs extends HeadingAs = "h2">(
-    { as, className, variant, tone, ...props }: PolymorphicHeadingProps<TAs>,
-    ref: React.ForwardedRef<React.ElementRef<TAs>>
+type HeadingComponent = <T extends React.ElementType = "h2">(
+  props: PolymorphicHeadingProps<T> & { ref?: PolymorphicRef<T> }
+) => React.ReactElement | null
+
+const HeadingBase = React.forwardRef(
+  (
+    { as, className, variant, tone, ...props }: PolymorphicHeadingProps<any>,
+    ref: React.ForwardedRef<any>
   ) => {
-    const Comp = (as ?? "h2") as TAs
+    const Comp = (as ?? "h2") as React.ElementType
     return (
       <Comp
         ref={ref}
@@ -108,7 +125,8 @@ export const Heading = React.forwardRef(
     )
   }
 )
-Heading.displayName = "Heading"
+HeadingBase.displayName = "Heading"
+export const Heading = HeadingBase as unknown as HeadingComponent
 
 export { textVariants, headingVariants }
 

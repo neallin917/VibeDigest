@@ -319,8 +319,47 @@ class VideoProcessor:
         except Exception as e:
             logger.error(f"下载视频失败: {str(e)}")
             raise Exception(f"下载视频失败: {str(e)}")
-    
-    def get_video_info(self, url: str) -> dict:
+
+    async def extract_info_only(self, url: str) -> tuple[str, Optional[str], Optional[str]]:
+        """
+        Extract metadata without downloading the full audio.
+        Returns: (video_title, thumbnail_url, direct_audio_url)
+        """
+        import asyncio
+        start_time = asyncio.get_event_loop().time()
+        
+        # Use a fresh YDL instance with download=False (simulate=True implicitly via extract_info(..., download=False))
+        # We assume same opts are fine, or minimal opts.
+        # fast discovery
+        opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'extract_flat': False, # We need formats for direct audio url
+        }
+        
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = await asyncio.to_thread(ydl.extract_info, url, False)
+                
+                video_title = info.get('title', 'unknown')
+                thumbnail = info.get('thumbnail')
+                
+                # Logic from download_and_convert for hydration
+                if self._is_xiaoyuzhou_url(url):
+                    episode_cover = self._fetch_xiaoyuzhou_episode_cover(url)
+                    if episode_cover:
+                        thumbnail = episode_cover
+                    else:
+                        og_image = self._fetch_og_image(url)
+                        if og_image:
+                            thumbnail = og_image
+
+                direct_audio_url = self._extract_direct_audio_url_from_info(info)
+                return video_title, thumbnail, direct_audio_url
+        except Exception as e:
+            logger.error(f"Metadata extraction failed: {e}")
+            raise e
+
         """
         获取视频信息
         

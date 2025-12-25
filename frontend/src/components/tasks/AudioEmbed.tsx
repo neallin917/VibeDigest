@@ -1,4 +1,6 @@
-import React from "react"
+"use client"
+
+import React, { useEffect, useRef } from "react"
 
 import { ApplePodcastsIcon } from "@/components/icons/ApplePodcastsIcon"
 import { XiaoyuzhouIcon } from "@/components/icons/XiaoyuzhouIcon"
@@ -9,11 +11,13 @@ export function AudioEmbed({
   title,
   coverUrl,
   sourceUrl,
+  onReady,
 }: {
   audioUrl: string
   title?: string
   coverUrl?: string
   sourceUrl?: string
+  onReady?: (ctrl: { seek: (seconds: number) => void }) => void
 }) {
   if (!audioUrl) return null
 
@@ -26,6 +30,62 @@ export function AudioEmbed({
 
   const isXiaoyuzhou = sourceUrl?.includes("xiaoyuzhoufm.com")
   const isApple = sourceUrl?.includes("apple.com")
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    if (!onReady) return
+    onReady({
+      seek: (seconds: number) => {
+        const audio = audioRef.current
+        if (!audio) return
+        const s = Math.max(0, Number.isFinite(seconds) ? seconds : 0)
+
+        // IMPORTANT:
+        // - Browsers often block `play()` unless it's called synchronously inside a user gesture.
+        // - Timeline click is a user gesture, but our seek might wait for `loadedmetadata`,
+        //   which would lose the gesture context and cause play to be ignored.
+        // Strategy:
+        // 1) Try `play()` immediately (gesture context) to "unlock" playback.
+        // 2) Ensure network starts by calling `load()` (preload is none).
+        // 3) Once metadata is ready, set `currentTime` and keep playing.
+
+        try {
+          const p = audio.play()
+          if (p && typeof (p as Promise<void>).catch === "function") (p as Promise<void>).catch(() => {})
+        } catch {
+          // ignore
+        }
+
+        const apply = () => {
+          try {
+            audio.currentTime = s
+          } catch {
+            // ignore
+          }
+          try {
+            const p = audio.play()
+            if (p && typeof (p as Promise<void>).catch === "function") (p as Promise<void>).catch(() => {})
+          } catch {
+            // ignore
+          }
+        }
+
+        // If metadata isn't loaded yet, wait once.
+        if (audio.readyState >= 1) {
+          apply()
+          return
+        }
+
+        try {
+          // With preload="none", this is needed to start fetching metadata.
+          audio.load()
+        } catch {
+          // ignore
+        }
+        audio.addEventListener("loadedmetadata", apply, { once: true })
+      },
+    })
+  }, [onReady])
 
   return (
     <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
@@ -63,7 +123,7 @@ export function AudioEmbed({
           </div>
 
           <div className="w-full">
-            <audio className="w-full" controls preload="none">
+            <audio ref={audioRef} className="w-full" controls preload="none">
               <source src={audioUrl} />
               Your browser does not support the audio element.
             </audio>
