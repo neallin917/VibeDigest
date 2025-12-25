@@ -16,6 +16,8 @@ import { VideoEmbed, supportsVideoEmbed } from "@/components/tasks/VideoEmbed"
 import { AudioEmbed } from "@/components/tasks/AudioEmbed"
 import { Heading } from "@/components/ui/typography"
 import { TranscriptTimeline } from "@/components/tasks/TranscriptTimeline"
+import { useTaskNotification } from "@/hooks/useTaskNotification"
+import { Bell, BellOff } from "lucide-react"
 
 type Task = {
     id: string
@@ -62,6 +64,25 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
     const [mediaController, setMediaController] = useState<MediaController | null>(null)
     const supabase = createClient()
     const { t } = useI18n()
+    const { permission, requestPermission, subscribeToTask, isSubscribed, sendTaskNotification } = useTaskNotification()
+
+    // Handle task completion notification
+    useEffect(() => {
+        if (!task || !id) return
+        if (task.status === "completed") {
+            // Only sends if subscribed
+            sendTaskNotification(id, task.video_title || task.video_url)
+        }
+    }, [task, id, sendTaskNotification])
+
+    const handleNotifyClick = async () => {
+        if (!id) return
+        if (permission === 'denied') {
+            alert(t("tasks.notificationPermissionDenied"))
+            return
+        }
+        await subscribeToTask(id)
+    }
 
     // IMPORTANT: keep hooks order stable across renders.
     // Do not place hooks after conditional returns (e.g. when task is null on first render).
@@ -219,6 +240,26 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                                         <br />
                                         {t("tasks.processingHint2")}
                                     </p>
+
+                                    <div className="flex justify-center pt-2">
+                                        {isSubscribed(id) ? (
+                                            <Button variant="outline" size="sm" className="gap-2 text-green-600 border-green-600/20 bg-green-500/10 pointer-events-none">
+                                                <Bell className="h-4 w-4" />
+                                                {t("tasks.notificationEnabled")}
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="gap-2"
+                                                onClick={handleNotifyClick}
+                                                disabled={permission === "denied"}
+                                            >
+                                                {permission === "denied" ? <BellOff className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+                                                {t("tasks.enableNotifications")}
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 

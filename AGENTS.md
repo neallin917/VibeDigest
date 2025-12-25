@@ -107,6 +107,7 @@ docker-compose -f docker-compose.test.yml up -d
 *   **Animations**: Framer Motion.
 *   **Auth**: Supabase Auth (Email OTP, Google OAuth).
 *   **Data Fetching**: Supabase Client (Realtime) + Custom `ApiClient` for commands.
+*   **Notifications**: Browser Notifications API via `useTaskNotification` hook.
 
 ### 3.2 Backend (Service Worker)
 *   **Framework**: FastAPI (Python 3.10+).
@@ -158,9 +159,10 @@ docker-compose -f docker-compose.test.yml up -d
 4.  **Completion & Notification**:
     *   Worker updates `tasks.status = 'completed'` and inserts `task_outputs`.
     *   Worker triggers `notifier.py` to send email (if enabled).
-5.  **UI Update**:
+5.  **UI Update & Notification**:
     *   Supabase Realtime pushes change to Frontend.
     *   Frontend updates `TaskCard` from "Processing" to "Done".
+    *   `useTaskNotification` hook triggers a browser notification if subscribed.
 
 ### 4.3 Core Data Models
 **Table: `tasks`**
