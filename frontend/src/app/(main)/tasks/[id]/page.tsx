@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
-import { ArrowLeft, FileText, Subtitles, Copy, Check } from "lucide-react"
+import { FileText, Subtitles, Copy, Check } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -210,17 +210,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
     return (
         <div className="h-full flex flex-col">
-            <div className="flex-none max-w-4xl mx-auto w-full px-4 md:px-0 pt-4 md:pt-6 pb-2">
-                <div className="flex items-center gap-4">
-                    <Link href="/history">
-                        <Button variant="ghost" size="sm" className="gap-2 pl-0 hover:pl-2 transition-all">
-                            <ArrowLeft className="h-4 w-4" /> {t("history.backToHistory")}
-                        </Button>
-                    </Link>
-                </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto min-h-0 px-4 md:px-0 pb-6">
+            <div className="flex-1 overflow-y-auto min-h-0 px-4 md:px-0 pt-4 md:pt-6 pb-6">
                 <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
                     <Card className="glass">
                         <CardHeader className="pb-4 p-4 md:p-6">
