@@ -372,7 +372,20 @@ function SummarySection({
     })()
 
     const hasSource = Boolean(summarySource && summarySource.status === "completed" && sourceParsed)
-    const effectiveMode: "translated" | "original" = hasSource ? viewMode : "translated"
+
+    // Check if languages are effectively the same
+    const isSameLanguage = (() => {
+        if (!translatedParsed || !sourceParsed) return false
+        // Heuristic: compare language strings (e.g. "en" vs "en")
+        const lang1 = (translatedParsed.language || "").toLowerCase()
+        const lang2 = (sourceParsed.language || "").toLowerCase()
+        // Or if the content is identical by simple check (optional, but language code is safer first step)
+        return lang1 === lang2
+    })()
+
+    // If languages are the same, force "translated" (which is actually the localized version intended for display)
+    // and effectively disable the toggle (hide it in UI).
+    const effectiveMode: "translated" | "original" = (hasSource && !isSameLanguage) ? viewMode : "translated"
     const parsed = effectiveMode === "original" ? sourceParsed : translatedParsed
 
     const toMarkdown = (data: StructuredSummaryV1) => {
@@ -457,7 +470,7 @@ function SummarySection({
         <Card className="bg-black/20 border-white/5 group">
             <CardContent className="p-4 md:p-8 space-y-6">
                 <div className="flex flex-wrap items-center justify-end gap-2">
-                    {hasSource ? (
+                    {hasSource && !isSameLanguage ? (
                         <div className="flex items-center gap-2">
                             <Button
                                 type="button"

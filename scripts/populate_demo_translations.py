@@ -102,34 +102,69 @@ async def main():
     logger.info("Fetching existing outputs...")
     outputs = db.get_task_outputs(task_id)
     
-    # 1. Determine Source Language from Script Raw (Authoritative)
-    script_raw_output = next((o for o in outputs if o['kind'] == 'script_raw'), None)
-    script_raw_content = {}
-    source_language = 'en' # Default fallback
+    # 1. Determine Source Language and Content
+    # Priority: summary_source > checking script_raw + existing summary
     
-    if script_raw_output and script_raw_output.get('content'):
-        try:
-            script_raw_content = json.loads(script_raw_output['content'])
-            source_language = script_raw_content.get('language') or 'en'
-            logger.info(f"📝 Detected Source Language from Transcript: {source_language}")
-        except:
-             logger.warning("⚠️ Could not parse script_raw content. Defaulting to 'en'.")
-    else:
-        logger.warning("⚠️ No script_raw found. Defaulting to 'en'.")
-
-    # 2. Ensure Authoritative Summary Exists (in Source Language)
-    source_summary_output = next((o for o in outputs if o['kind'] == 'summary' and o['locale'] == source_language), None)
+    summary_source_output = next((o for o in outputs if o['kind'] == 'summary_source'), None)
+    script_raw_output = next((o for o in outputs if o['kind'] == 'script_raw'), None)
+    
+    source_language = 'en' # Default
     source_content = None
     
-    # Check if valid
-    if source_summary_output and source_summary_output['status'] == 'completed':
+    # Try to load from summary_source first (The true original)
+    if summary_source_output and summary_source_output.get('content'):
         try:
-             source_content = json.loads(source_summary_output['content'])
-             logger.info(f"✅ Found existing valid source summary ({source_language}).")
-        except:
-             logger.warning(f"⚠️ Existing source summary ({source_language}) is invalid JSON. Will regenerate.")
+            content_raw = summary_source_output['content']
+            if isinstance(content_raw, str):
+                try: 
+                    # Handle potential double encoding in source too
+                    parsed = json.loads(content_raw) 
+                    if isinstance(parsed, str): 
+                        parsed = json.loads(parsed)
+                    source_content = parsed
+                except:
+                    pass
+            else:
+                source_content = content_raw
+                
+            if source_content and isinstance(source_content, dict):
+                source_language = source_content.get('language') or 'en'
+                logger.info(f"📝 Detected Source Language from 'summary_source': {source_language}")
+                logger.info("✅ Using 'summary_source' as authoritative content.")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not parse summary_source: {e}")
+
+    # Fallback: Detect from Script Raw if source content not yet found
+    if not source_content:
+        if script_raw_output and script_raw_output.get('content'):
+            try:
+                script_raw_content = json.loads(script_raw_output['content'])
+                source_language = script_raw_content.get('language') or 'en'
+                logger.info(f"📝 Detected Source Language from Transcript: {source_language}")
+            except:
+                logger.warning("⚠️ Could not parse script_raw content. Defaulting to 'en'.")
+        else:
+             logger.warning("⚠️ No script_raw found. Defaulting to 'en'.")
+
+        # Now try to find existing summary (locale=source_language)
+        source_summary_output = next((o for o in outputs if o['kind'] == 'summary' and o['locale'] == source_language), None)
+        
+        # Check if valid
+        if source_summary_output and source_summary_output['status'] == 'completed':
+            try:
+                content_raw = source_summary_output['content']
+                if isinstance(content_raw, str):
+                    try:
+                        parsed = json.loads(content_raw)
+                        if isinstance(parsed, str): parsed = json.loads(parsed)
+                        source_content = parsed
+                        logger.info(f"✅ Found existing valid source summary ({source_language}).")
+                    except:
+                        pass
+            except:
+                 logger.warning(f"⚠️ Existing source summary ({source_language}) is invalid. Will regenerate.")
     
-    # Regenerate if missing or invalid
+    # Regenerate if missing or invalid (only if we still don't have source_content)
     if not source_content:
         logger.info(f"⚙️ Generating authoritative source summary for {source_language}...")
         
@@ -158,21 +193,20 @@ async def main():
                 except:
                      logger.warning("Source content is string but not valid JSON (from summarizer).")
             
-            # Save it to DB
+            # Save it to DB as summary (locale=source)
             content_str = json.dumps(source_content, ensure_ascii=False)
             logger.info(f"💾 Saving generated source summary ({source_language})...")
             
-            # Update existing or create new
+            # Check if output row exists to update, else create
+            source_summary_output = next((o for o in outputs if o['kind'] == 'summary' and o['locale'] == source_language), None)
+            
             if source_summary_output:
                 db.update_output_status(source_summary_output['id'], status='completed', progress=100, content=content_str)
             else:
                 db.create_task_output(task_id, task['user_id'], 'summary', locale=source_language)
-                # Need to update content immediately after create - but create usually returns the ROW, so we can use ID.
-                # Re-fetch outputs to get the ID effectively or just assume logic holds.
-                # Let's simplified: assume create works, we re-fetch to be safe or use returned ID if we refactored DBClient.
-                # DBClient.create_task_output returns dict.
-                # But wait, create_task_output sets status=pending. We need update.
-                # I'll re-fetch outputs to be robust for the next loop logic anyway.
+                # Re-fetch outputs to get ID... simplified for now.
+                # Just re-querying or relying on next run. 
+                # Ideally we update the just-created row.
                 outputs = db.get_task_outputs(task_id)
                 new_out = next((o for o in outputs if o['kind'] == 'summary' and o['locale'] == source_language), None)
                 if new_out:
@@ -185,6 +219,38 @@ async def main():
             import traceback
             traceback.print_exc()
             return
+
+    # Ensure source_content is a dict (Redundant check but safe)
+    if isinstance(source_content, str):
+        try:
+             source_content = json.loads(source_content)
+             if isinstance(source_content, str): source_content = json.loads(source_content)
+        except:
+             pass
+
+    if not isinstance(source_content, dict):
+        logger.error(f"❌ Source content is not a dictionary. Type: {type(source_content)}")
+        return
+
+    # 4. Consistency Check: Sync summary_source -> summary (locale=source)
+    # If we loaded from summary_source, ensure the summary record matches it.
+    if summary_source_output:
+        # Find corresponding summary locale record
+        matching_summary = next((o for o in outputs if o['kind'] == 'summary' and o['locale'] == source_language), None)
+        content_str = json.dumps(source_content, ensure_ascii=False)
+        
+        if matching_summary:
+            # Check if we need to update (simple check)
+            if matching_summary.get('content') != content_str:
+                 logger.info(f"🔄 Syncing 'summary' ({source_language}) to match 'summary_source'...")
+                 db.update_output_status(matching_summary['id'], status='completed', progress=100, content=content_str)
+        else:
+             logger.info(f"➕ Creating 'summary' ({source_language}) to match 'summary_source'...")
+             # Create new
+             task = db.get_task(task_id) # Need user_id
+             new_row = db.create_task_output(task_id, task['user_id'], 'summary', locale=source_language)
+             db.update_output_status(new_row['id'], status='completed', progress=100, content=content_str)
+
 
     # Ensure source_content is a dict
     if isinstance(source_content, str):

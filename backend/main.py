@@ -107,7 +107,7 @@ async def process_video(
     background_tasks: BackgroundTasks,
     video_url: str = Form(...),
     summary_language: str = Form(default="zh"),
-    translate_targets: str = Form(default=""), # JSON string list of locales, optional
+
     user_id: str = Depends(get_current_user)
 ):
     """
@@ -161,12 +161,7 @@ async def process_video(
             outputs.append(audio_out)
         outputs.extend([script_out, script_raw_out, summary_out, summary_source_out])
 
-        # 3. Translation outputs are deprecated in v3.3:
-        # Summary is generated directly in the requested language, so we no longer create
-        # task_outputs(kind="translation"). We keep the translate_targets parameter for
-        # backward compatibility with older clients.
-        if translate_targets:
-            logger.info("translate_targets provided but ignored (translation outputs deprecated).")
+
 
         # 4. Start Background Processing
         background_tasks.add_task(run_pipeline, task_id, video_url, summary_language)
@@ -620,18 +615,7 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
                 if summary_source_output:
                     db_client.update_output_status(summary_source_output['id'], status="error", error=str(e))
 
-        # E. Translate (Deprecated): no translation outputs created in current UX.
-        # Keep backward compatibility: if older tasks already have translation outputs, still process them.
-        translation_outputs = [o for o in outputs if o['kind'] == 'translation']
-        for t_out in translation_outputs:
-            if script_text:
-                try:
-                    db_client.update_output_status(t_out['id'], status="processing", progress=20)
-                    target_lang = t_out.get('locale', 'en')
-                    translated = await translator.translate_text(script_text, target_lang, None)
-                    db_client.update_output_status(t_out['id'], status="completed", progress=100, content=translated)
-                except Exception as e:
-                    db_client.update_output_status(t_out['id'], status="error", error=str(e))
+
 
         # Cleanup
         try:
@@ -762,14 +746,7 @@ async def handle_retry_output(output_id: str, user_id: str):
                 db_client.update_output_status(output_id, status="error", error=str(e))
             return
 
-        if kind == "translation":
-            try:
-                db_client.update_output_status(output_id, status="processing", progress=30, error="")
-                translated = await translator.translate_text(script_text, locale or "en", None)
-                db_client.update_output_status(output_id, status="completed", progress=100, content=translated, error="")
-            except Exception as e:
-                db_client.update_output_status(output_id, status="error", error=str(e))
-            return
+
 
         db_client.update_output_status(output_id, status="error", error=f"Retry not supported for kind: {kind}")
 

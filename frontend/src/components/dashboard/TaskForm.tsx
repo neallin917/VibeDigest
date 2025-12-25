@@ -49,7 +49,7 @@ export function TaskForm() {
         try {
             const { data: { session } } = await supabase.auth.getSession()
             if (!session) {
-                alert(t("taskForm.pleaseLogin")) // In real app, redirect to login
+                alert(t("taskForm.pleaseLogin"))
                 setLoading(false)
                 return
             }
@@ -66,7 +66,6 @@ export function TaskForm() {
             formData.append("summary_language", language)
 
             const res = await ApiClient.processVideo(formData, session.access_token)
-            console.log("Task Created:", res)
 
             setUrl("")
             router.refresh() // Refresh server components or trigger SWR revalidation

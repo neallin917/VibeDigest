@@ -36,11 +36,21 @@ def main():
         print(f"Status: {o['status']}")
         # print(f"Content Preview: {o['content'][:100]}...")
         if o['kind'] == 'summary':
+             print(f"Raw Content Type: {type(o['content'])}")
+             # print(f"Raw Content Preview: {str(o['content'])[:100]}...")
              try:
                  content = json.loads(o['content'])
-                 print(f"Language in JSON: {content.get('language')}")
+                 print(f"Parsed. Language in JSON: {content.get('language')}")
              except:
                  print("Content is not valid JSON")
+        if o['kind'] == 'summary_source':
+             print(f"SUMMARY SOURCE FOUND!")
+             print(f"Content Preview: {str(o['content'])[:200]}...")
+             try:
+                 content = json.loads(o['content'])
+                 print(f"Source Language in JSON: {content.get('language')}")
+             except:
+                 print("Source Content is not valid JSON")
         
         if o['kind'] == 'script_raw':
             try:
