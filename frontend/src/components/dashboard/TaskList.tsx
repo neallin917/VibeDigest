@@ -223,7 +223,7 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                     <div
                         key={task.id}
                         onClick={() => router.push(`/tasks/${task.id}`)}
-                        className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-white/5 bg-card hover:bg-card/80 hover:border-white/10 transition-all cursor-pointer group"
+                        className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-white/5 bg-black/20 backdrop-blur-sm hover:bg-black/40 hover:border-white/20 transition-all cursor-pointer group"
                     >
                         {/* Thumbnail Placeholder */}
                         <div className="h-14 w-24 sm:h-16 sm:w-28 bg-black/40 rounded-lg flex items-center justify-center text-muted-foreground group-hover:text-white transition-colors overflow-hidden relative">

@@ -26,7 +26,7 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
     }, [supabase])
 
     return (
-        <div className="hidden md:flex h-dvh w-64 flex-col border-r bg-card">
+        <div className="hidden md:flex h-dvh w-64 flex-col border-r border-white/10 bg-black/30 backdrop-blur-md relative z-10">
             <div className="p-6">
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2 min-w-0">

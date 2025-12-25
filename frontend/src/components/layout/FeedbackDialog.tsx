@@ -86,7 +86,7 @@ export function FeedbackDialog() {
                     {t("feedback.title")}
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] bg-card text-card-foreground border-white/10">
+            <DialogContent className="sm:max-w-[425px] bg-black/40 backdrop-blur-md text-foreground border-white/10 shadow-2xl">
                 <DialogHeader>
                     <DialogTitle>{t("feedback.title")}</DialogTitle>
                     <DialogDescription>
@@ -100,7 +100,7 @@ export function FeedbackDialog() {
                             <SelectTrigger id="category" className="bg-muted border-white/5">
                                 <SelectValue placeholder={t("feedback.category")} />
                             </SelectTrigger>
-                            <SelectContent className="bg-card border-white/10">
+                            <SelectContent className="bg-black/80 backdrop-blur-xl border-white/10 text-foreground">
                                 <SelectItem value="bug">{t("feedback.types.bug")}</SelectItem>
                                 <SelectItem value="feature">{t("feedback.types.feature")}</SelectItem>
                                 <SelectItem value="complaint">{t("feedback.types.complaint")}</SelectItem>

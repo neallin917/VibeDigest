@@ -71,6 +71,9 @@ export function MainShell({ children }: { children: React.ReactNode }) {
     <div className="flex h-dvh overflow-hidden">
       <TaskNotificationListener />
 
+      {/* Background glow for glass effect */}
+      <div className="fixed top-0 left-0 w-[600px] h-[600px] bg-primary/10 blur-[120px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2 z-0" />
+
       {sidebarHidden ? null : <Sidebar onHide={toggleSidebar} />}
 
       <div className="flex min-w-0 flex-1 flex-col">
