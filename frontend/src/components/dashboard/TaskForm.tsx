@@ -30,6 +30,7 @@ export function TaskForm() {
     const [url, setUrl] = useState("")
     const [loading, setLoading] = useState(false)
     const [showQuotaDialog, setShowQuotaDialog] = useState(false)
+    const [mounted, setMounted] = useState(false)
     const router = useRouter()
     const supabase = createClient()
     const { t, locale } = useI18n()
@@ -39,6 +40,7 @@ export function TaskForm() {
     // Sync task language with system locale changes
     useEffect(() => {
         setLanguage(locale)
+        setMounted(true)
     }, [locale])
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -119,21 +121,25 @@ export function TaskForm() {
                                 <div className="text-xs font-medium text-muted-foreground/80 uppercase tracking-wider">
                                     {t("taskForm.summaryLanguage")}
                                 </div>
-                                <Select value={language} onValueChange={setLanguage}>
-                                    <SelectTrigger
-                                        className="w-full h-11 bg-black/20 border-white/10 hover:bg-black/25"
-                                        size="default"
-                                    >
-                                        <SelectValue placeholder={t("taskForm.summaryLanguage")} />
-                                    </SelectTrigger>
-                                    <SelectContent align="start">
-                                        {SUPPORTED_LOCALES.map((localeKey) => (
-                                            <SelectItem key={localeKey} value={localeKey}>
-                                                {LOCALE_LABEL[localeKey]}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                {mounted ? (
+                                    <Select value={language} onValueChange={setLanguage}>
+                                        <SelectTrigger
+                                            className="w-full h-11 bg-black/20 border-white/10 hover:bg-black/25"
+                                            size="default"
+                                        >
+                                            <SelectValue placeholder={t("taskForm.summaryLanguage")} />
+                                        </SelectTrigger>
+                                        <SelectContent align="start">
+                                            {SUPPORTED_LOCALES.map((localeKey) => (
+                                                <SelectItem key={localeKey} value={localeKey}>
+                                                    {LOCALE_LABEL[localeKey]}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <div className="w-full h-11 bg-black/20 border border-white/10 rounded-md" />
+                                )}
                             </div>
                         </div>
                     </div>

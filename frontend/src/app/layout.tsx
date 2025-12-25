@@ -15,13 +15,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
+  auth
 }: Readonly<{
   children: React.ReactNode;
+  auth: React.ReactNode;
 }>) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={cn(inter.className, "bg-background text-foreground antialiased")} suppressHydrationWarning>
         <Providers>
+          {auth}
           {children}
         </Providers>
         <Analytics />
