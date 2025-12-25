@@ -1,6 +1,7 @@
 import os
 import openai
 import logging
+import asyncio
 from typing import Optional
 import json
 import re
@@ -10,6 +11,37 @@ logger = logging.getLogger(__name__)
 class Summarizer:
     """文本总结器，使用OpenAI API生成多语言摘要"""
     
+    @staticmethod
+    def _read_int_env(name: str, default: int, *, min_value: int | None = None, max_value: int | None = None) -> int:
+        """Read an int env var with safe clamping."""
+        raw = os.getenv(name)
+        if raw is None or str(raw).strip() == "":
+            val = int(default)
+        else:
+            try:
+                val = int(str(raw).strip())
+            except Exception:
+                logger.warning(f"Invalid int env {name}={raw!r}, using default={default}")
+                val = int(default)
+        if min_value is not None:
+            val = max(min_value, val)
+        if max_value is not None:
+            val = min(max_value, val)
+        return val
+
+    @staticmethod
+    def _read_bool_env(name: str, default: bool) -> bool:
+        raw = os.getenv(name)
+        if raw is None:
+            return bool(default)
+        s = str(raw).strip().lower()
+        if s in ("1", "true", "t", "yes", "y", "on"):
+            return True
+        if s in ("0", "false", "f", "no", "n", "off"):
+            return False
+        logger.warning(f"Invalid bool env {name}={raw!r}, using default={default}")
+        return bool(default)
+
     def __init__(self):
         """初始化总结器"""
         # 从环境变量获取OpenAI API配置
@@ -28,6 +60,75 @@ class Summarizer:
                 logger.info("OpenAI客户端已初始化，使用默认端点")
         else:
             self.client = None
+
+        # Model selection (configurable via env; safe fallbacks).
+        # - Summary should use the best available model. We try preferred first, then fall back.
+        # - Transcript formatting keeps the previous default to avoid cost regression unless configured.
+        # If user explicitly sets env, respect it. Otherwise, prefer newest models first.
+        # Safe due to runtime fallback in _chat_completions_create().
+        explicit_summary_model = (os.getenv("OPENAI_SUMMARY_MODEL") or "").strip()
+        explicit_fallback_model = (os.getenv("OPENAI_SUMMARY_FALLBACK_MODEL") or "").strip()
+        if explicit_summary_model:
+            default_summary_chain = [
+                explicit_summary_model,
+                explicit_fallback_model,
+                "gpt-4.1",
+                "gpt-4o",
+            ]
+        else:
+            # Best-effort "latest/best" defaults. If a model isn't available on the endpoint/account,
+            # we'll automatically fall back to the next one.
+            default_summary_chain = [
+                "gpt-5.2",
+                "gpt-5",
+                "gpt-5-mini",
+                "gpt-5-nano",
+                "gpt-4.1",
+                "gpt-4o",
+            ]
+            if explicit_fallback_model:
+                default_summary_chain.insert(1, explicit_fallback_model)
+
+        self.summary_models = self._dedupe_models(default_summary_chain)
+        # Cheap/fast defaults for "transcript optimization" (formatting/paragraphing).
+        # User preference: use gpt-5-mini for these simpler tasks by default.
+        self.transcript_model = os.getenv("OPENAI_TRANSCRIPT_MODEL") or "gpt-5-mini"
+        self.paragraph_model = os.getenv("OPENAI_PARAGRAPH_MODEL") or "gpt-5-mini"
+
+        # -----------------------------------------------------------------
+        # Quality/Stability Knobs (env configurable)
+        # -----------------------------------------------------------------
+        # NOTE: These are defaults optimized for "higher quality + steadier long videos".
+        # - If you want cheaper/faster, lower these limits and/or reduce chunk size.
+        # - Token estimator is intentionally conservative; thresholds are on *estimated* tokens.
+        self.summary_single_max_est_tokens = self._read_int_env(
+            "OPENAI_SUMMARY_SINGLE_MAX_EST_TOKENS", 16000, min_value=3000, max_value=120000
+        )
+        self.summary_chunk_max_chars = self._read_int_env(
+            "OPENAI_SUMMARY_CHUNK_MAX_CHARS", 9000, min_value=2000, max_value=30000
+        )
+        self.summary_single_max_output_tokens = self._read_int_env(
+            "OPENAI_SUMMARY_SINGLE_MAX_OUTPUT_TOKENS", 3200, min_value=800, max_value=8000
+        )
+        self.summary_chunk_max_output_tokens = self._read_int_env(
+            "OPENAI_SUMMARY_CHUNK_MAX_OUTPUT_TOKENS", 1800, min_value=500, max_value=6000
+        )
+        self.summary_integrate_max_output_tokens = self._read_int_env(
+            "OPENAI_SUMMARY_INTEGRATE_MAX_OUTPUT_TOKENS", 2800, min_value=800, max_value=8000
+        )
+        self.summary_max_keypoints_per_chunk = self._read_int_env(
+            "OPENAI_SUMMARY_MAX_KEYPOINTS_PER_CHUNK", 10, min_value=1, max_value=24
+        )
+        self.summary_max_keypoints_final = self._read_int_env(
+            "OPENAI_SUMMARY_MAX_KEYPOINTS_FINAL", 24, min_value=6, max_value=48
+        )
+        self.summary_max_keypoints_candidates = self._read_int_env(
+            "OPENAI_SUMMARY_MAX_KEYPOINTS_CANDIDATES", 140, min_value=24, max_value=2000
+        )
+        self.enable_json_repair = self._read_bool_env("OPENAI_SUMMARY_JSON_REPAIR", True)
+        self.json_repair_model = (os.getenv("OPENAI_JSON_REPAIR_MODEL") or "").strip() or "gpt-5-mini"
+        # Best-effort strict JSON mode (if the endpoint/model supports response_format).
+        self.use_response_format_json = self._read_bool_env("OPENAI_USE_RESPONSE_FORMAT_JSON", True)
         
         # 支持的语言映射
         self.language_map = {
@@ -43,6 +144,41 @@ class Summarizer:
             "ko": "한국어",
             "ar": "العربية"
         }
+
+    @staticmethod
+    def _dedupe_models(models: list[str]) -> list[str]:
+        """Remove empties/duplicates while preserving order."""
+        out: list[str] = []
+        seen: set[str] = set()
+        for m in models:
+            m = (m or "").strip()
+            if not m or m in seen:
+                continue
+            seen.add(m)
+            out.append(m)
+        return out
+
+    async def _chat_completions_create(self, *, models: list[str], **kwargs):
+        """
+        Call OpenAI Chat Completions in a thread to avoid blocking the event loop.
+        Tries models in order and falls back on errors (e.g., model not available).
+        """
+        if not self.client:
+            raise RuntimeError("OpenAI client is not initialized")
+
+        last_err: Exception | None = None
+        tried = []
+        for model in (models or []):
+            tried.append(model)
+            try:
+                return await asyncio.to_thread(
+                    lambda: self.client.chat.completions.create(model=model, **kwargs)
+                )
+            except Exception as e:
+                last_err = e
+                logger.warning(f"OpenAI chat.completions failed (model={model}), trying fallback. Error: {e}")
+                continue
+        raise last_err or RuntimeError(f"OpenAI chat.completions failed. Tried models={tried}")
     
     async def optimize_transcript(self, raw_transcript: str) -> str:
         """
@@ -201,7 +337,7 @@ class Summarizer:
         format_overhead = len(text) * 0.15
         
         # 考虑系统prompt开销（约2000-3000 tokens）
-        system_prompt_overhead = 2500
+        system_prompt_overhead = self._read_int_env("OPENAI_TOKEN_ESTIMATE_OVERHEAD", 2500, min_value=0, max_value=20000)
         
         total_estimated = int(base_tokens + format_overhead + system_prompt_overhead)
         
@@ -272,14 +408,14 @@ class Summarizer:
 
 请特别注意修复因时间戳分割导致的句子不完整问题，并进行合理的段落划分！"""
 
-        response = self.client.chat.completions.create(
-            model="gpt-3.5-turbo",
+        response = await self._chat_completions_create(
+            models=[self.transcript_model],
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": user_prompt},
             ],
             max_tokens=4000,  # 对齐JS：优化/格式化阶段最大tokens≈4000
-            temperature=0.1
+            temperature=0.1,
         )
         
         return response.choices[0].message.content
@@ -320,14 +456,14 @@ class Summarizer:
 输出清理后的文本，保持原文结构。"""
 
             try:
-                response = self.client.chat.completions.create(
-                    model="gpt-3.5-turbo",
+                response = await self._chat_completions_create(
+                    models=[self.transcript_model],
                     messages=[
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
+                        {"role": "user", "content": user_prompt},
                     ],
                     max_tokens=1200,  # 适应4000 tokens总限制
-                    temperature=0.1
+                    temperature=0.1,
                 )
                 
                 optimized_chunk = response.choices[0].message.content
@@ -408,14 +544,14 @@ class Summarizer:
             )
 
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+            response = await self._chat_completions_create(
+                models=[self.transcript_model],
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 max_tokens=4000,  # 对齐JS：优化/格式化阶段最大tokens≈4000
-                temperature=0.1
+                temperature=0.1,
             )
             optimized_text = response.choices[0].message.content or ""
             # 移除诸如 "# Transcript" / "## Transcript" 等标题
@@ -918,14 +1054,14 @@ class Summarizer:
 
 重新分段后的文本："""
 
-            response = self.client.chat.completions.create(
-                model="gpt-4o",
+            response = await self._chat_completions_create(
+                models=[self.paragraph_model],
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": user_prompt},
                 ],
                 max_tokens=4000,  # 对齐JS：段落整理阶段最大tokens≈4000
-                temperature=0.05  # 降低温度，提高一致性
+                temperature=0.05,  # 降低温度，提高一致性
             )
             
             organized_text = response.choices[0].message.content
@@ -997,14 +1133,14 @@ Core requirements:
 
 {text}"""
 
-        response = self.client.chat.completions.create(
-            model="gpt-4o",
+        response = await self._chat_completions_create(
+            models=[self.paragraph_model],
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": user_prompt},
             ],
             max_tokens=1200,  # 适应4000 tokens总限制
-            temperature=0.05
+            temperature=0.05,
         )
         
         return response.choices[0].message.content
@@ -1113,7 +1249,7 @@ Core requirements:
             
             # 估算转录文本长度，决定是否需要分块摘要
             estimated_tokens = self._estimate_tokens(transcript)
-            max_summarize_tokens = 4000  # 提高限制，优先使用单文本处理以获得更好的总结质量
+            max_summarize_tokens = int(self.summary_single_max_est_tokens)
             
             if estimated_tokens <= max_summarize_tokens:
                 # 短文本直接摘要
@@ -1151,7 +1287,8 @@ You must output this exact schema:
 
 Content requirements:
 - overview: a concise but information-dense introduction that captures the full talk's purpose, scope, and main arc.
-- keypoints: 10–18 items (depending on length). High signal, minimal fluff.
+- keypoints: the number of items is NOT fixed. Choose the count based on transcript information density.
+  Quality > quantity: include only high-signal, non-redundant points (it is OK to output fewer points for short/sparse transcripts).
   Each item must be self-contained and readable: a clear claim/insight (title) + explanation/context (detail).
   If there are concrete numbers/examples/quotes, put them into evidence.
   Put important terms/names into terms.
@@ -1165,16 +1302,29 @@ Transcript:
 """
 
         logger.info(f"正在生成结构化{language_name}摘要(JSON)...")
-        
-        response = self.client.chat.completions.create(
-            model="gpt-4o",
+
+        kwargs = dict(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            max_tokens=2200,
+            max_tokens=int(self.summary_single_max_output_tokens),
             temperature=0.2,
         )
+        # Best-effort strict JSON output.
+        if self.use_response_format_json:
+            kwargs["response_format"] = {"type": "json_object"}
+
+        try:
+            response = await self._chat_completions_create(models=self.summary_models, **kwargs)
+        except Exception as e:
+            # Some endpoints/models don't support response_format. Retry without it.
+            if self.use_response_format_json and "response_format" in str(e):
+                logger.warning(f"response_format not supported, retrying without it. Error: {e}")
+                kwargs.pop("response_format", None)
+                response = await self._chat_completions_create(models=self.summary_models, **kwargs)
+            else:
+                raise
         
         raw = (response.choices[0].message.content or "").strip()
         json_text = self._extract_first_json_object(raw) or raw
@@ -1183,14 +1333,18 @@ Transcript:
             obj = self._validate_summary_json_v1(obj, target_language)
             return json.dumps(obj, ensure_ascii=False)
         except Exception as e:
-            logger.warning(f"Summary JSON parse/validate failed, falling back. Error: {e}")
+            logger.warning(f"Summary JSON parse/validate failed. Error: {e}")
+            if self.enable_json_repair:
+                repaired = await self._repair_summary_json_v1(raw_text=raw, target_language=target_language)
+                if repaired:
+                    return repaired
             return self._fallback_summary_json_v1(transcript, target_language)
 
     async def _summarize_with_chunks_json(self, transcript: str, target_language: str, max_tokens: int) -> str:
         """Chunked summarization -> structured JSON (v1)."""
         language_name = self.language_map.get(target_language, "English")
 
-        chunks = self._smart_chunk_text(transcript, max_chars_per_chunk=4000)
+        chunks = self._smart_chunk_text(transcript, max_chars_per_chunk=int(self.summary_chunk_max_chars))
         logger.info(f"分割为 {len(chunks)} 个块进行结构化摘要(JSON)")
         
         per_chunk_keypoints: list[dict] = []
@@ -1212,7 +1366,8 @@ Schema:
 }}
 
 Rules:
-- 5–10 keypoints per chunk (depending on chunk density).
+- The number of keypoints is NOT fixed. Extract as many as needed to capture the chunk's meaningful insights.
+  Prefer fewer, stronger points over many weak ones. Avoid redundancy. (Hard cap: do not exceed 12.)
 - Prefer concrete, knowledge-rich points. Keep each item self-contained.
 - Do not invent facts; if uncertain, note it in evidence.
 """
@@ -1220,26 +1375,48 @@ Rules:
 {chunk}
 """
             try:
-                resp = self.client.chat.completions.create(
-                    model="gpt-4o",
+                kwargs = dict(
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
-                    max_tokens=1200,
+                    max_tokens=int(self.summary_chunk_max_output_tokens),
                     temperature=0.2,
                 )
+                if self.use_response_format_json:
+                    kwargs["response_format"] = {"type": "json_object"}
+                try:
+                    resp = await self._chat_completions_create(models=self.summary_models, **kwargs)
+                except Exception as e:
+                    if self.use_response_format_json and "response_format" in str(e):
+                        logger.warning(f"Chunk response_format not supported, retrying without it. Error: {e}")
+                        kwargs.pop("response_format", None)
+                        resp = await self._chat_completions_create(models=self.summary_models, **kwargs)
+                    else:
+                        raise
+
                 raw = (resp.choices[0].message.content or "").strip()
                 json_text = self._extract_first_json_object(raw) or raw
                 obj = json.loads(json_text)
                 kps = obj.get("keypoints", [])
                 if isinstance(kps, list):
+                    # Enforce per-chunk cap to keep final integration prompt bounded.
+                    kept = 0
                     for kp in kps:
+                        if kept >= int(self.summary_max_keypoints_per_chunk):
+                            break
                         if isinstance(kp, dict):
                             per_chunk_keypoints.append(kp)
+                            kept += 1
             except Exception as e:
                 logger.warning(f"Chunk keypoints extraction failed: {e}")
+                # Heuristic fallback so we don't lose coverage entirely on a failed chunk.
+                per_chunk_keypoints.extend(self._fallback_chunk_keypoints(chunk, target_language)[: int(self.summary_max_keypoints_per_chunk)])
                 continue
+
+        # Bound candidates to keep integration prompt stable.
+        if len(per_chunk_keypoints) > int(self.summary_max_keypoints_candidates):
+            per_chunk_keypoints = per_chunk_keypoints[: int(self.summary_max_keypoints_candidates)]
 
         # Integrate into final JSON (overview + deduped keypoints)
         system_prompt = f"""You are a content integration expert.
@@ -1253,31 +1430,136 @@ Return ONLY a valid JSON object (no markdown), in {language_name}, matching this
 
 Rules:
 - Deduplicate similar points.
-- Keep 12–20 strongest points total, covering early/middle/late content.
+- The number of final keypoints is NOT fixed. Keep only the strongest non-overlapping points,
+  with coverage across early/middle/late content. Prefer fewer, clearer points over exhaustive lists.
+  (Hard cap: do not exceed {int(self.summary_max_keypoints_final)}.)
 - overview must be a dense, readable intro.
 """
         user_prompt = f"""Integrate the following extracted keypoints into the final JSON schema.
 Keypoints JSON list:
 {json.dumps(per_chunk_keypoints, ensure_ascii=False)}
 """
+        integrate_raw = ""
         try:
-            resp = self.client.chat.completions.create(
-                model="gpt-4o",
+            kwargs = dict(
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=2000,
+                max_tokens=int(self.summary_integrate_max_output_tokens),
                 temperature=0.2,
             )
-            raw = (resp.choices[0].message.content or "").strip()
-            json_text = self._extract_first_json_object(raw) or raw
+            if self.use_response_format_json:
+                kwargs["response_format"] = {"type": "json_object"}
+            try:
+                resp = await self._chat_completions_create(models=self.summary_models, **kwargs)
+            except Exception as e:
+                if self.use_response_format_json and "response_format" in str(e):
+                    logger.warning(f"Integrate response_format not supported, retrying without it. Error: {e}")
+                    kwargs.pop("response_format", None)
+                    resp = await self._chat_completions_create(models=self.summary_models, **kwargs)
+                else:
+                    raise
+            integrate_raw = (resp.choices[0].message.content or "").strip()
+            json_text = self._extract_first_json_object(integrate_raw) or integrate_raw
             obj = json.loads(json_text)
             obj = self._validate_summary_json_v1(obj, target_language)
             return json.dumps(obj, ensure_ascii=False)
         except Exception as e:
-            logger.warning(f"Final integration JSON failed, falling back. Error: {e}")
+            logger.warning(f"Final integration JSON failed. Error: {e}")
+            if self.enable_json_repair:
+                repaired = await self._repair_summary_json_v1(raw_text=integrate_raw, target_language=target_language)
+                if repaired:
+                    return repaired
             return self._fallback_summary_json_v1(transcript, target_language)
+
+    def _fallback_chunk_keypoints(self, chunk: str, target_language: str) -> list[dict]:
+        """Deterministic fallback: extract 1-2 snippet keypoints from a chunk."""
+        cleaned = self._remove_timestamps_and_meta(chunk or "").strip()
+        if not cleaned:
+            return []
+        parts = [p.strip() for p in re.split(r"\n\s*\n", cleaned) if p.strip()]
+        if not parts:
+            parts = [cleaned]
+        out: list[dict] = []
+        for p in parts[:2]:
+            snippet = p[:320].strip()
+            if len(p) > 320:
+                snippet += "…"
+            out.append(
+                {
+                    "title": (snippet[:60] + ("…" if len(snippet) > 60 else "")).strip() or "Key Point",
+                    "detail": snippet,
+                    "terms": [],
+                    "evidence": "",
+                }
+            )
+        return out
+
+    async def _repair_summary_json_v1(self, *, raw_text: str, target_language: str) -> Optional[str]:
+        """
+        Best-effort repair: ask a model to convert arbitrary text into our summary JSON v1 schema.
+        Triggered only when the initial JSON parse/validate fails.
+        """
+        if not self.client:
+            return None
+        text = (raw_text or "").strip()
+        if not text:
+            return None
+        language_name = self.language_map.get(target_language, "English")
+        system_prompt = f"""You are a strict JSON repair tool.
+Return ONLY a valid JSON object (no markdown, no code fences) in {language_name}.
+
+Output MUST match this schema exactly:
+{{
+  "version": 1,
+  "language": "{target_language}",
+  "overview": string,
+  "keypoints": [
+    {{
+      "title": string,
+      "detail": string,
+      "terms": string[],
+      "evidence": string
+    }}
+  ]
+}}
+
+Rules:
+- If the input is incomplete/truncated, do your best to salvage faithful content without inventing facts.
+- Keep keypoints concise and non-redundant."""
+        user_prompt = f"""Convert/repair the following text into the required JSON schema. Output JSON only.
+
+INPUT:
+{text}
+"""
+        try:
+            kwargs = dict(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=max(1200, int(self.summary_integrate_max_output_tokens)),
+                temperature=0.1,
+            )
+            if self.use_response_format_json:
+                kwargs["response_format"] = {"type": "json_object"}
+            try:
+                resp = await self._chat_completions_create(models=[self.json_repair_model], **kwargs)
+            except Exception as e:
+                if self.use_response_format_json and "response_format" in str(e):
+                    kwargs.pop("response_format", None)
+                    resp = await self._chat_completions_create(models=[self.json_repair_model], **kwargs)
+                else:
+                    raise
+            repaired_raw = (resp.choices[0].message.content or "").strip()
+            repaired_json_text = self._extract_first_json_object(repaired_raw) or repaired_raw
+            obj = json.loads(repaired_json_text)
+            obj = self._validate_summary_json_v1(obj, target_language)
+            return json.dumps(obj, ensure_ascii=False)
+        except Exception as e:
+            logger.warning(f"Summary JSON repair failed: {e}")
+            return None
 
     def _smart_chunk_text(self, text: str, max_chars_per_chunk: int = 3500) -> list:
         """智能分块（先段落后句子），按字符上限切分。"""
@@ -1344,14 +1626,14 @@ Requirements:
 - Use concise and clear language
 - Form a complete content summary"""
 
-            response = self.client.chat.completions.create(
-                model="gpt-4o",
+            response = await self._chat_completions_create(
+                models=self.summary_models,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": user_prompt},
                 ],
                 max_tokens=2500,  # 控制输出规模，兼顾上下文安全
-                temperature=0.3
+                temperature=0.3,
             )
             
             return response.choices[0].message.content
@@ -1365,29 +1647,10 @@ Requirements:
         """
         为摘要添加标题和元信息
         """
-        language_name = self.language_map.get(target_language, "中文（简体）")
-        meta_labels = self._get_summary_labels(target_language)
-        
-        # 不加任何小标题/免责声明，可保留视频标题作为一级标题
+        # 不加任何小标题/免责声明，仅保留视频标题作为一级标题（如果有）
         if video_title:
-            prefix = f"# {video_title}\n\n"
-        else:
-            prefix = ""
-        return prefix + summary
-
-        try:
-            resp = self.client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                max_tokens=1200,
-                temperature=0.2,
-            )
-            return resp.choices[0].message.content
-        except Exception:
-            return text
+            return f"# {video_title}\n\n{summary}"
+        return summary
     
     def _generate_fallback_summary(self, transcript: str, target_language: str, video_title: str = None) -> str:
         """

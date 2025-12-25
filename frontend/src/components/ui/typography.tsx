@@ -44,7 +44,7 @@ export const Text = React.forwardRef(
     { as, className, variant, tone, weight, ...props }: PolymorphicTextProps<TAs>,
     ref: React.ForwardedRef<React.ElementRef<TAs>>
   ) => {
-    const Comp = (as ?? "p") as any
+    const Comp = (as ?? "p") as TAs
     return (
       <Comp
         ref={ref}
@@ -98,7 +98,7 @@ export const Heading = React.forwardRef(
     { as, className, variant, tone, ...props }: PolymorphicHeadingProps<TAs>,
     ref: React.ForwardedRef<React.ElementRef<TAs>>
   ) => {
-    const Comp = (as ?? "h2") as any
+    const Comp = (as ?? "h2") as TAs
     return (
       <Comp
         ref={ref}

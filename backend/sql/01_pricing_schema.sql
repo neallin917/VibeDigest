@@ -28,7 +28,7 @@ begin
   values (new.id, 'free', 3);
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public, pg_temp;
 
 -- Trigger
 create trigger on_auth_user_created

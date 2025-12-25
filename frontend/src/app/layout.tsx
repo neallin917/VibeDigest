@@ -9,7 +9,7 @@ import { Providers } from "@/components/providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "AI Video Transcriber",
+  title: "VibeDigest",
   description: "Advanced video transcription and summarization",
 };
 

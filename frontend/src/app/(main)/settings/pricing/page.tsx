@@ -1,18 +1,19 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { Check, Loader2, CreditCard, Database, Zap } from "lucide-react"
+import { Check, Loader2, CreditCard, Database } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 import { ApiClient } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { UsageCard } from "@/components/dashboard/UsageCard"
 import { Heading, Text } from "@/components/ui/typography"
+import { PageContainer } from "@/components/layout/PageContainer"
 
 type Profile = {
     tier: 'free' | 'pro' | string
@@ -29,25 +30,25 @@ const CREDIT_PACK_PRICE_ID = "price_1ShU6pP16NRNsVf5EdlEFgOE"
 export default function PricingPage() {
     const { t } = useI18n()
     const [isAnnual, setIsAnnual] = useState(true)
-    const [paymentMethod, setPaymentMethod] = useState<'card' | 'crypto'>('crypto')
+    const [paymentMethod] = useState<'card' | 'crypto'>('crypto')
     const [loading, setLoading] = useState(false)
     const [profile, setProfile] = useState<Profile | null>(null)
     const [supabase] = useState(() => createClient())
 
     const [mounted, setMounted] = useState(false)
 
-    const fetchProfile = async () => {
+    const fetchProfile = useCallback(async () => {
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
             const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single()
             setProfile(data as Profile)
         }
-    }
+    }, [supabase])
 
     useEffect(() => {
         setMounted(true)
-        fetchProfile()
-    }, [])
+        void fetchProfile()
+    }, [fetchProfile])
 
     if (!mounted) {
         return null // Prevent hydration mismatch by rendering only on client
@@ -102,235 +103,230 @@ export default function PricingPage() {
     ] as const
 
     return (
-        <div className="space-y-8 max-w-5xl mx-auto py-8 px-4 md:px-0">
-            <div className="text-center space-y-4">
-                <Heading as="h1" variant="h1">
-                    {t("pricing.title")}
-                </Heading>
-                <Text tone="muted" className="max-w-2xl mx-auto">
-                    {t("pricing.subtitle")}
-                </Text>
-            </div>
+        <PageContainer>
+            <div className="mx-auto w-full max-w-6xl space-y-8">
+                {/* Header + Usage */}
+                <section className="grid gap-6 lg:grid-cols-12 lg:items-start">
+                    <div className="space-y-3 text-center lg:col-span-7 lg:text-left">
+                        <Heading as="h1" variant="h1">
+                            {t("pricing.title")}
+                        </Heading>
+                        <Text tone="muted" className="max-w-2xl mx-auto lg:mx-0">
+                            {t("pricing.subtitle")}
+                        </Text>
+                    </div>
 
-            {/* Usage & Quota (moved from Dashboard) */}
-            <div className="max-w-md mx-auto">
-                <UsageCard />
-            </div>
+                    <div className="lg:col-span-5">
+                        <UsageCard className="w-full" />
+                    </div>
 
-            {/* Payment Method Toggle (after quota) - HIDDEN temporally to disable Stripe */}
-            <div className="flex flex-col items-center justify-center gap-2 pt-2">
-                {/* <span className="text-sm font-medium text-muted-foreground uppercase tracking-widest">
-                    {t("pricing.paymentMethod")}
-                </span>
-                <div className="flex items-center gap-2 p-1 bg-secondary/50 rounded-full border border-border/50">
-                    <Button
-                        variant={paymentMethod === 'card' ? 'secondary' : 'ghost'}
-                        onClick={() => setPaymentMethod('card')}
-                        className="rounded-full px-6 transition-all"
-                        size="sm"
-                    >
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        {t("pricing.card")}
-                    </Button>
-                    <Button
-                        variant={paymentMethod === 'crypto' ? 'secondary' : 'ghost'}
-                        onClick={() => setPaymentMethod('crypto')}
-                        className="rounded-full px-6 transition-all"
-                        size="sm"
-                    >
-                        <Zap className="w-4 h-4 mr-2 text-yellow-500" />
-                        {t("pricing.crypto")}
-                    </Button>
-                </div> */}
-                {paymentMethod === 'crypto' && (
-                    <p className="text-xs text-yellow-500 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20 animate-in fade-in slide-in-from-top-1">
-                        {t("pricing.cryptoWarning")} (USDC Only)
-                    </p>
-                )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8">
-                {/* FREE TIER */}
-                <Card
-                    className={cn(
-                        "relative flex flex-col h-full border-border/50 bg-background/50 backdrop-blur-sm md:order-2 xl:order-none",
-                        !isPro && "border-primary/20 bg-primary/5"
+                    {paymentMethod === "crypto" && (
+                        <div className="lg:col-span-12">
+                            <p className="mx-auto lg:mx-0 w-fit text-xs text-yellow-500 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20 animate-in fade-in slide-in-from-top-1">
+                                {t("pricing.cryptoWarning")} (USDC Only)
+                            </p>
+                        </div>
                     )}
-                >
-                    {!isPro && (
-                        <div className="absolute top-0 right-0 p-4">
-                            <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">
-                                {t("pricing.currentPlan")}
+                </section>
+
+                {/* Pricing Cards */}
+                <section className="grid gap-6 auto-rows-fr sm:grid-cols-2 xl:grid-cols-3">
+                    {/* FREE TIER */}
+                    <Card
+                        className={cn(
+                            "relative flex flex-col h-full border-border/50 bg-background/50 backdrop-blur-sm",
+                            !isPro && "border-primary/20 bg-primary/5"
+                        )}
+                    >
+                        {!isPro && (
+                            <div className="absolute top-0 right-0 p-4">
+                                <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">
+                                    {t("pricing.currentPlan")}
+                                </Badge>
+                            </div>
+                        )}
+                        <CardHeader>
+                            <CardTitle>{t("pricing.free.title")}</CardTitle>
+                            <CardDescription>{t("pricing.free.desc")}</CardDescription>
+                            <div className="mt-4">
+                                <span className="text-[32px] leading-9 font-bold tabular-nums">{t("pricing.free.price")}</span>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="flex-1">
+                            <ul className="space-y-3 text-sm leading-5">
+                                {freeFeatureKeys
+                                    .map((k) => t(k))
+                                    .filter((v) => v && !v.startsWith("pricing."))
+                                    .map((feature, i) => (
+                                        <li key={i} className="flex items-center gap-2">
+                                            <Database className="h-4 w-4 text-muted-foreground" />
+                                            <span className="text-sm leading-5">{feature}</span>
+                                        </li>
+                                    ))}
+                            </ul>
+                        </CardContent>
+                        <CardFooter>
+                            <Button className="w-full" variant="outline" disabled>
+                                {isPro ? "Included" : t("pricing.currentPlan")}
+                            </Button>
+                        </CardFooter>
+                    </Card>
+
+                    {/* PRO TIER */}
+                    <Card
+                        className={cn(
+                            "relative flex flex-col h-full border-emerald-500/50 bg-emerald-950/10 backdrop-blur-md shadow-2xl shadow-emerald-500/10",
+                            isPro && "ring-2 ring-emerald-500"
+                        )}
+                    >
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                            <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-0 px-3 py-1 text-xs">
+                                MOST POPULAR
                             </Badge>
                         </div>
-                    )}
-                    <CardHeader>
-                        <CardTitle>{t("pricing.free.title")}</CardTitle>
-                        <CardDescription>{t("pricing.free.desc")}</CardDescription>
-                        <div className="mt-4">
-                            <span className="text-[32px] leading-9 font-bold tabular-nums">{t("pricing.free.price")}</span>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="flex-1">
-                        <ul className="space-y-3 text-sm leading-5">
-                            {freeFeatureKeys
-                                .map((k) => t(k))
-                                .filter((v) => v && !v.startsWith("pricing."))
-                                .map((feature, i) => (
-                                    <li key={i} className="flex items-center gap-2">
-                                        <Database className="h-4 w-4 text-muted-foreground" />
-                                        <span className="text-sm leading-5">{feature}</span>
-                                    </li>
-                                ))}
-                        </ul>
-                    </CardContent>
-                    <CardFooter>
-                        <Button className="w-full" variant="outline" disabled>
-                            {isPro ? "Included" : t("pricing.currentPlan")}
-                        </Button>
-                    </CardFooter>
-                </Card>
-
-                {/* PRO TIER */}
-                <Card
-                    className={cn(
-                        "relative flex flex-col h-full border-emerald-500/50 bg-emerald-950/10 backdrop-blur-md shadow-2xl shadow-emerald-500/10 md:order-1 xl:order-none md:col-span-2 xl:col-span-1",
-                        isPro && "ring-2 ring-emerald-500"
-                    )}
-                >
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-0 px-3 py-1 text-xs">
-                            MOST POPULAR
-                        </Badge>
-                    </div>
-                    {isPro && (
-                        <div className="absolute top-0 right-0 p-4">
-                            <Badge className="bg-emerald-500 text-white">Active</Badge>
-                        </div>
-                    )}
-                    <CardHeader className="relative pt-10">
-                        <div className="flex items-start justify-between gap-4">
-                            <Heading as="h3" variant="h2">
-                                {t("pricing.pro.title")}
-                            </Heading>
-                            <div className="flex items-center gap-2">
-                                <Text
-                                    as="span"
-                                    variant="caption"
-                                    weight="semibold"
-                                    className={cn(
-                                        "tracking-widest uppercase",
-                                        isAnnual ? "text-emerald-500" : "text-muted-foreground"
-                                    )}
-                                >
-                                    {t("pricing.pro.annual")}
-                                </Text>
-                                <Switch
-                                    checked={isAnnual}
-                                    onCheckedChange={setIsAnnual}
-                                    className="scale-90 data-[state=checked]:bg-emerald-500"
-                                />
+                        {isPro && (
+                            <div className="absolute top-0 right-0 p-4">
+                                <Badge className="bg-emerald-500 text-white">Active</Badge>
                             </div>
-                        </div>
+                        )}
+                        <CardHeader className="relative pt-10">
+                            <div className="flex items-start justify-between gap-4">
+                                <Heading as="h3" variant="h2">
+                                    {t("pricing.pro.title")}
+                                </Heading>
+                                <div className="flex items-center gap-2">
+                                    <Text
+                                        as="span"
+                                        variant="caption"
+                                        weight="semibold"
+                                        className={cn(
+                                            "tracking-widest uppercase",
+                                            isAnnual ? "text-emerald-500" : "text-muted-foreground"
+                                        )}
+                                    >
+                                        {t("pricing.pro.annual")}
+                                    </Text>
+                                    <Switch
+                                        checked={isAnnual}
+                                        onCheckedChange={setIsAnnual}
+                                        className="scale-90 data-[state=checked]:bg-emerald-500"
+                                    />
+                                </div>
+                            </div>
 
-                        <div className="mt-3 flex items-baseline gap-2">
+                            <div className="mt-3 flex items-baseline gap-2">
+                                {isAnnual && (
+                                    <Text
+                                        as="span"
+                                        variant="bodySm"
+                                        tone="muted"
+                                        weight="medium"
+                                        className="line-through tabular-nums"
+                                    >
+                                        {t("pricing.pro.price")}
+                                    </Text>
+                                )}
+                                <span className="text-[36px] leading-9 font-bold tabular-nums">
+                                    {isAnnual ? t("pricing.pro.annualPrice") : t("pricing.pro.price")}
+                                </span>
+                                <Text as="span" variant="bodySm" tone="muted">
+                                    {t("pricing.pro.unit")}
+                                </Text>
+                            </div>
                             {isAnnual && (
-                                <Text
-                                    as="span"
-                                    variant="bodySm"
-                                    tone="muted"
-                                    weight="medium"
-                                    className="line-through tabular-nums"
-                                >
-                                    {t("pricing.pro.price")}
+                                <Text variant="caption" tone="muted" className="mt-2">
+                                    {t("pricing.pro.desc")}
                                 </Text>
                             )}
-                            <span className="text-[36px] leading-9 font-bold tabular-nums">
-                                {isAnnual ? t("pricing.pro.annualPrice") : t("pricing.pro.price")}
-                            </span>
-                            <Text as="span" variant="bodySm" tone="muted">
-                                {t("pricing.pro.unit")}
-                            </Text>
-                        </div>
-                        {isAnnual && (
-                            <Text variant="caption" tone="muted" className="mt-2">
-                                {t("pricing.pro.desc")}
-                            </Text>
-                        )}
-                    </CardHeader>
-                    <CardContent className="flex-1">
-                        <ul className="space-y-3 text-sm leading-5">
-                            {proFeatureKeys
-                                .map((k) => t(k))
-                                .filter((v) => v && !v.startsWith("pricing."))
-                                .map((feature, i) => (
-                                    <li key={i} className="flex items-center gap-2">
-                                        <Check className="h-4 w-4 text-emerald-500" />
-                                        <span className="text-sm leading-5">{feature}</span>
-                                    </li>
-                                ))}
-                        </ul>
-                    </CardContent>
-                    <CardFooter>
-                        {isPro ? (
+                        </CardHeader>
+                        <CardContent className="flex-1">
+                            <ul className="space-y-3 text-sm leading-5">
+                                {proFeatureKeys
+                                    .map((k) => t(k))
+                                    .filter((v) => v && !v.startsWith("pricing."))
+                                    .map((feature, i) => (
+                                        <li key={i} className="flex items-center gap-2">
+                                            <Check className="h-4 w-4 text-emerald-500" />
+                                            <span className="text-sm leading-5">{feature}</span>
+                                        </li>
+                                    ))}
+                            </ul>
+                        </CardContent>
+                        <CardFooter>
+                            {isPro ? (
+                                <Button
+                                    className="w-full bg-emerald-600/20 text-emerald-500 hover:bg-emerald-600/30 rounded-full"
+                                    size="xl"
+                                    onClick={() => alert("Manage Subscription via Stripe Portal coming soon!")}
+                                >
+                                    {t("pricing.pro.manage")}
+                                </Button>
+                            ) : (
+                                <Button
+                                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-semibold shadow-lg shadow-emerald-500/20"
+                                    size="xl"
+                                    onClick={() => handleCheckout(isAnnual ? PRO_ANNUAL_PRICE_ID : PRO_MONTHLY_PRICE_ID)}
+                                    disabled={loading}
+                                >
+                                    {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                    {t("pricing.pro.button")}
+                                </Button>
+                            )}
+                        </CardFooter>
+                    </Card>
+
+                    {/* TOP UP */}
+                    <Card className="relative flex flex-col h-full border-border/50 bg-background/50 backdrop-blur-sm">
+                        <CardHeader>
+                            <CardTitle>{t("pricing.topup.title")}</CardTitle>
+                            <CardDescription>{t("pricing.topup.desc")}</CardDescription>
+                            <div className="mt-4">
+                                <span className="text-[32px] leading-9 font-bold tabular-nums">{t("pricing.topup.price")}</span>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="flex-1">
+                            <ul className="space-y-3 text-sm leading-5">
+                                {topupFeatureKeys
+                                    .map((k) => t(k))
+                                    .filter((v) => v && !v.startsWith("pricing."))
+                                    .map((feature, i) => (
+                                        <li key={i} className="flex items-center gap-2">
+                                            <CreditCard className="h-4 w-4 text-blue-400" />
+                                            <span className="text-sm leading-5">{feature}</span>
+                                        </li>
+                                    ))}
+                            </ul>
+                        </CardContent>
+                        <CardFooter>
                             <Button
-                                className="w-full bg-emerald-600/20 text-emerald-500 hover:bg-emerald-600/30 rounded-full"
-                                size="xl"
-                                onClick={() => alert("Manage Subscription via Stripe Portal coming soon!")}
-                            >
-                                {t("pricing.pro.manage")}
-                            </Button>
-                        ) : (
-                            <Button
-                                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-semibold shadow-lg shadow-emerald-500/20"
-                                size="xl"
-                                onClick={() => handleCheckout(isAnnual ? PRO_ANNUAL_PRICE_ID : PRO_MONTHLY_PRICE_ID)}
+                                className="w-full"
+                                variant="secondary"
+                                onClick={() => handleCheckout(CREDIT_PACK_PRICE_ID)}
                                 disabled={loading}
                             >
-                                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                                {t("pricing.pro.button")}
+                                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <PlusCircleIcon />}
+                                {t("pricing.topup.button")}
                             </Button>
-                        )}
-                    </CardFooter>
-                </Card>
+                        </CardFooter>
+                    </Card>
+                </section>
 
-                {/* TOP UP */}
-                <Card className="relative flex flex-col h-full border-border/50 bg-background/50 backdrop-blur-sm md:order-3 xl:order-none">
-                    <CardHeader>
-                        <CardTitle>{t("pricing.topup.title")}</CardTitle>
-                        <CardDescription>{t("pricing.topup.desc")}</CardDescription>
-                        <div className="mt-4">
-                            <span className="text-[32px] leading-9 font-bold tabular-nums">{t("pricing.topup.price")}</span>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="flex-1">
-                        <ul className="space-y-3 text-sm leading-5">
-                            {topupFeatureKeys
-                                .map((k) => t(k))
-                                .filter((v) => v && !v.startsWith("pricing."))
-                                .map((feature, i) => (
-                                    <li key={i} className="flex items-center gap-2">
-                                        <CreditCard className="h-4 w-4 text-blue-400" />
-                                        <span className="text-sm leading-5">{feature}</span>
-                                    </li>
-                                ))}
-                        </ul>
-                    </CardContent>
-                    <CardFooter>
-                        <Button className="w-full" variant="secondary" onClick={() => handleCheckout(CREDIT_PACK_PRICE_ID)} disabled={loading}>
-                            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <PlusCircleIcon />}
-                            {t("pricing.topup.button")}
-                        </Button>
-                    </CardFooter>
-                </Card>
+                {/* Footer (All Sizes) */}
+                <footer className="pt-2 pb-8">
+                    <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-6 text-sm text-muted-foreground">
+                        <Link href="/policies/refund" className="hover:text-foreground transition-colors underline">
+                            {t("pricing.policies.refund")}
+                        </Link>
+                        <Link href="/policies/terms" className="hover:text-foreground transition-colors underline">
+                            {t("pricing.policies.terms")}
+                        </Link>
+                    </div>
+                    <p className="mt-3 text-center text-xs text-muted-foreground/60">
+                        © {new Date().getFullYear()} VibeDigest. All rights reserved.
+                    </p>
+                </footer>
             </div>
-
-            {/* Footer Links (Compliance) */}
-            <div className="flex justify-center gap-6 text-sm text-muted-foreground underline pb-8">
-                <Link href="/policies/refund" className="hover:text-foreground transition-colors">{t("pricing.policies.refund")}</Link>
-                <Link href="/policies/terms" className="hover:text-foreground transition-colors">{t("pricing.policies.terms")}</Link>
-            </div>
-        </div>
+        </PageContainer>
     )
 }
 

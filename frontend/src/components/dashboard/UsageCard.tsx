@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { Zap, Database, TrendingUp } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 type Profile = {
     tier: 'free' | 'pro' | string
@@ -14,7 +15,7 @@ type Profile = {
     extra_credits: number
 }
 
-export function UsageCard() {
+export function UsageCard({ className }: { className?: string }) {
     const [profile, setProfile] = useState<Profile | null>(null)
     const [loading, setLoading] = useState(true)
     const { t } = useI18n()
@@ -57,7 +58,7 @@ export function UsageCard() {
     const isPro = profile.tier === 'pro'
 
     return (
-        <Card className="border-white/10 bg-white/5 backdrop-blur-lg">
+        <Card className={cn("border-white/10 bg-white/5 backdrop-blur-lg", className)}>
             <CardHeader className="pb-2">
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-emerald-500" />

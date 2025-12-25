@@ -41,7 +41,7 @@ const messages: Record<Locale, Messages> = {
   en: {
     brand: {
       name: "VibeDigest",
-      appName: "Transcriber",
+      appName: "VibeDigest",
       versionTag: "VibeDigest v3.0",
     },
     nav: {
@@ -77,7 +77,7 @@ const messages: Record<Locale, Messages> = {
       feature3Desc: "Translate content into any language you want — automatically.",
       feature4Title: "Multi-Platform",
       feature4Desc: "Works with YouTube / Apple Podcasts / Bilibili / Xiaoyuzhou.",
-      footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
+      footer: "© 2024 VibeDigest. Built with Next.js & Supabase.",
     },
     dashboard: {
       title: "Dashboard",
@@ -107,7 +107,7 @@ const messages: Record<Locale, Messages> = {
       free: {
         title: "Basic",
         price: "Free",
-        desc: "Try LongCut for free, no card required",
+        desc: "Try VibeDigest for free, no card required",
         features: {
           f1: "3 videos / month",
           f4: "Save notes",
@@ -298,7 +298,7 @@ const messages: Record<Locale, Messages> = {
   zh: {
     brand: {
       name: "AI 视频笔记",
-      appName: "转写器",
+      appName: "VibeDigest",
       versionTag: "Alpha",
     },
     nav: {
@@ -336,7 +336,7 @@ const messages: Record<Locale, Messages> = {
       feature3Desc: "随心翻译成你想要的任何语言，自动完成。",
       feature4Title: "多平台",
       feature4Desc: "支持 YouTube / Apple Podcasts / Bilibili / 小宇宙。",
-      footer: "© 2024 AI Video Transcriber. Built with Next.js & Supabase.",
+      footer: "© 2024 VibeDigest. Built with Next.js & Supabase.",
     },
     home: {
       titleEmphasis: "AI 视频",
@@ -385,7 +385,7 @@ const messages: Record<Locale, Messages> = {
       free: {
         title: "基础版",
         price: "免费",
-        desc: "免费试用 LongCut，无需信用卡",
+        desc: "免费试用 VibeDigest，无需信用卡",
         features: {
           f1: "每月 3 个视频",
           f4: "保存笔记",
@@ -650,7 +650,7 @@ const messages: Record<Locale, Messages> = {
       free: {
         title: "Básico",
         price: "Gratis",
-        desc: "Prueba LongCut gratis, sin tarjeta",
+        desc: "Prueba VibeDigest gratis, sin tarjeta",
         features: {
           f1: "3 videos / mes",
           f4: "Guardar notas",
@@ -1623,7 +1623,7 @@ const messages: Record<Locale, Messages> = {
       free: {
         title: "ベーシック",
         price: "無料",
-        desc: "LongCutを無料で試す（カード不要）",
+        desc: "VibeDigestを無料で試す（カード不要）",
         features: {
           f1: "毎月動画3本まで",
           f4: "ノートの保存",
@@ -1820,7 +1820,7 @@ const messages: Record<Locale, Messages> = {
       free: {
         title: "베이직",
         price: "무료",
-        desc: "LongCut 무료 체험 (카드 불필요)",
+        desc: "VibeDigest 무료 체험 (카드 불필요)",
         features: {
           f1: "매월 동영상 3개",
           f4: "노트 저장",

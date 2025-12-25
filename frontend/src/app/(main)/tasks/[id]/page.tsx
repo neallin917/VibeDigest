@@ -146,92 +146,98 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-4 md:space-y-6 px-1 sm:px-0">
-            <div className="flex items-center gap-4">
-                <Link href="/history">
-                    <Button variant="ghost" size="sm" className="gap-2 pl-0 hover:pl-2 transition-all">
-                        <ArrowLeft className="h-4 w-4" /> {t("history.backToHistory")}
-                    </Button>
-                </Link>
+        <div className="h-full flex flex-col">
+            <div className="flex-none max-w-4xl mx-auto w-full px-4 md:px-0 pt-4 md:pt-6 pb-2">
+                <div className="flex items-center gap-4">
+                    <Link href="/history">
+                        <Button variant="ghost" size="sm" className="gap-2 pl-0 hover:pl-2 transition-all">
+                            <ArrowLeft className="h-4 w-4" /> {t("history.backToHistory")}
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
-            <Card className="glass">
-                <CardHeader className="pb-4 p-4 md:p-6">
-                    <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-start">
-                        <div className="space-y-1">
-                            <Heading as="h1" variant="pageTitle">
-                                {task.video_title || task.video_url}
-                            </Heading>
-                        </div>
-                        <Badge variant={task.status === "completed" ? "success" : task.status === "error" ? "destructive" : "processing"} className="text-xs md:text-sm px-3 py-1 self-start">
-                            {task.status.toUpperCase()}
-                        </Badge>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-4 md:p-6 pt-0">
-                    <div className="mb-6">
-                        {hasVideo ? <VideoEmbed videoUrl={task.video_url} title={task.video_title} /> : null}
-                        {!hasVideo && audio?.status === "completed" && audioUrl ? (
-                            <AudioEmbed audioUrl={audioUrl} title={task.video_title} coverUrl={audioCoverUrl} sourceUrl={task.video_url} />
-                        ) : null}
-                        {!hasVideo && (!audio || audio.status === "error") ? (
-                            <div className="mt-3 text-sm text-muted-foreground">
-                                {t("tasks.audioUnavailable")}
+            <div className="flex-1 overflow-y-auto min-h-0 px-4 md:px-0 pb-6">
+                <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
+                    <Card className="glass">
+                        <CardHeader className="pb-4 p-4 md:p-6">
+                            <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-start">
+                                <div className="space-y-1">
+                                    <Heading as="h1" variant="pageTitle">
+                                        {task.video_title || task.video_url}
+                                    </Heading>
+                                </div>
+                                <Badge variant={task.status === "completed" ? "success" : task.status === "error" ? "destructive" : "processing"} className="text-xs md:text-sm px-3 py-1 self-start">
+                                    {task.status.toUpperCase()}
+                                </Badge>
                             </div>
-                        ) : null}
-                    </div>
-                    {(task.status === "processing" || task.status === "pending") && (
-                        <div className="space-y-4 mb-8 p-6 bg-primary/5 rounded-xl border border-primary/10">
-                            <div className="flex items-center gap-3">
-                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                                <span className="font-medium text-primary">{t("tasks.processingVideo")}</span>
-                                <span className="ml-auto font-mono">{task.progress}%</span>
+                        </CardHeader>
+                        <CardContent className="p-4 md:p-6 pt-0">
+                            <div className="mb-6">
+                                {hasVideo ? <VideoEmbed videoUrl={task.video_url} title={task.video_title} /> : null}
+                                {!hasVideo && audio?.status === "completed" && audioUrl ? (
+                                    <AudioEmbed audioUrl={audioUrl} title={task.video_title} coverUrl={audioCoverUrl} sourceUrl={task.video_url} />
+                                ) : null}
+                                {!hasVideo && (!audio || audio.status === "error") ? (
+                                    <div className="mt-3 text-sm text-muted-foreground">
+                                        {t("tasks.audioUnavailable")}
+                                    </div>
+                                ) : null}
                             </div>
-                            <Progress value={task.progress} className="h-2" />
-                            <p className="text-xs text-muted-foreground text-center">
-                                {t("tasks.processingHint1")}
-                                <br />
-                                {t("tasks.processingHint2")}
-                            </p>
-                        </div>
-                    )}
+                            {(task.status === "processing" || task.status === "pending") && (
+                                <div className="space-y-4 mb-8 p-6 bg-primary/5 rounded-xl border border-primary/10">
+                                    <div className="flex items-center gap-3">
+                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                                        <span className="font-medium text-primary">{t("tasks.processingVideo")}</span>
+                                        <span className="ml-auto font-mono">{task.progress}%</span>
+                                    </div>
+                                    <Progress value={task.progress} className="h-2" />
+                                    <p className="text-xs text-muted-foreground text-center">
+                                        {t("tasks.processingHint1")}
+                                        <br />
+                                        {t("tasks.processingHint2")}
+                                    </p>
+                                </div>
+                            )}
 
-                    {task.status === "error" && (
-                        <div className="mb-6 p-4 bg-red-900/20 border border-red-500/50 rounded-lg text-red-200">
-                            {t("tasks.taskError")}
-                        </div>
-                    )}
+                            {task.status === "error" && (
+                                <div className="mb-6 p-4 bg-red-900/20 border border-red-500/50 rounded-lg text-red-200">
+                                    {t("tasks.taskError")}
+                                </div>
+                            )}
 
-                    <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 bg-secondary/50 p-1 h-11">
-                            <TabsTrigger value="summary" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-black font-medium">
-                                <FileText className="hidden sm:block h-4 w-4" /> {t("tasks.tabSummary")}
-                            </TabsTrigger>
-                            <TabsTrigger value="script" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-black font-medium">
-                                <Subtitles className="hidden sm:block h-4 w-4" /> {t("tasks.tabScript")}
-                            </TabsTrigger>
-                        </TabsList>
+                            <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="w-full">
+                                <TabsList className="grid w-full grid-cols-2 bg-secondary/50 p-1 h-11">
+                                    <TabsTrigger value="summary" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-black font-medium">
+                                        <FileText className="hidden sm:block h-4 w-4" /> {t("tasks.tabSummary")}
+                                    </TabsTrigger>
+                                    <TabsTrigger value="script" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-black font-medium">
+                                        <Subtitles className="hidden sm:block h-4 w-4" /> {t("tasks.tabScript")}
+                                    </TabsTrigger>
+                                </TabsList>
 
-                        <TabsContent value="summary" className="mt-4 md:mt-6 space-y-4">
-                            <SummarySection
-                                taskTitle={task.video_title}
-                                summary={summary}
-                                summaryPlaceholder={t("tasks.summaryPlaceholder")}
-                                t={t}
-                            />
-                        </TabsContent>
+                                <TabsContent value="summary" className="mt-4 md:mt-6 space-y-4">
+                                    <SummarySection
+                                        taskTitle={task.video_title}
+                                        summary={summary}
+                                        summaryPlaceholder={t("tasks.summaryPlaceholder")}
+                                        t={t}
+                                    />
+                                </TabsContent>
 
-                        <TabsContent value="script" className="mt-4 md:mt-6 space-y-4">
-                            <FullScriptSection
-                                script={script}
-                                scriptPlaceholder={t("tasks.scriptPlaceholder")}
-                                detectedLanguageLabel={detectedLanguageLabel}
-                                t={t}
-                            />
-                        </TabsContent>
-                    </Tabs>
-                </CardContent>
-            </Card>
+                                <TabsContent value="script" className="mt-4 md:mt-6 space-y-4">
+                                    <FullScriptSection
+                                        script={script}
+                                        scriptPlaceholder={t("tasks.scriptPlaceholder")}
+                                        detectedLanguageLabel={detectedLanguageLabel}
+                                        t={t}
+                                    />
+                                </TabsContent>
+                            </Tabs>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
         </div>
     )
 }
