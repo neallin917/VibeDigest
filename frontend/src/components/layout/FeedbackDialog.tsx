@@ -81,6 +81,7 @@ export function FeedbackDialog() {
                 <Button
                     variant="ghost"
                     className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+                    suppressHydrationWarning
                 >
                     <MessageSquare className="h-4 w-4" />
                     {t("feedback.title")}

@@ -65,6 +65,7 @@
     - `STRIPE_SECRET_KEY` (Optional, for Pricing / Stripe Checkout)
     - `COINBASE_API_KEY` (Optional, for Crypto Checkout)
     - `COINBASE_WEBHOOK_SECRET` (Optional, for Coinbase webhook verification)
+    - `OPENAI_SUMMARY_MATCH_THRESHOLD` (Optional, default: 4.0. Lower = more timestamp matches, Higher = stricter)
     - `FRONTEND_URL` (Optional, used for payment redirect URLs; defaults to `http://localhost:3000`)
 
     > **Note**: If you update `requirements.txt`, run `docker-compose up --build -d transcriber-backend`.

@@ -130,10 +130,17 @@ class Summarizer:
         # Best-effort strict JSON mode (if the endpoint/model supports response_format).
         self.use_response_format_json = self._read_bool_env("OPENAI_USE_RESPONSE_FORMAT_JSON", True)
         
+        # Keypoint timestamp matching threshold (lower = more fuzzy matches, higher = stricter)
+        # Default lowered from 6.0 to 4.0 to catch more valid matches with slight rewording.
+        self.summary_match_threshold = float(os.getenv("OPENAI_SUMMARY_MATCH_THRESHOLD", "4.0"))
+        
         # 支持的语言映射
         self.language_map = {
             "en": "English",
             "zh": "中文（简体）",
+            "zh-cn": "中文（简体）",
+            "zh-tw": "中文（繁体）",
+            "chinese": "中文（简体）",
             "es": "Español",
             "fr": "Français", 
             "de": "Deutsch",
@@ -141,7 +148,9 @@ class Summarizer:
             "pt": "Português",
             "ru": "Русский",
             "ja": "日本語",
+            "japanese": "日本語",
             "ko": "한국어",
+            "korean": "한국어",
             "ar": "العربية"
         }
 
@@ -1190,6 +1199,9 @@ Core requirements:
                 logger.warning("OpenAI API不可用，生成备用结构化摘要(JSON)")
                 return self._fallback_summary_json_v1(transcript, target_language)
             
+            # Normalize language code to ensure we get the correct language name
+            target_language = self._normalize_lang_code(target_language)
+            
             # 估算转录文本长度，决定是否需要分块摘要
             estimated_tokens = self._estimate_tokens(transcript)
             max_summarize_tokens = int(self.summary_single_max_est_tokens)
@@ -1210,14 +1222,48 @@ Core requirements:
     # Timed Summary (inject start/end seconds from script_raw segments) - v2
     # ---------------------------------------------------------------------
 
-    @staticmethod
-    def _normalize_lang_code(lang: Optional[str]) -> str:
-        """Best-effort normalize to base language code for routing/labels."""
+    def _normalize_lang_code(self, lang: Optional[str]) -> str:
+        """
+        Best-effort normalize to base language code for routing/labels.
+        Handles cases like 'zh-CN' -> 'zh', 'Chinese' -> 'zh'.
+        """
         if not lang:
             return "unknown"
-        s = str(lang).strip().lower().replace("_", "-")
+        s = str(lang).strip().lower()
+        
+        # Handle full names often returned by OpenAI/Whisper
+        name_map = {
+            "chinese": "zh",
+            "japanese": "ja",
+            "korean": "ko",
+            "english": "en",
+            "french": "fr",
+            "german": "de",
+            "italian": "it",
+            "spanish": "es",
+            "portuguese": "pt",
+            "russian": "ru"
+        }
+        if s in name_map:
+            return name_map[s]
+            
+        # Handle variants like zh-CN (replace _ with - first just in case)
+        s = s.replace("_", "-")
         if not s:
             return "unknown"
+        
+        # Special case for Chinese variants if we want to map them all to 'zh' generally, 
+        # or keep them if they exist in language_map. 
+        # But for 'zh-CN' specifically, we often want 'zh' behavior in our prompts unless we have specific prompts.
+        # Given language_map keys now include zh-cn, we can just return it? 
+        # BUT our prompts might rely on 'zh' key in other lookups? 
+        # Actually existing lookups use `self.language_map.get(target_language, "English")`.
+        # So as long as `zh-cn` is in `language_map`, it's fine.
+        
+        # However, to be safe and consistent with other logic that might expect 2-char codes:
+        if s.startswith("zh-"):
+            return "zh"
+            
         base = s.split("-")[0]
         return base or "unknown"
 
@@ -1368,7 +1414,7 @@ Core requirements:
                     best = seg
 
             # Threshold: avoid random anchors on low-signal matches
-            if not best or best_score < 6.0:
+            if not best or best_score < self.summary_match_threshold:
                 continue
 
             try:
