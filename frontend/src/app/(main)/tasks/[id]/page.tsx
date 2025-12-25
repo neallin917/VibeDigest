@@ -16,7 +16,6 @@ import { VideoEmbed, supportsVideoEmbed } from "@/components/tasks/VideoEmbed"
 import { AudioEmbed } from "@/components/tasks/AudioEmbed"
 import { Heading } from "@/components/ui/typography"
 import { TranscriptTimeline } from "@/components/tasks/TranscriptTimeline"
-import { TranscriptKeyframesPanel } from "@/components/tasks/TranscriptKeyframesPanel"
 
 type Task = {
     id: string
@@ -206,12 +205,6 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                                     </div>
                                 ) : null}
                             </div>
-
-                            <TranscriptKeyframesPanel
-                                scriptRawContent={scriptRaw?.content}
-                                canSeek={Boolean(mediaController)}
-                                onSeek={handleSeek}
-                            />
 
                             {(task.status === "processing" || task.status === "pending") && (
                                 <div className="space-y-4 mb-8 p-6 bg-primary/5 rounded-xl border border-primary/10">
