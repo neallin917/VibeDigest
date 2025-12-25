@@ -15,7 +15,7 @@ import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 import { VideoEmbed, supportsVideoEmbed } from "@/components/tasks/VideoEmbed"
 import { AudioEmbed } from "@/components/tasks/AudioEmbed"
 import { Heading } from "@/components/ui/typography"
-import { TranscriptTimeline } from "@/components/tasks/TranscriptTimeline"
+import { TranscriptTimeline, buildTranscriptBlocks } from "@/components/tasks/TranscriptTimeline"
 import { useTaskNotification } from "@/hooks/useTaskNotification"
 import { Bell, BellOff } from "lucide-react"
 
@@ -491,8 +491,38 @@ function FullScriptSection({
     onSeek: (seconds: number) => void
     t: (key: string, vars?: Record<string, string | number>) => string
 }) {
+    const [isCopied, setIsCopied] = useState(false)
+
+    const handleCopy = async () => {
+        if (!scriptRawContent) return
+
+        // Use the same block building logic as the timeline to get clean, segmented text
+        const blocks = buildTranscriptBlocks(scriptRawContent)
+        const textToCopy = blocks.map(b => b.text).join("\n\n")
+
+        try {
+            await navigator.clipboard.writeText(textToCopy)
+            setIsCopied(true)
+            setTimeout(() => setIsCopied(false), 2000)
+        } catch (err) {
+            console.error("Failed to copy:", err)
+        }
+    }
+
     return (
-        <Card className="bg-black/20 border-white/5">
+        <Card className="bg-black/20 border-white/5 relative group">
+            <div className="absolute top-3 right-3 md:top-4 md:right-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-2 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10"
+                    onClick={handleCopy}
+                >
+                    {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    {isCopied ? t("tasks.copied") : t("tasks.copyToClipboard")}
+                </Button>
+            </div>
+
             <CardHeader className="pb-2">
                 <div className="space-y-1">
                     <div className="text-sm text-muted-foreground">

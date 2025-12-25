@@ -5,7 +5,7 @@ import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { formatSeconds, parseScriptRawPayload } from "@/components/tasks/transcript"
 
-type TranscriptBlock = {
+export type TranscriptBlock = {
   start: number
   end: number
   text: string
@@ -13,7 +13,7 @@ type TranscriptBlock = {
   segEndIdx: number
 }
 
-function buildTranscriptBlocks(scriptRawContent?: string): TranscriptBlock[] {
+export function buildTranscriptBlocks(scriptRawContent?: string): TranscriptBlock[] {
   const payload = parseScriptRawPayload(scriptRawContent)
   const segments = Array.isArray(payload?.segments) ? payload?.segments : []
   if (!segments.length) return []

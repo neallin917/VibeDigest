@@ -26,7 +26,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="grid gap-6">
-                    <Card className="glass overflow-visible">
+                    <Card className="overflow-visible">
                         <CardContent className="space-y-6 pt-6">
                             {/* Language Section */}
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -43,7 +43,7 @@ export default function SettingsPage() {
                                 </div>
                             </div>
 
-                            <Separator className="bg-white/5" />
+                            <Separator />
 
                             {/* Notification Section */}
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
