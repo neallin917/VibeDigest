@@ -14,6 +14,11 @@ VibeDigest is a full-stack tool engineered to download videos, transcribe audio,
 - **Design System**: "Supabase-style" aesthetic (Dark mode, Glassmorphism, Emerald Green accents).
 - **Auth**: **Web2 Only** (Email/Google) via Supabase Auth. Web3 Login removed in v3.1.
 
+**Recent (Post-v3.3) Additions:**
+- **Seekable Playback**: Task detail page supports click-to-seek for YouTube/Bilibili embeds and audio sources.
+- **Transcript Timeline UX**: Full script is rendered as clickable "timeline blocks" derived from `task_outputs(kind="script_raw")`.
+- **Supadata (Optional, YouTube Fallback)**: Backend can fetch YouTube transcripts from Supadata when `SUPADATA_API_KEY` is configured, skipping heavy download/transcribe where possible.
+
 ### 1.1 Directory Structure & File Placement
 
 - `backend/`: **Backend Source** (Python)
@@ -21,6 +26,7 @@ VibeDigest is a full-stack tool engineered to download videos, transcribe audio,
     - `db_client.py`: Supabase Service Role interactions (Data Plane).
     - `transcriber.py`: OpenAI Whisper Integration + `pydub` Chunking.
     - `notifier.py`: Email notifications via Resend.
+    - `supadata_client.py`: **Optional** Supadata transcript fetcher (YouTube only) using `httpx`.
     - `*.py`: Stateless processors (yt-dlp).
 - `frontend/`: **Frontend Source** (Next.js/TypeScript)
     - `src/app/`: App Router pages.
@@ -33,6 +39,13 @@ VibeDigest is a full-stack tool engineered to download videos, transcribe audio,
     - `src/middleware.ts`: Auth Gatekeeper.
     - `src/components/ui/`: Reusable UI components (Button, Card, etc.).
     - `src/components/layout/`: App shell & navigation (`Sidebar`, `MobileNav`, shared `navItems`).
+    - `src/components/tasks/`: Media + transcript UX
+        - `VideoEmbed.tsx`: Video source routing + seek controller (YouTube via JS API; Bilibili best-effort reload).
+        - `YouTubePlayer.tsx`: YouTube IFrame Player API wrapper with `seek(seconds)` controller.
+        - `AudioEmbed.tsx`: HTML5 audio player with `seek(seconds)` controller.
+        - `TranscriptKeyframesPanel.tsx`: Collapsible "Timeline (beta)" keyframes panel.
+        - `TranscriptTimeline.tsx`: Clickable transcript blocks (full script timeline).
+        - `transcript.ts`: `script_raw` parsing + time formatting helpers.
     - `src/lib/`: Utilities (`utils.ts`), API clients (`api.ts`), Supabase client (`supabase.ts`).
 - `scripts/`: Utility scripts.
     - `start.py`: Production runner script.
@@ -98,7 +111,7 @@ docker-compose -f docker-compose.test.yml up -d
 ### 3.2 Backend (Service Worker)
 *   **Framework**: FastAPI (Python 3.10+).
 *   **Role**: Stateless worker. **Triggered via HTTP**, writes state to Supabase.
-*   **Key Libs**: `openai`, `yt-dlp`, `pydub`, `resend`.
+*   **Key Libs**: `openai`, `yt-dlp`, `pydub`, `resend`, `httpx` (Supadata optional).
 *   **Package Manager**: `uv` (Required).
 
 ### 3.3 Database (Supabase)
@@ -134,8 +147,11 @@ docker-compose -f docker-compose.test.yml up -d
     *   Worker checks Supabase: Is this video already done?
     *   If New:
         *   Sets `tasks.status = 'processing'`.
-        *   Downloads audio (`yt-dlp`).
-        *   Transcribes (`OpenAI Whisper`).
+        *   For YouTube: if `SUPADATA_API_KEY` is configured, **try Supadata transcript** first.
+            *   If Supadata succeeds: fetch metadata only (`yt-dlp` info extract), persist `script_raw` + `script` from Supadata segments.
+            *   If Supadata fails/unavailable: fallback to download + Whisper.
+        *   Downloads audio (`yt-dlp`) (fallback path).
+        *   Transcribes (`OpenAI Whisper`) (fallback path).
         *   Generates Summary (`OpenAI ChatCompletion`).
     *   If Cached:
         *   Skips processing, returns existing `output_id`.
@@ -249,6 +265,7 @@ docker-compose -f docker-compose.test.yml up -d
 | `SUPABASE_SERVICE_KEY` | Backend `.env` | Admin DB Access | **CRITICAL (Private)** |
 | `OPENAI_API_KEY` | Backend `.env` | AI Generation | **CRITICAL (Private)** |
 | `RESEND_API_KEY` | Backend `.env` | Email Sending | **CRITICAL (Private)** |
+| `SUPADATA_API_KEY` | Backend `.env` | Optional YouTube transcript fetch (Supadata) | **Private** |
 | `NEXT_PUBLIC_SUPABASE_URL` | Frontend `.env` | Public API URL | Public |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Frontend `.env` | Public Client Key | Public |
 

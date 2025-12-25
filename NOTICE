@@ -1,0 +1,15 @@
+VibeDigest — Third-Party Notices
+
+This project integrates with third-party services and APIs. Their respective
+terms, licenses, and policies apply.
+
+1) YouTube IFrame Player API
+   - Used for seekable YouTube playback in the web UI.
+   - The frontend dynamically loads `https://www.youtube.com/iframe_api`.
+
+2) Supadata API (Optional)
+   - Used (when configured) as a YouTube transcript fetch fallback to avoid
+     downloading/transcribing when possible.
+   - Requires `SUPADATA_API_KEY`.
+
+
