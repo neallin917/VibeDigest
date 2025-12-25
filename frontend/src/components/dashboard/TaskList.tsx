@@ -279,6 +279,11 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                                         <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
                                             {task.video_title || task.video_url}
                                         </h4>
+                                        {task.id === DEMO_TASK_ID && (
+                                            <Badge variant="outline" className="shrink-0 text-[10px] h-5 px-1.5 py-0 font-normal border-blue-500/30 text-blue-400 bg-blue-500/10">
+                                                Demo
+                                            </Badge>
+                                        )}
                                         {task.id !== DEMO_TASK_ID && (
                                             <div className="hidden group-hover:flex items-center opacity-0 group-hover:opacity-100 transition-all duration-200 shrink-0">
                                                 <Button
@@ -296,11 +301,6 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                                 </>
                             )}
                             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                {task.id === DEMO_TASK_ID && (
-                                    <Badge variant="outline" className="text-[10px] h-5 px-1.5 py-0 font-normal border-blue-500/30 text-blue-400 bg-blue-500/10">
-                                        Demo
-                                    </Badge>
-                                )}
                                 <Badge variant="outline" className="text-[10px] h-5 px-1.5 py-0 font-normal border-white/10 bg-white/5">
                                     {getPlatformFromUrl(task.video_url)}
                                 </Badge>
@@ -316,7 +316,23 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                             </div>
                         </div>
 
-                        <div>
+                        <div className="flex items-center gap-2">
+                            {task.id !== DEMO_TASK_ID && (
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                    onClick={(e) => handleDeleteClick(e, task.id)}
+                                    disabled={isDeleting === task.id}
+                                >
+                                    {isDeleting === task.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Trash2 className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            )}
+
                             {task.status === "processing" && (
                                 <Badge variant="processing" className="gap-1 bg-blue-500/15 text-blue-500 hover:bg-blue-500/25">
                                     <span className="animate-pulse">●</span> <span className="hidden sm:inline">{task.progress}%</span>
@@ -336,22 +352,6 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                                 <Badge variant="secondary" className="gap-1">
                                     <span className="hidden sm:inline">{t("tasks.waiting")}</span>
                                 </Badge>
-                            )}
-
-                            {task.id !== DEMO_TASK_ID && (
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-8 w-8 ml-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all duration-200"
-                                    onClick={(e) => handleDeleteClick(e, task.id)}
-                                    disabled={isDeleting === task.id}
-                                >
-                                    {isDeleting === task.id ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <Trash2 className="h-4 w-4" />
-                                    )}
-                                </Button>
                             )}
                         </div>
                     </div>
