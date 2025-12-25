@@ -65,18 +65,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
     const [activeTab, setActiveTab] = useState("summary")
     const [mediaController, setMediaController] = useState<MediaController | null>(null)
     const supabase = createClient()
-    const { t } = useI18n()
+
+    const { t, locale } = useI18n()
     const { permission, subscribeToTask, isSubscribed } = useTaskNotification()
 
-    // Handle task completion notification
-    // Moved to global TaskNotificationListener
-    // useEffect(() => {
-    //     if (!task || !id) return
-    //     if (task.status === "completed") {
-    //         // Only sends if subscribed
-    //         sendTaskNotification(id, task.video_title || task.video_url)
-    //     }
-    // }, [task, id, sendTaskNotification])
+    // ... (existing code)
 
     const handleNotifyClick = async () => {
         if (!id) return
@@ -142,12 +135,29 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
         }
     }, [id, supabase, fetchOutputs, fetchTask])
 
-    // Retry is intentionally not exposed in the UI.
-
     if (!task) return <div className="p-10 text-center">{t("tasks.loadingTask")}</div>
 
-    const script = outputs.find(o => o.kind === 'script')
-    const summary = outputs.find(o => o.kind === 'summary')
+    // Helper to find best matching output for current locale
+    const getLocalizedOutput = (kind: string) => {
+        if (!outputs.length) return undefined
+        const kindOutputs = outputs.filter(o => o.kind === kind)
+        if (!kindOutputs.length) return undefined
+
+        // 1. Try exact locale match
+        const match = kindOutputs.find(o => o.locale === locale)
+        if (match) return match
+
+        // 2. Try 'en' fallback
+        const enMatch = kindOutputs.find(o => o.locale === 'en')
+        if (enMatch) return enMatch
+
+        // 3. Fallback to first available
+        return kindOutputs[0]
+    }
+
+    const script = getLocalizedOutput('script')
+    const summary = getLocalizedOutput('summary')
+    // Source matches don't have multiple locales usually, but good to keep consistent if we add them
     const summarySource = outputs.find(o => o.kind === 'summary_source')
     const scriptRaw = outputs.find(o => o.kind === 'script_raw')
     const audio = outputs.find(o => o.kind === 'audio')

@@ -108,7 +108,6 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                 table: 'tasks',
                 filter: `user_id=eq.${userId}`
             }, (payload) => {
-                console.log('Realtime update:', payload)
                 fetchTasks(userId)
             })
             .subscribe()
@@ -133,12 +132,6 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
         if (!taskId) return
 
         setIsDeleting(taskId)
-        // Close modal immediately to show loading on the row trash icon? 
-        // Or keep modal open with loading? 
-        // The modal has isLoading prop. Let's use that.
-        // Actually, current implementation of modal uses isLoading. 
-        // But let's look at `isDeleting` state usage in the list.
-        // We can just keep modal open until done.
 
         try {
             // Soft delete via Supabase directly
