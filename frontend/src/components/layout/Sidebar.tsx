@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { LogOut } from "lucide-react"
+import { ChevronLeft, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase"
@@ -13,28 +13,43 @@ import { FeedbackDialog } from "./FeedbackDialog"
 import { NAV_ITEMS } from "@/components/layout/navItems"
 import { Heading, Text } from "@/components/ui/typography"
 
-export function Sidebar() {
+export function Sidebar({ onHide }: { onHide?: () => void }) {
     const pathname = usePathname()
     const [userEmail, setUserEmail] = useState<string | null>(null)
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
     const { t } = useI18n()
 
     useEffect(() => {
         supabase.auth.getUser().then(({ data: { user } }) => {
             setUserEmail(user?.email || null)
         })
-    }, [])
+    }, [supabase])
 
     return (
         <div className="hidden md:flex h-dvh w-64 flex-col border-r bg-card">
             <div className="p-6">
-                <div className="flex items-center gap-2">
-                    <Text as="span" className="text-primary" weight="semibold">
-                        ⚡
-                    </Text>
-                    <Heading as="h1" variant="h3" className="m-0">
-                        {t("brand.appName")}
-                    </Heading>
+                <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <Text as="span" className="text-primary" weight="semibold">
+                            ⚡
+                        </Text>
+                        <Heading as="h1" variant="h3" className="m-0 truncate">
+                            {t("brand.appName")}
+                        </Heading>
+                    </div>
+
+                    {onHide ? (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={t("nav.hideSidebar")}
+                            title={t("nav.hideSidebar")}
+                            onClick={onHide}
+                            className="text-muted-foreground hover:text-foreground"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                    ) : null}
                 </div>
             </div>
 
