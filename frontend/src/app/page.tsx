@@ -21,7 +21,7 @@ export default function LandingPage() {
         <div className="absolute bottom-[-10%] left-[20%] w-[40%] h-[40%] bg-emerald-500/15 rounded-full blur-[120px]" />
       </div>
 
-      <div className="absolute top-4 right-4 z-50">
+      <div className="absolute top-8 right-4 z-50">
         <LanguageInlineSelect />
       </div>
 
@@ -41,7 +41,7 @@ export default function LandingPage() {
           </Text>
         </div>
 
-        <div className="flex gap-4">
+        <div className="w-full flex justify-center gap-4">
           <Link href="/login">
             <Button
               size="xl"
@@ -50,7 +50,6 @@ export default function LandingPage() {
               {t("landing.getStarted")} <ArrowRight className="h-5 w-5" />
             </Button>
           </Link>
-
         </div>
 
         {/* Feature Grid */}

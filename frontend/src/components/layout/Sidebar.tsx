@@ -84,7 +84,7 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
                     variant="ghost"
                     onClick={async () => {
                         await supabase.auth.signOut()
-                        window.location.href = '/login'
+                        window.location.href = '/'
                     }}
                     className="w-full justify-start gap-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
                 >

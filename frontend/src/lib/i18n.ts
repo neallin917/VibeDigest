@@ -57,6 +57,7 @@ const messages: Record<Locale, Messages> = {
       welcomeBack: "Welcome Back",
       signInToContinue: "Sign in to continue to {appName}",
       signInWithGoogle: "Sign in with Google",
+
       orWithEmail: "Or with Email",
       emailPlaceholder: "name@example.com",
       sending: "Sending...",
@@ -324,6 +325,7 @@ const messages: Record<Locale, Messages> = {
       welcomeBack: "欢迎回来",
       signInToContinue: "登录以继续",
       signInWithGoogle: "Google 登录",
+
       orWithEmail: "或使用邮箱",
       emailPlaceholder: "你的邮箱",
       sending: "发送中...",
@@ -617,6 +619,7 @@ const messages: Record<Locale, Messages> = {
       welcomeBack: "Bienvenido de nuevo",
       signInToContinue: "Inicia sesión para continuar",
       signInWithGoogle: "Entrar con Google",
+
       orWithEmail: "O con correo",
       emailPlaceholder: "Tu correo electrónico",
       sending: "Enviando...",
