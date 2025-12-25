@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useState, useEffect, useCallback } from "react"
+import { use, useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { ArrowLeft, FileText, Subtitles, Copy, Check } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -80,6 +80,8 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
         await subscribeToTask(id)
     }
 
+    const videoRef = useRef<HTMLDivElement>(null)
+
     // IMPORTANT: keep hooks order stable across renders.
     // Do not place hooks after conditional returns (e.g. when task is null on first render).
     const handleMediaReady = useCallback((ctrl: MediaController) => {
@@ -90,6 +92,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
         if (!mediaController) return
         try {
             mediaController.seek(seconds)
+            // Scroll to video player with a bit of offset if possible, 
+            // but 'center' block alignment usually works well to bring it into focus.
+            if (videoRef.current) {
+                videoRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }
         } catch {
             // ignore
         }
@@ -229,7 +236,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                             </div>
                         </CardHeader>
                         <CardContent className="p-4 md:p-6 pt-0">
-                            <div className="mb-6">
+                            <div className="mb-6" ref={videoRef}>
                                 {hasVideo ? <VideoEmbed videoUrl={task.video_url} title={task.video_title} onReady={handleMediaReady} /> : null}
                                 {!hasVideo && audio?.status === "completed" && audioUrl ? (
                                     <AudioEmbed audioUrl={audioUrl} title={task.video_title} coverUrl={audioCoverUrl} sourceUrl={task.video_url} onReady={handleMediaReady} />
