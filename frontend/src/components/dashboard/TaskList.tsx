@@ -13,6 +13,8 @@ import { LOCALE_DATE_TAG } from "@/lib/i18n"
 import { ApiClient } from "@/lib/api"
 import { ConfirmationModal } from "@/components/ui/confirmation-modal"
 
+const DEMO_TASK_ID = "1e60a06c-ef37-4f82-bffd-1a5135cb45c7"
+
 type Task = {
     id: string
     video_url: string
@@ -58,7 +60,7 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
         const { data } = await supabase
             .from('tasks')
             .select('*')
-            .eq('user_id', uid)
+            .or(`user_id.eq.${uid},id.eq.${DEMO_TASK_ID}`)
             .eq('is_deleted', false)
             .order('created_at', { ascending: false })
 
@@ -277,21 +279,28 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                                         <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
                                             {task.video_title || task.video_url}
                                         </h4>
-                                        <div className="hidden group-hover:flex items-center opacity-0 group-hover:opacity-100 transition-all duration-200 shrink-0">
-                                            <Button
-                                                size="icon"
-                                                variant="ghost"
-                                                className="h-6 w-6 text-muted-foreground hover:text-primary"
-                                                onClick={(e) => startEditing(e, task)}
-                                            >
-                                                <Edit2 className="h-3 w-3" />
-                                            </Button>
-                                        </div>
+                                        {task.id !== DEMO_TASK_ID && (
+                                            <div className="hidden group-hover:flex items-center opacity-0 group-hover:opacity-100 transition-all duration-200 shrink-0">
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-6 w-6 text-muted-foreground hover:text-primary"
+                                                    onClick={(e) => startEditing(e, task)}
+                                                >
+                                                    <Edit2 className="h-3 w-3" />
+                                                </Button>
+                                            </div>
+                                        )}
                                     </div>
 
                                 </>
                             )}
                             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                                {task.id === DEMO_TASK_ID && (
+                                    <Badge variant="outline" className="text-[10px] h-5 px-1.5 py-0 font-normal border-blue-500/30 text-blue-400 bg-blue-500/10">
+                                        Demo
+                                    </Badge>
+                                )}
                                 <Badge variant="outline" className="text-[10px] h-5 px-1.5 py-0 font-normal border-white/10 bg-white/5">
                                     {getPlatformFromUrl(task.video_url)}
                                 </Badge>
@@ -329,19 +338,21 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                                 </Badge>
                             )}
 
-                            <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 ml-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all duration-200"
-                                onClick={(e) => handleDeleteClick(e, task.id)}
-                                disabled={isDeleting === task.id}
-                            >
-                                {isDeleting === task.id ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Trash2 className="h-4 w-4" />
-                                )}
-                            </Button>
+                            {task.id !== DEMO_TASK_ID && (
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-8 w-8 ml-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                    onClick={(e) => handleDeleteClick(e, task.id)}
+                                    disabled={isDeleting === task.id}
+                                >
+                                    {isDeleting === task.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Trash2 className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            )}
                         </div>
                     </div>
                 ))}

@@ -2,7 +2,7 @@ import os
 import openai
 import logging
 import asyncio
-from typing import Optional
+from typing import Optional, Any
 import json
 import re
 
@@ -233,64 +233,8 @@ class Summarizer:
             return None
         return s[start : end + 1]
 
-    def _validate_summary_json_v1(self, obj: dict, target_language: str) -> dict:
-        """Coerce/validate summary JSON to our v1 schema."""
-        if not isinstance(obj, dict):
-            raise ValueError("Summary JSON must be an object")
-
-        version = obj.get("version", 1)
-        language = obj.get("language", target_language)
-        overview = obj.get("overview", "")
-        keypoints = obj.get("keypoints", [])
-
-        if not isinstance(version, int):
-            version = 1
-        if not isinstance(language, str) or not language:
-            language = target_language
-        if not isinstance(overview, str):
-            overview = str(overview) if overview is not None else ""
-
-        normalized_kps = []
-        if isinstance(keypoints, list):
-            for kp in keypoints:
-                if not isinstance(kp, dict):
-                    continue
-                title = kp.get("title", "")
-                detail = kp.get("detail", "")
-                evidence = kp.get("evidence", "")
-                terms = kp.get("terms", [])
-                if not isinstance(title, str):
-                    title = str(title) if title is not None else ""
-                if not isinstance(detail, str):
-                    detail = str(detail) if detail is not None else ""
-                if not isinstance(evidence, str):
-                    evidence = str(evidence) if evidence is not None else ""
-                if not isinstance(terms, list):
-                    terms = []
-                terms = [str(x) for x in terms if isinstance(x, (str, int, float))]
-                title = title.strip()
-                detail = detail.strip()
-                evidence = evidence.strip()
-                if not title and not detail:
-                    continue
-                normalized_kps.append(
-                    {
-                        "title": title or detail[:48] or "Key Point",
-                        "detail": detail,
-                        "terms": terms,
-                        "evidence": evidence,
-                    }
-                )
-
-        return {
-            "version": int(version),
-            "language": language,
-            "overview": overview.strip(),
-            "keypoints": normalized_kps,
-        }
-
     def _fallback_summary_json_v1(self, transcript: str, target_language: str) -> str:
-        """Deterministic fallback: always return valid JSON (v1)."""
+        """Deterministic fallback: always return valid JSON (current schema)."""
         cleaned = self._remove_timestamps_and_meta(transcript or "")
         cleaned = cleaned.strip()
         overview = cleaned[:900].strip()
@@ -308,13 +252,12 @@ class Summarizer:
                 {
                     "title": snippet[:48] + ("…" if len(snippet) > 48 else ""),
                     "detail": snippet,
-                    "terms": [],
                     "evidence": "",
                 }
             )
 
         payload = {
-            "version": 1,
+            "version": 2,
             "language": target_language,
             "overview": overview,
             "keypoints": keypoints,
@@ -1263,6 +1206,349 @@ Core requirements:
             logger.error(f"生成摘要失败: {str(e)}")
             return self._fallback_summary_json_v1(transcript, target_language)
 
+    # ---------------------------------------------------------------------
+    # Timed Summary (inject start/end seconds from script_raw segments) - v2
+    # ---------------------------------------------------------------------
+
+    @staticmethod
+    def _normalize_lang_code(lang: Optional[str]) -> str:
+        """Best-effort normalize to base language code for routing/labels."""
+        if not lang:
+            return "unknown"
+        s = str(lang).strip().lower().replace("_", "-")
+        if not s:
+            return "unknown"
+        base = s.split("-")[0]
+        return base or "unknown"
+
+    def _parse_script_raw_payload(self, script_raw_json: Optional[str]) -> tuple[str, list[dict]]:
+        """Return (language, segments[{start,end,text}]) from task_outputs(kind='script_raw').content."""
+        if not script_raw_json:
+            return "unknown", []
+        try:
+            payload = json.loads(script_raw_json)
+        except Exception:
+            return "unknown", []
+        if not isinstance(payload, dict):
+            return "unknown", []
+        lang = self._normalize_lang_code(payload.get("language"))
+        segs = payload.get("segments", [])
+        if not isinstance(segs, list):
+            return lang, []
+        out: list[dict] = []
+        for s in segs:
+            if not isinstance(s, dict):
+                continue
+            start = s.get("start", None)
+            end = s.get("end", None)
+            text = s.get("text", "")
+            try:
+                start_f = float(start)
+            except Exception:
+                continue
+            if start_f < 0 or not (start_f == start_f):  # NaN guard
+                continue
+            try:
+                end_f = float(end) if end is not None else start_f
+            except Exception:
+                end_f = start_f
+            if end_f < start_f:
+                end_f = start_f
+            text_s = str(text or "").strip()
+            if not text_s:
+                continue
+            out.append({"start": start_f, "end": end_f, "text": text_s})
+        return lang, out
+
+    @staticmethod
+    def _build_keypoint_query(kp: dict) -> str:
+        """Build a compact query string for aligning a keypoint to transcript segments (same-language)."""
+        if not isinstance(kp, dict):
+            return ""
+        title = str(kp.get("title", "") or "").strip()
+        detail = str(kp.get("detail", "") or "").strip()
+        evidence = str(kp.get("evidence", "") or "").strip()
+        parts: list[str] = []
+        if evidence:
+            parts.append(evidence)
+        if title:
+            parts.append(title)
+        if detail:
+            parts.append(detail[:220])
+        return " ".join([p for p in parts if p]).strip()
+
+    @staticmethod
+    def _is_cjk_text(text: str) -> bool:
+        if not text:
+            return False
+        # Fast heuristic: any CJK char implies CJK-like tokenization works better
+        return any("\u4e00" <= ch <= "\u9fff" for ch in text)
+
+    @staticmethod
+    def _normalize_for_match(text: str) -> str:
+        s = (text or "").lower()
+        # Keep alnum + CJK; drop punctuation/whitespace
+        s = re.sub(r"[^\w\u4e00-\u9fff]+", " ", s, flags=re.UNICODE)
+        return re.sub(r"\s+", " ", s).strip()
+
+    def _tokenize_for_match(self, text: str) -> set[str]:
+        s = self._normalize_for_match(text)
+        if not s:
+            return set()
+        if self._is_cjk_text(s):
+            compact = s.replace(" ", "")
+            if len(compact) <= 1:
+                return {compact} if compact else set()
+            # Character bigrams work decently across zh/ja without external deps
+            return {compact[i : i + 2] for i in range(len(compact) - 1)}
+        # Non-CJK: word tokens
+        return {t for t in s.split(" ") if len(t) >= 2}
+
+    def _score_segment_match(self, *, query: str, query_tokens: set[str], seg_text: str, seg_tokens: set[str]) -> float:
+        """
+        Score how well a transcript segment matches a query (keypoint).
+        Higher is better. Purely heuristic; must be robust across languages.
+        """
+        if not seg_text:
+            return 0.0
+        qn = self._normalize_for_match(query)
+        sn = self._normalize_for_match(seg_text)
+        if not qn or not sn:
+            return 0.0
+        score = 0.0
+        # Exact substring gets a big boost (best signal)
+        if len(qn) >= 8 and qn in sn:
+            score += 30.0
+        # Token overlap
+        if query_tokens and seg_tokens:
+            inter = len(query_tokens & seg_tokens)
+            # Normalize by query size to prefer "explains the same thing" rather than long segments
+            score += 12.0 * (inter / max(1, len(query_tokens)))
+            # Small extra for absolute overlap
+            score += min(8.0, float(inter))
+        # Slightly prefer shorter segments (less likely to be "everything")
+        score -= min(3.0, len(sn) / 280.0)
+        return score
+
+    def _inject_keypoint_timestamps(self, summary_obj: dict, segments: list[dict]) -> dict:
+        """
+        Add startSeconds/endSeconds to keypoints by aligning to script_raw segments.
+        Backward compatible: if alignment fails, leaves keypoint untouched.
+        """
+        if not isinstance(summary_obj, dict):
+            return summary_obj
+        kps = summary_obj.get("keypoints", [])
+        if not isinstance(kps, list) or not segments:
+            return summary_obj
+
+        # Precompute segment token sets (perf)
+        seg_cache: list[tuple[dict, set[str]]] = []
+        for s in segments:
+            seg_cache.append((s, self._tokenize_for_match(s.get("text", ""))))
+
+        for kp in kps:
+            if not isinstance(kp, dict):
+                continue
+            # Don't override if already present
+            if isinstance(kp.get("startSeconds"), (int, float)) and kp.get("startSeconds") is not None:
+                continue
+            query = self._build_keypoint_query(kp)
+            if not query:
+                continue
+
+            q_tokens = self._tokenize_for_match(query)
+            best = None
+            best_score = -1e9
+
+            for seg, seg_tokens in seg_cache:
+                s_text = seg.get("text", "")
+                sc = self._score_segment_match(query=query, query_tokens=q_tokens, seg_text=s_text, seg_tokens=seg_tokens)
+                if sc > best_score:
+                    best_score = sc
+                    best = seg
+
+            # Threshold: avoid random anchors on low-signal matches
+            if not best or best_score < 6.0:
+                continue
+
+            try:
+                kp["startSeconds"] = float(best.get("start", 0.0))
+                kp["endSeconds"] = float(best.get("end", kp["startSeconds"]))
+            except Exception:
+                continue
+
+        # Bump version to indicate timed keypoints are available
+        try:
+            summary_obj["version"] = max(int(summary_obj.get("version", 1) or 1), 2)
+        except Exception:
+            summary_obj["version"] = 2
+        return summary_obj
+
+    async def summarize_in_language_with_anchors(
+        self,
+        transcript: str,
+        *,
+        summary_language: str,
+        video_title: str | None = None,
+        script_raw_json: str | None = None,
+    ) -> str:
+        """
+        Generate summary JSON in the specified language, then inject timestamps into keypoints using script_raw segments.
+        This should be used for the stable `summary_source` (transcript language).
+        """
+        base = await self.summarize(transcript, summary_language, video_title)
+        _, segments = self._parse_script_raw_payload(script_raw_json)
+        if not segments:
+            return base
+        try:
+            obj = json.loads(base)
+            if isinstance(obj, dict):
+                obj = self._inject_keypoint_timestamps(obj, segments)
+                return json.dumps(obj, ensure_ascii=False)
+            return base
+        except Exception:
+            return base
+
+    def _validate_summary_json_v1(self, obj: dict, target_language: str) -> dict:
+        """Coerce/validate summary JSON to our current schema (legacy name kept for compatibility)."""
+        if not isinstance(obj, dict):
+            raise ValueError("Summary JSON must be an object")
+
+        version = obj.get("version", 2)
+        language = obj.get("language", target_language)
+        overview = obj.get("overview", "")
+        keypoints = obj.get("keypoints", [])
+
+        if not isinstance(version, int):
+            version = 2
+        if not isinstance(language, str) or not language:
+            language = target_language
+        if not isinstance(overview, str):
+            overview = str(overview) if overview is not None else ""
+
+        normalized_kps = []
+        if isinstance(keypoints, list):
+            for kp in keypoints:
+                if not isinstance(kp, dict):
+                    continue
+                title = kp.get("title", "")
+                detail = kp.get("detail", "")
+                evidence = kp.get("evidence", "")
+                start_seconds = kp.get("startSeconds", None)
+                end_seconds = kp.get("endSeconds", None)
+                if not isinstance(title, str):
+                    title = str(title) if title is not None else ""
+                if not isinstance(detail, str):
+                    detail = str(detail) if detail is not None else ""
+                if not isinstance(evidence, str):
+                    evidence = str(evidence) if evidence is not None else ""
+                title = title.strip()
+                detail = detail.strip()
+                evidence = evidence.strip()
+                if not title and not detail:
+                    continue
+                out_kp: dict = {
+                    "title": title or detail[:48] or "Key Point",
+                    "detail": detail,
+                    "evidence": evidence,
+                }
+                if isinstance(start_seconds, (int, float)) and start_seconds is not None and float(start_seconds) == float(start_seconds):
+                    out_kp["startSeconds"] = float(start_seconds)
+                if isinstance(end_seconds, (int, float)) and end_seconds is not None and float(end_seconds) == float(end_seconds):
+                    out_kp["endSeconds"] = float(end_seconds)
+                normalized_kps.append(out_kp)
+
+        return {
+            "version": int(version),
+            "language": language,
+            "overview": overview.strip(),
+            "keypoints": normalized_kps,
+        }
+
+    async def translate_summary_json(self, summary_json: str, *, target_language: str) -> str:
+        """
+        Translate a summary JSON into target_language while preserving structure and timestamps.
+        Only title/detail/evidence are translated; startSeconds/endSeconds are kept.
+        """
+        if not summary_json:
+            return summary_json
+        try:
+            src_obj = json.loads(summary_json)
+        except Exception:
+            return summary_json
+        if not isinstance(src_obj, dict):
+            return summary_json
+
+        # Normalize before translating to ensure predictable structure
+        src_obj = self._validate_summary_json_v1(src_obj, str(src_obj.get("language") or "unknown"))
+
+        if not self.client:
+            # No translation available; return the original
+            return json.dumps(src_obj, ensure_ascii=False)
+
+        tgt = self._normalize_lang_code(target_language)
+        language_name = self.language_map.get(tgt, tgt)
+
+        system_prompt = f"""You translate a JSON summary object into {language_name}.
+Rules:
+- Keep the JSON structure identical: same keys, same array order, same number of keypoints.
+- Do NOT change any numeric fields (startSeconds/endSeconds).
+- Translate ONLY these string fields: overview, keypoints[].title, keypoints[].detail, keypoints[].evidence.
+- Preserve numbers and proper nouns where appropriate.
+- Output ONLY valid JSON matching this schema (no markdown):
+{{
+  "version": 2,
+  "language": "{tgt}",
+  "overview": string,
+  "keypoints": [
+    {{
+      "title": string,
+      "detail": string,
+      "evidence": string,
+      "startSeconds": number,
+      "endSeconds": number
+    }}
+  ]
+}}
+Note: startSeconds/endSeconds may be omitted for items where they are missing in the input.
+"""
+
+        user_prompt = json.dumps(
+            {
+                "targetLanguage": tgt,
+                "input": src_obj,
+            },
+            ensure_ascii=False,
+        )
+
+        kwargs = dict(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=max(1200, int(self.summary_integrate_max_output_tokens)),
+            temperature=0.1,
+        )
+        if self.use_response_format_json:
+            kwargs["response_format"] = {"type": "json_object"}
+
+        try:
+            resp = await self._chat_completions_create(models=self.summary_models, **kwargs)
+            raw = (resp.choices[0].message.content or "").strip()
+            json_text = self._extract_first_json_object(raw) or raw
+            out_obj = json.loads(json_text)
+            if isinstance(out_obj, dict):
+                out_obj = self._validate_summary_json_v1(out_obj, tgt)
+                # Force target language
+                out_obj["language"] = tgt
+                out_obj["version"] = max(int(out_obj.get("version", 2) or 2), 2)
+                return json.dumps(out_obj, ensure_ascii=False)
+        except Exception as e:
+            logger.warning(f"translate_summary_json failed: {e}")
+
+        # Fallback: return source summary
+        return json.dumps(src_obj, ensure_ascii=False)
+
     async def _summarize_single_text_json(self, transcript: str, target_language: str) -> str:
         """Generate structured summary JSON (v1) for a single text."""
         language_name = self.language_map.get(target_language, "English")
@@ -1272,28 +1558,28 @@ Return ONLY a valid JSON object (no markdown, no code fences), in {language_name
 
 You must output this exact schema:
 {{
-  "version": 1,
+  "version": 2,
   "language": "{target_language}",
   "overview": string,
   "keypoints": [
     {{
       "title": string,
       "detail": string,
-      "terms": string[],
       "evidence": string
     }}
   ]
 }}
 
 Content requirements:
-- overview: a concise but information-dense introduction that captures the full talk's purpose, scope, and main arc.
-- keypoints: the number of items is NOT fixed. Choose the count based on transcript information density.
-  Quality > quantity: include only high-signal, non-redundant points (it is OK to output fewer points for short/sparse transcripts).
-  Each item must be self-contained and readable: a clear claim/insight (title) + explanation/context (detail).
-  If there are concrete numbers/examples/quotes, put them into evidence.
-  Put important terms/names into terms.
-- Coverage: ensure keypoints cover early/middle/late parts; do NOT ignore the second half.
-- Faithfulness: do not invent facts; if uncertain, say so in evidence.
+- overview: ONE readable paragraph that explains what this content is about, why it matters, and the main thread. No headings.
+- keypoints: the number of items is NOT fixed. Choose the count based on information density of the transcript.
+  Quality > quantity. It's OK to output only a few points for short/simple content, and more points for long/dense content.
+  Each keypoint must be a knowledge-bearing insight (not a vague topic label).
+  - title: a crisp insight headline (short; no filler like “Introduction/Conclusion”).
+  - detail: ONE concise paragraph (2–5 sentences) that explains the idea + context + implications. Do NOT use bullet lists.
+  - evidence: OPTIONAL, very short. Only include concrete numbers/examples/quotes if present; otherwise empty string.
+- Coverage: ensure keypoints cover early/middle/late parts; avoid over-indexing on the beginning.
+- Faithfulness: do not invent facts. If uncertain, be explicit in evidence.
 """
 
         user_prompt = f"""Summarize the following transcript into the required JSON schema in {language_name}.
@@ -1359,16 +1645,17 @@ Schema:
     {{
       "title": string,
       "detail": string,
-      "terms": string[],
       "evidence": string
     }}
   ]
 }}
 
 Rules:
-- The number of keypoints is NOT fixed. Extract as many as needed to capture the chunk's meaningful insights.
-  Prefer fewer, stronger points over many weak ones. Avoid redundancy. (Hard cap: do not exceed 12.)
-- Prefer concrete, knowledge-rich points. Keep each item self-contained.
+- Extract only non-redundant, knowledge-rich insights from THIS chunk.
+  Prefer fewer, stronger points over many weak ones. Keep at most 12 items for this chunk.
+  Each item must read well standalone.
+- detail must be ONE concise paragraph (2–5 sentences). Do NOT use bullet lists.
+- evidence is OPTIONAL and must be very short.
 - Do not invent facts; if uncertain, note it in evidence.
 """
             user_prompt = f"""[Chunk {i+1}/{len(chunks)}] Extract keypoints from this text:
@@ -1422,18 +1709,22 @@ Rules:
         system_prompt = f"""You are a content integration expert.
 Return ONLY a valid JSON object (no markdown), in {language_name}, matching this schema:
 {{
-  "version": 1,
+  "version": 2,
   "language": "{target_language}",
   "overview": string,
-  "keypoints": [{{"title": string, "detail": string, "terms": string[], "evidence": string}}]
+  "keypoints": [{{"title": string, "detail": string, "evidence": string}}]
 }}
 
 Rules:
 - Deduplicate similar points.
-- The number of final keypoints is NOT fixed. Keep only the strongest non-overlapping points,
-  with coverage across early/middle/late content. Prefer fewer, clearer points over exhaustive lists.
+- Keep only the strongest non-overlapping points, with coverage across early/middle/late content.
+  Prefer fewer, clearer points over exhaustive lists.
   (Hard cap: do not exceed {int(self.summary_max_keypoints_final)}.)
-- overview must be a dense, readable intro.
+- overview: one tight paragraph (no headings) that explains what this content is about + the main thread.
+- keypoints:
+  - titles should be crisp.
+  - detail must be ONE concise paragraph (2–5 sentences). Do NOT use bullet lists.
+  - evidence is OPTIONAL and must be very short (numbers/examples/quotes only).
 """
         user_prompt = f"""Integrate the following extracted keypoints into the final JSON schema.
 Keypoints JSON list:
@@ -1490,7 +1781,6 @@ Keypoints JSON list:
                 {
                     "title": (snippet[:60] + ("…" if len(snippet) > 60 else "")).strip() or "Key Point",
                     "detail": snippet,
-                    "terms": [],
                     "evidence": "",
                 }
             )
@@ -1512,14 +1802,13 @@ Return ONLY a valid JSON object (no markdown, no code fences) in {language_name}
 
 Output MUST match this schema exactly:
 {{
-  "version": 1,
+  "version": 2,
   "language": "{target_language}",
   "overview": string,
   "keypoints": [
     {{
       "title": string,
       "detail": string,
-      "terms": string[],
       "evidence": string
     }}
   ]

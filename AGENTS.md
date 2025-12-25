@@ -179,6 +179,7 @@ docker-compose -f docker-compose.test.yml up -d
 *   `kind` (Text/Enum): Output type.
     *   `script`: Transcript markdown (read-only content).
     *   `summary`: AI summary markdown/text.
+    *   `summary_source`: Stable summary in transcript/source language (used for time-anchored keypoints + bilingual toggle).
     *   `translation`: Translated transcript/summary.
     *   `audio` (Xiaoyuzhou only): JSON payload in `content` with:
         *   `audioUrl`: Direct playable audio URL (no Supabase Storage usage).

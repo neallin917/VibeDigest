@@ -5,6 +5,9 @@ import { useI18n } from "@/components/i18n/I18nProvider"
 
 export type NotificationPermissionStatus = "default" | "granted" | "denied" | "unsupported"
 
+const STORAGE_KEY = "antigravity_task_subscriptions"
+const EVENT_KEY = "antigravity_task_subscriptions_updated"
+
 export function useTaskNotification() {
     const { t } = useI18n()
     const [permission, setPermission] = useState<NotificationPermissionStatus>("default")
@@ -18,7 +21,55 @@ export function useTaskNotification() {
         }
         // Map Notification.permission to our status type
         setPermission(window.Notification.permission as NotificationPermissionStatus)
+
+        // Load from localStorage
+        const loadFromStorage = () => {
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY)
+                if (stored) {
+                    setSubbedTaskIds(new Set(JSON.parse(stored)))
+                } else {
+                    setSubbedTaskIds(new Set())
+                }
+            } catch (e) {
+                console.error("Failed to load task subscriptions", e)
+            }
+        }
+
+        loadFromStorage()
+
+        // Listen for storage changes (cross-tab)
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === STORAGE_KEY) {
+                loadFromStorage()
+            }
+        }
+
+        // Listen for local changes (same-tab)
+        const handleLocalChange = () => {
+            loadFromStorage()
+        }
+
+        window.addEventListener("storage", handleStorageChange)
+        window.addEventListener(EVENT_KEY, handleLocalChange)
+
+        return () => {
+            window.removeEventListener("storage", handleStorageChange)
+            window.removeEventListener(EVENT_KEY, handleLocalChange)
+        }
     }, [])
+
+    const updateSubscriptions = (newSet: Set<string>) => {
+        // Optimistically update local state first to prevent flicker
+        setSubbedTaskIds(newSet)
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(newSet)))
+            // Dispatch custom event for other components in the same window (e.g. global listener)
+            window.dispatchEvent(new Event(EVENT_KEY))
+        } catch (e) {
+            console.error("Failed to save task subscriptions", e)
+        }
+    }
 
     const requestPermission = useCallback(async () => {
         if (!("Notification" in window)) return "unsupported"
@@ -35,21 +86,17 @@ export function useTaskNotification() {
 
     const subscribeToTask = useCallback(async (taskId: string) => {
         // optimistically add to set
-        setSubbedTaskIds(prev => {
-            const next = new Set(prev)
-            next.add(taskId)
-            return next
-        })
+        const next = new Set(subbedTaskIds)
+        next.add(taskId)
+        updateSubscriptions(next)
 
         if (permission === "default") {
             const newPermission = await requestPermission()
             if (newPermission !== "granted") {
                 // If denied/closed, remove the subscription
-                setSubbedTaskIds(prev => {
-                    const next = new Set(prev)
-                    next.delete(taskId)
-                    return next
-                })
+                const reverted = new Set(subbedTaskIds)
+                reverted.delete(taskId)
+                updateSubscriptions(reverted)
                 return false
             }
         } else if (permission !== "granted") {
@@ -57,13 +104,16 @@ export function useTaskNotification() {
         }
 
         return true
-    }, [permission, requestPermission])
+    }, [permission, requestPermission, subbedTaskIds])
+
+    const unsubscribeFromTask = useCallback((taskId: string) => {
+        const next = new Set(subbedTaskIds)
+        next.delete(taskId)
+        updateSubscriptions(next)
+    }, [subbedTaskIds])
 
     const sendTaskNotification = useCallback((taskId: string, title: string) => {
         if (permission !== "granted") return
-
-        // Check if we are subscribed to this task
-        if (!subbedTaskIds.has(taskId)) return
 
         try {
             const n = new Notification(t("tasks.notificationTitle"), {
@@ -78,21 +128,19 @@ export function useTaskNotification() {
             }
 
             // Unsubscribe after notifying
-            setSubbedTaskIds(prev => {
-                const next = new Set(prev)
-                next.delete(taskId)
-                return next
-            })
+            unsubscribeFromTask(taskId)
         } catch (err) {
             console.error("Notification error:", err)
         }
-    }, [permission, subbedTaskIds, t])
+    }, [permission, t, unsubscribeFromTask])
 
     return {
         permission,
         requestPermission,
         subscribeToTask,
+        unsubscribeFromTask,
         isSubscribed: (taskId: string) => subbedTaskIds.has(taskId),
-        sendTaskNotification
+        sendTaskNotification,
+        subbedTaskIds // Exporting for the listener
     }
 }

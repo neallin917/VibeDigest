@@ -16,6 +16,7 @@ import { VideoEmbed, supportsVideoEmbed } from "@/components/tasks/VideoEmbed"
 import { AudioEmbed } from "@/components/tasks/AudioEmbed"
 import { Heading } from "@/components/ui/typography"
 import { TranscriptTimeline, buildTranscriptBlocks } from "@/components/tasks/TranscriptTimeline"
+import { formatSeconds } from "@/components/tasks/transcript"
 import { useTaskNotification } from "@/hooks/useTaskNotification"
 import { Bell, BellOff } from "lucide-react"
 
@@ -46,8 +47,9 @@ type StructuredSummaryV1 = {
     keypoints: Array<{
         title: string
         detail: string
-        terms?: string[]
         evidence?: string
+        startSeconds?: number
+        endSeconds?: number
     }>
 }
 
@@ -64,16 +66,17 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
     const [mediaController, setMediaController] = useState<MediaController | null>(null)
     const supabase = createClient()
     const { t } = useI18n()
-    const { permission, requestPermission, subscribeToTask, isSubscribed, sendTaskNotification } = useTaskNotification()
+    const { permission, subscribeToTask, isSubscribed } = useTaskNotification()
 
     // Handle task completion notification
-    useEffect(() => {
-        if (!task || !id) return
-        if (task.status === "completed") {
-            // Only sends if subscribed
-            sendTaskNotification(id, task.video_title || task.video_url)
-        }
-    }, [task, id, sendTaskNotification])
+    // Moved to global TaskNotificationListener
+    // useEffect(() => {
+    //     if (!task || !id) return
+    //     if (task.status === "completed") {
+    //         // Only sends if subscribed
+    //         sendTaskNotification(id, task.video_title || task.video_url)
+    //     }
+    // }, [task, id, sendTaskNotification])
 
     const handleNotifyClick = async () => {
         if (!id) return
@@ -99,15 +102,15 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
         }
     }, [mediaController])
 
-    async function fetchTask() {
+    const fetchTask = useCallback(async () => {
         const { data } = await supabase.from('tasks').select('*').eq('id', id).single()
         if (data) setTask(data)
-    }
+    }, [id, supabase])
 
-    async function fetchOutputs() {
+    const fetchOutputs = useCallback(async () => {
         const { data } = await supabase.from('task_outputs').select('*').eq('task_id', id)
         if (data) setOutputs(data)
-    }
+    }, [id, supabase])
 
     useEffect(() => {
         if (!id) return
@@ -137,7 +140,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
         return () => {
             supabase.removeChannel(taskChannel)
         }
-    }, [id, supabase])
+    }, [id, supabase, fetchOutputs, fetchTask])
 
     // Retry is intentionally not exposed in the UI.
 
@@ -145,6 +148,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
     const script = outputs.find(o => o.kind === 'script')
     const summary = outputs.find(o => o.kind === 'summary')
+    const summarySource = outputs.find(o => o.kind === 'summary_source')
     const scriptRaw = outputs.find(o => o.kind === 'script_raw')
     const audio = outputs.find(o => o.kind === 'audio')
     const hasVideo = supportsVideoEmbed(task.video_url)
@@ -283,7 +287,10 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                                     <SummarySection
                                         taskTitle={task.video_title}
                                         summary={summary}
+                                        summarySource={summarySource}
                                         summaryPlaceholder={t("tasks.summaryPlaceholder")}
+                                        canSeek={Boolean(mediaController)}
+                                        onSeek={handleSeek}
                                         t={t}
                                     />
                                 </TabsContent>
@@ -311,17 +318,24 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 function SummarySection({
     taskTitle,
     summary,
+    summarySource,
     summaryPlaceholder,
+    canSeek,
+    onSeek,
     t,
 }: {
     taskTitle?: string
     summary?: Output
+    summarySource?: Output
     summaryPlaceholder: string
+    canSeek: boolean
+    onSeek: (seconds: number) => void
     t: (key: string, vars?: Record<string, string | number>) => string
 }) {
     const [isCopied, setIsCopied] = useState(false)
+    const [viewMode, setViewMode] = useState<"translated" | "original">("translated")
 
-    const parsed = (() => {
+    const translatedParsed = (() => {
         if (!summary?.content) return null
         try {
             const obj = JSON.parse(summary.content) as StructuredSummaryV1
@@ -334,6 +348,23 @@ function SummarySection({
         }
     })()
 
+    const sourceParsed = (() => {
+        if (!summarySource?.content) return null
+        try {
+            const obj = JSON.parse(summarySource.content) as StructuredSummaryV1
+            if (!obj || typeof obj !== "object") return null
+            if (typeof obj.overview !== "string") return null
+            if (!Array.isArray(obj.keypoints)) return null
+            return obj
+        } catch {
+            return null
+        }
+    })()
+
+    const hasSource = Boolean(summarySource && summarySource.status === "completed" && sourceParsed)
+    const effectiveMode: "translated" | "original" = hasSource ? viewMode : "translated"
+    const parsed = effectiveMode === "original" ? sourceParsed : translatedParsed
+
     const toMarkdown = (data: StructuredSummaryV1) => {
         const lines: string[] = []
         if (taskTitle) lines.push(`# ${taskTitle}`, "")
@@ -343,19 +374,20 @@ function SummarySection({
             const title = (kp.title || "").trim()
             const detail = (kp.detail || "").trim()
             const evidence = (kp.evidence || "").trim()
-            const terms = Array.isArray(kp.terms) ? kp.terms.filter(Boolean) : []
             if (!title && !detail) continue
-            lines.push(`- **${title || detail.slice(0, 48)}**${detail ? `: ${detail}` : ""}`)
-            if (terms.length) lines.push(`  - ${t("tasks.summaryStructured.termsLabel")}: ${terms.join(", ")}`)
+            const start = typeof kp.startSeconds === "number" && Number.isFinite(kp.startSeconds) ? kp.startSeconds : null
+            const timeTag = start !== null ? `**[${formatSeconds(start)}]** ` : ""
+            lines.push(`- ${timeTag}**${title || detail.slice(0, 48)}**${detail ? `: ${detail}` : ""}`)
             if (evidence) lines.push(`  - ${t("tasks.summaryStructured.evidenceLabel")}: ${evidence}`)
         }
         return lines.join("\n").trim() + "\n"
     }
 
     const handleCopy = async () => {
-        if (!summary?.content) return
+        if (!summary?.content && !summarySource?.content) return
         try {
-            const textToCopy = parsed ? toMarkdown(parsed) : summary.content
+            const rawFallback = effectiveMode === "original" ? (summarySource?.content || "") : (summary?.content || "")
+            const textToCopy = parsed ? toMarkdown(parsed) : rawFallback
             await navigator.clipboard.writeText(textToCopy)
             setIsCopied(true)
             setTimeout(() => setIsCopied(false), 2000)
@@ -409,21 +441,46 @@ function SummarySection({
         return <OutputCard output={summary} placeholder={summaryPlaceholder} />
     }
 
-    return (
-        <Card className="bg-black/20 border-white/5 relative group">
-            <div className="absolute top-3 right-3 md:top-4 md:right-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 gap-2 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10"
-                    onClick={handleCopy}
-                >
-                    {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                    {isCopied ? t("tasks.copied") : t("tasks.copyToClipboard")}
-                </Button>
-            </div>
+    const hasAnyAnchors = parsed.keypoints.some((kp) => typeof kp.startSeconds === "number" && Number.isFinite(kp.startSeconds))
 
-            <CardContent className="p-4 pt-12 md:p-8 md:pt-10 space-y-6">
+    return (
+        <Card className="bg-black/20 border-white/5 group">
+            <CardContent className="p-4 md:p-8 space-y-6">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                    {hasSource ? (
+                        <div className="flex items-center gap-2">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={effectiveMode === "original" ? "secondary" : "ghost"}
+                                className="h-8"
+                                onClick={() => setViewMode("original")}
+                            >
+                                {t("tasks.summaryStructured.showOriginal")}
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={effectiveMode === "translated" ? "secondary" : "ghost"}
+                                className="h-8"
+                                onClick={() => setViewMode("translated")}
+                            >
+                                {t("tasks.summaryStructured.showTranslated")}
+                            </Button>
+                        </div>
+                    ) : null}
+
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 gap-2 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                        onClick={handleCopy}
+                        aria-label={isCopied ? t("tasks.copied") : t("tasks.copyToClipboard")}
+                    >
+                        {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                        <span className="hidden sm:inline">{isCopied ? t("tasks.copied") : t("tasks.copyToClipboard")}</span>
+                    </Button>
+                </div>
                 <div>
                     <div className="text-xs font-semibold tracking-wider text-muted-foreground/80 uppercase mb-2">
                         {t("tasks.summaryStructured.overviewTitle")}
@@ -437,41 +494,91 @@ function SummarySection({
                     <div className="text-xs font-semibold tracking-wider text-muted-foreground/80 uppercase mb-3">
                         {t("tasks.summaryStructured.keypointsTitle")}
                     </div>
+                    {!hasAnyAnchors ? (
+                        <div className="mb-3 text-xs text-muted-foreground">
+                            Timeline anchors are unavailable for this summary (often due to output language ≠ transcript language). Try “Retry output”.
+                        </div>
+                    ) : null}
                     <div className="space-y-3">
                         {parsed.keypoints.map((kp, idx) => (
-                            <div
+                            <SummaryKeypointItem
                                 key={`${idx}-${kp.title}`}
-                                className="rounded-xl border border-white/10 bg-black/25 p-4"
-                            >
-                                <div className="font-semibold text-primary/90">
-                                    {kp.title}
-                                </div>
-                                {kp.detail ? (
-                                    <div className="mt-2 text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">
-                                        {kp.detail}
-                                    </div>
-                                ) : null}
-
-                                {Array.isArray(kp.terms) && kp.terms.length ? (
-                                    <div className="mt-3 text-xs text-muted-foreground">
-                                        <span className="font-medium">{t("tasks.summaryStructured.termsLabel")}:</span>{" "}
-                                        {kp.terms.join(", ")}
-                                    </div>
-                                ) : null}
-
-                                {kp.evidence ? (
-                                    <div className="mt-2 text-xs text-muted-foreground">
-                                        <span className="font-medium">{t("tasks.summaryStructured.evidenceLabel")}:</span>{" "}
-                                        {kp.evidence}
-                                    </div>
-                                ) : null}
-                            </div>
+                                kp={kp}
+                                canSeek={canSeek}
+                                onSeek={onSeek}
+                                t={t}
+                            />
                         ))}
                     </div>
                 </div>
             </CardContent>
         </Card>
     )
+}
+
+function SummaryKeypointItem({
+    kp,
+    canSeek,
+    onSeek,
+    t,
+}: {
+    kp: StructuredSummaryV1["keypoints"][number]
+    canSeek: boolean
+    onSeek: (seconds: number) => void
+    t: (key: string, vars?: Record<string, string | number>) => string
+}) {
+    const startSeconds =
+        typeof kp.startSeconds === "number" && Number.isFinite(kp.startSeconds) ? kp.startSeconds : null
+    const endSeconds =
+        typeof kp.endSeconds === "number" && Number.isFinite(kp.endSeconds) ? kp.endSeconds : null
+
+    const isClickable = startSeconds !== null && canSeek
+
+    const baseClassName = [
+        "w-full text-left rounded-xl border border-white/10 bg-black/25 p-4 transition-colors",
+        startSeconds !== null ? "hover:bg-black/35 disabled:opacity-50 disabled:cursor-not-allowed" : "",
+    ].join(" ")
+
+    const inner = (
+        <>
+            <div className="flex items-center justify-between gap-3">
+                <div className="font-semibold text-primary/90">{kp.title}</div>
+                {startSeconds !== null ? (
+                    <Badge variant={isClickable ? "success" : "secondary"} className="font-mono text-[11px]">
+                        {formatSeconds(startSeconds)}
+                        {endSeconds !== null && endSeconds > startSeconds + 0.5 ? `–${formatSeconds(endSeconds)}` : ""}
+                    </Badge>
+                ) : null}
+            </div>
+
+            {kp.detail ? (
+                <div className="mt-2 text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{kp.detail}</div>
+            ) : null}
+
+            {kp.evidence ? (
+                <div className="mt-2 text-xs text-muted-foreground">
+                    <span className="font-medium">{t("tasks.summaryStructured.evidenceLabel")}:</span>{" "}
+                    {kp.evidence}
+                </div>
+            ) : null}
+        </>
+    )
+
+    if (startSeconds !== null) {
+        return (
+            <button
+                type="button"
+                onClick={() => onSeek(startSeconds)}
+                disabled={!canSeek}
+                title={canSeek ? `Seek to ${formatSeconds(startSeconds)}` : undefined}
+                className={baseClassName}
+            >
+                {inner}
+            </button>
+        )
+    }
+
+    return <div className={baseClassName}>{inner}</div>
 }
 
 function FullScriptSection({

@@ -153,10 +153,13 @@ async def process_video(
         script_out = db_client.create_task_output(task_id, user_id, kind="script")
         # Internal output: persisted raw Whisper segments (JSON) for re-formatting without re-transcribing.
         script_raw_out = db_client.create_task_output(task_id, user_id, kind="script_raw")
+        # Summary requested by user locale (rendered in UI)
         summary_out = db_client.create_task_output(task_id, user_id, kind="summary", locale=summary_language)
+        # Stable summary in transcript/source language (used for accurate time anchoring + bilingual toggle)
+        summary_source_out = db_client.create_task_output(task_id, user_id, kind="summary_source")
         if audio_out:
             outputs.append(audio_out)
-        outputs.extend([script_out, script_raw_out, summary_out])
+        outputs.extend([script_out, script_raw_out, summary_out, summary_source_out])
 
         # 3. Translation outputs are deprecated in v3.3:
         # Summary is generated directly in the requested language, so we no longer create
@@ -562,13 +565,60 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
 
         # D. Summarize
         summary_output = next((o for o in outputs if o['kind'] == 'summary'), None)
-        if summary_output and script_text:
+        summary_source_output = next((o for o in outputs if o['kind'] == 'summary_source'), None)
+        if (summary_output or summary_source_output) and script_text:
             try:
-                db_client.update_output_status(summary_output['id'], status="processing", progress=20)
-                summary_text = await summarizer.summarize(script_text, summary_lang, video_title)
-                db_client.update_output_status(summary_output['id'], status="completed", progress=100, content=summary_text)
+                # Determine transcript language from script_raw payload.
+                transcript_language = "unknown"
+                try:
+                    payload = json.loads(raw_json or "{}")
+                    transcript_language = (payload.get("language") or "unknown")
+                except Exception:
+                    transcript_language = "unknown"
+
+                # 1) Generate stable source-language summary (with anchors).
+                source_summary_json = None
+                if summary_source_output:
+                    db_client.update_output_status(summary_source_output['id'], status="processing", progress=20)
+                    source_summary_json = await summarizer.summarize_in_language_with_anchors(
+                        script_text,
+                        summary_language=transcript_language,
+                        video_title=video_title,
+                        script_raw_json=raw_json,
+                    )
+                    db_client.update_output_status(
+                        summary_source_output['id'],
+                        status="completed",
+                        progress=100,
+                        content=source_summary_json,
+                    )
+
+                # 2) Produce user-requested summary output.
+                if summary_output:
+                    db_client.update_output_status(summary_output['id'], status="processing", progress=35)
+                    if not source_summary_json:
+                        source_summary_json = await summarizer.summarize_in_language_with_anchors(
+                            script_text,
+                            summary_language=transcript_language,
+                            video_title=video_title,
+                            script_raw_json=raw_json,
+                        )
+
+                    # If requested language differs from transcript language, translate while preserving anchors.
+                    if (summary_lang or "unknown") and (str(summary_lang).lower() != str(transcript_language).lower()):
+                        summary_json = await summarizer.translate_summary_json(
+                            source_summary_json,
+                            target_language=summary_lang,
+                        )
+                    else:
+                        summary_json = source_summary_json
+
+                    db_client.update_output_status(summary_output['id'], status="completed", progress=100, content=summary_json)
             except Exception as e:
-                db_client.update_output_status(summary_output['id'], status="error", error=str(e))
+                if summary_output:
+                    db_client.update_output_status(summary_output['id'], status="error", error=str(e))
+                if summary_source_output:
+                    db_client.update_output_status(summary_source_output['id'], status="error", error=str(e))
 
         # E. Translate (Deprecated): no translation outputs created in current UX.
         # Keep backward compatibility: if older tasks already have translation outputs, still process them.
@@ -653,13 +703,61 @@ async def handle_retry_output(output_id: str, user_id: str):
         except Exception:
             pass
 
-        if kind == "summary":
+        if kind == "summary" or kind == "summary_source":
             task = db_client.get_task(task_id)
             video_title = (task or {}).get("video_title") or ""
             try:
                 db_client.update_output_status(output_id, status="processing", progress=30, error="")
-                summary_text = await summarizer.summarize(script_text, locale or "zh", video_title)
-                db_client.update_output_status(output_id, status="completed", progress=100, content=summary_text, error="")
+                # Always regenerate source-language summary first (stable, anchored).
+                script_raw_json = None
+                transcript_language = "unknown"
+                try:
+                    if script_raw_output and script_raw_output.get("content"):
+                        script_raw_json = script_raw_output.get("content")
+                        payload = json.loads(script_raw_json or "{}")
+                        transcript_language = (payload.get("language") or "unknown")
+                except Exception:
+                    script_raw_json = script_raw_json
+
+                source_summary_json = await summarizer.summarize_in_language_with_anchors(
+                    script_text,
+                    summary_language=transcript_language,
+                    video_title=video_title,
+                    script_raw_json=script_raw_json,
+                )
+
+                # Ensure summary_source output exists (old tasks may not have it).
+                summary_source_out = next((o for o in outputs if o.get("kind") == "summary_source"), None)
+                if not summary_source_out:
+                    try:
+                        summary_source_out = db_client.create_task_output(task_id, user_id, kind="summary_source")
+                        # Refresh outputs list for downstream lookups
+                        outputs = db_client.get_task_outputs(task_id)
+                    except Exception as e:
+                        logger.warning(f"Failed to create summary_source output for task={task_id}: {e}")
+
+                if summary_source_out:
+                    db_client.update_output_status(
+                        summary_source_out["id"],
+                        status="completed",
+                        progress=100,
+                        content=source_summary_json,
+                        error="",
+                    )
+
+                # Now fulfill the requested output.
+                if kind == "summary_source":
+                    db_client.update_output_status(output_id, status="completed", progress=100, content=source_summary_json, error="")
+                    return
+
+                # kind == "summary": translate to requested locale if needed, preserving anchors.
+                requested_lang = locale or transcript_language or "zh"
+                if str(requested_lang).lower() != str(transcript_language).lower():
+                    summary_json = await summarizer.translate_summary_json(source_summary_json, target_language=requested_lang)
+                else:
+                    summary_json = source_summary_json
+
+                db_client.update_output_status(output_id, status="completed", progress=100, content=summary_json, error="")
             except Exception as e:
                 db_client.update_output_status(output_id, status="error", error=str(e))
             return

@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileBottomNav, MobileHeader } from "@/components/layout/MobileNav";
+import { TaskNotificationListener } from "@/components/tasks/TaskNotificationListener";
 
 export default function MainLayout({
     children,
@@ -8,6 +9,7 @@ export default function MainLayout({
 }>) {
     return (
         <div className="flex h-dvh overflow-hidden">
+            <TaskNotificationListener />
             <Sidebar />
             <div className="flex min-w-0 flex-1 flex-col">
                 <MobileHeader />

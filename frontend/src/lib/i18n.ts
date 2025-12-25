@@ -212,8 +212,9 @@ const messages: Record<Locale, Messages> = {
       summaryStructured: {
         overviewTitle: "Overview",
         keypointsTitle: "Key Points",
-        termsLabel: "Terms",
         evidenceLabel: "Evidence",
+        showOriginal: "Original",
+        showTranslated: "Translated",
       },
       enableNotifications: "Notify me when done",
       notificationEnabled: "Notification enabled",
@@ -505,8 +506,9 @@ const messages: Record<Locale, Messages> = {
       summaryStructured: {
         overviewTitle: "简介",
         keypointsTitle: "要点",
-        termsLabel: "术语",
         evidenceLabel: "依据",
+        showOriginal: "原文",
+        showTranslated: "翻译",
       },
       enableNotifications: "完成后通知我",
       notificationEnabled: "已开启通知",
@@ -758,7 +760,6 @@ const messages: Record<Locale, Messages> = {
       summaryStructured: {
         overviewTitle: "Aperçu",
         keypointsTitle: "Puntos clave",
-        termsLabel: "Términos",
         evidenceLabel: "Evidencia",
       },
       enableNotifications: "Notificarme al finalizar",
@@ -919,7 +920,6 @@ const messages: Record<Locale, Messages> = {
       summaryStructured: {
         overviewTitle: "نظرة عامة",
         keypointsTitle: "أهم النقاط",
-        termsLabel: "مصطلحات",
         evidenceLabel: "أدلة",
       },
       enableNotifications: "أعلمني عند الانتهاء",
@@ -1080,7 +1080,6 @@ const messages: Record<Locale, Messages> = {
       summaryStructured: {
         overviewTitle: "Aperçu",
         keypointsTitle: "Points clés",
-        termsLabel: "Termes",
         evidenceLabel: "Preuves",
       },
       enableNotifications: "M'avertir quand fini",
@@ -1241,7 +1240,6 @@ const messages: Record<Locale, Messages> = {
       summaryStructured: {
         overviewTitle: "Обзор",
         keypointsTitle: "Ключевые пункты",
-        termsLabel: "Термины",
         evidenceLabel: "Доказательства",
       },
       enableNotifications: "Сообщить о готовности",
@@ -1402,7 +1400,6 @@ const messages: Record<Locale, Messages> = {
       summaryStructured: {
         overviewTitle: "Visão geral",
         keypointsTitle: "Pontos‑chave",
-        termsLabel: "Termos",
         evidenceLabel: "Evidências",
       },
       enableNotifications: "Notifique-me quando terminar",
@@ -1563,7 +1560,6 @@ const messages: Record<Locale, Messages> = {
       summaryStructured: {
         overviewTitle: "परिचय",
         keypointsTitle: "मुख्य बिंदु",
-        termsLabel: "शब्द",
         evidenceLabel: "साक्ष्य",
       },
       enableNotifications: "पूरा होने पर मुझे सूचित करें",
@@ -1767,7 +1763,6 @@ const messages: Record<Locale, Messages> = {
       summaryStructured: {
         overviewTitle: "概要",
         keypointsTitle: "要点",
-        termsLabel: "用語",
         evidenceLabel: "根拠",
       },
       enableNotifications: "完了時に通知する",
@@ -1971,7 +1966,6 @@ const messages: Record<Locale, Messages> = {
       summaryStructured: {
         overviewTitle: "개요",
         keypointsTitle: "핵심 포인트",
-        termsLabel: "용어",
         evidenceLabel: "근거",
       },
       enableNotifications: "완료 시 알림 받기",

@@ -14,6 +14,7 @@
 - **Universal Video Support**: robust video downloading capabilities via `yt-dlp`.
 - **Smart Processing**: Automatic audio extraction and intelligent chunking for large files.
 - **Live Dashboard**: Watch your tasks progress from queue to completion in real-time.
+- **Onboarding Demo**: New users see a live demo task to instantly understand the platform's capabilities.
 - **Browser Notifications**: Get instant alerts when your tasks complete, even in the background.
 - **Secure Authentication**: Integrated email and Google login support via Supabase Auth.
 - **Multi-language UI (i18n)**: Built-in UI language switcher with RTL support for Arabic.
