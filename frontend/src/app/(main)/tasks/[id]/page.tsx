@@ -239,39 +239,13 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                             </div>
 
                             {(task.status === "processing" || task.status === "pending") && (
-                                <div className="space-y-4 mb-8 p-6 bg-primary/5 rounded-xl border border-primary/10">
-                                    <div className="flex items-center gap-3">
-                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                                        <span className="font-medium text-primary">{t("tasks.processingVideo")}</span>
-                                        <span className="ml-auto font-mono">{task.progress}%</span>
-                                    </div>
-                                    <Progress value={task.progress} className="h-2" />
-                                    <p className="text-xs text-muted-foreground text-center">
-                                        {t("tasks.processingHint1")}
-                                        <br />
-                                        {t("tasks.processingHint2")}
-                                    </p>
-
-                                    <div className="flex justify-center pt-2">
-                                        {isSubscribed(id) ? (
-                                            <Button variant="outline" size="sm" className="gap-2 text-green-600 border-green-600/20 bg-green-500/10 pointer-events-none">
-                                                <Bell className="h-4 w-4" />
-                                                {t("tasks.notificationEnabled")}
-                                            </Button>
-                                        ) : (
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="gap-2"
-                                                onClick={handleNotifyClick}
-                                                disabled={permission === "denied"}
-                                            >
-                                                {permission === "denied" ? <BellOff className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
-                                                {t("tasks.enableNotifications")}
-                                            </Button>
-                                        )}
-                                    </div>
-                                </div>
+                                <TaskProgress
+                                    task={task}
+                                    isSubscribed={isSubscribed(task.id)}
+                                    permission={permission}
+                                    onNotify={handleNotifyClick}
+                                    t={t}
+                                />
                             )}
 
                             {task.status === "error" && (
@@ -778,4 +752,87 @@ function stripRedundantTranscriptHeaders(content?: string) {
 
     // Collapse excessive blank lines introduced by removing headers
     return filtered.join("\n").replace(/\n{3,}/g, "\n\n").trim()
+}
+
+function TaskProgress({
+    task,
+    isSubscribed,
+    permission,
+    onNotify,
+    t,
+}: {
+    task: Task
+    isSubscribed: boolean
+    permission: string
+    onNotify: () => void
+    t: (key: string, vars?: Record<string, string | number>) => string
+}) {
+    const [stepIndex, setStepIndex] = useState(0)
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setStepIndex((i) => i + 1)
+        }, 4000)
+        return () => clearInterval(interval)
+    }, [])
+
+    const getStatusMessage = () => {
+        const p = task.progress
+        let step = 1
+
+        if (p < 20) {
+            // Phase 1: Analyzing & Extracting
+            step = (stepIndex % 2) + 1
+        } else if (p < 80) {
+            // Phase 2: Transcribing & Speakers
+            step = (stepIndex % 2) + 3
+        } else {
+            // Phase 3: Summarizing
+            step = 5
+        }
+
+        return t(`tasks.statusSteps.step${step}`)
+    }
+
+    return (
+        <div className="space-y-4 mb-8 p-6 bg-primary/5 rounded-xl border border-primary/10 transition-all duration-500">
+            <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                <span className="font-medium text-primary flex-1 transition-all duration-300">
+                    {getStatusMessage()}
+                </span>
+                <span className="ml-auto font-mono text-muted-foreground">{task.progress}%</span>
+            </div>
+
+            <div className="relative">
+                <Progress value={task.progress} className="h-2 transition-all duration-1000" />
+            </div>
+
+            <p className="text-xs text-muted-foreground text-center animate-pulse">
+                {t("tasks.processingHint1")}
+                <br />
+                {t("tasks.processingHint2")}
+            </p>
+
+            <div className="flex justify-center pt-2">
+                {isSubscribed ? (
+                    <Button variant="outline" size="sm" className="gap-2 text-green-600 border-green-600/20 bg-green-500/10 pointer-events-none">
+                        <Bell className="h-4 w-4" />
+                        {t("tasks.notificationEnabled")}
+                    </Button>
+                ) : (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        onClick={onNotify}
+                        disabled={permission === "denied"}
+                    >
+                        {permission === "denied" ? <BellOff className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+                        {t("tasks.enableNotifications")}
+                    </Button>
+                )}
+            </div>
+        </div>
+    )
 }

@@ -70,8 +70,11 @@ export function TaskForm() {
             const res = await ApiClient.processVideo(formData, session.access_token)
 
             setUrl("")
-            router.refresh() // Refresh server components or trigger SWR revalidation
-            // Ideally we redirect to detail or show a toast
+            router.refresh()
+            // Redirect to the newly created task
+            if (res?.task_id) {
+                router.push(`/tasks/${res.task_id}`)
+            }
 
         } catch (error: unknown) {
             console.error(error)
