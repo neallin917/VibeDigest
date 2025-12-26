@@ -466,14 +466,14 @@ function SummarySection({
     return (
         <Card className="bg-black/20 border-white/5 group">
             <CardContent className="p-4 md:p-8 space-y-6">
-                <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="relative flex items-center justify-center min-h-[32px] mb-4">
                     {hasSource && !isSameLanguage ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center bg-black/20 p-1 rounded-lg border border-white/5 transition-colors hover:bg-black/30">
                             <Button
                                 type="button"
                                 size="sm"
                                 variant={effectiveMode === "original" ? "secondary" : "ghost"}
-                                className="h-8"
+                                className="h-7 text-xs px-3 hover:bg-white/10"
                                 onClick={() => setViewMode("original")}
                             >
                                 {t("tasks.summaryStructured.showOriginal")}
@@ -482,7 +482,7 @@ function SummarySection({
                                 type="button"
                                 size="sm"
                                 variant={effectiveMode === "translated" ? "secondary" : "ghost"}
-                                className="h-8"
+                                className="h-7 text-xs px-3 hover:bg-white/10"
                                 onClick={() => setViewMode("translated")}
                             >
                                 {t("tasks.summaryStructured.showTranslated")}
@@ -490,16 +490,18 @@ function SummarySection({
                         </div>
                     ) : null}
 
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 gap-2 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-                        onClick={handleCopy}
-                        aria-label={isCopied ? t("tasks.copied") : t("tasks.copyToClipboard")}
-                    >
-                        {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                        <span className="hidden sm:inline">{isCopied ? t("tasks.copied") : t("tasks.copyToClipboard")}</span>
-                    </Button>
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 gap-2 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                            onClick={handleCopy}
+                            aria-label={isCopied ? t("tasks.copied") : t("tasks.copyToClipboard")}
+                        >
+                            {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                            <span className="hidden sm:inline">{isCopied ? t("tasks.copied") : t("tasks.copyToClipboard")}</span>
+                        </Button>
+                    </div>
                 </div>
                 <div>
                     <div className="text-xs font-semibold tracking-wider text-muted-foreground/80 uppercase mb-2">
