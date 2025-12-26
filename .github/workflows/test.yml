@@ -20,9 +20,18 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r backend/requirements-dev.txt
-    - name: Run tests
+    - name: Install system dependencies
       run: |
-        export PYTHONPATH=backend
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+    - name: Run tests
+      env:
+        SUPABASE_URL: "https://example.supabase.co"
+        SUPABASE_SERVICE_KEY: "dummy-key"
+        OPENAI_API_KEY: "dummy-key"
+        RESEND_API_KEY: "dummy-key"
+      run: |
+        export PYTHONPATH=$PYTHONPATH:$(pwd)/backend
         pytest -c backend/pytest.ini backend
 
   frontend-test:
