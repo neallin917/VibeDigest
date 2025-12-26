@@ -12,6 +12,16 @@ import { Heading, Text } from "@/components/ui/typography"
 export default function LandingPage() {
   const { t } = useI18n()
 
+  const renderWithBold = (text: string) => {
+    const parts = text.split(/(\*\*.*?\*\*)/g)
+    return parts.map((part, index) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={index} className="text-white font-semibold">{part.slice(2, -2)}</strong>
+      }
+      return part
+    })
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-[#0A0A0A] text-[#EDEDED] relative overflow-hidden">
       {/* Background Gradients */}
@@ -37,7 +47,7 @@ export default function LandingPage() {
           </Heading>
 
           <Text tone="muted" className="max-w-2xl mx-auto text-lg md:text-xl">
-            {t("landing.subtitle")}
+            {renderWithBold(t("landing.subtitle"))}
           </Text>
         </div>
 
@@ -57,22 +67,22 @@ export default function LandingPage() {
           <FeatureCard
             icon={Zap}
             title={t("landing.feature1Title")}
-            desc={t("landing.feature1Desc")}
+            desc={renderWithBold(t("landing.feature1Desc"))}
           />
           <FeatureCard
-            icon={FileText}
+            icon={Layers}
             title={t("landing.feature2Title")}
-            desc={t("landing.feature2Desc")}
+            desc={renderWithBold(t("landing.feature2Desc"))}
           />
           <FeatureCard
             icon={Globe}
             title={t("landing.feature3Title")}
-            desc={t("landing.feature3Desc")}
+            desc={renderWithBold(t("landing.feature3Desc"))}
           />
           <FeatureCard
-            icon={Layers}
+            icon={FileText}
             title={t("landing.feature4Title")}
-            desc={t("landing.feature4Desc")}
+            desc={renderWithBold(t("landing.feature4Desc"))}
           />
         </div>
       </main>
@@ -82,7 +92,7 @@ export default function LandingPage() {
   )
 }
 
-function FeatureCard({ icon: Icon, title, desc }: { icon: LucideIcon, title: string, desc: string }) {
+function FeatureCard({ icon: Icon, title, desc }: { icon: LucideIcon, title: string, desc: React.ReactNode }) {
   return (
     <div className="group p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-300 text-left space-y-4 hover:shadow-lg hover:shadow-black/20">
       <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
