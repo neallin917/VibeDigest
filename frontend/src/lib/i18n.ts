@@ -63,7 +63,23 @@ const messages: Record<Locale, Messages> = {
       sending: "Sending...",
       sendMagicLink: "Send Magic Link",
       checkYourEmail: "Check your email for the magic link!",
+      passwordPlaceholder: "Password",
+      signIn: "Sign In",
+      useMagicLink: "Sign in with Magic Link",
+      usePassword: "Sign in with Password",
       logout: "Logout",
+      signUp: "Sign Up",
+      createAccount: "Create an Account",
+      haveAccount: "Already have an account? Sign In",
+      noAccount: "Don't have an account? Sign Up",
+      signUpToContinue: "Sign up to get started",
+      checkEmailForConfirmation: "Please check your email to confirm your account.",
+      errors: {
+        invalidCredentials: "Invalid login credentials",
+        userAlreadyRegistered: "User already registered",
+        weakPassword: "Password should be at least 6 characters",
+        generic: "An error occurred"
+      }
     },
     landing: {
       titlePrefix: "Turn Videos & Podcasts into",
@@ -331,7 +347,23 @@ const messages: Record<Locale, Messages> = {
       sending: "发送中...",
       sendMagicLink: "发送登录链接",
       checkYourEmail: "请检查你的邮箱",
+      passwordPlaceholder: "密码",
+      signIn: "登录",
+      useMagicLink: "使用魔法链接登录",
+      usePassword: "使用密码登录",
       logout: "登出",
+      signUp: "注册",
+      createAccount: "创建账户",
+      haveAccount: "已有账户？登录",
+      noAccount: "没有账户？注册",
+      signUpToContinue: "注册以开始使用",
+      checkEmailForConfirmation: "请检查您的邮箱以确认账户。",
+      errors: {
+        invalidCredentials: "登录凭据无效",
+        userAlreadyRegistered: "该用户已注册",
+        weakPassword: "密码长度至少需要6个字符",
+        generic: "发生错误"
+      }
     },
     // NOTE: `src/app/page.tsx` uses `landing.*` keys.
     // We keep the older `home.*` keys for backwards compatibility, but `landing.*`
@@ -625,7 +657,23 @@ const messages: Record<Locale, Messages> = {
       sending: "Enviando...",
       sendMagicLink: "Enviar enlace mágico",
       checkYourEmail: "Revisa tu correo",
+      passwordPlaceholder: "Contraseña",
+      signIn: "Iniciar sesión",
+      useMagicLink: "Usar enlace mágico",
+      usePassword: "Usar contraseña",
       logout: "Cerrar sesión",
+      signUp: "Registrarse",
+      createAccount: "Crear cuenta",
+      haveAccount: "¿Ya tienes cuenta? Inicia sesión",
+      noAccount: "¿No tienes cuenta? Regístrate",
+      signUpToContinue: "Regístrate para comenzar",
+      checkEmailForConfirmation: "Revisa tu correo para confirmar tu cuenta.",
+      errors: {
+        invalidCredentials: "Credenciales inválidas",
+        userAlreadyRegistered: "Usuario ya registrado",
+        weakPassword: "La contraseña debe tener al menos 6 caracteres",
+        generic: "Ocurrió un error"
+      }
     },
     landing: {
       titlePrefix: "Convierte videos y podcasts en",

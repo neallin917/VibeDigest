@@ -26,7 +26,7 @@ export default function LandingPage() {
       </div>
 
       {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-14 md:py-16 lg:py-20 text-center space-y-8 relative z-10">
+      <main className="flex-1 flex flex-col items-center justify-center px-6 pt-28 pb-14 md:py-16 lg:py-20 text-center space-y-8 relative z-10">
         <div className="space-y-4 max-w-3xl">
           <Heading
             as="h1"

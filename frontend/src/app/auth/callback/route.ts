@@ -43,9 +43,14 @@ export async function GET(request: Request) {
             } else {
                 return NextResponse.redirect(`${origin}${next}`)
             }
+        } else {
+            console.error('Auth callback error:', error)
+            return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`)
         }
+    } else {
+        console.log('No code found in auth callback URL')
     }
 
     // return the user to an error page with instructions
-    return NextResponse.redirect(`${origin}/login?message=Could not login with provider`)
+    return NextResponse.redirect(`${origin}/login?message=Could not login with provider&reason=no_code`)
 }

@@ -16,10 +16,20 @@ interface LoginFormProps {
 
 export function LoginForm({ className, isModal = false }: LoginFormProps) {
     const [email, setEmail] = useState("")
+    const [password, setPassword] = useState("")
+    const [isPasswordLogin, setIsPasswordLogin] = useState(false)
+    const [isSignUp, setIsSignUp] = useState(false)
     const [loading, setLoading] = useState(false)
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
     const supabase = createClient()
     const { t } = useI18n()
+
+    const getErrorMessage = (errorMsg: string) => {
+        if (errorMsg.includes("Invalid login credentials")) return t("auth.errors.invalidCredentials") || errorMsg
+        if (errorMsg.includes("User already registered")) return t("auth.errors.userAlreadyRegistered") || errorMsg
+        if (errorMsg.includes("Password should be at least")) return t("auth.errors.weakPassword") || errorMsg
+        return errorMsg
+    }
 
     const handleGoogleLogin = async () => {
         setLoading(true)
@@ -29,7 +39,7 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
                 redirectTo: `${window.location.origin}/auth/callback`
             }
         })
-        if (error) setMessage({ type: 'error', text: error.message })
+        if (error) setMessage({ type: 'error', text: getErrorMessage(error.message) })
         setLoading(false)
     }
 
@@ -38,17 +48,48 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
         setLoading(true)
         setMessage(null)
 
-        const { error } = await supabase.auth.signInWithOtp({
-            email,
-            options: {
-                emailRedirectTo: `${window.location.origin}/auth/callback`
+        if (isSignUp) {
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    emailRedirectTo: `${window.location.origin}/auth/callback`
+                }
+            })
+            if (error) {
+                console.error("Sign up error:", error)
+                setMessage({ type: 'error', text: getErrorMessage(error.message) })
+            } else {
+                console.log("Sign up successful:", data)
+                if (data.session) {
+                    window.location.href = "/"
+                } else {
+                    setMessage({ type: 'success', text: t("auth.checkEmailForConfirmation") || "Please check your email to confirm your account." })
+                }
             }
-        })
-
-        if (error) {
-            setMessage({ type: 'error', text: error.message })
+        } else if (isPasswordLogin) {
+            const { error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            })
+            if (error) {
+                setMessage({ type: 'error', text: getErrorMessage(error.message) })
+            } else {
+                window.location.href = "/"
+            }
         } else {
-            setMessage({ type: 'success', text: t("auth.checkYourEmail") })
+            const { error } = await supabase.auth.signInWithOtp({
+                email,
+                options: {
+                    emailRedirectTo: `${window.location.origin}/auth/callback`
+                }
+            })
+
+            if (error) {
+                setMessage({ type: 'error', text: getErrorMessage(error.message) })
+            } else {
+                setMessage({ type: 'success', text: t("auth.checkYourEmail") })
+            }
         }
         setLoading(false)
     }
@@ -66,10 +107,10 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
                     <Sparkles className="h-6 w-6 text-primary" />
                 </div>
                 <CardTitle className="font-bold text-2xl bg-clip-text text-transparent bg-gradient-to-br from-white to-white/60">
-                    {t("auth.welcomeBack")}
+                    {isSignUp ? (t("auth.createAccount") || "Create Account") : t("auth.welcomeBack")}
                 </CardTitle>
                 <CardDescription className="text-muted-foreground/80">
-                    {t("auth.signInToContinue", { appName: t("brand.name") })}
+                    {isSignUp ? (t("auth.signUpToContinue") || "Sign up to get started") : t("auth.signInToContinue", { appName: t("brand.name") })}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 relative z-10">
@@ -97,11 +138,13 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
                         <span className="w-full border-t border-white/10" />
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-transparent px-2 text-muted-foreground backdrop-blur-sm rounded-full">{t("auth.orWithEmail")}</span>
+                        <span className="bg-transparent px-2 text-muted-foreground backdrop-blur-sm rounded-full">
+                            {isSignUp ? (t("auth.orWithEmail") || "Or with Email") : (isPasswordLogin ? t("auth.orWithEmail") : t("auth.orWithEmail"))}
+                        </span>
                     </div>
                 </div>
 
-                {/* Email Login */}
+                {/* Email/Password Login */}
                 <form onSubmit={handleEmailLogin} className="space-y-4">
                     <div className="space-y-2">
                         <Input
@@ -112,11 +155,47 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
                             required
                             className="bg-black/20 border-white/10 h-11 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
                         />
+                        {(isPasswordLogin || isSignUp) && (
+                            <Input
+                                type="password"
+                                placeholder={t("auth.passwordPlaceholder") || "Password"}
+                                value={password}
+                                onChange={e => setPassword(e.target.value)}
+                                required
+                                className="bg-black/20 border-white/10 h-11 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
+                            />
+                        )}
                     </div>
                     <Button type="submit" className="w-full h-11 gap-2 bg-primary text-black hover:bg-primary/90 shadow-[0_0_15px_rgba(62,207,142,0.3)] hover:shadow-[0_0_20px_rgba(62,207,142,0.5)] transition-all duration-300" disabled={loading}>
                         <Mail className="h-4 w-4" />
-                        {loading ? t("auth.sending") : t("auth.sendMagicLink")}
+                        {loading ? t("auth.sending") : (
+                            isSignUp ? (t("auth.signUp") || "Sign Up") :
+                                (isPasswordLogin ? t("auth.signIn") || "Sign In" : t("auth.sendMagicLink"))
+                        )}
                     </Button>
+
+                    <div className="flex flex-col gap-2 text-center text-sm">
+                        {!isSignUp && (
+                            <button
+                                type="button"
+                                onClick={() => setIsPasswordLogin(!isPasswordLogin)}
+                                className="text-muted-foreground hover:text-white transition-colors underline underline-offset-4"
+                            >
+                                {isPasswordLogin ? (t("auth.useMagicLink") || "Use Magic Link instead") : (t("auth.usePassword") || "Sign in with Password")}
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsSignUp(!isSignUp)
+                                setIsPasswordLogin(false)
+                                setMessage(null)
+                            }}
+                            className="text-muted-foreground hover:text-white transition-colors underline underline-offset-4"
+                        >
+                            {isSignUp ? (t("auth.haveAccount") || "Already have an account? Sign In") : (t("auth.noAccount") || "Don't have an account? Sign Up")}
+                        </button>
+                    </div>
                 </form>
 
                 {message && (
