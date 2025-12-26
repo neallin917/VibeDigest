@@ -22,6 +22,9 @@ class DBClient:
             try:
                 self.supabase = create_client(self.url, self.key)
                 logger.info("Supabase client initialized successfully (Service Role).")
+                # SECURITY WARNING: This client uses the SERVICE_KEY which bypasses RLS.
+                # All operations using this client must strictly validate user ownership/permissions
+                # at the application level (e.g. valid_token check, user_id consistency).
             except Exception as e:
                 logger.error(f"Failed to initialize Supabase client: {e}")
                 self.supabase = None

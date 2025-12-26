@@ -30,6 +30,7 @@ from db_client import DBClient
 from notifier import Notifier
 from supadata_client import SupadataClient
 from pydantic import BaseModel
+from config import settings
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
@@ -38,9 +39,15 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="VibeDigest API (v2)", version="2.0.0")
 
 # CORS Configuration
+# Default to production and localhost
+DEFAULT_ORIGINS = ["https://vibedigest.neallin.xyz", "http://localhost:3000"]
+# Allow override via env (comma-separated), fallback to defaults if not set.
+env_origins = os.getenv("ALLOWED_ORIGINS", "")
+ALLOWED_ORIGINS = [o.strip() for o in env_origins.split(",") if o.strip()] or DEFAULT_ORIGINS
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -61,14 +68,11 @@ notifier = Notifier()
 supadata_client = SupadataClient()
 
 # Stripe Config
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-PRO_PRICE_ID = "price_1ShU6GP16NRNsVf5dcAqHHDV"
-PRO_ANNUAL_PRICE_ID = "price_1ShVNXP16NRNsVf56kArMPa4"
-CREDIT_PACK_PRICE_ID = "price_1ShU6pP16NRNsVf5EdlEFgOE"
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
 # Coinbase Config
-coinbase_client = CoinbaseClient(api_key=os.getenv("COINBASE_API_KEY"))
-COINBASE_WEBHOOK_SECRET = os.getenv("COINBASE_WEBHOOK_SECRET")
+coinbase_client = CoinbaseClient(api_key=settings.COINBASE_API_KEY)
+COINBASE_WEBHOOK_SECRET = settings.COINBASE_WEBHOOK_SECRET
 
 # Security Dependency
 async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
@@ -87,11 +91,8 @@ async def read_root():
 
 @app.get("/api/config")
 async def get_config():
-    """Return public configuration."""
-    return {
-        "supabase_url": os.getenv("SUPABASE_URL"),
-        "supabase_key": os.getenv("SUPABASE_KEY")
-    }
+    """Endpoint removed for security."""
+    raise HTTPException(status_code=404, detail="Not Found")
 
 class FeedbackModel(BaseModel):
     category: str
@@ -228,7 +229,7 @@ async def stripe_webhook(request: Request):
 
     try:
         event = stripe.Webhook.construct_event(
-            payload, sig_header, os.environ.get("STRIPE_WEBHOOK_SECRET")
+            payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail="Invalid payload")
@@ -251,6 +252,10 @@ async def stripe_webhook(request: Request):
         session_id = session['id']
         order = db_client.get_payment_order_by_provider_id(session_id)
         if order:
+             if order.get('status') == 'completed':
+                 logger.info(f"Order {order['id']} already completed. Skipping webhook.")
+                 return {"status": "success", "message": "Already processed"}
+                 
              db_client.update_payment_order(
                  order['id'], 
                  status='completed', 
@@ -309,30 +314,12 @@ async def create_crypto_charge(
 ):
     """Create Coinbase Commerce Charge (USDC Only)."""
     
-    # 1. Determine Amount
-    amount = 20.00 # Default for Credits
-    name = "20 Credits Top-up"
-    if price_id == PRO_PRICE_ID:
-        # Warning: Monthly logic on crypto is tricky. 
-        # For now, we allow it as a one-time "1 Month Access" or similar?
-        # User requirement says "Top up credits" is main focus.
-        # But if they select Pro, we might charge $29 (example) for 1 month manual.
-        # Let's assume Credit Pack for simplified MVP unless specified.
-        # Check ID
-        pass
-    
-    # Validation/Mapping
-    if price_id == CREDIT_PACK_PRICE_ID:
-        amount = 5.00 # 20 Credits
-        name = "20 Credits Top-up (One-time)"
-    elif price_id == PRO_PRICE_ID:
-        amount = 9.90 # Pro Month
-        name = "Pro Plan (1 Month)"
-    elif price_id == PRO_ANNUAL_PRICE_ID:
-        amount = 99.00 # Pro Annual
-        name = "Pro Plan (1 Year)"
-    else:
+    price = settings.get_price_by_id(price_id)
+    if not price:
          raise HTTPException(status_code=400, detail="Invalid Price ID")
+    
+    amount = price.amount
+    name = price.name
 
     try:
         # 2. Create Unified Order (Pending)
@@ -354,8 +341,8 @@ async def create_crypto_charge(
                 "order_id": order['id'], # Link back to our DB
                 "price_id": price_id
             },
-            "redirect_url": os.getenv("FRONTEND_URL", "http://localhost:3000") + "/settings/pricing?success=true",
-            "cancel_url": os.getenv("FRONTEND_URL", "http://localhost:3000") + "/settings/pricing?canceled=true",
+            "redirect_url": settings.FRONTEND_URL + "/settings/pricing?success=true",
+            "cancel_url": settings.FRONTEND_URL + "/settings/pricing?canceled=true",
         }
         
         charge = coinbase_client.charge.create(**charge_data)
@@ -377,7 +364,7 @@ async def coinbase_webhook(request: Request):
     sig_header = request.headers.get("X-CC-Webhook-Signature")
 
     try:
-        event = CoinbaseWebhook.construct_event(payload.decode('utf-8'), sig_header, COINBASE_WEBHOOK_SECRET)
+        event = CoinbaseWebhook.construct_event(payload.decode('utf-8'), sig_header, settings.COINBASE_WEBHOOK_SECRET)
     except Exception as e:
         logger.error(f"Coinbase signature error: {e}")
         raise HTTPException(status_code=400, detail="Invalid signature")
@@ -399,6 +386,12 @@ async def coinbase_webhook(request: Request):
             
             # Verify Order
             if order_id:
+                # Idempotency Check
+                existing_order = db_client.get_payment_order(order_id)
+                if existing_order and existing_order.get('status') == 'completed':
+                     logger.info(f"Order {order_id} already completed. Skipping webhook.")
+                     return {"status": "success", "message": "Already processed"}
+
                 db_client.update_payment_order(
                     order_id, 
                     status='completed', 
@@ -407,15 +400,12 @@ async def coinbase_webhook(request: Request):
                     metadata=charge
                 )
         
-        # Fulfill
-        if user_id:
-            if price_id == CREDIT_PACK_PRICE_ID:
-                db_client.add_credits(user_id, 20)
-            elif price_id == PRO_PRICE_ID:
-                # 1 Month access?
-                # current_period_end = now + 30 days
-                # For MVP, maybe we skip Pro on Crypto or implement manual date math
-                pass
+        if user_id and price_id:
+            price = settings.get_price_by_id(price_id)
+            if price and price.credits > 0:
+                db_client.add_credits(user_id, price.credits)
+            # Handle Pro? (Manual period calculation needed if supporting crypto subs)
+            pass
 
     return {"status": "success"}
 
@@ -786,12 +776,11 @@ async def create_checkout_session(
     user_id: str = Depends(get_current_user)
 ):
     """Create Stripe Checkout Session."""
-    domain_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-    
-    # Determine mode
-    mode = 'subscription'
-    if price_id == CREDIT_PACK_PRICE_ID:
-        mode = 'payment'
+    price = settings.get_price_by_id(price_id)
+    if not price:
+        raise HTTPException(status_code=400, detail="Invalid Price ID")
+        
+    mode = price.mode
         
     try:
         checkout_session = stripe.checkout.Session.create(
@@ -803,8 +792,8 @@ async def create_checkout_session(
                 },
             ],
             mode=mode,
-            success_url=domain_url + "/settings/pricing?success=true",
-            cancel_url=domain_url + "/settings/pricing?canceled=true",
+            success_url=settings.FRONTEND_URL + "/settings/pricing?success=true",
+            cancel_url=settings.FRONTEND_URL + "/settings/pricing?canceled=true",
         )
         
         # Unified Order Creation (Pending)
@@ -829,9 +818,7 @@ async def create_checkout_session(
         # 3. Update Order with session.id
         
         # Implementation:
-        amount_est = 0.0
-        if price_id == CREDIT_PACK_PRICE_ID: amount_est = 5.00
-        if price_id == PRO_PRICE_ID: amount_est = 19.00
+        amount_est = price.amount
         
         order = db_client.create_payment_order(user_id, "stripe", amount_est, "USD")
         if order:
