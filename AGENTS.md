@@ -287,7 +287,27 @@ docker-compose -f docker-compose.test.yml up -d
 
 ---
 
-## 10. Implementation Rules
+## 10. Testing Standards (Strict Rules)
+> **Constraint**: All automated tests must be **cost-free**.
+
+### 10.1 Zero Token Consumption Policy
+- **NEVER** call real paid APIs (OpenAI, DeepSeek, Anthropic) in tests.
+- **NEVER** perform real billing transactions (Stripe, Coinbase).
+- **NEVER** download large files (YouTube) during tests.
+- **Solution**: Use `unittest.mock` to intercept `transcriber.transcribe`, `summarizer.summarize`, and `video_processor.download`.
+
+### 10.2 Database Isolation
+- Backend tests run against a **MOCKED** database client (`db_client`).
+- Do not assume a live Supabase connection in unit/integration tests unless strictly using a dedicated test environment (not configured currently).
+
+### 10.3 Frontend Mocks
+- Frontend tests run in `jsdom`.
+- Mock `Next.js` Router (`useRouter`).
+- Mock `ApiClient` responses.
+
+---
+
+## 11. Implementation Rules
 
 1.  **Adding UI**: Check `src/components/ui` first.
 2.  **New Page**: Create `page.tsx` in `src/app/`.
@@ -303,3 +323,28 @@ docker-compose -f docker-compose.test.yml up -d
 *   [x] **Email Notifications (Resend)**
 *   [ ] **Vector Search (Embeddings)**
 *   [ ] **Stripe Integration**
+
+---
+
+## 12. Release Workflow (SOP)
+
+Before merging or deploying code, follow this verification checklist:
+
+### 12.1 Local Checks (Dev Loop)
+1.  **Backend Logic**: If you touched Python code, run:
+    ```bash
+    uv run pytest
+    ```
+2.  **Frontend Components**: If you touched React components, run:
+    ```bash
+    cd frontend && npm test
+    ```
+3.  **Critical Path**: Before pushing, verify no regression in login/landing:
+    ```bash
+    cd frontend && npx playwright test
+    ```
+
+### 12.2 CI Gate (GitHub Actions)
+- Pushing to `main` automatically triggers `.github/workflows/test.yml`.
+- **Rule**: Do not deploy if CI is red.
+- **Rule**: If CI fails, fix it locally first. Do not "fix in prod".

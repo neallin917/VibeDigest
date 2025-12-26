@@ -123,6 +123,23 @@ The system operates on a **Control Plane vs. Data Plane** model:
 - **Pricing schema**: `backend/sql/01_pricing_schema.sql`
 - **Payment orders (Stripe + Coinbase)**: `backend/sql/02_payment_orders.sql`
 
+## 🧪 Running Tests
+
+### Backend Tests (Pytest)
+Runs `pytest` with mocked external services (Safe & Free).
+```bash
+# Run from project root
+export PYTHONPATH=backend
+pytest -c backend/pytest.ini backend
+```
+
+### Frontend Tests (Vitest)
+Runs component integration tests.
+```bash
+cd frontend
+npm test
+```
+
 ## 📄 License
 
 This project is licensed under the terms found in the [LICENSE](LICENSE) file.
