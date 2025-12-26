@@ -31,10 +31,10 @@ export default function SettingsPage() {
                             {/* Language Section */}
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 <div className="space-y-1">
-                                    <h3 className="text-base font-medium text-foreground">
+                                    <h3 className="text-sm font-medium text-foreground">
                                         {t("settings.language")}
                                     </h3>
-                                    <p className="text-sm text-muted-foreground">
+                                    <p className="text-xs text-muted-foreground">
                                         {t("settings.languageHint")}
                                     </p>
                                 </div>
@@ -48,10 +48,10 @@ export default function SettingsPage() {
                             {/* Notification Section */}
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 <div className="space-y-1">
-                                    <h3 className="text-base font-medium text-foreground">
+                                    <h3 className="text-sm font-medium text-foreground">
                                         {t("settings.notifications")}
                                     </h3>
-                                    <p className="text-sm text-muted-foreground">
+                                    <p className="text-xs text-muted-foreground">
                                         {t("settings.notificationsHint")}
                                     </p>
                                 </div>

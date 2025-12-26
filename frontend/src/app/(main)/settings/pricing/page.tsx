@@ -123,7 +123,7 @@ export default function PricingPage() {
                     {paymentMethod === "crypto" && (
                         <div className="lg:col-span-12">
                             <p className="mx-auto lg:mx-0 w-fit text-xs text-yellow-500 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20 animate-in fade-in slide-in-from-top-1">
-                                {t("pricing.cryptoWarning")} (USDC Only)
+                                Credit Card support coming soon. {t("pricing.cryptoWarning")} (USDC Only)
                             </p>
                         </div>
                     )}
@@ -146,21 +146,21 @@ export default function PricingPage() {
                             </div>
                         )}
                         <CardHeader>
-                            <CardTitle>{t("pricing.free.title")}</CardTitle>
-                            <CardDescription>{t("pricing.free.desc")}</CardDescription>
+                            <CardTitle className="text-base">{t("pricing.free.title")}</CardTitle>
+                            <CardDescription className="text-xs">{t("pricing.free.desc")}</CardDescription>
                             <div className="mt-4">
-                                <span className="text-[32px] leading-9 font-bold tabular-nums">{t("pricing.free.price")}</span>
+                                <span className="text-2xl leading-none font-bold tabular-nums">{t("pricing.free.price")}</span>
                             </div>
                         </CardHeader>
                         <CardContent className="flex-1">
-                            <ul className="space-y-3 text-sm leading-5">
+                            <ul className="space-y-2 text-xs leading-4">
                                 {freeFeatureKeys
                                     .map((k) => t(k))
                                     .filter((v) => v && !v.startsWith("pricing."))
                                     .map((feature, i) => (
                                         <li key={i} className="flex items-center gap-2">
-                                            <Database className="h-4 w-4 text-muted-foreground" />
-                                            <span className="text-sm leading-5">{feature}</span>
+                                            <Database className="h-3 w-3 text-muted-foreground" />
+                                            <span className="text-xs leading-4">{feature}</span>
                                         </li>
                                     ))}
                             </ul>
@@ -189,9 +189,9 @@ export default function PricingPage() {
                                 <Badge className="bg-emerald-500 text-white">Active</Badge>
                             </div>
                         )}
-                        <CardHeader className="relative pt-10">
+                        <CardHeader className="relative pt-8">
                             <div className="flex items-start justify-between gap-4">
-                                <Heading as="h3" variant="h2">
+                                <Heading as="h3" variant="h3">
                                     {t("pricing.pro.title")}
                                 </Heading>
                                 <div className="flex items-center gap-2">
@@ -200,7 +200,7 @@ export default function PricingPage() {
                                         variant="caption"
                                         weight="semibold"
                                         className={cn(
-                                            "tracking-widest uppercase",
+                                            "tracking-widest uppercase text-[10px]",
                                             isAnnual ? "text-emerald-500" : "text-muted-foreground"
                                         )}
                                     >
@@ -209,45 +209,45 @@ export default function PricingPage() {
                                     <Switch
                                         checked={isAnnual}
                                         onCheckedChange={setIsAnnual}
-                                        className="scale-90 data-[state=checked]:bg-emerald-500"
+                                        className="scale-75 origin-right data-[state=checked]:bg-emerald-500"
                                     />
                                 </div>
                             </div>
 
-                            <div className="mt-3 flex items-baseline gap-2">
+                            <div className="mt-2 flex items-baseline gap-2">
                                 {isAnnual && (
                                     <Text
                                         as="span"
                                         variant="bodySm"
                                         tone="muted"
                                         weight="medium"
-                                        className="line-through tabular-nums"
+                                        className="line-through tabular-nums text-xs"
                                     >
                                         {t("pricing.pro.price")}
                                     </Text>
                                 )}
-                                <span className="text-[36px] leading-9 font-bold tabular-nums">
+                                <span className="text-2xl leading-none font-bold tabular-nums">
                                     {isAnnual ? t("pricing.pro.annualPrice") : t("pricing.pro.price")}
                                 </span>
-                                <Text as="span" variant="bodySm" tone="muted">
+                                <Text as="span" variant="caption" tone="muted">
                                     {t("pricing.pro.unit")}
                                 </Text>
                             </div>
                             {isAnnual && (
-                                <Text variant="caption" tone="muted" className="mt-2">
+                                <Text variant="caption" tone="muted" className="mt-1 text-[10px]">
                                     {t("pricing.pro.desc")}
                                 </Text>
                             )}
                         </CardHeader>
                         <CardContent className="flex-1">
-                            <ul className="space-y-3 text-sm leading-5">
+                            <ul className="space-y-2 text-xs leading-4">
                                 {proFeatureKeys
                                     .map((k) => t(k))
                                     .filter((v) => v && !v.startsWith("pricing."))
                                     .map((feature, i) => (
                                         <li key={i} className="flex items-center gap-2">
-                                            <Check className="h-4 w-4 text-emerald-500" />
-                                            <span className="text-sm leading-5">{feature}</span>
+                                            <Check className="h-3 w-3 text-emerald-500" />
+                                            <span className="text-xs leading-4">{feature}</span>
                                         </li>
                                     ))}
                             </ul>
@@ -278,21 +278,21 @@ export default function PricingPage() {
                     {/* TOP UP */}
                     <Card className="relative flex flex-col h-full border-border/50 bg-background/50 backdrop-blur-sm">
                         <CardHeader>
-                            <CardTitle>{t("pricing.topup.title")}</CardTitle>
-                            <CardDescription>{t("pricing.topup.desc")}</CardDescription>
+                            <CardTitle className="text-base">{t("pricing.topup.title")}</CardTitle>
+                            <CardDescription className="text-xs">{t("pricing.topup.desc")}</CardDescription>
                             <div className="mt-4">
-                                <span className="text-[32px] leading-9 font-bold tabular-nums">{t("pricing.topup.price")}</span>
+                                <span className="text-2xl leading-none font-bold tabular-nums">{t("pricing.topup.price")}</span>
                             </div>
                         </CardHeader>
                         <CardContent className="flex-1">
-                            <ul className="space-y-3 text-sm leading-5">
+                            <ul className="space-y-2 text-xs leading-4">
                                 {topupFeatureKeys
                                     .map((k) => t(k))
                                     .filter((v) => v && !v.startsWith("pricing."))
                                     .map((feature, i) => (
                                         <li key={i} className="flex items-center gap-2">
-                                            <CreditCard className="h-4 w-4 text-blue-400" />
-                                            <span className="text-sm leading-5">{feature}</span>
+                                            <CreditCard className="h-3 w-3 text-blue-400" />
+                                            <span className="text-xs leading-4">{feature}</span>
                                         </li>
                                     ))}
                             </ul>

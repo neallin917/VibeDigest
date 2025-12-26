@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils"
 const textVariants = cva("", {
   variants: {
     variant: {
-      body: "text-base leading-6",
-      bodySm: "text-sm leading-5",
+      body: "text-sm leading-6",
+      bodySm: "text-xs leading-5",
       caption: "text-xs leading-4",
     },
     tone: {
@@ -77,11 +77,11 @@ const headingVariants = cva("tracking-tight", {
     variant: {
       display:
         "text-5xl leading-[1.05] md:text-7xl md:leading-[1.05] font-bold tracking-tighter",
-      h1: "text-[30px] leading-9 font-bold",
-      h2: "text-[22px] leading-7 font-bold",
-      h3: "text-lg leading-6 font-semibold",
+      h1: "text-[26px] leading-9 font-bold",
+      h2: "text-[20px] leading-7 font-bold",
+      h3: "text-base leading-6 font-semibold",
       pageTitle:
-        "text-lg leading-6 font-bold md:text-[22px] md:leading-7 break-words",
+        "text-lg leading-6 font-bold md:text-[20px] md:leading-7 break-words",
       mediaTitle:
         "text-lg leading-6 font-bold md:text-xl md:leading-7 text-white line-clamp-2",
     },
