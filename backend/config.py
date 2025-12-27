@@ -24,6 +24,9 @@ class Settings:
     COINBASE_API_KEY: str = os.getenv("COINBASE_API_KEY", "")
     COINBASE_WEBHOOK_SECRET: str = os.getenv("COINBASE_WEBHOOK_SECRET", "")
 
+    # Monitoring
+    SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
+
     # Pricing / Plans
     # Using a dictionary for easy lookup by ID if needed, or just constants
     PRICES: Dict[str, PriceConfig] = {

@@ -1406,20 +1406,81 @@ Core requirements:
             best = None
             best_score = -1e9
 
-            for seg, seg_tokens in seg_cache:
+            # Calculate scores for all segments first
+            scores = []
+            for i, (seg, seg_tokens) in enumerate(seg_cache):
                 s_text = seg.get("text", "")
                 sc = self._score_segment_match(query=query, query_tokens=q_tokens, seg_text=s_text, seg_tokens=seg_tokens)
-                if sc > best_score:
-                    best_score = sc
-                    best = seg
+                scores.append(sc)
 
-            # Threshold: avoid random anchors on low-signal matches
-            if not best or best_score < self.summary_match_threshold:
+            if not scores:
                 continue
 
+            # Find best match
+            best_idx = -1
+            best_score = -1e9
+            for i, sc in enumerate(scores):
+                if sc > best_score:
+                    best_score = sc
+                    best_idx = i
+
+            # Threshold check
+            if best_idx == -1 or best_score < self.summary_match_threshold:
+                continue
+
+            # Expand window logic
+            # 1. Expand while neighbors have decent scores (e.g., > 60% of peak or > threshold)
+            # 2. Heuristic: specific duration target?
+            start_idx = best_idx
+            end_idx = best_idx
+            
+            # Expansion thresholds
+            expansion_ratio = 0.6  # Neighbor must be at least 60% of the peak score
+            min_expansion_score = self.summary_match_threshold * 0.8 # Or absolute threshold
+
+            # Expand Left
+            while start_idx > 0:
+                prev_score = scores[start_idx - 1]
+                if prev_score >= best_score * expansion_ratio or prev_score > min_expansion_score:
+                    start_idx -= 1
+                else:
+                    break
+            
+            # Expand Right
+            while end_idx < len(segments) - 1:
+                next_score = scores[end_idx + 1]
+                if next_score >= best_score * expansion_ratio or next_score > min_expansion_score:
+                    end_idx += 1
+                else:
+                    break
+            
+            # Minimum Duration Heuristic (Optional):
+            # If total duration < 5s, and neighbors are not garbage (score > 0), pull them in?
+            # Let's be conservative. If we have a very strong peak but short, maybe it's just that sentence.
+            # But usually keypoints are broader.
+            # Let's enforce: if duration < 8s, try to expand one more step if score > low_threshold
+            
+            current_start = float(segments[start_idx].get("start", 0.0))
+            current_end = float(segments[end_idx].get("end", current_start))
+            duration = current_end - current_start
+            
+            low_threshold = 2.0 # Very low threshold just to ensure it's not completely unrelated
+            
+            if duration < 8.0:
+                # Try expand left
+                if start_idx > 0 and scores[start_idx - 1] > low_threshold:
+                    start_idx -= 1
+                    current_start = float(segments[start_idx].get("start", current_start))
+                    duration = current_end - current_start
+                
+                # If still short, try expand right
+                if duration < 8.0 and end_idx < len(segments) - 1 and scores[end_idx + 1] > low_threshold:
+                    end_idx += 1
+                    current_end = float(segments[end_idx].get("end", current_end))
+
             try:
-                kp["startSeconds"] = float(best.get("start", 0.0))
-                kp["endSeconds"] = float(best.get("end", kp["startSeconds"]))
+                kp["startSeconds"] = float(segments[start_idx].get("start", 0.0))
+                kp["endSeconds"] = float(segments[end_idx].get("end", kp["startSeconds"]))
             except Exception:
                 continue
 

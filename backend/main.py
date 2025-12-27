@@ -31,10 +31,18 @@ from notifier import Notifier
 from supadata_client import SupadataClient
 from pydantic import BaseModel
 from config import settings
+import sentry_sdk
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+if settings.SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        traces_sample_rate=1.0,
+        profiles_sample_rate=1.0, 
+    )
 
 app = FastAPI(title="VibeDigest API (v2)", version="2.0.0")
 
