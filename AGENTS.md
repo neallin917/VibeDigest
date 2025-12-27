@@ -348,3 +348,8 @@ Before merging or deploying code, follow this verification checklist:
 - Pushing to `main` automatically triggers `.github/workflows/test.yml`.
 - **Rule**: Do not deploy if CI is red.
 - **Rule**: If CI fails, fix it locally first. Do not "fix in prod".
+
+### 12.3 Dependency Management (Prevention)
+- **Single Source of Truth**: Backend dependencies MUST be defined in the **ROOT** `requirements.txt`.
+- **Reason**: GitHub Actions CI (`test.yml`) installs dependencies from the root `requirements.txt`.
+- **Prohibited**: Do not create `backend/requirements.txt`. If you add a library locally (e.g. `uv pip install foo`), you MUST add it to the root `requirements.txt` immediately.
