@@ -1,5 +1,8 @@
 # VibeDigest
 
+[中文版](./README_zh-CN.md)
+
+
 **VibeDigest** is a modern, full-stack application designed to seamlessly download videos, transcribe audio, and generate AI-powered summaries. Engineered for performance and aesthetics, it leverages the power of OpenAI and the speed of Next.js.
 
 ## ✨ Key Highlights (v3)
