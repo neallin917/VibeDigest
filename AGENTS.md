@@ -27,6 +27,7 @@ VibeDigest is a full-stack tool engineered to download videos, transcribe audio,
     - `transcriber.py`: OpenAI Whisper Integration + `pydub` Chunking.
     - `notifier.py`: Email notifications via Resend.
     - `supadata_client.py`: **Optional** Supadata transcript fetcher (YouTube only) using `httpx`.
+    - `scripts/`: Internal utility and debugging scripts (e.g., `debug_log.py`).
     - `*.py`: Stateless processors (yt-dlp).
 - `frontend/`: **Frontend Source** (Next.js/TypeScript)
     - `src/app/`: App Router pages.
@@ -91,6 +92,9 @@ docker-compose up -d
 
 # Rebuild Backend Container (Required after requirements change)
 docker-compose up --build -d transcriber-backend
+
+# Restart Backend Container (Quick restart)
+docker compose restart transcriber-backend
 
 # Run Test Backend (Port 8001)
 docker-compose -f docker-compose.test.yml up -d

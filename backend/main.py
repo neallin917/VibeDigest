@@ -46,6 +46,19 @@ if settings.SENTRY_DSN:
 
 app = FastAPI(title="VibeDigest API (v2)", version="2.0.0")
 
+@app.on_event("shutdown")
+def shutdown_event():
+    # Flush Langfuse events if available
+    try:
+        if hasattr(langfuse_context, "flush"):
+            langfuse_context.flush()
+        # Fallback if using raw SDK
+        import langfuse
+        if hasattr(langfuse, "flush"):
+            langfuse.flush()
+    except:
+        pass
+
 # CORS Configuration
 # Default to production and localhost
 DEFAULT_ORIGINS = ["https://vibedigest.neallin.xyz", "http://localhost:3000"]
@@ -421,6 +434,17 @@ async def coinbase_webhook(request: Request):
 # Background Workers
 # -------------------------------------------------------------------------
 
+# Langfuse Decorator
+try:
+    from langfuse.decorators import observe, langfuse_context
+except ImportError:
+    def observe(**kwargs):
+        def decorator(func):
+            return func
+        return decorator
+    langfuse_context = None
+
+@observe(name="video-processing-pipeline")
 async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
     """
     Main orchestration pipeline.
@@ -429,36 +453,45 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
     3. Summarize (updates Summary output)
     4. Translate (updates Translation outputs)
     """
+    if langfuse_context:
+        langfuse_context.update_current_trace(
+            user_id=task_id, # Or actual user_id if we passed it
+            tags=["pipeline", "video-processing"],
+            metadata={"video_url": video_url, "task_id": task_id}
+        )
+
     try:
         # Update Task Status
         db_client.update_task_status(task_id, status="processing", progress=10)
 
-        # Try Supadata first if it's a supported URL (YouTube usually)
-        # We can try for all, let the client decide or handle error.
-        supadata_result = None
+        # Try yt-dlp subtitles first (Free & Fast)
+        transcript_result = None
         
         # Simple heuristic to prioritize Supadata for YouTube
         is_youtube = "youtube.com" in video_url or "youtu.be" in video_url
+        
         if is_youtube:
+            # 1. Try Supadata (Official/High Quality)
             try:
                 # 30% progress for "Fetching Transcript"
                 db_client.update_task_status(task_id, status="processing", progress=20)
                 md, raw, lang = await supadata_client.get_transcript_async(video_url)
                 if md and raw:
-                    supadata_result = (md, raw, lang)
+                    transcript_result = (md, raw, lang)
                     logger.info("Supadata transcript fetched successfully.")
             except Exception as e:
                 logger.warning(f"Supadata attempt failed: {e}")
+
 
         audio_path = None
         video_title = "Unknown"
         thumbnail_url = None
         direct_audio_url = None
         
-        if supadata_result:
-            # OPTION A: Supadata Succeeded.
+        if transcript_result:
+            # OPTION A: Transcript Already Fetched (yt-dlp or Supadata).
             # We skip heavy download. But we need Metadata (Title, Thumb, AudioURL).
-            logger.info("Using Supadata result. Fetching metadata only...")
+            logger.info("Using existing transcript result. Fetching metadata only...")
             try:
                 # Quick metadata fetch
                 video_title, thumbnail_url, direct_audio_url = await video_processor.extract_info_only(video_url)
@@ -512,10 +545,10 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
         script_text_with_timestamps = ""
         if script_output:
             try:
-                if supadata_result:
-                    # Use Supadata result
-                    logger.info("Using Supadata transcript for output.")
-                    script_text_with_timestamps, raw_json, detected_language = supadata_result
+                if transcript_result:
+                    # Use existing transcript result
+                    logger.info("Using pre-fetched transcript for output.")
+                    script_text_with_timestamps, raw_json, detected_language = transcript_result
                     db_client.update_output_status(script_output['id'], status="processing", progress=10)
                     
                     if script_raw_output:

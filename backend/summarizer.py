@@ -5,6 +5,12 @@ import asyncio
 from typing import Optional, Any
 import json
 import re
+from config import settings
+# Use Langfuse wrapper for OpenAI if available, otherwise fall back to standard
+try:
+    from langfuse.openai import openai
+except ImportError:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -64,36 +70,30 @@ class Summarizer:
         # Model selection (configurable via env; safe fallbacks).
         # - Summary should use the best available model. We try preferred first, then fall back.
         # - Transcript formatting keeps the previous default to avoid cost regression unless configured.
-        # If user explicitly sets env, respect it. Otherwise, prefer newest models first.
+        # If user explicitly sets env, respect it. Otherwise, use config defaults.
         # Safe due to runtime fallback in _chat_completions_create().
         explicit_summary_model = (os.getenv("OPENAI_SUMMARY_MODEL") or "").strip()
         explicit_fallback_model = (os.getenv("OPENAI_SUMMARY_FALLBACK_MODEL") or "").strip()
+        
         if explicit_summary_model:
+            # If explicit override, build a custom chain starting with it
             default_summary_chain = [
                 explicit_summary_model,
                 explicit_fallback_model,
-                "gpt-4.1",
-                "gpt-4o",
-            ]
+            ] + settings.OPENAI_SUMMARY_MODELS
+            # Filter out empty strings
+            default_summary_chain = [m for m in default_summary_chain if m]
         else:
-            # Best-effort "latest/best" defaults. If a model isn't available on the endpoint/account,
-            # we'll automatically fall back to the next one.
-            default_summary_chain = [
-                "gpt-5.2",
-                "gpt-5",
-                "gpt-5-mini",
-                "gpt-5-nano",
-                "gpt-4.1",
-                "gpt-4o",
-            ]
+            # Use configured defaults
+            default_summary_chain = list(settings.OPENAI_SUMMARY_MODELS) # Copy
             if explicit_fallback_model:
-                default_summary_chain.insert(1, explicit_fallback_model)
+                 default_summary_chain.insert(1, explicit_fallback_model)
 
         self.summary_models = self._dedupe_models(default_summary_chain)
         # Cheap/fast defaults for "transcript optimization" (formatting/paragraphing).
-        # User preference: use gpt-5-mini for these simpler tasks by default.
-        self.transcript_model = os.getenv("OPENAI_TRANSCRIPT_MODEL") or "gpt-5-mini"
-        self.paragraph_model = os.getenv("OPENAI_PARAGRAPH_MODEL") or "gpt-5-mini"
+        # User preference: use helper model for these simpler tasks by default.
+        self.transcript_model = os.getenv("OPENAI_TRANSCRIPT_MODEL") or settings.OPENAI_HELPER_MODEL
+        self.paragraph_model = os.getenv("OPENAI_PARAGRAPH_MODEL") or settings.OPENAI_HELPER_MODEL
 
         # -----------------------------------------------------------------
         # Quality/Stability Knobs (env configurable)
@@ -126,7 +126,7 @@ class Summarizer:
             "OPENAI_SUMMARY_MAX_KEYPOINTS_CANDIDATES", 140, min_value=24, max_value=2000
         )
         self.enable_json_repair = self._read_bool_env("OPENAI_SUMMARY_JSON_REPAIR", True)
-        self.json_repair_model = (os.getenv("OPENAI_JSON_REPAIR_MODEL") or "").strip() or "gpt-5-mini"
+        self.json_repair_model = (os.getenv("OPENAI_JSON_REPAIR_MODEL") or "").strip() or settings.OPENAI_HELPER_MODEL
         # Best-effort strict JSON mode (if the endpoint/model supports response_format).
         self.use_response_format_json = self._read_bool_env("OPENAI_USE_RESPONSE_FORMAT_JSON", True)
         
@@ -366,8 +366,8 @@ class Summarizer:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            max_tokens=4000,  # 对齐JS：优化/格式化阶段最大tokens≈4000
-            temperature=0.1,
+            max_completion_tokens=4000,  # 对齐JS：优化/格式化阶段最大tokens≈4000
+            # temperature=0.1,
         )
         
         return response.choices[0].message.content
@@ -414,8 +414,8 @@ class Summarizer:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
-                    max_tokens=1200,  # 适应4000 tokens总限制
-                    temperature=0.1,
+                    max_completion_tokens=1200,  # 适应4000 tokens总限制
+                    # temperature=0.1,
                 )
                 
                 optimized_chunk = response.choices[0].message.content
@@ -502,8 +502,8 @@ class Summarizer:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ],
-                max_tokens=4000,  # 对齐JS：优化/格式化阶段最大tokens≈4000
-                temperature=0.1,
+                max_completion_tokens=4000,  # 对齐JS：优化/格式化阶段最大tokens≈4000
+                # temperature=0.1, # gpt-5-mini only supports default temperature (1)
             )
             optimized_text = response.choices[0].message.content or ""
             # 移除诸如 "# Transcript" / "## Transcript" 等标题
@@ -1012,8 +1012,8 @@ class Summarizer:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=4000,  # 对齐JS：段落整理阶段最大tokens≈4000
-                temperature=0.05,  # 降低温度，提高一致性
+                max_completion_tokens=4000,  # 对齐JS：段落整理阶段最大tokens≈4000
+                # temperature=0.05,  # 降低温度，提高一致性
             )
             
             organized_text = response.choices[0].message.content
@@ -1091,8 +1091,8 @@ Core requirements:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            max_tokens=1200,  # 适应4000 tokens总限制
-            temperature=0.05,
+            max_completion_tokens=1200,  # 适应4000 tokens总限制
+            # temperature=0.05,
         )
         
         return response.choices[0].message.content
@@ -1633,8 +1633,8 @@ Note: startSeconds/endSeconds may be omitted for items where they are missing in
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            max_tokens=max(1200, int(self.summary_integrate_max_output_tokens)),
-            temperature=0.1,
+            max_completion_tokens=max(1200, int(self.summary_integrate_max_output_tokens)),
+            # temperature=0.1,
         )
         if self.use_response_format_json:
             kwargs["response_format"] = {"type": "json_object"}
@@ -1701,8 +1701,8 @@ Transcript:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            max_tokens=int(self.summary_single_max_output_tokens),
-            temperature=0.2,
+            max_completion_tokens=int(self.summary_single_max_output_tokens),
+            # temperature=0.2,
         )
         # Best-effort strict JSON output.
         if self.use_response_format_json:
@@ -1774,8 +1774,8 @@ Rules:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
-                    max_tokens=int(self.summary_chunk_max_output_tokens),
-                    temperature=0.2,
+                    max_completion_tokens=int(self.summary_chunk_max_output_tokens),
+                    # temperature=0.2,
                 )
                 if self.use_response_format_json:
                     kwargs["response_format"] = {"type": "json_object"}
@@ -1844,8 +1844,8 @@ Keypoints JSON list:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=int(self.summary_integrate_max_output_tokens),
-                temperature=0.2,
+                max_completion_tokens=int(self.summary_integrate_max_output_tokens),
+                # temperature=0.2,
             )
             if self.use_response_format_json:
                 kwargs["response_format"] = {"type": "json_object"}
@@ -1935,8 +1935,8 @@ INPUT:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=max(1200, int(self.summary_integrate_max_output_tokens)),
-                temperature=0.1,
+                max_completion_tokens=max(1200, int(self.summary_integrate_max_output_tokens)),
+                # temperature=0.1,
             )
             if self.use_response_format_json:
                 kwargs["response_format"] = {"type": "json_object"}
@@ -2028,8 +2028,8 @@ Requirements:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=2500,  # 控制输出规模，兼顾上下文安全
-                temperature=0.3,
+                max_completion_tokens=2500,  # 控制输出规模，兼顾上下文安全
+                # temperature=0.3,
             )
             
             return response.choices[0].message.content

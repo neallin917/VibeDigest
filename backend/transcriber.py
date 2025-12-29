@@ -3,7 +3,10 @@ import logging
 from typing import Optional
 import re
 import json
-from openai import OpenAI
+try:
+    from langfuse.openai import OpenAI
+except ImportError:
+    from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -476,17 +479,19 @@ def format_markdown_from_raw_segments(raw_segments: list[dict], detected_languag
 
     return "\n".join(transcript_lines)
 
+from config import settings
+
 class Transcriber:
     """音频转录器，使用 OpenAI API 进行语音转文字"""
     
-    def __init__(self, model_size: str = "whisper-1"):
+    def __init__(self, model_size: str = None):
         """
         初始化转录器
         
         Args:
-            model_size: OpenAI 模型名称 (默认 whisper-1)
+            model_size: OpenAI 模型名称 (默认使用 config 中的配置)
         """
-        self.model_name = model_size
+        self.model_name = model_size or settings.OPENAI_TRANSCRIPTION_MODEL
         self.client = None
         self.last_detected_language = None
         
@@ -494,10 +499,16 @@ class Transcriber:
         """延迟初始化 OpenAI 客户端"""
         if self.client is None:
             api_key = os.getenv("OPENAI_API_KEY")
+            base_url = os.getenv("OPENAI_BASE_URL")
             if not api_key:
                 raise ValueError("未找到 OPENAI_API_KEY 环境变量")
-            self.client = OpenAI(api_key=api_key)
-            logger.info("OpenAI 客户端初始化完成")
+            
+            if base_url:
+                self.client = OpenAI(api_key=api_key, base_url=base_url)
+                logger.info(f"OpenAI 客户端初始化完成 (Base URL: {base_url})")
+            else:
+                self.client = OpenAI(api_key=api_key)
+                logger.info("OpenAI 客户端初始化完成")
     
     async def transcribe(self, audio_path: str, language: Optional[str] = None) -> str:
         """

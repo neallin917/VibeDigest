@@ -92,6 +92,11 @@
     docker logs -f transcriber-backend
     ```
 
+    To restart the backend service:
+    ```bash
+    docker compose restart transcriber-backend
+    ```
+
 2.  **Launch the User Interface**
     From the `frontend` directory:
     ```bash

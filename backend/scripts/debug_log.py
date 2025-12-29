@@ -1,5 +1,9 @@
 
 import os
+import sys
+# Add parent directory to path to allow importing modules from backend
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import json
 import re
 from db_client import DBClient

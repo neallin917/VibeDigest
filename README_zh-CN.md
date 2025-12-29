@@ -92,6 +92,11 @@
     docker logs -f transcriber-backend
     ```
 
+    重启后台服务：
+    ```bash
+    docker compose restart transcriber-backend
+    ```
+
 2.  **启动用户界面**
     从 `frontend` 目录：
     ```bash

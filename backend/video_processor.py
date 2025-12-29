@@ -320,6 +320,202 @@ class VideoProcessor:
             logger.error(f"下载视频失败: {str(e)}")
             raise Exception(f"下载视频失败: {str(e)}")
 
+    def _parse_vtt(self, vtt_path: Path) -> tuple[str, list[dict]]:
+        """
+        Simple VTT parser.
+        Returns: (full_text_markdown, segments_list_for_json)
+        """
+        text_blocks = []
+        segments = []
+        
+        try:
+            content = vtt_path.read_text(encoding='utf-8')
+        except Exception:
+            return "", []
+
+        # Remove header (WEBVTT...)
+        lines = content.splitlines()
+        if lines and lines[0].strip().startswith("WEBVTT"):
+            lines = lines[1:]
+
+        # Buffer for current cue
+        current_start = None
+        current_end = None
+        current_text = []
+        
+        # Regex for VTT timestamps: 00:00:00.000 or 00:00.000
+        # timestamp arrow timestamp
+        time_pattern = re.compile(r'((?:\d{2}:)?\d{2}:\d{2}\.\d{3})\s-->\s((?:\d{2}:)?\d{2}:\d{2}\.\d{3})')
+        
+        def parse_time(t_str):
+            # Returns seconds (float)
+            parts = t_str.split(':')
+            if len(parts) == 3:
+                h, m, s = parts
+                return float(h) * 3600 + float(m) * 60 + float(s)
+            elif len(parts) == 2:
+                m, s = parts
+                return float(m) * 60 + float(s)
+            return 0.0
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                # End of cue (empty line separator)
+                if current_start is not None and current_text:
+                    full_text = " ".join(current_text)
+                    # Simple duplication check or cleanup could go here
+                    segments.append({
+                        "start": current_start,
+                        "end": current_end,
+                        "text": full_text
+                    })
+                    text_blocks.append(f"[{current_start:.2f}-{current_end:.2f}] {full_text}")
+                    
+                current_start = None
+                current_end = None
+                current_text = []
+                continue
+            
+            # Check for timestamp line
+            m = time_pattern.search(line)
+            if m:
+                current_start = parse_time(m.group(1))
+                current_end = parse_time(m.group(2))
+                continue
+            
+            # If we have a start time, treat this as text (ignoring sequence numbers/identifiers)
+            if current_start is not None:
+                # Skip sequence identifiers (simple digits) if they appear alone on a line before timestamp?
+                # Usually VTT is: 
+                # ID
+                # Time --> Time
+                # Text
+                # So if we see text but have no time, it might be ID, but here we only capture text AFTER time is found.
+                # Use a heuristic to skip metadata lines or style tags
+                clean_line = re.sub(r'<[^>]+>', '', line) # Remove <c> tags etc
+                if clean_line:
+                    current_text.append(clean_line)
+
+        # Flush last one
+        if current_start is not None and current_text:
+            full_text = " ".join(current_text)
+            segments.append({
+                "start": current_start,
+                "end": current_end,
+                "text": full_text
+            })
+            text_blocks.append(f"[{current_start:.2f}-{current_end:.2f}] {full_text}")
+
+        return "\n\n".join(text_blocks), segments
+
+    async def extract_captions(self, url: str) -> Optional[tuple[str, str, str]]:
+        """
+        Attempt to download and parse subtitles via yt-dlp.
+        Returns: (script_text_with_timestamps, raw_json_str, detected_language) or None
+        """
+        import asyncio
+        import uuid
+        
+        # Temp dir for subs
+        # Use centralized temp directory to keep things clean
+        sub_dir = Path("temp/subs")
+        sub_dir.mkdir(parents=True, exist_ok=True)
+        unique_id = str(uuid.uuid4())[:8]
+        output_template = str(sub_dir / f"{unique_id}") # yt-dlp will append .en.vtt
+
+        opts = {
+            'skip_download': True,
+            'writesubtitles': True,
+            'writeautomaticsub': True,
+            # Prefer manually created subs, then auto.
+            # We fetch all available to be safe, or specify langs.
+            # 'subtitleslangs': ['zh-Hans', 'zh-Hant', 'zh', 'en'], # Or 'all'
+            'subtitleslangs': ['en', 'zh', 'zh-Hans', 'zh-Hant', 'zh-CN', 'zh-TW'], 
+            'sleep_interval': 1,
+            'outtmpl': output_template,
+            'quiet': True,
+            'no_warnings': True,
+        }
+        
+        logger.info(f"Trying yt-dlp subtitle extraction for {url}")
+        
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                await asyncio.to_thread(ydl.download, [url])
+            
+            # Find the best subtitle file
+            # Priority: zh-Hans -> zh -> en
+            # Filenames will be roughly: unique_id.zh-Hans.vtt, unique_id.en.vtt
+            
+            found_file = None
+            found_lang = "unknown"
+            
+            # Simple priority list
+            priorities = ["zh-Hans", "zh-Hant", "zh-CN", "zh-TW", "zh", "en", "en-US"]
+            
+            for lang in priorities:
+                # Check for vtt
+                f = sub_dir / f"{unique_id}.{lang}.vtt"
+                if f.exists():
+                    found_file = f
+                    found_lang = lang if "zh" in lang else "en" # Simplify lang code for system
+                    if "zh" in lang: found_lang = "zh"
+                    break
+            
+            # Fallback: any vtt with unique_id
+            if not found_file:
+                logger.warning(f"No priority subtitle found. Checking all files in {sub_dir} for {unique_id}...")
+                for f in sub_dir.glob(f"{unique_id}.*.vtt"):
+                    logger.info(f"Found fallback subtitle: {f.name}")
+                    found_file = f
+                    # extract lang from filename if possible?
+                    # filename: id.LANG.vtt
+                    parts = f.name.split('.')
+                    if len(parts) >= 3:
+                        raw_lang = parts[-2]
+                        found_lang = "zh" if "zh" in raw_lang else raw_lang
+                    break
+            
+            if found_file:
+                logger.info(f"Found subtitle file: {found_file}")
+                # Parse
+                md, segments = await asyncio.to_thread(self._parse_vtt, found_file)
+                if md and segments:
+                    # Construct raw_json compatible with Whisper
+                    raw_payload = {
+                        "text": "", # optional
+                        "segments": segments,
+                        "language": found_lang
+                    }
+                    # Cleanup
+                    try:
+                        found_file.unlink()
+                        # Cleanup other subs for this id?
+                        for f in sub_dir.glob(f"{unique_id}.*"):
+                            f.unlink()
+                    except Exception:
+                        pass
+                        
+                    return md, json.dumps(raw_payload, ensure_ascii=False), found_lang
+            else:
+                 # Debug: List what WAS downloaded
+                 all_files = list(sub_dir.glob(f"{unique_id}.*"))
+                 logger.warning(f"Subtitle extraction finished but no file matched priorities. Files present: {[f.name for f in all_files]}")
+            
+            # Clean up empty remnants
+            try:
+                for f in sub_dir.glob(f"{unique_id}.*"):
+                    f.unlink()
+            except Exception:
+                pass
+                
+            return None
+
+        except Exception as e:
+            logger.warning(f"yt-dlp subtitle extraction failed: {e}")
+            return None
+
     async def extract_info_only(self, url: str) -> tuple[str, Optional[str], Optional[str]]:
         """
         Extract metadata without downloading the full audio.

@@ -24,8 +24,35 @@ class Settings:
     COINBASE_API_KEY: str = os.getenv("COINBASE_API_KEY", "")
     COINBASE_WEBHOOK_SECRET: str = os.getenv("COINBASE_WEBHOOK_SECRET", "")
 
+    # Langfuse
+    LANGFUSE_PUBLIC_KEY: str = os.getenv("LANGFUSE_PUBLIC_KEY", "")
+    LANGFUSE_SECRET_KEY: str = os.getenv("LANGFUSE_SECRET_KEY", "")
+    LANGFUSE_HOST: str = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+
     # Monitoring
     SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
+
+    # Models
+    # OpenAI Models
+    # Summary & Analysis Chain (Preferred -> Fallback)
+    OPENAI_SUMMARY_MODELS: list[str] = [
+        os.getenv("OPENAI_SUMMARY_MODEL_PREFERRED", "gpt-5.2"),
+        "gpt-5",
+        "gpt-5-mini",
+        "gpt-5-nano",
+        "gpt-4.1",
+        "gpt-4o",
+    ]
+    
+    # Helper Models (for simpler tasks like JSON repair, formatting)
+    OPENAI_HELPER_MODEL: str = os.getenv("OPENAI_HELPER_MODEL", "gpt-5-mini")
+    
+    # Translation Models
+    OPENAI_TRANSLATION_MODEL: str = os.getenv("OPENAI_TRANSLATION_MODEL", "gpt-4o")
+
+    # Transcription Models
+    # Defaulting to whisper-1 for now, but ready to switch to gpt-4o-transcribe
+    OPENAI_TRANSCRIPTION_MODEL: str = os.getenv("OPENAI_TRANSCRIPTION_MODEL", "whisper-1")
 
     # Pricing / Plans
     # Using a dictionary for easy lookup by ID if needed, or just constants

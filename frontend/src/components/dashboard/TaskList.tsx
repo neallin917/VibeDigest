@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, CheckCircle2, AlertCircle, PlayCircle, Loader2, Trash2, Edit2, X, Check } from "lucide-react"
+import { Clock, CheckCircle2, AlertCircle, PlayCircle, Loader2, Trash2, Edit2, X, Check, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { createClient } from "@/lib/supabase"
@@ -14,6 +14,7 @@ import { ApiClient } from "@/lib/api"
 import { ConfirmationModal } from "@/components/ui/confirmation-modal"
 
 const DEMO_TASK_ID = "1e60a06c-ef37-4f82-bffd-1a5135cb45c7"
+const TASKS_PER_PAGE = 5
 
 type Task = {
     id: string
@@ -51,20 +52,30 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
         taskId: null
     })
     const [isDeleting, setIsDeleting] = useState<string | null>(null)
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1)
+    const [totalTasks, setTotalTasks] = useState(0)
+
     const supabase = createClient()
     const router = useRouter()
     const { t, locale } = useI18n()
 
-    async function fetchTasks(uid: string) {
+    async function fetchTasks(uid: string, page: number) {
         setLoading(true)
-        const { data } = await supabase
+        const from = (page - 1) * TASKS_PER_PAGE
+        const to = from + TASKS_PER_PAGE - 1
+
+        const { data, count } = await supabase
             .from('tasks')
-            .select('*')
+            .select('*', { count: 'exact' })
             .or(`user_id.eq.${uid},id.eq.${DEMO_TASK_ID}`)
             .eq('is_deleted', false)
             .order('created_at', { ascending: false })
+            .range(from, to)
 
         if (data) setTasks(data)
+        if (count !== null) setTotalTasks(count)
         setLoading(false)
     }
 
@@ -74,7 +85,7 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
             const { data: { session } } = await supabase.auth.getSession()
             if (session?.user) {
                 setUserId(session.user.id)
-                fetchTasks(session.user.id)
+                fetchTasks(session.user.id, 1)
             } else {
                 setLoading(false)
             }
@@ -85,7 +96,8 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
         const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
             if (session?.user) {
                 setUserId(session.user.id)
-                fetchTasks(session.user.id)
+                fetchTasks(session.user.id, 1)
+                setCurrentPage(1)
             } else {
                 setTasks([])
                 setUserId(null)
@@ -108,14 +120,14 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                 table: 'tasks',
                 filter: `user_id=eq.${userId}`
             }, (payload) => {
-                fetchTasks(userId)
+                fetchTasks(userId, currentPage)
             })
             .subscribe()
 
         return () => {
             supabase.removeChannel(channel)
         }
-    }, [userId])
+    }, [userId, currentPage])
 
     async function getToken() {
         const { data: { session } } = await supabase.auth.getSession()
@@ -143,7 +155,12 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
             if (error) throw error
 
             // await ApiClient.deleteTask(taskId, token)
-            setTasks(tasks.filter(t => t.id !== taskId))
+            // If deleting, refresh current page to pull in the next item
+            if (userId) {
+                await fetchTasks(userId, currentPage)
+            } else {
+                setTasks(tasks.filter(t => t.id !== taskId))
+            }
             setDeleteConfirmation({ isOpen: false, taskId: null })
         } catch (error) {
             console.error('Error deleting task:', error)
@@ -196,7 +213,7 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
         )
     }
 
-    if (tasks.length === 0) {
+    if (tasks.length === 0 && currentPage === 1) {
         return (
             <Card className="border-0 bg-transparent shadow-none">
                 <CardContent className="text-center py-10 text-muted-foreground">
@@ -213,7 +230,7 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                     <CardTitle className="flex items-center gap-2">
                         {t("tasks.recentTasks")}
                         <Badge variant="secondary" className="ml-2 bg-white/10 text-xs font-normal">
-                            {tasks.length}
+                            {totalTasks}
                         </Badge>
                     </CardTitle>
                 </CardHeader>
@@ -350,6 +367,52 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                     </div>
                 ))}
             </CardContent>
+
+            {/* Pagination Controls */}
+            {Math.ceil(totalTasks / TASKS_PER_PAGE) > 1 && (
+                <div className="flex items-center justify-center pt-8 pb-4">
+                    <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-full p-1 pl-1 pr-1 backdrop-blur-md shadow-2xl">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                                const newPage = currentPage - 1;
+                                if (newPage >= 1 && userId) {
+                                    setCurrentPage(newPage);
+                                    fetchTasks(userId, newPage);
+                                }
+                            }}
+                            disabled={currentPage <= 1 || loading}
+                            className="h-8 w-8 rounded-full hover:bg-white/10 text-muted-foreground hover:text-white transition-colors disabled:opacity-30"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+
+                        <div className="px-4 text-xs font-medium tabular-nums text-muted-foreground flex items-center gap-1 select-none">
+                            <span className="text-foreground font-semibold">{currentPage}</span>
+                            <span className="opacity-30">/</span>
+                            <span>{Math.ceil(totalTasks / TASKS_PER_PAGE)}</span>
+                        </div>
+
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                                const totalPages = Math.ceil(totalTasks / TASKS_PER_PAGE);
+                                const newPage = currentPage + 1;
+                                if (newPage <= totalPages && userId) {
+                                    setCurrentPage(newPage);
+                                    fetchTasks(userId, newPage);
+                                }
+                            }}
+                            disabled={currentPage >= Math.ceil(totalTasks / TASKS_PER_PAGE) || loading}
+                            className="h-8 w-8 rounded-full hover:bg-white/10 text-muted-foreground hover:text-white transition-colors disabled:opacity-30"
+                        >
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             <ConfirmationModal
                 isOpen={deleteConfirmation.isOpen}

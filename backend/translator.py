@@ -1,7 +1,11 @@
 import logging
-from openai import OpenAI
+try:
+    from langfuse.openai import OpenAI
+except ImportError:
+    from openai import OpenAI
 from typing import Optional
 import re
+from config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -194,13 +198,13 @@ class Translator:
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model=settings.OPENAI_TRANSLATION_MODEL,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                max_tokens=4000,
-                temperature=0.1
+                max_completion_tokens=4000,
+                # temperature=0.1
             )
             
             return response.choices[0].message.content
@@ -238,13 +242,13 @@ class Translator:
 
             try:
                 response = self.client.chat.completions.create(
-                    model="gpt-4o",
+                    model=settings.OPENAI_TRANSLATION_MODEL,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
-                    max_tokens=4000,
-                    temperature=0.1
+                    max_completion_tokens=4000,
+                    # temperature=0.1
                 )
                 
                 translated_chunk = response.choices[0].message.content
