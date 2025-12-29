@@ -74,7 +74,7 @@
   }
 
   .card-glow {
-    @apply shadow-[0_0_40px_-10px_rgba(62, 207, 142, 0.15)];
+    box-shadow: 0 0 40px -10px rgba(62, 207, 142, 0.15);
   }
 
   /* Pill/capsule button style */
