@@ -26,7 +26,7 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
     }, [supabase])
 
     return (
-        <div className="hidden md:flex h-dvh w-64 flex-col border-r border-white/10 bg-black/30 backdrop-blur-md relative z-10">
+        <div className="hidden md:flex h-dvh w-64 flex-col border-r border-white/5 bg-black/60 backdrop-blur-2xl relative z-10 bg-grid-dense">
             <div className="p-6">
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2 min-w-0">
@@ -59,10 +59,10 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
                         key={item.href}
                         href={item.href}
                         className={cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                            "flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                             pathname === item.href
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                ? "bg-[#7377DD]/15 text-[#A78BFA] shadow-[0_0_15px_rgba(115,119,221,0.15)]"
+                                : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                         )}
                     >
                         <item.icon className="h-4 w-4" />

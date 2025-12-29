@@ -23,12 +23,16 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#0A0A0A] text-[#EDEDED] relative overflow-hidden">
-      {/* Background Gradients */}
+    <div className="flex flex-col min-h-screen bg-[#0A0A0A] text-[#F5F5F5] relative overflow-hidden">
+      {/* Grid Background Texture (anygen.io style) */}
+      <div className="fixed inset-0 z-0 pointer-events-none bg-grid opacity-50" />
+
+      {/* Background Gradients - Enhanced */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-500/15 rounded-full blur-[120px]" />
-        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/15 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] left-[20%] w-[40%] h-[40%] bg-emerald-500/15 rounded-full blur-[120px]" />
+        <div className="absolute top-[-20%] left-[-15%] w-[50%] h-[50%] bg-[#7377DD]/15 rounded-full blur-[150px]" />
+        <div className="absolute top-[-15%] right-[-10%] w-[45%] h-[45%] bg-[#8B5CF6]/12 rounded-full blur-[140px]" />
+        <div className="absolute bottom-[-20%] left-[15%] w-[50%] h-[50%] bg-emerald-500/12 rounded-full blur-[150px]" />
+        <div className="absolute bottom-[-10%] right-[10%] w-[35%] h-[35%] bg-primary/10 rounded-full blur-[120px]" />
       </div>
 
       <div className="absolute top-8 right-4 z-50">
@@ -36,17 +40,20 @@ export default function LandingPage() {
       </div>
 
       {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 pt-28 pb-14 md:py-16 lg:py-20 text-center space-y-8 relative z-10">
-        <div className="space-y-4 max-w-3xl">
+      <main className="flex-1 flex flex-col items-center justify-center px-6 pt-28 pb-14 md:py-16 lg:py-20 text-center space-y-10 relative z-10">
+        <div className="space-y-6 max-w-4xl">
           <Heading
             as="h1"
             variant="display"
-            className="bg-clip-text text-transparent bg-gradient-to-r from-white via-white/90 to-white/50"
+            className="bg-clip-text text-transparent bg-gradient-to-b from-white via-white/95 to-white/60 leading-[1.1]"
           >
-            {t("landing.titlePrefix")} <span className="text-primary drop-shadow-[0_0_15px_rgba(62,207,142,0.3)]">{t("landing.titleEmphasis")}</span>
+            {t("landing.titlePrefix")}{" "}
+            <span className="text-gradient-purple drop-shadow-[0_0_25px_rgba(115,119,221,0.4)]">
+              {t("landing.titleEmphasis")}
+            </span>
           </Heading>
 
-          <Text tone="muted" className="max-w-2xl mx-auto text-lg md:text-xl">
+          <Text tone="muted" className="max-w-2xl mx-auto text-lg md:text-xl leading-relaxed">
             {renderWithBold(t("landing.subtitle"))}
           </Text>
         </div>
@@ -54,8 +61,9 @@ export default function LandingPage() {
         <div className="w-full flex justify-center gap-4">
           <Link href="/login">
             <Button
+              variant="pill-primary"
               size="xl"
-              className="px-8 gap-2 bg-primary text-black hover:bg-primary/90 shadow-[0_0_30px_rgba(62,207,142,0.4)] hover:shadow-[0_0_40px_rgba(62,207,142,0.6)] transition-all duration-300"
+              className="px-10 gap-2"
             >
               {t("landing.getStarted")} <ArrowRight className="h-5 w-5" />
             </Button>
@@ -94,14 +102,19 @@ export default function LandingPage() {
 
 function FeatureCard({ icon: Icon, title, desc }: { icon: LucideIcon, title: string, desc: React.ReactNode }) {
   return (
-    <div className="group p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-300 text-left space-y-4 hover:shadow-lg hover:shadow-black/20">
-      <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-        <Icon className="h-6 w-6 text-primary drop-shadow-[0_0_8px_rgba(62,207,142,0.5)]" />
+    <div className="group relative p-6 rounded-3xl bg-white/[0.03] backdrop-blur-md border border-white/5 hover:bg-white/[0.06] hover:border-white/15 transition-all duration-500 text-left space-y-4 hover:shadow-2xl hover:shadow-[#7377DD]/5 hover:-translate-y-1">
+      {/* Subtle gradient overlay on hover */}
+      <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-[#7377DD]/0 to-[#8B5CF6]/0 group-hover:from-[#7377DD]/5 group-hover:to-[#8B5CF6]/5 transition-all duration-500 pointer-events-none" />
+
+      <div className="relative">
+        <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 flex items-center justify-center group-hover:scale-110 group-hover:border-[#7377DD]/30 transition-all duration-300">
+          <Icon className="h-6 w-6 text-[#7377DD] drop-shadow-[0_0_10px_rgba(115,119,221,0.5)] group-hover:text-[#8B5CF6] transition-colors duration-300" />
+        </div>
       </div>
-      <Heading as="h3" variant="h3" className="group-hover:text-white transition-colors">
+      <Heading as="h3" variant="h3" className="relative group-hover:text-white transition-colors">
         {title}
       </Heading>
-      <Text tone="muted" variant="bodySm" className="leading-relaxed">
+      <Text tone="muted" variant="bodySm" className="relative leading-relaxed group-hover:text-muted-foreground/90 transition-colors">
         {desc}
       </Text>
     </div>

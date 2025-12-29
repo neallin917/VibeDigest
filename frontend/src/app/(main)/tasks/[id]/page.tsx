@@ -255,11 +255,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                             )}
 
                             <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="w-full">
-                                <TabsList className="grid w-full grid-cols-2 bg-secondary/50 p-1 h-11">
-                                    <TabsTrigger value="summary" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-black font-medium">
+                                <TabsList className="grid w-full grid-cols-2 h-12">
+                                    <TabsTrigger value="summary" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm">
                                         <FileText className="hidden sm:block h-4 w-4" /> {t("tasks.tabSummary")}
                                     </TabsTrigger>
-                                    <TabsTrigger value="script" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-black font-medium">
+                                    <TabsTrigger value="script" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm">
                                         <Subtitles className="hidden sm:block h-4 w-4" /> {t("tasks.tabScript")}
                                     </TabsTrigger>
                                 </TabsList>

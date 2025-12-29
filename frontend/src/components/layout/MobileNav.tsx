@@ -97,7 +97,7 @@ export function MobileBottomNav() {
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-black/60 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
-      <div className="mx-auto grid max-w-6xl grid-cols-4 px-2">
+      <div className="grid grid-cols-3 w-full">
         {NAV_ITEMS.map((item) => {
           const isActive = isActiveNav(pathname, item.href)
           return (

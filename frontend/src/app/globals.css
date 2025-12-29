@@ -5,71 +5,156 @@
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --color-background: #1C1C1C;
-  --color-foreground: #EDEDED;
+  --color-background: #0F0F0F;
+  --color-foreground: #F5F5F5;
 
   --color-primary: #3ECF8E;
   --color-primary-foreground: #FFFFFF;
 
-  --color-secondary: #2E2E2E;
+  /* New: Purple accent gradient for highlights (inspired by anygen.io) */
+  --color-accent-purple: #7377DD;
+  --color-accent-violet: #8B5CF6;
+
+  --color-secondary: #1A1A1A;
   --color-secondary-foreground: #FFFFFF;
 
-  --color-muted: #2E2E2E;
+  --color-muted: #1A1A1A;
   --color-muted-foreground: #888888;
 
-  --color-card: #232323;
-  --color-card-foreground: #EDEDED;
+  --color-card: #141414;
+  --color-card-foreground: #F5F5F5;
 
-  --color-border: #333333;
+  --color-border: #262626;
 
-  --radius-lg: 0.5rem;
-  --radius-md: 0.375rem;
-  --radius-sm: 0.25rem;
+  /* Larger border radii for modern look */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.5rem;
+  --radius-full: 9999px;
 
-  --animate-in: fade-in 0.2s ease-out;
+  --animate-in: fade-in 0.3s ease-out;
   --animate-out: fade-out 0.2s ease-in;
 }
 
 /* Custom Utilities layer */
 @layer utilities {
   .glass {
-    @apply bg-black/40 backdrop-blur-md border border-white/10;
+    @apply bg-black/50 backdrop-blur-xl border border-white/10 shadow-xl shadow-black/20;
+  }
+  
+  .glass-subtle {
+    @apply bg-white/[0.03] backdrop-blur-md border border-white/5;
+  }
+  
+  /* Grid background pattern (anygen.io style) */
+  .bg-grid {
+    background-image: 
+      linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  
+  .bg-grid-dense {
+    background-image: 
+      linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  
+  /* Purple gradient text (anygen.io highlight style) */
+  .text-gradient-purple {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#7377DD] via-[#8B5CF6] to-[#A78BFA];
+  }
+  
+  .text-gradient-primary {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#3ECF8E] via-[#34D399] to-[#10B981];
+  }
+  
+  /* Modern card styles */
+  .card-hover {
+    @apply transition-all duration-300 hover:bg-white/[0.06] hover:border-white/15 hover:shadow-lg hover:shadow-black/30 hover:-translate-y-0.5;
+  }
+  
+  .card-glow {
+    @apply shadow-[0_0_40px_-10px_rgba(62,207,142,0.15)];
+  }
+  
+  .card-glow-purple {
+    @apply shadow-[0_0_40px_-10px_rgba(115,119,221,0.2)];
+  }
+  
+  /* Pill/capsule button style */
+  .btn-pill {
+    @apply rounded-full px-6;
+  }
+  
+  /* Floating effect for cards */
+  .floating {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+  
+  /* Subtle shimmer effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.05),
+      transparent
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
   }
 }
 
 :root {
   color-scheme: dark;
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 
-  /* Deep Dark Theme (Restored) */
-  --background: #1C1C1C;
-  --foreground: #EDEDED;
+  /* Deeper Dark Theme (modernized) */
+  --background: #0F0F0F;
+  --foreground: #F5F5F5;
 
-  --card: #232323;
-  --card-foreground: #EDEDED;
+  --card: #141414;
+  --card-foreground: #F5F5F5;
 
-  --popover: #232323;
-  --popover-foreground: #EDEDED;
+  --popover: #141414;
+  --popover-foreground: #F5F5F5;
 
   /* Emerald Green Primary */
   --primary: #3ECF8E;
   --primary-foreground: #FFFFFF;
 
-  --secondary: #2E2E2E;
+  /* Purple Accent */
+  --accent-purple: #7377DD;
+
+  --secondary: #1A1A1A;
   --secondary-foreground: #FFFFFF;
 
-  --muted: #2E2E2E;
+  --muted: #1A1A1A;
   --muted-foreground: #888888;
 
-  --accent: #2E2E2E;
+  --accent: #1A1A1A;
   --accent-foreground: #FFFFFF;
 
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 0% 98%;
 
-  --border: #333333;
-  --input: #333333;
-  --ring: #333333;
+  --border: #262626;
+  --input: #262626;
+  --ring: #262626;
 
   --chart-1: 220 70% 50%;
   --chart-2: 160 60% 45%;
