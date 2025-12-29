@@ -13,7 +13,6 @@ import { LOCALE_DATE_TAG } from "@/lib/i18n"
 import { ApiClient } from "@/lib/api"
 import { ConfirmationModal } from "@/components/ui/confirmation-modal"
 
-const DEMO_TASK_ID = "1e60a06c-ef37-4f82-bffd-1a5135cb45c7"
 const TASKS_PER_PAGE = 5
 
 type Task = {
@@ -24,6 +23,7 @@ type Task = {
     progress: number
     created_at: string
     thumbnail_url?: string
+    is_demo?: boolean
 }
 
 const getPlatformFromUrl = (url: string) => {
@@ -69,7 +69,7 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
         const { data, count } = await supabase
             .from('tasks')
             .select('*', { count: 'exact' })
-            .or(`user_id.eq.${uid},id.eq.${DEMO_TASK_ID}`)
+            .or(`user_id.eq.${uid},is_demo.eq.true`)
             .eq('is_deleted', false)
             .order('created_at', { ascending: false })
             .range(from, to)
@@ -289,12 +289,12 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                                         <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
                                             {task.video_title || task.video_url}
                                         </h4>
-                                        {task.id === DEMO_TASK_ID && (
+                                        {task.is_demo && (
                                             <Badge variant="outline" className="shrink-0 text-[10px] h-5 px-1.5 py-0 font-normal border-blue-500/30 text-blue-400 bg-blue-500/10">
                                                 Demo
                                             </Badge>
                                         )}
-                                        {task.id !== DEMO_TASK_ID && (
+                                        {!task.is_demo && (
                                             <div className="hidden group-hover:flex items-center opacity-0 group-hover:opacity-100 transition-all duration-200 shrink-0">
                                                 <Button
                                                     size="icon"
@@ -327,7 +327,7 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                         </div>
 
                         <div className="flex items-center gap-2">
-                            {task.id !== DEMO_TASK_ID && (
+                            {!task.is_demo && (
                                 <Button
                                     size="icon"
                                     variant="ghost"

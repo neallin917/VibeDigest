@@ -1,7 +1,7 @@
 "use client"
 
 import { TaskForm } from "@/components/dashboard/TaskForm"
-import { TaskList } from "@/components/dashboard/TaskList"
+import { CommunityTemplates } from "@/components/dashboard/CommunityTemplates"
 import { PageContainer } from "@/components/layout/PageContainer"
 
 export default function DashboardPage() {
@@ -15,9 +15,10 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="pt-4 border-t border-white/10">
-                    <TaskList />
+                    <CommunityTemplates />
                 </div>
             </div>
         </PageContainer>
     )
 }
+

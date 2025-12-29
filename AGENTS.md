@@ -176,6 +176,7 @@ docker-compose -f docker-compose.test.yml up -d
 *   `thumbnail_url` (Text): Best-effort cover image (e.g. YouTube thumbnail / Bilibili cover / Xiaoyuzhou episode cover).
 *   `status` (Enum): `pending` | `processing` | `completed` | `failed`.
 *   `is_deleted` (Boolean): Soft delete flag (default `false`).
+*   `is_demo` (Boolean): Demo task flag (default `false`). Demo tasks are visible to all users.
 
 **Table: `task_outputs`**
 *   `id` (UUID): Primary Key.
@@ -190,6 +191,24 @@ docker-compose -f docker-compose.test.yml up -d
         *   `coverUrl`: Episode cover URL (prefer Xiaoyuzhou `__NEXT_DATA__.props.pageProps.episode.image.*PicUrl`).
 *   `content` (Text): Output payload (string or JSON string depending on kind).
 *   `status` (Enum): `pending` | `processing` | `completed` | `error`.
+
+### 4.4 Demo Task Management
+
+Demo tasks are featured content visible to all users (including anonymous visitors) on the Dashboard's "Community Examples" section.
+
+**Single Source of Truth**: The `is_demo` field in the `tasks` table.
+
+**How to add/remove demo tasks:**
+1. Open **Supabase Dashboard → Table Editor → tasks**.
+2. Find the target task by ID or title.
+3. Set `is_demo = true` to make it a demo, or `false` to remove it.
+4. **No code changes required** — frontend automatically queries `is_demo = true`.
+
+**RLS Policy**: Demo tasks have special RLS rules allowing read-access for all users:
+- Anonymous users: Can view tasks where `is_demo = true`.
+- Authenticated users: Can view own tasks OR tasks where `is_demo = true`.
+
+**SQL Migration**: `backend/sql/09_multiple_demo_tasks.sql` sets up the field and policies.
 
 ---
 

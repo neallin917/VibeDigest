@@ -106,7 +106,9 @@ const messages: Record<Locale, Messages> = {
         monthly: "Monthly Credits",
         plan: "Plan",
         extra: "Extra"
-      }
+      },
+      communityExamples: "Community Examples",
+      communityExamplesHint: "Try these ready-made examples"
     },
     history: {
       title: "Transcription History",
@@ -413,6 +415,8 @@ const messages: Record<Locale, Messages> = {
         plan: "方案",
         extra: "额外包",
       },
+      communityExamples: "社区示例",
+      communityExamplesHint: "试试这些精选的示例内容",
     },
     history: {
       title: "历史记录",

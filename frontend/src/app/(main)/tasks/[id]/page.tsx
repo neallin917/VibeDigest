@@ -220,9 +220,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                                         {task.video_title || task.video_url}
                                     </Heading>
                                 </div>
-                                <Badge variant={task.status === "completed" ? "success" : task.status === "error" ? "destructive" : "processing"} className="text-xs md:text-sm px-3 py-1 self-start">
-                                    {task.status.toUpperCase()}
-                                </Badge>
+                                {task.status !== "completed" && (
+                                    <Badge variant={task.status === "error" ? "destructive" : "processing"} className="text-xs md:text-sm px-3 py-1 self-start">
+                                        {task.status.toUpperCase()}
+                                    </Badge>
+                                )}
                             </div>
                         </CardHeader>
                         <CardContent className="p-4 md:p-6 pt-0">
