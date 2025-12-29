@@ -13,10 +13,12 @@ sys.modules["pydub"] = MagicMock()
 
 import pytest
 from transcriber import (
-    _count_words_or_units,
-    _ends_with_sentence,
     _merge_segments_into_sentences,
     _split_long_sentence_segments,
+)
+from utils.text_utils import (
+    count_words_or_units,
+    ends_with_sentence,
 )
 
 # Mock Segment class to avoid import issues or full object creation
@@ -29,25 +31,25 @@ class MockSegment:
 class TestTranscriberLogic:
     def test_count_words_or_units(self):
         # English: counts words
-        assert _count_words_or_units("Hello world") == 2
-        assert _count_words_or_units("   spaced   out   ") == 2
+        assert count_words_or_units("Hello world") == 2
+        assert count_words_or_units("   spaced   out   ") == 2
         
         # CJK: counts chars (approx)
-        assert _count_words_or_units("你好世界") == 4
+        assert count_words_or_units("你好世界") == 4
         
         # Mixed
-        assert _count_words_or_units("Hello 世界") == 2 
+        assert count_words_or_units("Hello 世界") == 2 
 
     def test_ends_with_sentence(self):
-        assert _ends_with_sentence("Hello.") is True
-        assert _ends_with_sentence("Hello!") is True
-        assert _ends_with_sentence("Hello?") is True
-        assert _ends_with_sentence("你好。") is True
+        assert ends_with_sentence("Hello.") is True
+        assert ends_with_sentence("Hello!") is True
+        assert ends_with_sentence("Hello?") is True
+        assert ends_with_sentence("你好。") is True
         
         # Incomplete
-        assert _ends_with_sentence("Hello") is False
-        assert _ends_with_sentence("Mr.") is False  # Common abbrev from logic
-        assert _ends_with_sentence("google.com") is False # TLD logic
+        assert ends_with_sentence("Hello") is False
+        assert ends_with_sentence("Mr.") is False  # Common abbrev from logic
+        assert ends_with_sentence("google.com") is False # TLD logic
         
     def test_split_long_sentence_segments(self):
         # Create a long sequence of segments
