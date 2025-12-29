@@ -74,9 +74,9 @@ export function MainShell({ children }: { children: React.ReactNode }) {
       {/* Grid background for entire app */}
       <div className="fixed inset-0 bg-grid opacity-30 pointer-events-none z-0" />
 
-      {/* Background glow for glass effect - Enhanced */}
-      <div className="fixed top-0 left-0 w-[700px] h-[700px] bg-[#7377DD]/8 blur-[150px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2 z-0" />
-      <div className="fixed bottom-0 right-0 w-[500px] h-[500px] bg-primary/6 blur-[120px] rounded-full pointer-events-none translate-x-1/2 translate-y-1/2 z-0" />
+      {/* Background glow for glass effect - Green theme */}
+      <div className="fixed top-0 left-0 w-[700px] h-[700px] bg-primary/8 blur-[150px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2 z-0" />
+      <div className="fixed bottom-0 right-0 w-[500px] h-[500px] bg-emerald-600/6 blur-[120px] rounded-full pointer-events-none translate-x-1/2 translate-y-1/2 z-0" />
 
       {sidebarHidden ? null : <Sidebar onHide={toggleSidebar} />}
 

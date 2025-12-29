@@ -18,10 +18,9 @@ const buttonVariants = cva(
                 ghost: "hover:bg-white/5 hover:text-foreground",
                 link: "text-primary underline-offset-4 hover:underline",
                 supa: "bg-[#3ECF8E] text-white hover:bg-[#34b27b] shadow-[0_0_15px_rgba(62,207,142,0.25)] hover:shadow-[0_0_25px_rgba(62,207,142,0.4)]",
-                // New: Pill style with purple accent (anygen.io inspired)
+                // Pill style buttons with green accent
                 pill: "rounded-full bg-black text-white border border-white/10 hover:bg-white/5 hover:border-white/20",
                 "pill-primary": "rounded-full bg-primary text-black font-semibold hover:bg-primary/90 shadow-[0_0_20px_rgba(62,207,142,0.25)] hover:shadow-[0_0_30px_rgba(62,207,142,0.4)] hover:scale-[1.02]",
-                "pill-purple": "rounded-full bg-gradient-to-r from-[#7377DD] to-[#8B5CF6] text-white font-semibold hover:opacity-90 shadow-[0_0_20px_rgba(115,119,221,0.3)] hover:shadow-[0_0_30px_rgba(115,119,221,0.5)] hover:scale-[1.02]",
             },
             size: {
                 default: "h-10 px-4 py-2",

@@ -61,7 +61,7 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
                         className={cn(
                             "flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                             pathname === item.href
-                                ? "bg-[#7377DD]/15 text-[#A78BFA] shadow-[0_0_15px_rgba(115,119,221,0.15)]"
+                                ? "bg-primary/15 text-primary shadow-[0_0_15px_rgba(62,207,142,0.15)]"
                                 : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                         )}
                     >

@@ -14,7 +14,7 @@ export default function HistoryPage() {
                 <Heading as="h2" variant="h1">
                     {t("history.title")}
                 </Heading>
-                <TaskList showHeader={false} />
+                <TaskList showHeader={false} excludeDemo={true} />
             </div>
         </PageContainer>
     )

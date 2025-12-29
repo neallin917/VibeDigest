@@ -41,7 +41,7 @@ const getPlatformFromUrl = (url: string) => {
     }
 }
 
-export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
+export function TaskList({ showHeader = true, excludeDemo = false }: { showHeader?: boolean, excludeDemo?: boolean }) {
     const [tasks, setTasks] = useState<Task[]>([])
     const [loading, setLoading] = useState(true)
     const [userId, setUserId] = useState<string | null>(null)
@@ -66,10 +66,20 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
         const from = (page - 1) * TASKS_PER_PAGE
         const to = from + TASKS_PER_PAGE - 1
 
-        const { data, count } = await supabase
+        // If excludeDemo is true, only show user's own tasks (regardless of is_demo status)
+        const query = supabase
             .from('tasks')
             .select('*', { count: 'exact' })
-            .or(`user_id.eq.${uid},is_demo.eq.true`)
+
+        if (excludeDemo) {
+            // Only user's own tasks (include user's demo tasks, exclude other users' demo)
+            query.eq('user_id', uid)
+        } else {
+            // User's tasks OR public demo tasks
+            query.or(`user_id.eq.${uid},is_demo.eq.true`)
+        }
+
+        const { data, count } = await query
             .eq('is_deleted', false)
             .order('created_at', { ascending: false })
             .range(from, to)
@@ -289,7 +299,7 @@ export function TaskList({ showHeader = true }: { showHeader?: boolean }) {
                                         <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
                                             {task.video_title || task.video_url}
                                         </h4>
-                                        {task.is_demo && (
+                                        {task.is_demo && !excludeDemo && (
                                             <Badge variant="outline" className="shrink-0 text-[10px] h-5 px-1.5 py-0 font-normal border-blue-500/30 text-blue-400 bg-blue-500/10">
                                                 Demo
                                             </Badge>

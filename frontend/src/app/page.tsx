@@ -27,12 +27,12 @@ export default function LandingPage() {
       {/* Grid Background Texture (anygen.io style) */}
       <div className="fixed inset-0 z-0 pointer-events-none bg-grid opacity-50" />
 
-      {/* Background Gradients - Enhanced */}
+      {/* Background Gradients - Enhanced with green theme */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-15%] w-[50%] h-[50%] bg-[#7377DD]/15 rounded-full blur-[150px]" />
-        <div className="absolute top-[-15%] right-[-10%] w-[45%] h-[45%] bg-[#8B5CF6]/12 rounded-full blur-[140px]" />
-        <div className="absolute bottom-[-20%] left-[15%] w-[50%] h-[50%] bg-emerald-500/12 rounded-full blur-[150px]" />
-        <div className="absolute bottom-[-10%] right-[10%] w-[35%] h-[35%] bg-primary/10 rounded-full blur-[120px]" />
+        <div className="absolute top-[-20%] left-[-15%] w-[50%] h-[50%] bg-primary/12 rounded-full blur-[150px]" />
+        <div className="absolute top-[-15%] right-[-10%] w-[45%] h-[45%] bg-emerald-600/10 rounded-full blur-[140px]" />
+        <div className="absolute bottom-[-20%] left-[15%] w-[50%] h-[50%] bg-emerald-500/10 rounded-full blur-[150px]" />
+        <div className="absolute bottom-[-10%] right-[10%] w-[35%] h-[35%] bg-primary/8 rounded-full blur-[120px]" />
       </div>
 
       <div className="absolute top-8 right-4 z-50">
@@ -48,7 +48,7 @@ export default function LandingPage() {
             className="bg-clip-text text-transparent bg-gradient-to-b from-white via-white/95 to-white/60 leading-[1.1]"
           >
             {t("landing.titlePrefix")}{" "}
-            <span className="text-gradient-purple drop-shadow-[0_0_25px_rgba(115,119,221,0.4)]">
+            <span className="text-primary drop-shadow-[0_0_25px_rgba(62,207,142,0.4)]">
               {t("landing.titleEmphasis")}
             </span>
           </Heading>
@@ -102,13 +102,13 @@ export default function LandingPage() {
 
 function FeatureCard({ icon: Icon, title, desc }: { icon: LucideIcon, title: string, desc: React.ReactNode }) {
   return (
-    <div className="group relative p-6 rounded-3xl bg-white/[0.03] backdrop-blur-md border border-white/5 hover:bg-white/[0.06] hover:border-white/15 transition-all duration-500 text-left space-y-4 hover:shadow-2xl hover:shadow-[#7377DD]/5 hover:-translate-y-1">
+    <div className="group relative p-6 rounded-3xl bg-white/[0.03] backdrop-blur-md border border-white/5 hover:bg-white/[0.06] hover:border-white/15 transition-all duration-500 text-left space-y-4 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1">
       {/* Subtle gradient overlay on hover */}
-      <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-[#7377DD]/0 to-[#8B5CF6]/0 group-hover:from-[#7377DD]/5 group-hover:to-[#8B5CF6]/5 transition-all duration-500 pointer-events-none" />
+      <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/0 to-emerald-600/0 group-hover:from-primary/5 group-hover:to-emerald-600/5 transition-all duration-500 pointer-events-none" />
 
       <div className="relative">
-        <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 flex items-center justify-center group-hover:scale-110 group-hover:border-[#7377DD]/30 transition-all duration-300">
-          <Icon className="h-6 w-6 text-[#7377DD] drop-shadow-[0_0_10px_rgba(115,119,221,0.5)] group-hover:text-[#8B5CF6] transition-colors duration-300" />
+        <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 flex items-center justify-center group-hover:scale-110 group-hover:border-primary/30 transition-all duration-300">
+          <Icon className="h-6 w-6 text-primary drop-shadow-[0_0_10px_rgba(62,207,142,0.5)] group-hover:text-emerald-400 transition-colors duration-300" />
         </div>
       </div>
       <Heading as="h3" variant="h3" className="relative group-hover:text-white transition-colors">

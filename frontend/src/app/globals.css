@@ -11,9 +11,8 @@
   --color-primary: #3ECF8E;
   --color-primary-foreground: #FFFFFF;
 
-  /* New: Purple accent gradient for highlights (inspired by anygen.io) */
-  --color-accent-purple: #7377DD;
-  --color-accent-violet: #8B5CF6;
+  /* Keep emerald green as the consistent accent */
+  --color-accent-glow: rgba(62, 207, 142, 0.3);
 
   --color-secondary: #1A1A1A;
   --color-secondary-foreground: #FFFFFF;
@@ -44,78 +43,80 @@
   .glass {
     @apply bg-black/50 backdrop-blur-xl border border-white/10 shadow-xl shadow-black/20;
   }
-  
+
   .glass-subtle {
     @apply bg-white/[0.03] backdrop-blur-md border border-white/5;
   }
-  
+
   /* Grid background pattern (anygen.io style) */
   .bg-grid {
-    background-image: 
+    background-image:
       linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
       linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
     background-size: 40px 40px;
   }
-  
+
   .bg-grid-dense {
-    background-image: 
+    background-image:
       linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
       linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
     background-size: 24px 24px;
   }
-  
-  /* Purple gradient text (anygen.io highlight style) */
-  .text-gradient-purple {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#7377DD] via-[#8B5CF6] to-[#A78BFA];
-  }
-  
+
+  /* Primary gradient text (emerald green) */
   .text-gradient-primary {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-[#3ECF8E] via-[#34D399] to-[#10B981];
   }
-  
+
   /* Modern card styles */
   .card-hover {
     @apply transition-all duration-300 hover:bg-white/[0.06] hover:border-white/15 hover:shadow-lg hover:shadow-black/30 hover:-translate-y-0.5;
   }
-  
+
   .card-glow {
-    @apply shadow-[0_0_40px_-10px_rgba(62,207,142,0.15)];
+    @apply shadow-[0_0_40px_-10px_rgba(62, 207, 142, 0.15)];
   }
-  
-  .card-glow-purple {
-    @apply shadow-[0_0_40px_-10px_rgba(115,119,221,0.2)];
-  }
-  
+
   /* Pill/capsule button style */
   .btn-pill {
     @apply rounded-full px-6;
   }
-  
+
   /* Floating effect for cards */
   .floating {
     animation: float 6s ease-in-out infinite;
   }
-  
+
   @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
+
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+
+    50% {
+      transform: translateY(-10px);
+    }
   }
-  
+
   /* Subtle shimmer effect */
   .shimmer {
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.05),
-      transparent
-    );
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(255, 255, 255, 0.05),
+        transparent);
     background-size: 200% 100%;
     animation: shimmer 2s infinite;
   }
-  
+
   @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+    0% {
+      background-position: -200% 0;
+    }
+
+    100% {
+      background-position: 200% 0;
+    }
   }
 }
 
@@ -136,9 +137,6 @@
   /* Emerald Green Primary */
   --primary: #3ECF8E;
   --primary-foreground: #FFFFFF;
-
-  /* Purple Accent */
-  --accent-purple: #7377DD;
 
   --secondary: #1A1A1A;
   --secondary-foreground: #FFFFFF;
