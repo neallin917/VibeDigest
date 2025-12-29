@@ -113,6 +113,7 @@ Content requirements:
   - detail: ONE concise paragraph (2–5 sentences) that explains the idea + context + implications. Do NOT use bullet lists.
   - evidence: OPTIONAL, very short. Only include concrete numbers/examples/quotes if present; otherwise empty string.
 - Coverage: ensure keypoints cover early/middle/late parts; avoid over-indexing on the beginning.
+- Order: The keypoints MUST be listed in strict chronological order as they appear in the transcript. Do NOT reorder them by importance.
 - Faithfulness: do not invent facts. If uncertain, be explicit in evidence.
 """
 
@@ -141,6 +142,7 @@ Rules:
   Each item must read well standalone.
 - detail must be ONE concise paragraph (2–5 sentences). Do NOT use bullet lists.
 - evidence is OPTIONAL and must be very short.
+- Order: Maintain the original chronological order of the content.
 - Do not invent facts; if uncertain, note it in evidence.
 """
 
@@ -160,6 +162,7 @@ Return ONLY a valid JSON object (no markdown), in {language_name}, matching this
 Rules:
 - Deduplicate similar points.
 - Keep only the strongest non-overlapping points, with coverage across early/middle/late content.
+- Order: The final list MUST strictly follow the chronological order of the original content.
   Prefer fewer, clearer points over exhaustive lists.
   (Hard cap: do not exceed {max_keypoints}.)
 - overview: one tight paragraph (no headings) that explains what this content is about + the main thread.
@@ -194,7 +197,8 @@ Output MUST match this schema exactly:
 
 Rules:
 - If the input is incomplete/truncated, do your best to salvage faithful content without inventing facts.
-- Keep keypoints concise and non-redundant."""
+- Keep keypoints concise and non-redundant.
+- Preserve the order of keypoints from the input."""
 
 JSON_REPAIR_USER = """Convert/repair the following text into the required JSON schema. Output JSON only.
 

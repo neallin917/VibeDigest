@@ -1488,7 +1488,7 @@ class Summarizer:
 
 Integration Requirements:
 1. Remove duplicate content and maintain clear logic
-2. Reorganize content by themes or chronological order
+2. Reorganize content by chronological order
 3. Each paragraph must be separated by double line breaks
 4. Ensure output is in Markdown format with double line breaks between paragraphs
 5. Use concise and clear language
@@ -1501,7 +1501,7 @@ Integration Requirements:
 
 Requirements:
 - Remove duplicate content and maintain clear logic
-- Reorganize content by themes or chronological order
+- Reorganize content by chronological order
 - Each paragraph must be separated by double line breaks
 - Ensure output is in Markdown format with double line breaks between paragraphs
 - Use concise and clear language

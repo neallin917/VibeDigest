@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
-import { FileText, Subtitles, Copy, Check } from "lucide-react"
+import { FileText, Subtitles, Copy, Check, Sparkles, PlayCircle, Quote, Zap } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -477,34 +477,51 @@ function SummarySection({
                         </Button>
                     </div>
                 </div>
-                <div>
-                    <div className="text-xs font-semibold tracking-wider text-muted-foreground/80 uppercase mb-2">
-                        {t("tasks.summaryStructured.overviewTitle")}
-                    </div>
-                    <div className="text-base leading-relaxed text-foreground/95 whitespace-pre-wrap">
-                        {parsed.overview}
-                    </div>
-                </div>
-
-                <div>
-                    <div className="text-xs font-semibold tracking-wider text-muted-foreground/80 uppercase mb-3">
-                        {t("tasks.summaryStructured.keypointsTitle")}
-                    </div>
-                    {!hasAnyAnchors ? (
-                        <div className="mb-3 text-xs text-muted-foreground">
-                            Timeline anchors are unavailable for this summary (often due to output language ≠ transcript language). Try “Retry output”.
+                <div className="grid gap-8">
+                    {/* Overview Section */}
+                    <div className="bg-white/5 rounded-3xl p-6 md:p-8 border border-white/5 relative overflow-hidden transition-colors hover:bg-white/[0.07]">
+                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                            <Sparkles className="w-24 h-24" />
                         </div>
-                    ) : null}
-                    <div className="space-y-3">
-                        {parsed.keypoints.map((kp, idx) => (
-                            <SummaryKeypointItem
-                                key={`${idx}-${kp.title}`}
-                                kp={kp}
-                                canSeek={canSeek}
-                                onSeek={onSeek}
-                                t={t}
-                            />
-                        ))}
+                        <div className="relative">
+                            <div className="flex items-center gap-3 mb-4">
+                                <Sparkles className="w-5 h-5 text-primary" />
+                                <h3 className="text-xl font-bold tracking-tight text-white">
+                                    {t("tasks.summaryStructured.overviewTitle")}
+                                </h3>
+                            </div>
+                            <div className="text-lg leading-relaxed text-muted-foreground whitespace-pre-wrap">
+                                {parsed.overview}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Keypoints Section */}
+                    <div>
+                        <div className="flex items-center gap-3 mb-6 px-2">
+                            <Zap className="w-5 h-5 text-primary" />
+                            <h3 className="text-xl font-bold tracking-tight text-white">
+                                {t("tasks.summaryStructured.keypointsTitle")}
+                            </h3>
+                        </div>
+
+                        {!hasAnyAnchors && (
+                            <div className="mb-4 px-2 text-sm text-yellow-500/80 bg-yellow-500/10 p-2 rounded border border-yellow-500/20">
+                                Note: Timeline anchors are currently unavailable for this summary.
+                            </div>
+                        )}
+
+                        <div className="grid gap-3">
+                            {parsed.keypoints.map((kp, idx) => (
+                                <SummaryKeypointItem
+                                    key={`${idx}-${kp.title}`}
+                                    kp={kp}
+                                    canSeek={canSeek}
+                                    onSeek={onSeek}
+                                    t={t}
+                                />
+                            ))}
+                        </div>
                     </div>
                 </div>
             </CardContent>
@@ -530,51 +547,75 @@ function SummaryKeypointItem({
 
     const isClickable = startSeconds !== null && canSeek
 
-    const baseClassName = [
-        "w-full text-left rounded-xl border border-white/10 bg-black/25 p-4 transition-colors",
-        startSeconds !== null ? "hover:bg-black/35 disabled:opacity-50 disabled:cursor-not-allowed" : "",
+    // A more distinct card style
+    const containerClasses = [
+        "group relative w-full text-left rounded-2xl border transition-all duration-300 overflow-hidden",
+        "bg-[#1A1A1A] hover:bg-[#202020]", // Slightly lighter dark background on hover
+        "border-white/5 hover:border-primary/30", // Gentle border highlight
+        isClickable ? "cursor-pointer" : "cursor-default"
     ].join(" ")
 
-    const inner = (
-        <>
-            <div className="flex items-center justify-between gap-3">
-                <div className="font-semibold text-primary/90">{kp.title}</div>
-                {startSeconds !== null ? (
-                    <Badge variant={isClickable ? "success" : "secondary"} className="font-mono text-[11px]">
-                        {formatSeconds(startSeconds)}
-                        {endSeconds !== null && endSeconds > startSeconds + 0.5 ? `–${formatSeconds(endSeconds)}` : ""}
-                    </Badge>
+    const innerContent = (
+        <div className="p-4 md:p-5 relative z-10">
+            {/* Left accent line that glows on hover */}
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/0 group-hover:bg-primary transition-all duration-300" />
+
+            <div className="flex flex-col gap-2 ml-2">
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-2 md:gap-4">
+                    <h4 className="text-base font-semibold text-foreground/95 leading-snug group-hover:text-primary transition-colors">
+                        {kp.title}
+                    </h4>
+
+                    {startSeconds !== null && (
+                        <div className="shrink-0">
+                            <Badge
+                                variant="outline"
+                                className={`
+                                    font-mono text-[10px] py-0.5 px-1.5 gap-1 transition-colors h-5
+                                    ${isClickable
+                                        ? "bg-primary/10 text-primary border-primary/20 group-hover:bg-primary group-hover:text-black"
+                                        : "bg-white/5 text-muted-foreground border-white/10"}
+                                `}
+                            >
+                                <PlayCircle className="w-3 h-3" />
+                                <span>{formatSeconds(startSeconds)}</span>
+                                {endSeconds !== null && endSeconds > startSeconds + 0.5 ? (
+                                    <span className="opacity-60">– {formatSeconds(endSeconds)}</span>
+                                ) : null}
+                            </Badge>
+                        </div>
+                    )}
+                </div>
+
+                {kp.detail ? (
+                    <p className="text-sm text-muted-foreground/90 leading-relaxed text-pretty">
+                        {kp.detail}
+                    </p>
+                ) : null}
+
+                {kp.evidence ? (
+                    <div className="mt-1 flex items-start gap-2 text-[11px] text-muted-foreground/60 group-hover:text-muted-foreground/80 transition-colors">
+                        <Quote className="w-3 h-3 shrink-0 opacity-50 relative top-0.5" />
+                        <span className="italic leading-relaxed">{kp.evidence}</span>
+                    </div>
                 ) : null}
             </div>
-
-            {kp.detail ? (
-                <div className="mt-2 text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{kp.detail}</div>
-            ) : null}
-
-            {kp.evidence ? (
-                <div className="mt-2 text-xs text-muted-foreground">
-                    <span className="font-medium">{t("tasks.summaryStructured.evidenceLabel")}:</span>{" "}
-                    {kp.evidence}
-                </div>
-            ) : null}
-        </>
+        </div>
     )
 
-    if (startSeconds !== null) {
+    if (startSeconds !== null && canSeek) {
         return (
             <button
                 type="button"
                 onClick={() => onSeek(startSeconds)}
-                disabled={!canSeek}
-                title={canSeek ? `Seek to ${formatSeconds(startSeconds)}` : undefined}
-                className={baseClassName}
+                className={containerClasses}
             >
-                {inner}
+                {innerContent}
             </button>
         )
     }
 
-    return <div className={baseClassName}>{inner}</div>
+    return <div className={containerClasses}>{innerContent}</div>
 }
 
 function FullScriptSection({
