@@ -40,7 +40,7 @@ function TemplateCard({ task }: { task: Task }) {
     return (
         <div
             onClick={() => router.push(`/tasks/${task.id}`)}
-            className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.03] to-transparent backdrop-blur-sm cursor-pointer transition-all duration-300 hover:border-white/20 hover:shadow-[0_8px_32px_rgba(115,119,221,0.15)] hover:scale-[1.02]"
+            className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.03] to-transparent backdrop-blur-sm cursor-pointer transition-all duration-300 hover:border-white/20 hover:shadow-[0_8px_32px_rgba(62,207,142,0.15)] hover:scale-[1.02]"
         >
             {/* Thumbnail Area */}
             <div className="relative aspect-video w-full overflow-hidden bg-black/40">
@@ -75,7 +75,7 @@ function TemplateCard({ task }: { task: Task }) {
                 </h3>
 
                 {/* View Action */}
-                <div className="mt-4 flex items-center gap-1 text-xs font-medium text-[#A78BFA] opacity-0 translate-x-[-4px] transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
+                <div className="mt-4 flex items-center gap-1 text-xs font-medium text-primary opacity-0 translate-x-[-4px] transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
                     <span>View Example</span>
                     <ArrowRight className="h-3 w-3" />
                 </div>
@@ -127,7 +127,7 @@ export function CommunityTemplates() {
         <div className="space-y-4">
             <div className="flex items-center gap-3">
                 <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-[#A78BFA]" />
+                    <Sparkles className="h-5 w-5 text-primary" />
                     {t("dashboard.communityExamples") || "Community Examples"}
                 </h2>
                 <span className="text-xs text-muted-foreground">
