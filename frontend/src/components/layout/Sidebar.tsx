@@ -62,7 +62,7 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
                             "flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                             pathname === item.href
                                 ? "bg-primary/15 text-primary shadow-[0_0_15px_rgba(62,207,142,0.15)]"
-                                : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                                : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
                         )}
                     >
                         <item.icon className="h-4 w-4" />
