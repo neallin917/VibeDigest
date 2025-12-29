@@ -19,6 +19,7 @@ from coinbase_commerce.client import Client as CoinbaseClient
 from coinbase_commerce.webhook import Webhook as CoinbaseWebhook
 
 # Load environment variables
+# Load environment variables
 load_dotenv()
 
 from video_processor import VideoProcessor
@@ -444,15 +445,24 @@ except ImportError:
         return decorator
     langfuse_context = None
 
+# Concurrency Control
+# Limit concurrent heavy processing tasks to avoid OOM/CPU saturation.
+# 20 requests will be queued in the event loop, but only 4 run at a time.
+MAX_CONCURRENT_JOBS = 4
+processing_limiter = asyncio.Semaphore(MAX_CONCURRENT_JOBS)
+
 @observe(name="video-processing-pipeline")
 async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
     """
     Main orchestration pipeline.
-    1. Download Video
-    2. Transcribe (updates Script output)
-    3. Summarize (updates Summary output)
-    4. Translate (updates Translation outputs)
+    Wrapped in a Semaphore to limit concurrency.
     """
+    async with processing_limiter:
+        logger.info(f"Task {task_id} acquiring execution slot... (Active: {MAX_CONCURRENT_JOBS - processing_limiter._value})")
+        # 1. Download Video
+        # 2. Transcribe (updates Script output)
+        # 3. Summarize (updates Summary output)
+        # 4. Translate (updates Translation outputs)
     if langfuse_context:
         langfuse_context.update_current_trace(
             user_id=task_id, # Or actual user_id if we passed it

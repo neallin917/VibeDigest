@@ -11,7 +11,7 @@ async-timeout==5.0.1
 attrs==25.4.0
 av==16.0.1
 backoff==2.2.1
-backports.asyncio.runner==1.2.0
+
 cachetools==6.2.4
 ccxt==4.4.44
 certifi==2025.11.12

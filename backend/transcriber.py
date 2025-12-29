@@ -1,12 +1,17 @@
 import os
 import logging
 from typing import Optional
-import re
 import json
-try:
-    from langfuse.openai import OpenAI
-except ImportError:
-    from openai import OpenAI
+import asyncio
+from config import settings
+from utils.openai_client import get_openai_client
+from utils.text_utils import (
+    count_words_or_units,
+    find_early_punctuation_split,
+    find_late_punctuation_split,
+    ends_with_sentence,
+    WHITESPACE_GLOBAL_REGEX
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,133 +24,6 @@ logger = logging.getLogger(__name__)
 MAX_SENTENCE_DURATION_SECONDS = 24.0  # keep chunks short for navigation
 MAX_SENTENCE_WORDS = 80
 MAX_SEGMENTS_PER_SENTENCE = 20
-
-SENTENCE_PUNCTUATION_REGEX = re.compile(r"[.!?\u3002\uff01\uff1f\u203c\u2047\u2048]")
-WHITESPACE_GLOBAL_REGEX = re.compile(r"\s+")
-PUNCTUATION_OR_SPACE_REGEX = re.compile(r"[\s,;!?]")
-DIGIT_REGEX = re.compile(r"\d")
-NON_PERIOD_SENTENCE_ENDING_REGEX = re.compile(r"[!?\u3002\uff01\uff1f\u203c\u2047\u2048]$")
-
-# Common patterns to avoid treating "." as sentence-ending for URLs/abbrevs/extensions.
-COMMON_TLDS = {
-    "com", "org", "net", "edu", "gov", "co", "io", "ai", "dev",
-    "txt", "pdf", "jpg", "png", "gif", "doc", "zip", "html", "js", "ts"
-}
-COMMON_ABBREVS = {"dr", "mr", "mrs", "ms", "vs", "etc", "inc", "ltd", "jr", "sr"}
-
-
-def _count_words_or_units(text: str) -> int:
-    """
-    Count "units" for length bounding.
-    - If text has spaces, count words.
-    - Otherwise (e.g. CJK without spaces), approximate by counting non-space characters.
-    """
-    if not text:
-        return 0
-    s = text.strip()
-    if not s:
-        return 0
-    if " " in s or "\t" in s or "\n" in s:
-        return len([w for w in re.split(r"\s+", s) if w])
-    # No spaces -> likely CJK; count visible chars as rough units
-    return len([ch for ch in s if not ch.isspace()])
-
-
-def _is_sentence_ending_period(text: str, period_index: int) -> bool:
-    before = text[period_index - 1] if period_index - 1 >= 0 else ""
-    after = text[period_index + 1] if period_index + 1 < len(text) else ""
-
-    # Decimal number: digit before and digit after (e.g., "2.2", "3.14")
-    if before and after and DIGIT_REGEX.search(before) and DIGIT_REGEX.search(after):
-        return False
-
-    # Check for common TLDs and file extensions (e.g., ".com", ".org", ".txt")
-    after_period = text[period_index + 1: period_index + 5].lower()
-    for pattern in COMMON_TLDS:
-        if after_period.startswith(pattern):
-            char_after_pattern = text[period_index + 1 + len(pattern): period_index + 2 + len(pattern)]
-            if not char_after_pattern or PUNCTUATION_OR_SPACE_REGEX.search(char_after_pattern):
-                return False
-
-    # Common abbreviations (check 1-3 chars before period)
-    before_period = text[max(0, period_index - 3): period_index].lower()
-    for abbrev in COMMON_ABBREVS:
-        if before_period.endswith(abbrev):
-            return False
-
-    return True
-
-
-def _ends_with_sentence(text: str) -> bool:
-    trimmed = (text or "").strip()
-    if not trimmed:
-        return False
-
-    # Non-period sentence endings
-    if NON_PERIOD_SENTENCE_ENDING_REGEX.search(trimmed):
-        return True
-
-    # Period - verify it's truly sentence-ending
-    if trimmed.endswith("."):
-        return _is_sentence_ending_period(trimmed, len(trimmed) - 1)
-
-    return False
-
-
-def _find_true_sentence_punct_positions(text: str) -> list[int]:
-    """Return indices of punctuation that are truly sentence-ending."""
-    trimmed = (text or "").strip()
-    if not trimmed:
-        return []
-    positions: list[int] = []
-    for m in SENTENCE_PUNCTUATION_REGEX.finditer(trimmed):
-        idx = m.start()
-        ch = trimmed[idx]
-        if ch != ".":
-            positions.append(idx)
-        else:
-            if _is_sentence_ending_period(trimmed, idx):
-                positions.append(idx)
-    return positions
-
-
-def _find_early_punctuation_split(text: str) -> int:
-    """
-    Find sentence-ending punctuation near the beginning of text (within first 2 words/units).
-    Returns the index position right after the punctuation, or -1 if none found.
-    """
-    trimmed = (text or "").strip()
-    if not trimmed:
-        return -1
-    positions = _find_true_sentence_punct_positions(trimmed)
-    if not positions:
-        return -1
-    first_idx = positions[0]
-    before = trimmed[:first_idx].strip()
-    units = _count_words_or_units(before)
-    if 0 <= units <= 2:
-        return first_idx + 1
-    return -1
-
-
-def _find_late_punctuation_split(text: str) -> int:
-    """
-    Find sentence-ending punctuation near the end of text (within last 2 words/units).
-    Returns the index position right after the punctuation, or -1 if none found.
-    """
-    trimmed = (text or "").strip()
-    if not trimmed:
-        return -1
-    positions = _find_true_sentence_punct_positions(trimmed)
-    if not positions:
-        return -1
-    last_idx = positions[-1]
-    after = trimmed[last_idx + 1:].strip()
-    units = _count_words_or_units(after)
-    if 1 <= units <= 2:
-        return last_idx + 1
-    return -1
-
 
 def _split_long_sentence_segments(segments: list) -> list[dict]:
     """
@@ -174,7 +52,7 @@ def _split_long_sentence_segments(segments: list) -> list[dict]:
 
     for seg in segments:
         seg_text = (getattr(seg, "text", "") or "").strip()
-        seg_units = _count_words_or_units(seg_text)
+        seg_units = count_words_or_units(seg_text)
         seg_start = float(getattr(seg, "start", 0.0) or 0.0)
         seg_end = float(getattr(seg, "end", seg_start) or seg_start)
         seg_duration = max(seg_end - seg_start, 0.0)
@@ -252,7 +130,7 @@ def _merge_segments_into_sentences(all_segments: list) -> list[dict]:
             continue
 
         # Early punctuation: ". You should" should attach to previous sentence
-        early_split_pos = _find_early_punctuation_split(text)
+        early_split_pos = find_early_punctuation_split(text)
         if early_split_pos > 0 and current_text_parts:
             before = text[:early_split_pos].strip()
             after = text[early_split_pos:].strip()
@@ -265,7 +143,7 @@ def _merge_segments_into_sentences(all_segments: list) -> list[dict]:
             text = after
 
         # Late punctuation: split when punctuation appears near end (so trailing 1-2 words carry to next sentence)
-        late_split_pos = _find_late_punctuation_split(text)
+        late_split_pos = find_late_punctuation_split(text)
         if late_split_pos > 0:
             before = text[:late_split_pos].strip()
             after = text[late_split_pos:].strip()
@@ -285,7 +163,7 @@ def _merge_segments_into_sentences(all_segments: list) -> list[dict]:
         current_text_parts.append(text)
         current_segments.append(seg)
 
-        if _ends_with_sentence(text):
+        if ends_with_sentence(text):
             flush_sentence()
 
     # Remaining
@@ -437,9 +315,6 @@ def format_markdown_from_raw_segments(raw_segments: list[dict], detected_languag
     Public helper: format transcript markdown from stored raw segments (JSON).
     This enables re-formatting without re-transcribing.
     """
-    # NOTE: Keep the transcript content clean and UI-friendly.
-    # The frontend already shows "original script language", so we avoid repeating
-    # "Detected Language" and "Transcription Content" headings inside the markdown.
     transcript_lines: list[str] = []
 
     # Convert raw dicts to a lightweight object-like interface expected by the merge logic.
@@ -469,17 +344,14 @@ def format_markdown_from_raw_segments(raw_segments: list[dict], detected_languag
         max_duration_seconds=max_dur,
     )
     for para in paragraphs:
-        start_time = Transcriber()._format_time(float(para["start"]))  # reuse existing formatting
+        start_time = Transcriber.format_time(float(para["start"])) 
         transcript_lines.append(f"**[{start_time}]**")
-        # NOTE: A single '\n' is treated as a space in Markdown. Add a blank line so
-        # timestamp and text become separate blocks for readability.
         transcript_lines.append("")
         transcript_lines.append(para["text"])
         transcript_lines.append("")
 
     return "\n".join(transcript_lines)
 
-from config import settings
 
 class Transcriber:
     """音频转录器，使用 OpenAI API 进行语音转文字"""
@@ -498,17 +370,11 @@ class Transcriber:
     def _init_client(self):
         """延迟初始化 OpenAI 客户端"""
         if self.client is None:
-            api_key = os.getenv("OPENAI_API_KEY")
-            base_url = os.getenv("OPENAI_BASE_URL")
-            if not api_key:
-                raise ValueError("未找到 OPENAI_API_KEY 环境变量")
-            
-            if base_url:
-                self.client = OpenAI(api_key=api_key, base_url=base_url)
-                logger.info(f"OpenAI 客户端初始化完成 (Base URL: {base_url})")
+            self.client = get_openai_client()
+            if self.client:
+                logger.info(f"OpenAI 客户端初始化完成 (Transcriber)")
             else:
-                self.client = OpenAI(api_key=api_key)
-                logger.info("OpenAI 客户端初始化完成")
+                raise ValueError("未找到 OPENAI_API_KEY 环境变量")
     
     async def transcribe(self, audio_path: str, language: Optional[str] = None) -> str:
         """
@@ -555,7 +421,6 @@ class Transcriber:
             else:
                 files_to_transcribe = [(audio_path, 0.0)] # tuple of (path, start_offset)
 
-            import asyncio
             all_segments = []
             detected_language = "unknown"
             
@@ -607,13 +472,7 @@ class Transcriber:
 
             # 组装转录结果
             transcript_lines = []
-            # NOTE: Keep transcript markdown free of redundant headings.
-            # The UI already presents language metadata separately.
-
-            # Readability-first formatting:
-            # 1) Merge segments into sentence-like chunks using punctuation heuristics
-            # 2) Safety-net split for overly long sentences (duration/words/segment count)
-            # 3) Group sentences into paragraphs (time gap + char budget)
+            
             sentences = _merge_segments_into_sentences(all_segments)
             max_chars, max_dur = _paragraph_limits_for_language(detected_language)
             paragraphs = _group_sentences_into_paragraphs_v2(
@@ -624,7 +483,7 @@ class Transcriber:
             )
 
             for para in paragraphs:
-                start_time = self._format_time(float(para["start"]))
+                start_time = self.format_time(float(para["start"]))
                 transcript_lines.append(f"**[{start_time}]**")
                 transcript_lines.append("")
                 transcript_lines.append(para["text"])
@@ -643,15 +502,7 @@ class Transcriber:
     async def _split_audio(self, audio_path: str, chunk_length_ms: int = 10 * 60 * 1000) -> list:
         """
         使用 pydub 将音频切分为多个小片段
-        
-        Args:
-            audio_path: 原音频路径
-            chunk_length_ms: 切片长度（毫秒），默认10分钟
-            
-        Returns:
-            list: [(chunk_path, start_offset_seconds), ...]
         """
-        import asyncio
         from pydub import AudioSegment
         
         def _do_split():
@@ -678,10 +529,10 @@ class Transcriber:
                 logger.error(f"音频切片失败: {e}")
                 raise e
 
-        # 这是一个耗时操作，放入线程池
         return await asyncio.to_thread(_do_split)
     
-    def _format_time(self, seconds: float) -> str:
+    @staticmethod
+    def format_time(seconds: float) -> str:
         """
         将秒数转换为时分秒格式 MM:SS 或 HH:MM:SS
         """
@@ -708,11 +559,9 @@ class Transcriber:
         """
         获取检测到的语言
         """
-        # 如果有保存的语言，直接返回
         if self.last_detected_language:
             return self.last_detected_language
         
-        # 如果提供了转录文本，尝试从中提取语言信息
         if transcript_text and "**Detected Language:**" in transcript_text:
             lines = transcript_text.split('\n')
             for line in lines:

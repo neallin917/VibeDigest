@@ -1,11 +1,10 @@
 import logging
-try:
-    from langfuse.openai import OpenAI
-except ImportError:
-    from openai import OpenAI
-from typing import Optional
 import re
+from typing import Optional
 from config import settings
+from utils.openai_client import get_openai_client
+from utils.text_utils import LANGUAGE_MAP, detect_language, smart_chunk_text
+from prompts import TRANSLATE_SYSTEM, TRANSLATE_USER, TRANSLATE_CHUNK_SYSTEM
 
 logger = logging.getLogger(__name__)
 
@@ -13,130 +12,18 @@ class Translator:
     """文本翻译器，使用GPT-4o进行高质量翻译"""
     
     def __init__(self):
-        self.client = None
-        self._init_openai_client()
+        self.client = get_openai_client()
+        if self.client:
+             logger.info("OpenAI客户端初始化成功 (Translator)")
+        else:
+             logger.warning("OpenAI API不可用 (Translator)")
         
         # 语言映射
-        self.language_map = {
-            "zh": "中文（简体）",
-            "zh-tw": "中文（繁体）", 
-            "en": "English",
-            "ja": "日本語",
-            "ko": "한국어",
-            "fr": "Français",
-            "de": "Deutsch",
-            "es": "Español",
-            "it": "Italiano",
-            "pt": "Português",
-            "ru": "Русский",
-            "ar": "العربية",
-            "hi": "हिन्दी"
-        }
+        self.language_map = LANGUAGE_MAP
     
-    def _init_openai_client(self):
-        """初始化OpenAI客户端"""
-        try:
-            import os
-            api_key = os.getenv("OPENAI_API_KEY")
-            base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-            
-            if not api_key:
-                logger.warning("未设置OPENAI_API_KEY环境变量")
-                return
-                
-            self.client = OpenAI(
-                api_key=api_key,
-                base_url=base_url
-            )
-            logger.info("OpenAI客户端初始化成功")
-            
-        except Exception as e:
-            logger.error(f"初始化OpenAI客户端失败: {str(e)}")
-            self.client = None
+
     
-    def _detect_source_language(self, text: str) -> str:
-        """检测源文本语言"""
-        # 简单的语言检测逻辑
-        if "**检测语言:**" in text:
-            lines = text.split('\n')
-            for line in lines:
-                if "**检测语言:**" in line:
-                    lang = line.split(":")[-1].strip()
-                    return lang
-        
-        # 基于字符统计的简单检测
-        total_chars = len(text)
-        if total_chars == 0:
-            return "en"
-        
-        # 统计中文字符
-        chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', text))
-        chinese_ratio = chinese_chars / total_chars
-        
-        # 统计日文字符
-        japanese_chars = len(re.findall(r'[\u3040-\u309f\u30a0-\u30ff]', text))
-        japanese_ratio = japanese_chars / total_chars
-        
-        # 统计韩文字符
-        korean_chars = len(re.findall(r'[\uac00-\ud7af]', text))
-        korean_ratio = korean_chars / total_chars
-        
-        if chinese_ratio > 0.1:
-            return "zh"
-        elif japanese_ratio > 0.05:
-            return "ja"
-        elif korean_ratio > 0.05:
-            return "ko"
-        else:
-            return "en"
-    
-    def _smart_chunk_text(self, text: str, max_chars_per_chunk: int = 4000) -> list:
-        """智能分块文本用于翻译"""
-        chunks = []
-        
-        # 首先按段落分割
-        paragraphs = [p for p in text.split('\n\n') if p.strip()]
-        current_chunk = ""
-        
-        for paragraph in paragraphs:
-            # 如果当前段落加上现有块超过限制
-            if len(current_chunk) + len(paragraph) + 2 > max_chars_per_chunk and current_chunk:
-                chunks.append(current_chunk.strip())
-                current_chunk = paragraph
-            else:
-                if current_chunk:
-                    current_chunk += "\n\n" + paragraph
-                else:
-                    current_chunk = paragraph
-        
-        # 添加最后一块
-        if current_chunk.strip():
-            chunks.append(current_chunk.strip())
-        
-        # 如果某个块仍然太长，按句子进一步分割
-        final_chunks = []
-        for chunk in chunks:
-            if len(chunk) <= max_chars_per_chunk:
-                final_chunks.append(chunk)
-            else:
-                # 按句子分割
-                sentences = re.split(r'[.!?。！？]\s+', chunk)
-                current_sub_chunk = ""
-                
-                for sentence in sentences:
-                    if len(current_sub_chunk) + len(sentence) + 2 > max_chars_per_chunk and current_sub_chunk:
-                        final_chunks.append(current_sub_chunk.strip())
-                        current_sub_chunk = sentence
-                    else:
-                        if current_sub_chunk:
-                            current_sub_chunk += ". " + sentence
-                        else:
-                            current_sub_chunk = sentence
-                
-                if current_sub_chunk.strip():
-                    final_chunks.append(current_sub_chunk.strip())
-        
-        return final_chunks
+
     
     async def translate_text(self, text: str, target_language: str, source_language: Optional[str] = None) -> str:
         """
@@ -155,9 +42,8 @@ class Translator:
                 logger.warning("OpenAI API不可用，无法翻译")
                 return text
             
-            # 检测源语言
             if not source_language:
-                source_language = self._detect_source_language(text)
+                source_language = detect_language(text)
             
             # 如果源语言和目标语言相同，直接返回
             if source_language == target_language:
@@ -181,20 +67,8 @@ class Translator:
     
     async def _translate_single_text(self, text: str, target_lang_name: str, source_lang_name: str) -> str:
         """翻译单个文本块"""
-        system_prompt = f"""你是专业翻译专家。请将{source_lang_name}文本准确翻译为{target_lang_name}。
-
-翻译要求：
-- 保持原文的格式和结构（包括段落分隔、标题等）
-- 准确传达原意，语言自然流畅
-- 保留专业术语的准确性
-- 不要添加解释或注释
-- 如果遇到Markdown格式，请保持格式不变"""
-
-        user_prompt = f"""请将以下{source_lang_name}文本翻译为{target_lang_name}：
-
-{text}
-
-只返回翻译结果，不要添加任何说明。"""
+        system_prompt = TRANSLATE_SYSTEM.format(source_lang=source_lang_name, target_lang=target_lang_name)
+        user_prompt = TRANSLATE_USER.format(source_lang=source_lang_name, target_lang=target_lang_name, text=text)
 
         try:
             response = self.client.chat.completions.create(
@@ -215,7 +89,7 @@ class Translator:
     
     async def _translate_with_chunks(self, text: str, target_lang_name: str, source_lang_name: str) -> str:
         """分块翻译长文本"""
-        chunks = self._smart_chunk_text(text, max_chars_per_chunk=4000)
+        chunks = smart_chunk_text(text, max_chars=4000)
         logger.info(f"分割为 {len(chunks)} 个块进行翻译")
         
         translated_chunks = []
@@ -223,22 +97,15 @@ class Translator:
         for i, chunk in enumerate(chunks):
             logger.info(f"正在翻译第 {i+1}/{len(chunks)} 块...")
             
-            system_prompt = f"""你是专业翻译专家。请将{source_lang_name}文本准确翻译为{target_lang_name}。
+            system_prompt = TRANSLATE_CHUNK_SYSTEM.format(
+                source_lang=source_lang_name,
+                target_lang=target_lang_name,
+                current_part=i+1,
+                total_parts=len(chunks)
+            )
 
-这是完整文档的第{i+1}部分，共{len(chunks)}部分。
-
-翻译要求：
-- 保持原文的格式和结构
-- 准确传达原意，语言自然流畅
-- 保留专业术语的准确性
-- 不要添加解释或注释
-- 保持与前后文的连贯性"""
-
-            user_prompt = f"""请将以下{source_lang_name}文本翻译为{target_lang_name}：
-
-{chunk}
-
-只返回翻译结果。"""
+            # Reuse User Prompt structure for chunks as it's simple
+            user_prompt = TRANSLATE_USER.format(source_lang=source_lang_name, target_lang=target_lang_name, text=chunk)
 
             try:
                 response = self.client.chat.completions.create(

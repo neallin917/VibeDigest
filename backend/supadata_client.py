@@ -15,9 +15,7 @@ class SupadataClient:
     BASE_URL = "https://api.supadata.ai/v1"
     
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.getenv("SUPABASE_API_KEY") # User might set it as SUPADATA_API_KEY, let's check widely
-        if not self.api_key:
-             self.api_key = os.getenv("SUPADATA_API_KEY")
+        self.api_key = api_key or os.getenv("SUPADATA_API_KEY")
         
     def _get_headers(self) -> Dict[str, str]:
         if not self.api_key:

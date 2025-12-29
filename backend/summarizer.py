@@ -6,6 +6,35 @@ from typing import Optional, Any
 import json
 import re
 from config import settings
+from utils.openai_client import get_openai_client
+from utils.text_utils import (
+    LANGUAGE_MAP,
+    get_language_name,
+    count_words_or_units,
+    ensure_markdown_paragraphs,
+    is_cjk_language,
+    remove_timestamps_and_meta,
+    remove_transcript_heading,
+    enforce_paragraph_max_chars,
+    extract_pure_text,
+    split_into_sentences,
+    join_sentences,
+    detect_language,
+    smart_chunk_text
+)
+from prompts import (
+    OPTIMIZE_TRANSCRIPT_SYSTEM_ZH, OPTIMIZE_TRANSCRIPT_USER_ZH,
+    OPTIMIZE_TRANSCRIPT_SYSTEM_EN, OPTIMIZE_TRANSCRIPT_USER_EN,
+    CHUNK_OPTIMIZE_SYSTEM, CHUNK_OPTIMIZE_USER,
+    ORGANIZE_PARAGRAPHS_SYSTEM, ORGANIZE_PARAGRAPHS_USER,
+    ORGANIZE_CHUNK_SYSTEM, ORGANIZE_CHUNK_USER,
+    SUMMARY_SINGLE_SYSTEM, SUMMARY_SINGLE_USER,
+    SUMMARY_CHUNK_SYSTEM, SUMMARY_CHUNK_USER,
+    SUMMARY_INTEGRATE_SYSTEM, SUMMARY_INTEGRATE_USER,
+    JSON_REPAIR_SYSTEM, JSON_REPAIR_USER,
+    TRANSLATE_JSON_SYSTEM
+)
+
 # Use Langfuse wrapper for OpenAI if available, otherwise fall back to standard
 try:
     from langfuse.openai import openai
@@ -50,22 +79,11 @@ class Summarizer:
 
     def __init__(self):
         """初始化总结器"""
-        # 从环境变量获取OpenAI API配置
-        api_key = os.getenv("OPENAI_API_KEY")
-        base_url = os.getenv("OPENAI_BASE_URL")
-        
-        if not api_key:
-            logger.warning("未设置OPENAI_API_KEY环境变量，将无法使用摘要功能")
-        
-        if api_key:
-            if base_url:
-                self.client = openai.OpenAI(api_key=api_key, base_url=base_url)
-                logger.info(f"OpenAI客户端已初始化，使用自定义端点: {base_url}")
-            else:
-                self.client = openai.OpenAI(api_key=api_key)
-                logger.info("OpenAI客户端已初始化，使用默认端点")
+        self.client = get_openai_client()
+        if self.client:
+             logger.info("OpenAI客户端已初始化 (Summarizer)")
         else:
-            self.client = None
+             logger.warning("未设置OPENAI_API_KEY环境变量，将无法使用摘要功能")
 
         # Model selection (configurable via env; safe fallbacks).
         # - Summary should use the best available model. We try preferred first, then fall back.
@@ -135,24 +153,10 @@ class Summarizer:
         self.summary_match_threshold = float(os.getenv("OPENAI_SUMMARY_MATCH_THRESHOLD", "4.0"))
         
         # 支持的语言映射
-        self.language_map = {
-            "en": "English",
-            "zh": "中文（简体）",
-            "zh-cn": "中文（简体）",
-            "zh-tw": "中文（繁体）",
-            "chinese": "中文（简体）",
-            "es": "Español",
-            "fr": "Français", 
-            "de": "Deutsch",
-            "it": "Italiano",
-            "pt": "Português",
-            "ru": "Русский",
-            "ja": "日本語",
-            "japanese": "日本語",
-            "ko": "한국어",
-            "korean": "한국어",
-            "ar": "العربية"
-        }
+        self.language_map = LANGUAGE_MAP
+        
+        # 支持的语言映射
+        self.language_map = LANGUAGE_MAP
 
     @staticmethod
     def _dedupe_models(models: list[str]) -> list[str]:
@@ -204,13 +208,13 @@ class Summarizer:
             if not self.client:
                 # Still strip timestamps/meta so UI never shows timestamps even in fallback mode.
                 logger.warning("OpenAI API不可用，返回去时间戳/元信息后的转录")
-                return self._remove_timestamps_and_meta(raw_transcript)
+                return remove_timestamps_and_meta(raw_transcript)
 
             # 预处理：仅移除时间戳与元信息，保留全部口语/重复内容
-            preprocessed = self._remove_timestamps_and_meta(raw_transcript)
+            preprocessed = remove_timestamps_and_meta(raw_transcript)
             # 使用JS策略：按字符长度分块（更贴近tokens上限，避免估算误差）
-            detected_lang_code = self._detect_transcript_language(preprocessed)
-            max_chars_per_chunk = 4000  # 对齐JS：每块最大约4000字符
+            detected_lang_code = detect_language(preprocessed)
+            max_chars_per_chunk = 12000  # 调优：单次 8k-12k 字符是工程最优解 (GPT-4o/Mini Context)
 
             if len(preprocessed) > max_chars_per_chunk:
                 logger.info(f"文本较长({len(preprocessed)} chars)，启用分块优化")
@@ -244,7 +248,7 @@ class Summarizer:
 
     def _fallback_summary_json_v1(self, transcript: str, target_language: str) -> str:
         """Deterministic fallback: always return valid JSON (current schema)."""
-        cleaned = self._remove_timestamps_and_meta(transcript or "")
+        cleaned = remove_timestamps_and_meta(transcript or "")
         cleaned = cleaned.strip()
         overview = cleaned[:900].strip()
         if len(cleaned) > 900:
@@ -299,66 +303,14 @@ class Summarizer:
         """
         优化单个文本块
         """
-        detected_lang = self._detect_transcript_language(raw_transcript)
-        lang_instruction = self._get_language_instruction(detected_lang)
+        detected_lang = detect_language(raw_transcript)
         
-        system_prompt = f"""你是一个专业的文本编辑专家。请对提供的视频转录文本进行优化处理。
-
-特别注意：这可能是访谈、对话或演讲，如果包含多个说话者，必须保持每个说话者的原始视角。
-
-要求：
-1. **严格保持原始语言({lang_instruction})，绝对不要翻译成其他语言**
-2. **完全移除所有时间戳标记（如 [00:00 - 00:05]）**
-3. **智能识别和重组被时间戳拆分的完整句子**，语法上不完整的句子片段需要与上下文合并
-4. 修正明显的错别字和语法错误
-5. 将重组后的完整句子按照语义和逻辑含义分成自然的段落
-6. 段落之间用空行分隔
-7. **严格保持原意不变，不要添加或删除实际内容**
-8. **绝对不要改变人称代词（如I/我、you/你、he/他、she/她等）**
-9. **保持每个说话者的原始视角和语境**
-10. **识别对话结构：访谈者用"you"，被访者用"I/we"，绝不混淆**
-11. 确保每个句子语法完整，语言流畅自然
-
-处理策略：
-- 优先识别不完整的句子片段（如以介词、连词、形容词结尾）
-- 查看相邻的文本片段，合并形成完整句子
-- 重新断句，确保每句话语法完整
-- 按主题和逻辑重新分段
-
-分段要求：
-- 按主题和逻辑含义分段，每段包含1-8个相关句子
-- 单段长度不超过400字符
-- 避免过多的短段落，合并相关内容
-- 当一个完整想法或观点表达后分段
-
-输出格式：
-- 纯文本段落，无时间戳或格式标记
-- 每个句子结构完整
-- 每个段落讨论一个主要话题
-- 段落之间用空行分隔
-
-重要提醒：这是{lang_instruction}内容，请完全用{lang_instruction}进行优化，重点解决句子被时间戳拆分导致的不连贯问题！务必进行合理的分段，避免出现超长段落！
-
-**关键要求：这可能是访谈对话，绝对不要改变任何人称代词或说话者视角！访谈者说"you"，被访者说"I/we"，必须严格保持！**"""
-
-        user_prompt = f"""请将以下{lang_instruction}视频转录文本优化为流畅的段落文本：
-
-{raw_transcript}
-
-重点任务：
-1. 移除所有时间戳标记
-2. 识别并重组被拆分的完整句子
-3. 确保每个句子语法完整、意思连贯
-4. 按含义重新分段，段落间空行分隔
-5. 保持{lang_instruction}语言不变
-
-分段指导：
-- 按主题和逻辑含义分段，每段包含1-8个相关句子
-- 单段长度不超过400字符
-- 避免过多的短段落，合并相关内容
-- 确保段落之间有明确的空行
-
-请特别注意修复因时间戳分割导致的句子不完整问题，并进行合理的段落划分！"""
+        if detected_lang == 'zh':
+             system_prompt = OPTIMIZE_TRANSCRIPT_SYSTEM_ZH
+             user_prompt = OPTIMIZE_TRANSCRIPT_USER_ZH.format(text=raw_transcript)
+        else:
+             system_prompt = OPTIMIZE_TRANSCRIPT_SYSTEM_EN
+             user_prompt = OPTIMIZE_TRANSCRIPT_USER_EN.format(text=raw_transcript)
 
         response = await self._chat_completions_create(
             models=[self.transcript_model],
@@ -376,7 +328,7 @@ class Summarizer:
         """
         分块优化长文本
         """
-        detected_lang = self._detect_transcript_language(raw_transcript)
+        detected_lang = detect_language(raw_transcript)
         lang_instruction = self._get_language_instruction(detected_lang)
         
         # 按段落分割原始转录（保留时间戳作为分割参考）
@@ -388,24 +340,15 @@ class Summarizer:
         for i, chunk in enumerate(chunks):
             logger.info(f"正在优化第 {i+1}/{len(chunks)} 块...")
             
-            system_prompt = f"""你是专业的文本编辑专家。请对这段转录文本片段进行简单优化。
-
-这是完整转录的第{i+1}部分，共{len(chunks)}部分。
-
-简单优化要求：
-1. **严格保持原始语言({lang_instruction})**，绝对不翻译
-2. **仅修正明显的错别字和语法错误**
-3. **稍微调整句子流畅度**，但不大幅改写
-4. **保持原文结构和长度**，不做复杂的段落重组
-5. **保持原意100%不变**
-
-注意：这只是初步清理，不要做复杂的重写或重新组织。"""
-
-            user_prompt = f"""简单优化以下{lang_instruction}文本片段（仅修错别字和语法）：
-
-{chunk}
-
-输出清理后的文本，保持原文结构。"""
+            system_prompt = CHUNK_OPTIMIZE_SYSTEM.format(
+                current_part=i+1, 
+                total_parts=len(chunks), 
+                language=lang_instruction
+            )
+            user_prompt = CHUNK_OPTIMIZE_USER.format(
+                language=lang_instruction, 
+                text=chunk
+            )
 
             try:
                 response = await self._chat_completions_create(
@@ -424,7 +367,7 @@ class Summarizer:
             except Exception as e:
                 logger.error(f"优化第 {i+1} 块失败: {e}")
                 # 失败时使用基本清理
-                cleaned_chunk = self._basic_transcript_cleanup(chunk)
+                cleaned_chunk = remove_timestamps_and_meta(chunk)
                 optimized_chunks.append(cleaned_chunk)
         
         # 合并所有优化后的块
@@ -439,61 +382,17 @@ class Summarizer:
 
     # ===== JS openaiService.js 移植：分块/上下文/去重/格式化 =====
 
-    def _ensure_markdown_paragraphs(self, text: str) -> str:
-        """确保Markdown段落空行、标题后空行、压缩多余空行。"""
-        if not text:
-            return text
-        formatted = text.replace("\r\n", "\n")
-        import re
-        # 标题后加空行
-        formatted = re.sub(r"(^#{1,6}\s+.*)\n([^\n#])", r"\1\n\n\2", formatted, flags=re.M)
-        # 压缩≥3个换行为2个
-        formatted = re.sub(r"\n{3,}", "\n\n", formatted)
-        # 去首尾空行
-        formatted = re.sub(r"^\n+", "", formatted)
-        formatted = re.sub(r"\n+$", "", formatted)
-        return formatted
+
 
     async def _format_single_chunk(self, chunk_text: str, transcript_language: str = 'zh') -> str:
         """单块优化（修正+格式化），遵循4000 tokens 限制。"""
-        # 构建与JS版一致的系统/用户提示
+        # 构建系统/用户提示
         if transcript_language == 'zh':
-            prompt = (
-                "请对以下音频转录文本进行智能优化和格式化，要求：\n\n"
-                "**内容优化（正确性优先）：**\n"
-                "1. 错误修正（转录错误/错别字/同音字/专有名词）\n"
-                "2. 适度改善语法，补全不完整句子，保持原意和语言不变\n"
-                "3. 口语处理：保留自然口语与重复表达，不要删减内容，仅添加必要标点\n"
-                "4. **绝对不要改变人称代词（I/我、you/你等）和说话者视角**\n\n"
-                "**分段规则：**\n"
-                "- 按主题和逻辑含义分段，每段包含1-8个相关句子\n"
-                "- 单段长度不超过400字符\n"
-                "- 避免过多的短段落，合并相关内容\n\n"
-                "**格式要求：**Markdown 段落，段落间空行\n\n"
-                f"原始转录文本：\n{chunk_text}"
-            )
-            system_prompt = (
-                "你是专业的音频转录文本优化助手，修正错误、改善通顺度和排版格式，"
-                "必须保持原意，不得删减口语/重复/细节；仅移除时间戳或元信息。"
-                "绝对不要改变人称代词或说话者视角。这可能是访谈对话，访谈者用'you'，被访者用'I/we'。"
-            )
+            system_prompt = OPTIMIZE_TRANSCRIPT_SYSTEM_ZH
+            prompt = OPTIMIZE_TRANSCRIPT_USER_ZH.format(text=chunk_text)
         else:
-            prompt = (
-                "Please intelligently optimize and format the following audio transcript text:\n\n"
-                "Content Optimization (Accuracy First):\n"
-                "1. Error Correction (typos, homophones, proper nouns)\n"
-                "2. Moderate grammar improvement, complete incomplete sentences, keep original language/meaning\n"
-                "3. Speech processing: keep natural fillers and repetitions, do NOT remove content; only add punctuation if needed\n"
-                "4. **NEVER change pronouns (I, you, he, she, etc.) or speaker perspective**\n\n"
-                "Segmentation Rules: Group 1-8 related sentences per paragraph by topic/logic; paragraph length NOT exceed 400 characters; avoid too many short paragraphs\n\n"
-                "Format: Markdown paragraphs with blank lines between paragraphs\n\n"
-                f"Original transcript text:\n{chunk_text}"
-            )
-            system_prompt = (
-                "You are a professional transcript formatting assistant. Fix errors and improve fluency "
-                "without changing meaning or removing any content; only timestamps/meta may be removed; keep Markdown paragraphs with blank lines. "
-                "NEVER change pronouns or speaker perspective. This may be an interview: interviewer uses 'you', interviewee uses 'I/we'."
-            )
+            system_prompt = OPTIMIZE_TRANSCRIPT_SYSTEM_EN
+            prompt = OPTIMIZE_TRANSCRIPT_USER_EN.format(text=chunk_text)
 
         try:
             response = await self._chat_completions_create(
@@ -502,14 +401,14 @@ class Summarizer:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ],
-                max_completion_tokens=4000,  # 对齐JS：优化/格式化阶段最大tokens≈4000
+                max_completion_tokens=14000,  # 配合 12k 字符输入，预留足够输出空间
                 # temperature=0.1, # gpt-5-mini only supports default temperature (1)
             )
             optimized_text = response.choices[0].message.content or ""
             # 移除诸如 "# Transcript" / "## Transcript" 等标题
-            optimized_text = self._remove_transcript_heading(optimized_text)
-            enforced = self._enforce_paragraph_max_chars(optimized_text.strip(), max_chars=400)
-            return self._ensure_markdown_paragraphs(enforced)
+            optimized_text = remove_transcript_heading(optimized_text)
+            enforced = enforce_paragraph_max_chars(optimized_text.strip(), max_chars=400)
+            return ensure_markdown_paragraphs(enforced)
         except Exception as e:
             logger.error(f"单块文本优化失败: {e}")
             return self._apply_basic_formatting(chunk_text)
@@ -615,7 +514,7 @@ class Summarizer:
                 cur = candidate
         if cur.strip():
             paras.append(cur.strip())
-        return self._ensure_markdown_paragraphs("\n\n".join(paras))
+        return ensure_markdown_paragraphs("\n\n".join(paras))
 
     async def _format_long_transcript_in_chunks(self, raw_transcript: str, transcript_language: str, max_chars_per_chunk: int) -> str:
         """智能分块+上下文+去重 合成优化文本（JS策略移植）。"""
@@ -688,89 +587,11 @@ class Summarizer:
                 deduped.append(cur_txt)
 
         merged = "\n\n".join(deduped)
-        merged = self._remove_transcript_heading(merged)
-        enforced = self._enforce_paragraph_max_chars(merged, max_chars=400)
-        return self._ensure_markdown_paragraphs(enforced)
+        merged = remove_transcript_heading(merged)
+        enforced = enforce_paragraph_max_chars(merged, max_chars=400)
+        return ensure_markdown_paragraphs(enforced)
 
-    def _remove_timestamps_and_meta(self, text: str) -> str:
-        """仅移除时间戳行与明显元信息（标题、检测语言等），保留原文口语/重复。"""
-        import re
-        ts_prefix = re.compile(r"^\*\*\[[0-9:]{2,8}\]\*\*\s*")
-        lines = text.split('\n')
-        kept = []
-        for line in lines:
-            s = line.strip()
-            # 跳过时间戳与元信息
-            if s.startswith('**[') and ']**' in s:
-                # New format: timestamp-only line like "**[00:12]**"
-                if s.endswith(']**') and len(s) <= 14:
-                    continue
-                # Old format: inline timestamp prefix like "**[00:12]** text"
-                line = ts_prefix.sub("", line).strip()
-                if not line:
-                    continue
-            if s.startswith('# '):
-                # 跳过顶级标题（通常是视频标题，可在最终加回）
-                continue
-            if s.startswith('**检测语言:**') or s.startswith('**语言概率:**'):
-                continue
-            kept.append(line)
-        # 规范空行
-        cleaned = '\n'.join(kept)
-        return cleaned
 
-    def _enforce_paragraph_max_chars(self, text: str, max_chars: int = 400) -> str:
-        """按段落拆分并确保每段不超过max_chars，必要时按句子边界拆为多段。"""
-        if not text:
-            return text
-        import re
-        paragraphs = [p for p in re.split(r"\n\s*\n", text) if p is not None]
-        new_paragraphs = []
-        for para in paragraphs:
-            para = para.strip()
-            if len(para) <= max_chars:
-                new_paragraphs.append(para)
-                continue
-            # 句子切分
-            parts = re.split(r"([。！？\.!?]+\s*)", para)
-            sentences = []
-            buf = ""
-            for i, part in enumerate(parts):
-                if i % 2 == 0:
-                    buf += part
-                else:
-                    buf += part
-                    if buf.strip():
-                        sentences.append(buf.strip())
-                        buf = ""
-            if buf.strip():
-                sentences.append(buf.strip())
-            cur = ""
-            for s in sentences:
-                candidate = (cur + (" " if cur else "") + s).strip()
-                if len(candidate) > max_chars and cur:
-                    new_paragraphs.append(cur)
-                    cur = s
-                else:
-                    cur = candidate
-            if cur:
-                new_paragraphs.append(cur)
-        return "\n\n".join([p.strip() for p in new_paragraphs if p is not None])
-
-    def _remove_transcript_heading(self, text: str) -> str:
-        """移除开头或段落中的以 Transcript 为标题的行（任意级别#），不改变正文。"""
-        if not text:
-            return text
-        import re
-        # 移除形如 '## Transcript'、'# Transcript Text'、'### transcript' 的标题行
-        lines = text.split('\n')
-        filtered = []
-        for line in lines:
-            stripped = line.strip()
-            if re.match(r"^#{1,6}\s*transcript(\s+text)?\s*$", stripped, flags=re.I):
-                continue
-            filtered.append(line)
-        return '\n'.join(filtered)
 
     def _split_into_chunks(self, text: str, max_tokens: int) -> list:
         """
@@ -780,10 +601,10 @@ class Summarizer:
         import re
         
         # 1. 先提取纯文本内容（移除时间戳、标题等）
-        pure_text = self._extract_pure_text(text)
+        pure_text = extract_pure_text(text)
         
         # 2. 按句子分割，保持句子完整性
-        sentences = self._split_into_sentences(pure_text)
+        sentences = split_into_sentences(pure_text)
         
         # 3. 按token限制组装成块
         chunks = []
@@ -796,7 +617,7 @@ class Summarizer:
             # 检查是否能加入当前块
             if current_tokens + sentence_tokens > max_tokens and current_chunk:
                 # 当前块已满，保存并开始新块
-                chunks.append(self._join_sentences(current_chunk))
+                chunks.append(join_sentences(current_chunk))
                 current_chunk = [sentence]
                 current_tokens = sentence_tokens
             else:
@@ -806,166 +627,13 @@ class Summarizer:
         
         # 添加最后一块
         if current_chunk:
-            chunks.append(self._join_sentences(current_chunk))
+            chunks.append(join_sentences(current_chunk))
         
         return chunks
     
-    def _extract_pure_text(self, raw_transcript: str) -> str:
-        """
-        从原始转录中提取纯文本，移除时间戳和元数据
-        """
-        import re
-        ts_prefix = re.compile(r"^\*\*\[[0-9:]{2,8}\]\*\*\s*")
-        lines = raw_transcript.split('\n')
-        text_lines = []
-        
-        for line in lines:
-            line = line.strip()
-            # 跳过时间戳、标题、元数据
-            if not line:
-                continue
-            if line.startswith('**[') and ']**' in line:
-                # Timestamp-only line
-                if line.endswith(']**') and len(line) <= 14:
-                    continue
-                # Inline timestamp prefix -> strip and keep remainder
-                line = ts_prefix.sub("", line).strip()
-                if not line:
-                    continue
-            if (line.startswith('#') or
-                line.startswith('**检测语言:**') or
-                line.startswith('**语言概率:**')):
-                continue
-            text_lines.append(line)
-        
-        return ' '.join(text_lines)
-    
-    def _split_into_sentences(self, text: str) -> list:
-        """
-        按句子分割文本，考虑中英文差异
-        """
-        import re
-        
-        # 中英文句子结束符
-        sentence_endings = r'[.!?。！？;；]+'
-        
-        # 分割句子，保留句号
-        parts = re.split(f'({sentence_endings})', text)
-        
-        sentences = []
-        current = ""
-        
-        for i, part in enumerate(parts):
-            if re.match(sentence_endings, part):
-                # 这是句子结束符，加到当前句子
-                current += part
-                if current.strip():
-                    sentences.append(current.strip())
-                current = ""
-            else:
-                # 这是句子内容
-                current += part
-        
-        # 处理最后没有句号的部分
-        if current.strip():
-            sentences.append(current.strip())
-        
-        return [s for s in sentences if s.strip()]
-    
 
-    
-    def _join_sentences(self, sentences: list) -> str:
-        """
-        重新组合句子为段落
-        """
-        return ' '.join(sentences)
 
-    def _basic_transcript_cleanup(self, raw_transcript: str) -> str:
-        """
-        基本的转录文本清理：移除时间戳和标题信息
-        当GPT优化失败时的后备方案
-        """
-        import re
-        ts_prefix = re.compile(r"^\*\*\[[0-9:]{2,8}\]\*\*\s*")
-        lines = raw_transcript.split('\n')
-        cleaned_lines = []
-        
-        for line in lines:
-            # 跳过时间戳行
-            stripped = line.strip()
-            if stripped.startswith('**[') and ']**' in stripped:
-                # Timestamp-only
-                if stripped.endswith(']**') and len(stripped) <= 14:
-                    continue
-                # Inline prefix
-                line = ts_prefix.sub("", line).strip()
-                if not line:
-                    continue
-            # 跳过标题行
-            if line.strip().startswith('# ') or line.strip().startswith('## '):
-                continue
-            # 跳过检测语言等元信息行
-            if line.strip().startswith('**检测语言:**') or line.strip().startswith('**语言概率:**'):
-                continue
-            # 保留非空文本行
-            if line.strip():
-                cleaned_lines.append(line.strip())
-        
-        # 将句子重新组合并智能分段
-        text = ' '.join(cleaned_lines)
-        
-        # 更智能的分句处理，考虑中英文差异
-        import re
-        
-        # 按句号、问号、感叹号分句
-        sentences = re.split(r'[.!?。！？]', text)
-        sentences = [s.strip() for s in sentences if s.strip()]
-        
-        paragraphs = []
-        current_paragraph = []
-        
-        for i, sentence in enumerate(sentences):
-            if sentence:
-                current_paragraph.append(sentence)
-                
-                # 智能分段条件：
-                # 1. 每3个句子一段（基本规则）
-                # 2. 遇到话题转换词汇时强制分段
-                # 3. 避免超长段落
-                topic_change_keywords = [
-                    '首先', '其次', '然后', '接下来', '另外', '此外', '最后', '总之',
-                    'first', 'second', 'third', 'next', 'also', 'however', 'finally',
-                    '现在', '那么', '所以', '因此', '但是', '然而',
-                    'now', 'so', 'therefore', 'but', 'however'
-                ]
-                
-                should_break = False
-                
-                # 检查是否需要分段
-                if len(current_paragraph) >= 3:  # 基本长度条件
-                    should_break = True
-                elif len(current_paragraph) >= 2:  # 较短但遇到话题转换
-                    for keyword in topic_change_keywords:
-                        if sentence.lower().startswith(keyword.lower()):
-                            should_break = True
-                            break
-                
-                if should_break or len(current_paragraph) >= 4:  # 最大长度限制
-                    # 组合当前段落
-                    paragraph_text = '. '.join(current_paragraph)
-                    if not paragraph_text.endswith('.'):
-                        paragraph_text += '.'
-                    paragraphs.append(paragraph_text)
-                    current_paragraph = []
-        
-        # 添加剩余的句子
-        if current_paragraph:
-            paragraph_text = '. '.join(current_paragraph)
-            if not paragraph_text.endswith('.'):
-                paragraph_text += '.'
-            paragraphs.append(paragraph_text)
-        
-        return '\n\n'.join(paragraphs)
+
 
     async def _final_paragraph_organization(self, text: str, lang_instruction: str) -> str:
         """
@@ -978,33 +646,8 @@ class Summarizer:
             if estimated_tokens > 3000:  # 对于很长的文本，分块处理
                 return await self._organize_long_text_paragraphs(text, lang_instruction)
             
-            system_prompt = f"""你是专业的{lang_instruction}文本段落整理专家。你的任务是按照语义和逻辑重新组织段落。
-
-🎯 **核心原则**：
-1. **严格保持原始语言({lang_instruction})**，绝不翻译
-2. **保持所有内容完整**，不删除不添加任何信息
-3. **按语义逻辑分段**：每段围绕一个完整的思想或话题
-4. **严格控制段落长度**：每段绝不超过250词
-5. **保持自然流畅**：段落间应有逻辑连接
-
-📏 **分段标准**：
-- **语义完整性**：每段讲述一个完整概念或事件
-- **适中长度**：3-7个句子，每段绝不超过250词
-- **逻辑边界**：在话题转换、时间转换、观点转换处分段
-- **自然断点**：遵循说话者的自然停顿和逻辑
-
-⚠️ **严禁**：
-- 创造超过250词的巨型段落
-- 强行合并不相关的内容
-- 打断完整的故事或论述
-
-输出格式：段落间用空行分隔。"""
-
-            user_prompt = f"""请重新整理以下{lang_instruction}文本的段落结构。严格按照语义和逻辑进行分段，确保每段不超过200词：
-
-{text}
-
-重新分段后的文本："""
+            system_prompt = ORGANIZE_PARAGRAPHS_SYSTEM.format(lang_instruction=lang_instruction)
+            user_prompt = ORGANIZE_PARAGRAPHS_USER.format(lang_instruction=lang_instruction, text=text)
 
             response = await self._chat_completions_create(
                 models=[self.paragraph_model],
@@ -1072,18 +715,8 @@ class Summarizer:
         """
         整理单个文本块的段落
         """
-        system_prompt = f"""You are a {lang_instruction} paragraph organization expert. Reorganize paragraphs by semantics, ensuring each paragraph does not exceed 200 words.
-
-Core requirements:
-1. Strictly maintain the original {lang_instruction} language
-2. Organize by semantic logic, one theme per paragraph
-3. Each paragraph must not exceed 250 words
-4. Separate paragraphs with blank lines
-5. Keep content complete, do not reduce information"""
-
-        user_prompt = f"""Re-paragraph the following text in {lang_instruction}, ensuring each paragraph does not exceed 200 words:
-
-{text}"""
+        system_prompt = ORGANIZE_CHUNK_SYSTEM.format(lang_instruction=lang_instruction)
+        user_prompt = ORGANIZE_CHUNK_USER.format(lang_instruction=lang_instruction, text=text)
 
         response = await self._chat_completions_create(
             models=[self.paragraph_model],
@@ -1596,29 +1229,7 @@ Core requirements:
         tgt = self._normalize_lang_code(target_language)
         language_name = self.language_map.get(tgt, tgt)
 
-        system_prompt = f"""You translate a JSON summary object into {language_name}.
-Rules:
-- Keep the JSON structure identical: same keys, same array order, same number of keypoints.
-- Do NOT change any numeric fields (startSeconds/endSeconds).
-- Translate ONLY these string fields: overview, keypoints[].title, keypoints[].detail, keypoints[].evidence.
-- Preserve numbers and proper nouns where appropriate.
-- Output ONLY valid JSON matching this schema (no markdown):
-{{
-  "version": 2,
-  "language": "{tgt}",
-  "overview": string,
-  "keypoints": [
-    {{
-      "title": string,
-      "detail": string,
-      "evidence": string,
-      "startSeconds": number,
-      "endSeconds": number
-    }}
-  ]
-}}
-Note: startSeconds/endSeconds may be omitted for items where they are missing in the input.
-"""
+        system_prompt = TRANSLATE_JSON_SYSTEM.format(language_name=language_name, target_language=tgt)
 
         user_prompt = json.dumps(
             {
@@ -1660,39 +1271,8 @@ Note: startSeconds/endSeconds may be omitted for items where they are missing in
         """Generate structured summary JSON (v1) for a single text."""
         language_name = self.language_map.get(target_language, "English")
         
-        system_prompt = f"""You are a professional content analyst and knowledge distiller.
-Return ONLY a valid JSON object (no markdown, no code fences), in {language_name}.
-
-You must output this exact schema:
-{{
-  "version": 2,
-  "language": "{target_language}",
-  "overview": string,
-  "keypoints": [
-    {{
-      "title": string,
-      "detail": string,
-      "evidence": string
-    }}
-  ]
-}}
-
-Content requirements:
-- overview: ONE readable paragraph that explains what this content is about, why it matters, and the main thread. No headings.
-- keypoints: the number of items is NOT fixed. Choose the count based on information density of the transcript.
-  Quality > quantity. It's OK to output only a few points for short/simple content, and more points for long/dense content.
-  Each keypoint must be a knowledge-bearing insight (not a vague topic label).
-  - title: a crisp insight headline (short; no filler like “Introduction/Conclusion”).
-  - detail: ONE concise paragraph (2–5 sentences) that explains the idea + context + implications. Do NOT use bullet lists.
-  - evidence: OPTIONAL, very short. Only include concrete numbers/examples/quotes if present; otherwise empty string.
-- Coverage: ensure keypoints cover early/middle/late parts; avoid over-indexing on the beginning.
-- Faithfulness: do not invent facts. If uncertain, be explicit in evidence.
-"""
-
-        user_prompt = f"""Summarize the following transcript into the required JSON schema in {language_name}.
-Transcript:
-{transcript}
-"""
+        system_prompt = SUMMARY_SINGLE_SYSTEM.format(language_name=language_name, target_language=target_language)
+        user_prompt = SUMMARY_SINGLE_USER.format(language_name=language_name, transcript=transcript)
 
         logger.info(f"正在生成结构化{language_name}摘要(JSON)...")
 
@@ -1737,37 +1317,14 @@ Transcript:
         """Chunked summarization -> structured JSON (v1)."""
         language_name = self.language_map.get(target_language, "English")
 
-        chunks = self._smart_chunk_text(transcript, max_chars_per_chunk=int(self.summary_chunk_max_chars))
+        chunks = smart_chunk_text(transcript, max_chars=int(self.summary_chunk_max_chars))
         logger.info(f"分割为 {len(chunks)} 个块进行结构化摘要(JSON)")
         
         per_chunk_keypoints: list[dict] = []
         for i, chunk in enumerate(chunks):
             logger.info(f"正在摘要第 {i+1}/{len(chunks)} 块(提取要点)...")
-            system_prompt = f"""You extract high-signal keypoints from a transcript chunk.
-Return ONLY JSON (no markdown). Language: {language_name}.
-
-Schema:
-{{
-  "keypoints": [
-    {{
-      "title": string,
-      "detail": string,
-      "evidence": string
-    }}
-  ]
-}}
-
-Rules:
-- Extract only non-redundant, knowledge-rich insights from THIS chunk.
-  Prefer fewer, stronger points over many weak ones. Keep at most 12 items for this chunk.
-  Each item must read well standalone.
-- detail must be ONE concise paragraph (2–5 sentences). Do NOT use bullet lists.
-- evidence is OPTIONAL and must be very short.
-- Do not invent facts; if uncertain, note it in evidence.
-"""
-            user_prompt = f"""[Chunk {i+1}/{len(chunks)}] Extract keypoints from this text:
-{chunk}
-"""
+            system_prompt = SUMMARY_CHUNK_SYSTEM.format(language_name=language_name)
+            user_prompt = SUMMARY_CHUNK_USER.format(current_part=i+1, total_parts=len(chunks), text=chunk)
             try:
                 kwargs = dict(
                     messages=[
@@ -1813,30 +1370,14 @@ Rules:
             per_chunk_keypoints = per_chunk_keypoints[: int(self.summary_max_keypoints_candidates)]
 
         # Integrate into final JSON (overview + deduped keypoints)
-        system_prompt = f"""You are a content integration expert.
-Return ONLY a valid JSON object (no markdown), in {language_name}, matching this schema:
-{{
-  "version": 2,
-  "language": "{target_language}",
-  "overview": string,
-  "keypoints": [{{"title": string, "detail": string, "evidence": string}}]
-}}
-
-Rules:
-- Deduplicate similar points.
-- Keep only the strongest non-overlapping points, with coverage across early/middle/late content.
-  Prefer fewer, clearer points over exhaustive lists.
-  (Hard cap: do not exceed {int(self.summary_max_keypoints_final)}.)
-- overview: one tight paragraph (no headings) that explains what this content is about + the main thread.
-- keypoints:
-  - titles should be crisp.
-  - detail must be ONE concise paragraph (2–5 sentences). Do NOT use bullet lists.
-  - evidence is OPTIONAL and must be very short (numbers/examples/quotes only).
-"""
-        user_prompt = f"""Integrate the following extracted keypoints into the final JSON schema.
-Keypoints JSON list:
-{json.dumps(per_chunk_keypoints, ensure_ascii=False)}
-"""
+        system_prompt = SUMMARY_INTEGRATE_SYSTEM.format(
+            language_name=language_name,
+            target_language=target_language,
+            max_keypoints=int(self.summary_max_keypoints_final)
+        )
+        user_prompt = SUMMARY_INTEGRATE_USER.format(
+            keypoints_json=json.dumps(per_chunk_keypoints, ensure_ascii=False)
+        )
         integrate_raw = ""
         try:
             kwargs = dict(
@@ -1904,31 +1445,8 @@ Keypoints JSON list:
         if not text:
             return None
         language_name = self.language_map.get(target_language, "English")
-        system_prompt = f"""You are a strict JSON repair tool.
-Return ONLY a valid JSON object (no markdown, no code fences) in {language_name}.
-
-Output MUST match this schema exactly:
-{{
-  "version": 2,
-  "language": "{target_language}",
-  "overview": string,
-  "keypoints": [
-    {{
-      "title": string,
-      "detail": string,
-      "evidence": string
-    }}
-  ]
-}}
-
-Rules:
-- If the input is incomplete/truncated, do your best to salvage faithful content without inventing facts.
-- Keep keypoints concise and non-redundant."""
-        user_prompt = f"""Convert/repair the following text into the required JSON schema. Output JSON only.
-
-INPUT:
-{text}
-"""
+        system_prompt = JSON_REPAIR_SYSTEM.format(language_name=language_name, target_language=target_language)
+        user_prompt = JSON_REPAIR_USER.format(text=text)
         try:
             kwargs = dict(
                 messages=[
@@ -1957,40 +1475,7 @@ INPUT:
             logger.warning(f"Summary JSON repair failed: {e}")
             return None
 
-    def _smart_chunk_text(self, text: str, max_chars_per_chunk: int = 3500) -> list:
-        """智能分块（先段落后句子），按字符上限切分。"""
-        chunks = []
-        paragraphs = [p for p in text.split('\n\n') if p.strip()]
-        cur = ""
-        for p in paragraphs:
-            candidate = (cur + "\n\n" + p).strip() if cur else p
-            if len(candidate) > max_chars_per_chunk and cur:
-                chunks.append(cur.strip())
-                cur = p
-            else:
-                cur = candidate
-        if cur.strip():
-            chunks.append(cur.strip())
 
-        # 二次按句子切分过长块
-        import re
-        final_chunks = []
-        for c in chunks:
-            if len(c) <= max_chars_per_chunk:
-                final_chunks.append(c)
-            else:
-                sentences = [s.strip() for s in re.split(r"[。！？\.!?]+", c) if s.strip()]
-                scur = ""
-                for s in sentences:
-                    candidate = (scur + '。' + s).strip() if scur else s
-                    if len(candidate) > max_chars_per_chunk and scur:
-                        final_chunks.append(scur.strip())
-                        scur = s
-                    else:
-                        scur = candidate
-                if scur.strip():
-                    final_chunks.append(scur.strip())
-        return final_chunks
 
     async def _integrate_chunk_summaries(self, combined_summaries: str, target_language: str) -> str:
         """
@@ -2124,47 +1609,7 @@ Requirements:
         """
         return self.language_map.copy()
     
-    def _detect_transcript_language(self, transcript: str) -> str:
-        """
-        检测转录文本的主要语言
-        
-        Args:
-            transcript: 转录文本
-            
-        Returns:
-            检测到的语言代码
-        """
-        # 简单的语言检测逻辑：查找转录文本中的语言标记
-        if "**检测语言:**" in transcript:
-            # 从Whisper转录中提取检测到的语言
-            lines = transcript.split('\n')
-            for line in lines:
-                if "**检测语言:**" in line:
-                    # 提取语言代码，例如: "**检测语言:** en"
-                    lang = line.split(":")[-1].strip()
-                    return lang
-        
-        # 如果没有找到语言标记，使用简单的字符检测
-        # 计算英文字符、中文字符等的比例
-        total_chars = len(transcript)
-        if total_chars == 0:
-            return "en"  # 默认英文
-            
-        # 统计中文字符
-        chinese_chars = sum(1 for char in transcript if '\u4e00' <= char <= '\u9fff')
-        chinese_ratio = chinese_chars / total_chars
-        
-        # 统计英文字母
-        english_chars = sum(1 for char in transcript if char.isascii() and char.isalpha())
-        english_ratio = english_chars / total_chars
-        
-        # 根据比例判断
-        if chinese_ratio > 0.3:
-            return "zh"
-        elif english_ratio > 0.3:
-            return "en"
-        else:
-            return "en"  # 默认英文
+  # 默认英文
     
     def _get_language_instruction(self, lang_code: str) -> str:
         """

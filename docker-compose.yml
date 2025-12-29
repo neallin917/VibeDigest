@@ -1,8 +1,8 @@
 services:
   transcriber-backend:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: transcriber-backend
     restart: unless-stopped
     # ---------------------------------------------------------
@@ -40,5 +40,3 @@ services:
 networks:
   traefik:
     external: true
-
-
