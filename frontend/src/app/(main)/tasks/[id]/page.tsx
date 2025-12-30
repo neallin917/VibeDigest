@@ -473,9 +473,6 @@ function SummarySection({
                 <div className="grid gap-8">
                     {/* Overview Section */}
                     <div className="bg-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 border border-white/5 relative overflow-hidden transition-colors hover:bg-white/[0.07]">
-                        <div className="absolute top-0 right-0 p-4 opacity-10">
-                            <Sparkles className="w-24 h-24" />
-                        </div>
                         <div className="relative">
                             <div className="flex items-center gap-3 mb-4">
                                 <Sparkles className="w-5 h-5 text-primary" />

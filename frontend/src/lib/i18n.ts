@@ -255,6 +255,7 @@ const messages: Record<Locale, Messages> = {
       tapToClose: "Tap anywhere to close",
       closeTabAfterSave: "Close this tab after saving",
       share: "Share",
+      goBack: "Go Back",
     },
     languages: {
       unknown: "Unknown",
@@ -583,6 +584,7 @@ const messages: Record<Locale, Messages> = {
       tapToClose: "点击任意位置关闭",
       closeTabAfterSave: "保存后可关闭此页面",
       share: "分享",
+      goBack: "返回",
     },
     languages: {
       unknown: "未知",

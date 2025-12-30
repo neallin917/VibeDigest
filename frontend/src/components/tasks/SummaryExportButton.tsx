@@ -86,7 +86,44 @@ export function SummaryShareButton({ containerRef, title, onCopyMarkdown, t }: S
             flex-direction: column;
             align-items: center;
             padding: 20px;
+            padding-top: 70px;
             font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .close-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .close-btn:active {
+            background: rgba(255,255,255,0.2);
+        }
+        .header-title {
+            color: #10B981;
+            font-size: 14px;
+            font-weight: 600;
         }
         .hint {
             color: #10B981;
@@ -124,6 +161,10 @@ export function SummaryShareButton({ containerRef, title, onCopyMarkdown, t }: S
     </style>
 </head>
 <body>
+    <div class="header">
+        <button class="close-btn" onclick="window.close()">← ${t("tasks.goBack")}</button>
+        <span class="header-title">VibeDigest</span>
+    </div>
     <div class="hint">👇 ${t("tasks.longPressToSave")}</div>
     <div class="arrow">⬇️</div>
     <img src="${dataUrl}" alt="Summary">
