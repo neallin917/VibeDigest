@@ -143,6 +143,52 @@ class DBClient:
             
         response = self.supabase.table("task_outputs").select("*").eq("task_id", task_id).execute()
         return response.data
+
+    def find_latest_completed_task_by_url(self, video_url: str) -> Optional[Dict[str, Any]]:
+        """
+        Find the most recent completed task with the same video_url.
+        Used for deduplication/caching.
+        """
+        if not self.supabase:
+            return None
+        
+        try:
+            # We want a task that is completed (status='completed')
+            # ordered by created_at desc to get the freshest one.
+            response = self.supabase.table("tasks") \
+                .select("*") \
+                .eq("video_url", video_url) \
+                .eq("status", "completed") \
+                .order("created_at", desc=True) \
+                .limit(1) \
+                .execute()
+            
+            if response.data:
+                return response.data[0]
+            return None
+        except Exception as e:
+            logger.error(f"Failed to search for duplicate task: {e}")
+            return None
+
+    def create_completed_task_output(self, task_id: str, user_id: str, kind: str, content: str, locale: str = None, raw_data: Optional[Dict] = None) -> Dict[str, Any]:
+        """Create a new task_output row that is already completed (for caching)."""
+        if not self.supabase:
+            raise Exception("Database client not initialized")
+            
+        data = {
+            "task_id": task_id,
+            "user_id": user_id,
+            "kind": kind,
+            "locale": locale,
+            "status": "completed",
+            "progress": 100,
+            "content": content,
+            "attempt": 0
+        }
+        # If we want to store extra metadata? usually content is the big JSON/Text
+        
+        response = self.supabase.table("task_outputs").insert(data).execute()
+        return response.data[0]
         
     def validate_token(self, token: str) -> Optional[str]:
         """Validate Supabase JWT and return user_id."""

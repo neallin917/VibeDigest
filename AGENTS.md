@@ -158,8 +158,13 @@ docker-compose -f docker-compose.test.yml up -d
         *   Downloads audio (`yt-dlp`) (fallback path).
         *   Transcribes (`OpenAI Whisper`) (fallback path).
         *   Generates Summary (`OpenAI ChatCompletion`).
-    *   If Cached:
-        *   Skips processing, returns existing `output_id`.
+        *   Generates Summary (`OpenAI ChatCompletion`).
+    *   If Cached (Exact Match):
+        *   **Clones** outputs from the existing task to the new task.
+        *   Sets status to 'completed' immediately.
+    *   If Smart Resume (Partial Match):
+        *   **Reuses** existing `script` output from DB to skip Download/Transcribe.
+        *   Only runs Summary/Translation steps.
 4.  **Completion & Notification**:
     *   Worker updates `tasks.status = 'completed'` and inserts `task_outputs`.
     *   Worker triggers `notifier.py` to send email (if enabled).

@@ -112,6 +112,24 @@ The system operates on a **Control Plane vs. Data Plane** model:
 -   **Control**: The frontend sends commands (like "Process Video") to the backend via HTTP.
 -   **Data**: The backend updates the database. The frontend **never** waits for the HTTP response for status; it subscribes to the database changes. this ensures the UI is always in sync with the true state of the task.
 
+## ⚡️ Performance & Caching Strategy (v2.1)
+
+To provide instant results and save computation resources, VibeDigest implements an advanced deduplication and "Smart Resume" mechanism:
+
+1.  **URL Normalization**:
+    - The system automatically normalizes all incoming URLs (e.g., treating `youtu.be/xyz` and `youtube.com/watch?v=xyz` as the same video).
+    - It strips noisy tracking parameters (like `utm_source`) to ensure cache hits for substantially identical content.
+
+2.  **Task Deduplication (Cache Hit)**:
+    - Checks if the video has **ever** been processed by **any** user.
+    - **Instant Result**: If a match is found, the system instantly "clones" the existing script, summary, and audio results to the current user's task.
+
+3.  **Smart Resume**:
+    - If you request a video that has been processed but need a **different summary language**:
+      - The system **skips** the expensive [Download] and [Transcribe] steps (reusing the existing script).
+      - It only performs the lightweight [Translate/Summarize] step.
+    - This reduces re-processing time from minutes to seconds.
+
 ## 🌍 i18n (UI Languages)
 
 - **Supported locales**: `en`, `zh`, `es`, `ar`, `fr`, `ru`, `pt`, `hi`, `ja`, `ko`

@@ -27,9 +27,11 @@ from transcriber import Transcriber
 from transcriber import format_markdown_from_raw_segments
 from summarizer import Summarizer
 from translator import Translator
+
 from db_client import DBClient
 from notifier import Notifier
 from supadata_client import SupadataClient
+from utils.url import normalize_video_url
 from pydantic import BaseModel
 from config import settings
 import sentry_sdk
@@ -138,58 +140,116 @@ async def process_video(
     Creates 1 Task + N Outputs (Script, Summary, [Translations...]).
     """
     # Normalize URL if scheme is missing
-    if not video_url.startswith(("http://", "https://")):
-        video_url = f"https://{video_url}"
-
-    # Normalize common hosts (best-effort). Some providers (e.g., Bilibili) are stricter about hostnames.
-    try:
-        parsed = urlparse(video_url)
-        host = (parsed.hostname or "").lower()
-        if host == "bilibili.com":
-            # Prefer canonical hostname
-            video_url = urlunparse(parsed._replace(netloc="www.bilibili.com"))
-    except Exception:
-        pass
+    # We use our robust utility now
+    video_url = normalize_video_url(video_url)
 
     # 0. Check Quota / Credits
     if not db_client.check_and_consume_quota(user_id):
         raise HTTPException(status_code=402, detail="Quota exceeded or insufficient credits. Please upgrade your plan.")
 
     try:
-        # 1. Create Task
+        # 1. Create Task (Always create a new container)
         task = db_client.create_task(user_id=user_id, video_url=video_url)
         task_id = task['id']
         logger.info(f"Created task {task_id} for user {user_id}")
 
-        # 2. Create Outputs (Script & Summary are default)
-        outputs = []
-        # Create an audio output for sites without video embedding (e.g. podcasts)
-        # Stores only a direct URL (no Supabase Storage usage).
-        audio_out = None
-        try:
-            host = urlparse(video_url).hostname or ""
-            host = host.replace("www.", "")
-            if host.endswith("xiaoyuzhoufm.com") or host.endswith("apple.com"):
-                audio_out = db_client.create_task_output(task_id, user_id, kind="audio")
-        except Exception:
-            audio_out = None
-        script_out = db_client.create_task_output(task_id, user_id, kind="script")
-        # Internal output: persisted raw Whisper segments (JSON) for re-formatting without re-transcribing.
-        script_raw_out = db_client.create_task_output(task_id, user_id, kind="script_raw")
-        # Summary requested by user locale (rendered in UI)
-        summary_out = db_client.create_task_output(task_id, user_id, kind="summary", locale=summary_language)
-        # Stable summary in transcript/source language (used for accurate time anchoring + bilingual toggle)
-        summary_source_out = db_client.create_task_output(task_id, user_id, kind="summary_source")
-        if audio_out:
-            outputs.append(audio_out)
-        outputs.extend([script_out, script_raw_out, summary_out, summary_source_out])
+        # 2. Check for Existing Task (Deduplication / Cache Warmup)
+        existing_task = db_client.find_latest_completed_task_by_url(video_url)
+        
+        cached_script_found = False
+        cached_summary_found = False
+        
+        if existing_task:
+            logger.info(f"Cache hit: {video_url} found in task {existing_task['id']}")
+            # Copy Title & Thumbnail
+            db_client.update_task_status(
+                task_id, 
+                video_title=existing_task.get('video_title'), 
+                thumbnail_url=existing_task.get('thumbnail_url')
+            )
+            
+            existing_outputs = db_client.get_task_outputs(existing_task['id'])
+            
+            for out in existing_outputs:
+                if out.get("status") != "completed":
+                    continue
+                
+                k = out.get("kind")
+                val = out.get("content")
+                loc = out.get("locale")
+                
+                # Reusable outputs that are language-agnostic (or source-specific)
+                if k in ["script", "script_raw", "summary_source", "audio"]:
+                    try:
+                        db_client.create_completed_task_output(task_id, user_id, k, val, locale=loc)
+                        if k == "script":
+                            cached_script_found = True
+                    except Exception as e:
+                        logger.warning(f"Failed to copy output {k}: {e}")
 
+                # Copy summary if it matches requested language
+                if k == "summary":
+                    # If requested summary_language matches the cached one
+                    # Note: locale might be None in DB or empty string?
+                    cached_locale = (loc or "zh").lower()
+                    requested_locale = (summary_language or "zh").lower()
+                    
+                    if cached_locale == requested_locale:
+                        try:
+                            db_client.create_completed_task_output(task_id, user_id, k, val, locale=loc)
+                            cached_summary_found = True
+                        except Exception as e:
+                            logger.warning(f"Failed to copy match summary: {e}")
 
+        # 3. Create MISSING Outputs (Pending)
+        # Verify what we have now
+        outputs = [] # needed for variable scope?
+        
+        # Audio Output (if needed and not copied)
+        # We check if audio kind already exists for this task
+        current_outputs = db_client.get_task_outputs(task_id)
+        existing_kinds = set(o['kind'] for o in current_outputs)
+
+        # Helper to create if missing
+        def ensure_output(kind, locale=None):
+            if kind == "summary" and cached_summary_found:
+                 return # Already copied exact match
+            if kind in existing_kinds and kind != "summary": # Logic for summary is special (locale)
+                 return
+            # For summary, if we didn't mark cached_summary_found, we need to create it.
+            # But wait, existing_kinds check might see 'summary' if we copied it.
+            # If we didn't copy it, it won't be in existing_kinds.
+            
+            if kind not in existing_kinds:
+                 db_client.create_task_output(task_id, user_id, kind=kind, locale=locale)
+
+        # Audio Logic
+        host = urlparse(video_url).hostname or ""
+        host = host.replace("www.", "")
+        if (host.endswith("xiaoyuzhoufm.com") or host.endswith("apple.com")) and "audio" not in existing_kinds:
+             ensure_output("audio")
+
+        ensure_output("script")
+        ensure_output("script_raw")
+        ensure_output("summary_source")
+
+        # Summary output (requested language)
+        # Check if we already have a summary output with correct locale in current_outputs
+        has_correct_summary = any(o['kind'] == 'summary' and str(o.get('locale')).lower() == str(summary_language).lower() for o in current_outputs)
+        if not has_correct_summary:
+             db_client.create_task_output(task_id, user_id, kind="summary", locale=summary_language)
 
         # 4. Start Background Processing
+        # If everything was cached (script + summary), run_pipeline will finish instantly.
         background_tasks.add_task(run_pipeline, task_id, video_url, summary_language)
 
-        return {"task_id": task_id, "message": "Task created successfully"}
+        msg = "Task started"
+        if cached_script_found and cached_summary_found:
+             msg = "Task completed (cached)"
+        elif cached_script_found:
+             msg = "Task started (Transcript cached)"
+
+        return {"task_id": task_id, "message": msg}
 
     except Exception as e:
         logger.error(f"Error creating task: {e}")
@@ -459,7 +519,42 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
     """
     async with processing_limiter:
         logger.info(f"Task {task_id} acquiring execution slot... (Active: {MAX_CONCURRENT_JOBS - processing_limiter._value})")
-        # 1. Download Video
+        
+        # 0. Initial State & Cache Check
+        task_record = db_client.get_task(task_id)
+        outputs = db_client.get_task_outputs(task_id)
+        
+        script_output = next((o for o in outputs if o['kind'] == 'script'), None)
+        script_raw_output = next((o for o in outputs if o['kind'] == 'script_raw'), None)
+        
+        transcript_result = None
+        video_title = task_record.get("video_title") or "Unknown"
+        thumbnail_url = task_record.get("thumbnail_url")
+        
+        # If script is already completed (e.g. copied from cache), we simulate a transcript result
+        # so that we skip the download/transcribe phases.
+        if script_output and script_output.get("status") == "completed" and script_output.get("content"):
+            logger.info(f"Pipeline: Detected cached script for {task_id}. Skipping download/transcribe.")
+            
+            # Reconstruct transcript_result tuple (md, raw, lang)
+            # content = optimized script. We use it as MD for simplicity in this flow, 
+            # though strictly transcript_result usually implies timestamped MD. 
+            # We will handle this in the Transcribe block.
+            content = script_output.get("content")
+            
+            raw_json_str = "{}"
+            if script_raw_output and script_raw_output.get("content"):
+                 raw_json_str = script_raw_output.get("content")
+            
+            lang = "unknown"
+            try:
+                lang = json.loads(raw_json_str).get("language", "unknown")
+            except:
+                pass
+                
+            transcript_result = (content, raw_json_str, lang)
+            
+        # 1. Download Video (or Skipped)
         # 2. Transcribe (updates Script output)
         # 3. Summarize (updates Summary output)
         # 4. Translate (updates Translation outputs)
@@ -475,7 +570,7 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
         db_client.update_task_status(task_id, status="processing", progress=10)
 
         # Try yt-dlp subtitles first (Free & Fast)
-        transcript_result = None
+
         
         # Simple heuristic to prioritize Supadata for YouTube
         is_youtube = "youtube.com" in video_url or "youtu.be" in video_url
@@ -494,29 +589,34 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
 
 
         audio_path = None
-        video_title = "Unknown"
-        thumbnail_url = None
+        # video_title/thumb initialized above
         direct_audio_url = None
         
         if transcript_result:
-            # OPTION A: Transcript Already Fetched (yt-dlp or Supadata).
-            # We skip heavy download. But we need Metadata (Title, Thumb, AudioURL).
-            logger.info("Using existing transcript result. Fetching metadata only...")
-            try:
-                # Quick metadata fetch
-                video_title, thumbnail_url, direct_audio_url = await video_processor.extract_info_only(video_url)
-                # Update DB
-                db_client.update_task_status(task_id, progress=30, video_title=video_title, thumbnail_url=thumbnail_url)
-            except Exception as e:
-                # If metadata fails, we might technically proceed with "Unknown" title?
-                # But safer to maybe fallback to full download flow if we really need consistent state?
-                # For now, log and proceed with what we have.
-                logger.error(f"Metadata fetch failed: {e}")
-                db_client.update_task_status(task_id, status="error", error=f"Metadata failed: {str(e)}")
-                return
+            # OPTION A: Transcript Already Fetched (Supadata, or Cache).
+            
+            # Check if we need metadata
+            if not video_title or video_title == "Unknown" or not thumbnail_url:
+                logger.info("Using existing transcript result. Fetching metadata only...")
+                try:
+                    # Quick metadata fetch
+                    vt, th, dau = await video_processor.extract_info_only(video_url)
+                    video_title = vt or video_title
+                    thumbnail_url = th or thumbnail_url
+                    direct_audio_url = dau
+                    
+                    # Update DB
+                    db_client.update_task_status(task_id, progress=30, video_title=video_title, thumbnail_url=thumbnail_url)
+                except Exception as e:
+                    logger.error(f"Metadata fetch failed: {e}")
+                    # Non-fatal?
+            else:
+                 logger.info("Metadata already present (Cached). Skipping extract.")
+
         else:
             # OPTION B: Fallback (Supadata missing or failed).
             # A. Download
+
             logger.info(f"Downloading {video_url} (Supadata skipped/failed)...")
             try:
                 audio_path, video_title, thumbnail_url, direct_audio_url = await video_processor.download_and_convert(video_url, TEMP_DIR)
@@ -550,13 +650,25 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
         script_output = next((o for o in outputs if o['kind'] == 'script'), None)
         script_raw_output = next((o for o in outputs if o['kind'] == 'script_raw'), None)
         
-        
         script_text = ""
         script_text_with_timestamps = ""
-        if script_output:
+        raw_json = None
+        
+        # CHECK: Is script already available (from cache copy)?
+        if script_output and script_output.get("status") == "completed" and script_output.get("content"):
+            logger.info("Script output already completed (Cache Hit). Skipping transcribe.")
+            script_text = script_output.get("content")
+            script_text_with_timestamps = script_text # Approximation if content is optimized
+            
+            # Try to populate raw_json from script_raw if available
+            if script_raw_output and script_raw_output.get("content"):
+                raw_json = script_raw_output.get("content")
+        
+        elif script_output:
+            # Need to transcribe
             try:
                 if transcript_result:
-                    # Use existing transcript result
+                    # Use existing transcript result (fetched in step 1 from supadata)
                     logger.info("Using pre-fetched transcript for output.")
                     script_text_with_timestamps, raw_json, detected_language = transcript_result
                     db_client.update_output_status(script_output['id'], status="processing", progress=10)
@@ -583,6 +695,15 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
                     except Exception as e:
                         logger.warning(f"Failed to regenerate formatted script: {e}")
 
+                # C. Optimization (Optional step, usually part of Summary or specific output)
+                if script_text_with_timestamps:
+                    # This produces a timestamp-free, meta-free clean transcript for UI display.
+                    optimized_script = await summarizer.optimize_transcript(script_text_with_timestamps)
+                    script_text = optimized_script  # Use optimized for downstream + store in DB
+                
+                if script_text:
+                    db_client.update_output_status(script_output['id'], status="completed", progress=100, content=script_text)
+
             except Exception as e:
                 err = f"Transcription failed: {str(e)}"
                 db_client.update_output_status(script_output['id'], status="error", error=err)
@@ -590,71 +711,74 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
                 db_client.update_task_status(task_id, status="error", error=err)
                 return
 
-        # C. Optimization (Optional step, usually part of Summary or specific output)
-        if script_text_with_timestamps:
-            # This produces a timestamp-free, meta-free clean transcript for UI display.
-            optimized_script = await summarizer.optimize_transcript(script_text_with_timestamps)
-            script_text = optimized_script  # Use optimized for downstream + store in DB
-
-        if script_output and script_text:
-            db_client.update_output_status(script_output['id'], status="completed", progress=100, content=script_text)
-
         # D. Summarize
         summary_output = next((o for o in outputs if o['kind'] == 'summary'), None)
         summary_source_output = next((o for o in outputs if o['kind'] == 'summary_source'), None)
+
         if (summary_output or summary_source_output) and script_text:
-            try:
-                # Determine transcript language from script_raw payload.
-                transcript_language = "unknown"
+            # Check if summary is already done (Cache Hit)
+            if summary_output and summary_output.get("status") == "completed":
+                logger.info("Summary output already completed (Cache Hit).")
+                # Ensure summary_source is also skipped if done
+            else:
+                # Do Actual Summary Generation...
                 try:
-                    payload = json.loads(raw_json or "{}")
-                    transcript_language = (payload.get("language") or "unknown")
-                except Exception:
+                    # Determine transcript language from script_raw payload.
                     transcript_language = "unknown"
+                    try:
+                        payload = json.loads(raw_json or "{}")
+                        transcript_language = (payload.get("language") or "unknown")
+                    except Exception:
+                        transcript_language = "unknown"
 
-                # 1) Generate stable source-language summary (with anchors).
-                source_summary_json = None
-                if summary_source_output:
-                    db_client.update_output_status(summary_source_output['id'], status="processing", progress=20)
-                    source_summary_json = await summarizer.summarize_in_language_with_anchors(
-                        script_text,
-                        summary_language=transcript_language,
-                        video_title=video_title,
-                        script_raw_json=raw_json,
-                    )
-                    db_client.update_output_status(
-                        summary_source_output['id'],
-                        status="completed",
-                        progress=100,
-                        content=source_summary_json,
-                    )
+                    # 1) Generate stable source-language summary (with anchors).
+                    source_summary_json = None
+                    if summary_source_output:
+                        if summary_source_output.get("status") == "completed":
+                            # Use cached source summary
+                            source_summary_json = summary_source_output.get("content")
+                        else:
+                            db_client.update_output_status(summary_source_output['id'], status="processing", progress=20)
+                            source_summary_json = await summarizer.summarize_in_language_with_anchors(
+                                script_text,
+                                summary_language=transcript_language,
+                                video_title=video_title,
+                                script_raw_json=raw_json,
+                            )
+                            db_client.update_output_status(
+                                summary_source_output['id'],
+                                status="completed",
+                                progress=100,
+                                content=source_summary_json,
+                            )
 
-                # 2) Produce user-requested summary output.
-                if summary_output:
-                    db_client.update_output_status(summary_output['id'], status="processing", progress=35)
-                    if not source_summary_json:
-                        source_summary_json = await summarizer.summarize_in_language_with_anchors(
-                            script_text,
-                            summary_language=transcript_language,
-                            video_title=video_title,
-                            script_raw_json=raw_json,
-                        )
+                    # 2) Produce user-requested summary output.
+                    if summary_output and summary_output.get("status") != "completed":
+                        db_client.update_output_status(summary_output['id'], status="processing", progress=35)
+                        if not source_summary_json:
+                            # Usually source summary should be there, but failsafe
+                            source_summary_json = await summarizer.summarize_in_language_with_anchors(
+                                script_text,
+                                summary_language=transcript_language,
+                                video_title=video_title,
+                                script_raw_json=raw_json,
+                            )
 
-                    # If requested language differs from transcript language, translate while preserving anchors.
-                    if (summary_lang or "unknown") and (str(summary_lang).lower() != str(transcript_language).lower()):
-                        summary_json = await summarizer.translate_summary_json(
-                            source_summary_json,
-                            target_language=summary_lang,
-                        )
-                    else:
-                        summary_json = source_summary_json
+                        # If requested language differs from transcript language, translate while preserving anchors.
+                        if (summary_lang or "unknown") and (str(summary_lang).lower() != str(transcript_language).lower()):
+                            summary_json = await summarizer.translate_summary_json(
+                                source_summary_json,
+                                target_language=summary_lang,
+                            )
+                        else:
+                            summary_json = source_summary_json
 
-                    db_client.update_output_status(summary_output['id'], status="completed", progress=100, content=summary_json)
-            except Exception as e:
-                if summary_output:
-                    db_client.update_output_status(summary_output['id'], status="error", error=str(e))
-                if summary_source_output:
-                    db_client.update_output_status(summary_source_output['id'], status="error", error=str(e))
+                        db_client.update_output_status(summary_output['id'], status="completed", progress=100, content=summary_json)
+                except Exception as e:
+                    if summary_output:
+                        db_client.update_output_status(summary_output['id'], status="error", error=str(e))
+                    if summary_source_output:
+                        db_client.update_output_status(summary_source_output['id'], status="error", error=str(e))
 
 
 

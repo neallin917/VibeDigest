@@ -85,7 +85,8 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "AI Video & Podcast",
       titleEmphasis: "Summarizer",
       subtitle:
-        "**Digest** the **Vibe**. Transform long content into structured insights. Absorb information efficiently with AI summaries, keypoints, and translations.",
+        "Transform long content into structured insights. Absorb information efficiently with AI summaries, keypoints, and translations.",
+      greeting: "Drop a podcast or video. We’ll handle the rest.",
       getStarted: "Get Started",
       github: "GitHub",
       feature1Title: "Interactive Transcript",
@@ -177,7 +178,7 @@ const messages: Record<Locale, Messages> = {
       subtitle: "Paste a video URL to generate an AI summary.",
       urlPlaceholder: "Enter YouTube, Apple Podcasts, Bilibili, Xiaoyuzhou link...",
       processing: "Processing...",
-      generate: "Generate Magic",
+      generate: "AI Summary",
       summary: "Summary",
       english: "English",
       chinese: "Chinese",
@@ -387,7 +388,8 @@ const messages: Record<Locale, Messages> = {
     landing: {
       titlePrefix: "AI 视频与播客",
       titleEmphasis: "摘要助手",
-      subtitle: "**Digest** 知识精髓，保留内容 **Vibe**。将长视频转化为结构化知识，助您高效获取核心信息。",
+      subtitle: "将长视频转化为结构化知识，助您高效获取核心信息。",
+      greeting: "投递播客或视频，剩下的交给我们。",
       getStarted: "开始使用",
       github: "GitHub",
       feature1Title: "交互式逐字稿",
@@ -498,7 +500,7 @@ const messages: Record<Locale, Messages> = {
       subtitle: "粘贴视频链接以生成 AI 摘要。",
       urlPlaceholder: "输入 YouTube, Apple Podcasts, Bilibili, 小宇宙 链接...",
       processing: "处理中",
-      generate: "生成笔记",
+      generate: "AI 总结",
       summary: "摘要",
       english: "英文",
       chinese: "中文",
@@ -711,7 +713,7 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "Resumidor de Video",
       titleEmphasis: "y Podcast con IA",
       subtitle:
-        "**Digest** the **Vibe**. Transforma contenido largo en conocimientos estructurados. Absorbe información eficientemente con resúmenes de IA y puntos clave.",
+        "Transforma contenido largo en conocimientos estructurados. Absorbe información eficientemente con resúmenes de IA y puntos clave.",
       getStarted: "Empezar",
       github: "GitHub",
       feature1Title: "Transcripción Interactiva",
@@ -928,7 +930,7 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "تلخيص الفيديو والبودكاست",
       titleEmphasis: "بالذكاء الاصطناعي",
       subtitle:
-        "**Digest** the **Vibe**. حوّل المحتوى الطويل إلى رؤى منظمة. استوعب المعلومات بكفاءة مع ملخصات الذكاء الاصطناعي والنقاط الرئيسية والنصوص التفاعلية.",
+        "حوّل المحتوى الطويل إلى رؤى منظمة. استوعب المعلومات بكفاءة مع ملخصات الذكاء الاصطناعي والنقاط الرئيسية والنصوص التفاعلية.",
       getStarted: "ابدأ الآن",
       github: "GitHub",
       feature1Title: "النص التفاعلي",
@@ -1092,7 +1094,7 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "Résumés Vidéo & Podcast",
       titleEmphasis: "IA",
       subtitle:
-        "**Digest** the **Vibe**. Transformez les longs contenus en connaissances structurées. Absorbez l'information efficacement avec des résumés IA, des points clés et des transcriptions interactives.",
+        "Transformez les longs contenus en connaissances structurées. Absorbez l'information efficacement avec des résumés IA, des points clés et des transcriptions interactives.",
       getStarted: "Commencer",
       github: "GitHub",
       feature1Title: "Transcription Interactive",
@@ -1256,7 +1258,7 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "AI Суммаризатор Видео",
       titleEmphasis: "и Подкастов",
       subtitle:
-        "**Digest** the **Vibe**. Превратите длинный контент в структурированные знания. Усваивайте информацию эффективно с помощью AI-резюме и ключевых моментов.",
+        "Превратите длинный контент в структурированные знания. Усваивайте информацию эффективно с помощью AI-резюме и ключевых моментов.",
       getStarted: "Начать",
       github: "GitHub",
       feature1Title: "Интерактивный Транскрипт",
@@ -1420,7 +1422,7 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "Resumidor de Vídeo",
       titleEmphasis: "e Podcast com IA",
       subtitle:
-        "**Digest** the **Vibe**. Transforme conteúdo longo em insights estruturados. Absorva informações com eficiência usando resumos de IA e pontos-chave.",
+        "Transforme conteúdo longo em insights estruturados. Absorva informações com eficiência usando resumos de IA e pontos-chave.",
       getStarted: "Começar",
       github: "GitHub",
       feature1Title: "Transcrição Interativa",
@@ -1584,7 +1586,7 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "AI वीडियो और पॉडकास्ट",
       titleEmphasis: "समराइज़र",
       subtitle:
-        "**Digest** the **Vibe**. लंबी सामग्री को संरचित इनसाइट्स में बदलें। AI सारांश और मुख्य बिंदुओं के साथ जानकारी को कुशलतापूर्वक आत्मसात करें।",
+        "लंबी सामग्री को संरचित इनसाइट्स में बदलें। AI सारांश और मुख्य बिंदुओं के साथ जानकारी को कुशलतापूर्वक आत्मसात करें।",
       getStarted: "शुरू करें",
       github: "GitHub",
       feature1Title: "इंटरैक्टिव ट्रांसक्रिप्ट",
@@ -1751,7 +1753,7 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "AI 動画・ポッドキャスト",
       titleEmphasis: "要約ツール",
       subtitle:
-        "**Digest** the **Vibe**. 長いコンテンツを構造化された知識に変えましょう。AI要約と要点抽出で、効率的に情報を吸収できます。",
+        "長いコンテンツを構造化された知識に変えましょう。AI要約と要点抽出で、効率的に情報を吸収できます。",
       getStarted: "始める",
       github: "GitHub",
       feature1Title: "インタラクティブな文字起こし",
@@ -1958,7 +1960,7 @@ const messages: Record<Locale, Messages> = {
       titlePrefix: "AI 비디오 및 팟캐스트",
       titleEmphasis: "요약기",
       subtitle:
-        "**Digest** the **Vibe**. 긴 콘텐츠를 구조화된 인사이트로 변환하세요. AI 요약과 핵심 포인트로 정보를 효율적으로 습득하세요。",
+        "긴 콘텐츠를 구조화된 인사이트로 변환하세요. AI 요약과 핵심 포인트로 정보를 효율적으로 습득하세요。",
       getStarted: "시작하기",
       github: "GitHub",
       feature1Title: "인터랙티브 대본",

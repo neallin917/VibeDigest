@@ -1,13 +1,16 @@
 "use client"
 
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Zap, Globe, FileText } from "lucide-react"
+import { Zap, Globe, FileText } from "lucide-react"
+import { TaskForm } from "@/components/dashboard/TaskForm"
+import { CommunityTemplates } from "@/components/dashboard/CommunityTemplates"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import type { LucideIcon } from "lucide-react"
 import { LanguageInlineSelect } from "@/components/i18n/LanguageInlineSelect"
 import { Layers } from "lucide-react"
 import { Heading, Text } from "@/components/ui/typography"
+import { GoogleOneTap } from "@/components/auth/GoogleOneTap"
+import { LandingUserButton } from "@/components/auth/LandingUserButton"
 
 export default function LandingPage() {
   const { t } = useI18n()
@@ -24,6 +27,8 @@ export default function LandingPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#0A0A0A] text-[#F5F5F5] relative overflow-hidden">
+      {/* Google One Tap Login */}
+      <GoogleOneTap />
       {/* Grid Background Texture (anygen.io style) */}
       <div className="fixed inset-0 z-0 pointer-events-none bg-grid opacity-50" />
 
@@ -35,7 +40,8 @@ export default function LandingPage() {
         <div className="absolute bottom-[-10%] right-[10%] w-[35%] h-[35%] bg-primary/8 rounded-full blur-[120px]" />
       </div>
 
-      <div className="absolute top-8 right-4 z-50">
+      <div className="absolute top-6 right-4 z-50 flex items-center gap-3">
+        <LandingUserButton />
         <LanguageInlineSelect />
       </div>
 
@@ -58,16 +64,13 @@ export default function LandingPage() {
           </Text>
         </div>
 
-        <div className="w-full flex justify-center gap-4">
-          <Link href="/login">
-            <Button
-              variant="pill-primary"
-              size="xl"
-              className="px-10 gap-2"
-            >
-              {t("landing.getStarted")} <ArrowRight className="h-5 w-5" />
-            </Button>
-          </Link>
+        <div className="w-full max-w-3xl mx-auto z-20 mt-10">
+          <TaskForm simple={true} />
+        </div>
+
+        {/* Community Samples */}
+        <div className="w-full max-w-7xl mx-auto mt-16 px-4">
+          <CommunityTemplates limit={4} />
         </div>
 
         {/* Feature Grid */}

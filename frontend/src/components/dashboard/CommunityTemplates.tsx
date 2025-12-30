@@ -84,7 +84,7 @@ function TemplateCard({ task }: { task: Task }) {
     )
 }
 
-export function CommunityTemplates() {
+export function CommunityTemplates({ limit }: { limit?: number }) {
     const { t } = useI18n()
     const [tasks, setTasks] = useState<Task[]>([])
     const [loading, setLoading] = useState(true)
@@ -94,12 +94,18 @@ export function CommunityTemplates() {
         async function fetchDemoTasks() {
             setLoading(true)
             // Query tasks where is_demo = true (managed in database)
-            const { data } = await supabase
+            let query = supabase
                 .from('tasks')
                 .select('id, video_url, video_title, thumbnail_url, status, created_at')
                 .eq('is_demo', true)
                 .eq('status', 'completed')
                 .order('created_at', { ascending: false })
+
+            if (limit) {
+                query = query.limit(limit)
+            }
+
+            const { data } = await query
 
             if (data) {
                 setTasks(data)
@@ -108,7 +114,7 @@ export function CommunityTemplates() {
         }
 
         fetchDemoTasks()
-    }, [])
+    }, [limit])
 
     if (loading) {
         return (

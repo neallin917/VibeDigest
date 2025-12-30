@@ -1,6 +1,7 @@
 "use client"
 
-import React, { useCallback, useSyncExternalStore } from "react"
+import React, { useCallback, useEffect, useState, useSyncExternalStore } from "react"
+import { useRouter, usePathname } from "next/navigation"
 import { ChevronRight } from "lucide-react"
 
 import { Sidebar } from "@/components/layout/Sidebar"
@@ -8,6 +9,7 @@ import { MobileBottomNav, MobileHeader } from "@/components/layout/MobileNav"
 import { TaskNotificationListener } from "@/components/tasks/TaskNotificationListener"
 import { Button } from "@/components/ui/button"
 import { useI18n } from "@/components/i18n/I18nProvider"
+import { createClient } from "@/lib/supabase"
 
 const SIDEBAR_HIDDEN_STORAGE_KEY = "vd.sidebarHidden"
 const SIDEBAR_HIDDEN_EVENT = "vd:sidebarHidden"
@@ -55,6 +57,16 @@ function getSidebarHiddenServerSnapshot() {
 
 export function MainShell({ children }: { children: React.ReactNode }) {
   const { t } = useI18n()
+  const router = useRouter()
+  const pathname = usePathname()
+  const [isLoading, setIsLoading] = useState(true)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const supabase = createClient()
+
+  // Public paths that don't require authentication
+  // /tasks/* is public so unauthenticated users can view demo tasks
+  const isPublicPath = pathname?.startsWith('/tasks/')
+
   const sidebarHidden = useSyncExternalStore(
     subscribeSidebarHidden,
     getSidebarHiddenSnapshot,
@@ -66,6 +78,54 @@ export function MainShell({ children }: { children: React.ReactNode }) {
   }, [sidebarHidden])
 
   const showLabel = t("nav.showSidebar")
+
+  // Check authentication on mount and listen for auth changes
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session && !isPublicPath) {
+        // Redirect to landing page if not authenticated and not on public path
+        router.replace("/")
+        return
+      }
+      setIsAuthenticated(!!session)
+      setIsLoading(false)
+    }
+
+    checkAuth()
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session && !isPublicPath) {
+        router.replace("/")
+      } else {
+        setIsAuthenticated(!!session)
+        setIsLoading(false)
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [router, supabase.auth, isPublicPath])
+
+  // Show loading spinner while checking auth (but allow public paths through)
+  if (isLoading && !isPublicPath) {
+    return (
+      <div className="flex h-dvh items-center justify-center bg-[#0A0A0A]">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  // For protected paths, wait for authentication
+  if (!isPublicPath && !isAuthenticated && !isLoading) {
+    return (
+      <div className="flex h-dvh items-center justify-center bg-[#0A0A0A]">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-dvh overflow-hidden bg-[#0A0A0A]">

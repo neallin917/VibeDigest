@@ -74,6 +74,10 @@ export function MobileHeader() {
                 <Button
                   variant="ghost"
                   onClick={async () => {
+                    // Disable One Tap auto-select to prevent auto-login loop
+                    if (typeof window !== 'undefined' && window.google?.accounts?.id) {
+                      window.google.accounts.id.disableAutoSelect()
+                    }
                     await supabase.auth.signOut()
                     window.location.href = "/"
                   }}

@@ -63,8 +63,9 @@ export default async function proxy(request: NextRequest) {
         }
     }
 
-    // 2. Auth Page Guard (Redirect to dashboard if already logged in)
-    if (['/login', '/'].includes(request.nextUrl.pathname)) {
+    // 2. Auth Page Guard (Redirect login page to dashboard if already logged in)
+    // Note: We allow logged-in users to access the landing page (/) so they can see the homepage
+    if (request.nextUrl.pathname === '/login') {
         if (user) {
             return NextResponse.redirect(new URL('/dashboard', request.url))
         }
