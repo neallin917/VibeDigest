@@ -318,6 +318,7 @@ function SummarySection({
 }) {
     const [isCopied, setIsCopied] = useState(false)
     const [viewMode, setViewMode] = useState<"translated" | "original">("translated")
+    const containerRef = useRef<HTMLDivElement>(null)
 
     const translatedParsed = (() => {
         if (!summary?.content) return null
@@ -441,7 +442,7 @@ function SummarySection({
     const hasAnyAnchors = parsed.keypoints.some((kp) => typeof kp.startSeconds === "number" && Number.isFinite(kp.startSeconds))
 
     return (
-        <Card className="bg-black/20 border-white/5 group">
+        <Card ref={containerRef} className="bg-black/20 border-white/5 group">
             <CardContent className="p-3 sm:p-4 md:p-8 space-y-4 md:space-y-6">
                 <div className="relative flex items-center justify-center min-h-[32px] mb-2 md:mb-4">
                     {hasSource && !isSameLanguage ? (
@@ -467,10 +468,10 @@ function SummarySection({
                         </div>
                     ) : null}
 
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-2" data-export-hide="true">
                         <SummaryExportButton
+                            containerRef={containerRef}
                             title={taskTitle || ""}
-                            summary={parsed}
                             t={t}
                         />
                         <Button
