@@ -57,6 +57,17 @@ export function SummaryShareButton({ containerRef, title, onCopyMarkdown, t }: S
             const buttons = element.querySelectorAll('[data-export-hide="true"]') as NodeListOf<HTMLElement>
             buttons.forEach(btn => btn.style.visibility = 'hidden')
 
+            // Append Brand Footer
+            const footer = document.createElement('div')
+            footer.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; padding-top: 24px; padding-bottom: 8px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 24px;">
+                    <span style="font-weight: 700; font-size: 16px; color: white;">VibeData</span>
+                    <span style="width: 4px; height: 4px; background: #666; border-radius: 50%;"></span>
+                    <span style="color: #888; font-size: 13px;">AI Video Assistant</span>
+                </div>
+            `
+            element.appendChild(footer)
+
             // Capture the DOM element
             const dataUrl = await toPng(element, {
                 backgroundColor: '#0A0A0A',
@@ -65,7 +76,10 @@ export function SummaryShareButton({ containerRef, title, onCopyMarkdown, t }: S
                 skipFonts: true,
             })
 
-            // Restore buttons
+            // Cleanup
+            if (footer.parentNode === element) {
+                element.removeChild(footer)
+            }
             buttons.forEach(btn => btn.style.visibility = '')
 
             if (isMobile) {
