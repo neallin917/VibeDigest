@@ -60,13 +60,17 @@ export function SummaryShareButton({ containerRef, title, onCopyMarkdown, t }: S
             // Append Brand Footer
             const footer = document.createElement('div')
             footer.innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; padding-top: 24px; padding-bottom: 8px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 24px;">
-                    <span style="font-weight: 700; font-size: 16px; color: white;">VibeData</span>
-                    <span style="width: 4px; height: 4px; background: #666; border-radius: 50%;"></span>
-                    <span style="color: #888; font-size: 13px;">AI Video Assistant</span>
+                <div style="width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding-top: 24px; padding-bottom: 8px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 24px;">
+                    <span style="font-weight: 700; font-size: 16px; color: white;">VibeDigest.ai</span>
+                    <span style="color: #888; font-size: 13px;">AI Podcast Assistant</span>
                 </div>
             `
             element.appendChild(footer)
+
+            // Force reflow and wait for layout to update
+            // This ensures the new footer is part of the captured area
+            void element.offsetHeight
+            await new Promise(resolve => setTimeout(resolve, 100))
 
             // Capture the DOM element
             const dataUrl = await toPng(element, {
