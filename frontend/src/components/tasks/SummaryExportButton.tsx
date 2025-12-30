@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, RefObject } from "react"
-import { Camera, Check, X } from "lucide-react"
+import { Camera, Check, X, ArrowDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toPng } from "html-to-image"
 
@@ -95,10 +95,15 @@ export function SummaryExportButton({ containerRef, title, t }: SummaryExportBut
             {/* Mobile Preview Modal */}
             {previewUrl && (
                 <div
-                    className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4"
+                    className="fixed inset-0 z-50 bg-black flex flex-col"
                     onClick={closePreview}
                 >
-                    <div className="absolute top-4 right-4">
+                    {/* Header */}
+                    <div className="flex items-center justify-between p-4 bg-black/80 backdrop-blur">
+                        <div className="flex items-center gap-2 text-white">
+                            <ArrowDown className="h-5 w-5 animate-bounce text-primary" />
+                            <span className="text-sm font-medium">{t("tasks.longPressToSave")}</span>
+                        </div>
                         <Button
                             variant="ghost"
                             size="icon"
@@ -109,25 +114,31 @@ export function SummaryExportButton({ containerRef, title, t }: SummaryExportBut
                         </Button>
                     </div>
 
-                    <p className="text-white/70 text-sm mb-4 text-center">
-                        {t("tasks.longPressToSave")}
-                    </p>
-
+                    {/* Image Container - takes remaining space */}
                     <div
-                        className="max-w-full max-h-[70vh] overflow-auto rounded-lg"
+                        className="flex-1 overflow-auto p-4 flex items-start justify-center"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src={previewUrl}
-                            alt="Summary export preview"
-                            className="max-w-full h-auto rounded-lg shadow-2xl"
-                        />
+                        {/* Image with highlight border */}
+                        <div className="relative">
+                            {/* Glow effect */}
+                            <div className="absolute -inset-2 bg-primary/20 rounded-2xl blur-xl" />
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={previewUrl}
+                                alt="Summary export preview"
+                                className="relative max-w-full h-auto rounded-xl border-2 border-primary/50 shadow-2xl"
+                                style={{ maxHeight: 'calc(100vh - 140px)' }}
+                            />
+                        </div>
                     </div>
 
-                    <p className="text-white/50 text-xs mt-4 text-center">
-                        {t("tasks.tapToClose")}
-                    </p>
+                    {/* Footer hint */}
+                    <div className="p-4 text-center bg-black/80 backdrop-blur">
+                        <p className="text-white/60 text-xs">
+                            {t("tasks.tapToClose")}
+                        </p>
+                    </div>
                 </div>
             )}
         </>
