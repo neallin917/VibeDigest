@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, RefObject } from "react"
-import { Camera, Check } from "lucide-react"
+import { Camera, Check, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toPng } from "html-to-image"
 
@@ -14,6 +14,9 @@ interface SummaryExportButtonProps {
 export function SummaryExportButton({ containerRef, title, t }: SummaryExportButtonProps) {
     const [isExporting, setIsExporting] = useState(false)
     const [showSuccess, setShowSuccess] = useState(false)
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+
+    const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 
     const handleExport = useCallback(async () => {
         if (isExporting || !containerRef.current) return
@@ -29,50 +32,105 @@ export function SummaryExportButton({ containerRef, title, t }: SummaryExportBut
             // Capture the DOM element
             const dataUrl = await toPng(element, {
                 backgroundColor: '#0A0A0A',
-                pixelRatio: 2, // Retina quality
+                pixelRatio: 2,
                 quality: 0.95,
-                skipFonts: true, // Faster, avoids font loading issues
+                skipFonts: true,
             })
 
             // Restore buttons
             buttons.forEach(btn => btn.style.visibility = '')
 
-            // Direct download
-            const link = document.createElement('a')
-            link.download = `${sanitizeFilename(title)}.png`
-            link.href = dataUrl
-            link.click()
+            if (isMobile) {
+                // Mobile: show preview modal for long-press save
+                setPreviewUrl(dataUrl)
+            } else {
+                // Desktop: direct download
+                const link = document.createElement('a')
+                link.download = `${sanitizeFilename(title)}.png`
+                link.href = dataUrl
+                link.click()
 
-            setShowSuccess(true)
-            setTimeout(() => setShowSuccess(false), 2000)
+                setShowSuccess(true)
+                setTimeout(() => setShowSuccess(false), 2000)
+            }
         } catch (err) {
             console.error("Export failed:", err)
         } finally {
             setIsExporting(false)
         }
-    }, [isExporting, containerRef, title])
+    }, [isExporting, containerRef, title, isMobile])
+
+    const closePreview = useCallback(() => {
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl)
+        }
+        setPreviewUrl(null)
+        setShowSuccess(true)
+        setTimeout(() => setShowSuccess(false), 2000)
+    }, [previewUrl])
 
     return (
-        <Button
-            variant="ghost"
-            size="sm"
-            data-export-hide="true"
-            className="h-8 gap-2 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-            onClick={handleExport}
-            disabled={isExporting}
-            aria-label={t("tasks.exportAsImage")}
-        >
-            {isExporting ? (
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            ) : showSuccess ? (
-                <Check className="h-4 w-4 text-green-500" />
-            ) : (
-                <Camera className="h-4 w-4" />
+        <>
+            <Button
+                variant="ghost"
+                size="sm"
+                data-export-hide="true"
+                className="h-8 gap-2 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                onClick={handleExport}
+                disabled={isExporting}
+                aria-label={t("tasks.exportAsImage")}
+            >
+                {isExporting ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                ) : showSuccess ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                ) : (
+                    <Camera className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">
+                    {showSuccess ? t("tasks.exported") : t("tasks.exportAsImage")}
+                </span>
+            </Button>
+
+            {/* Mobile Preview Modal */}
+            {previewUrl && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4"
+                    onClick={closePreview}
+                >
+                    <div className="absolute top-4 right-4">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 rounded-full bg-white/10 text-white hover:bg-white/20"
+                            onClick={closePreview}
+                        >
+                            <X className="h-6 w-6" />
+                        </Button>
+                    </div>
+
+                    <p className="text-white/70 text-sm mb-4 text-center">
+                        {t("tasks.longPressToSave")}
+                    </p>
+
+                    <div
+                        className="max-w-full max-h-[70vh] overflow-auto rounded-lg"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={previewUrl}
+                            alt="Summary export preview"
+                            className="max-w-full h-auto rounded-lg shadow-2xl"
+                        />
+                    </div>
+
+                    <p className="text-white/50 text-xs mt-4 text-center">
+                        {t("tasks.tapToClose")}
+                    </p>
+                </div>
             )}
-            <span className="hidden sm:inline">
-                {showSuccess ? t("tasks.exported") : t("tasks.exportAsImage")}
-            </span>
-        </Button>
+        </>
     )
 }
 

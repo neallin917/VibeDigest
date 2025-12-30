@@ -251,6 +251,8 @@ const messages: Record<Locale, Messages> = {
       notificationPermissionDenied: "Notification permission denied. Please enable it in browser settings.",
       exportAsImage: "Export as Image",
       exported: "Saved!",
+      longPressToSave: "Long press on image to save",
+      tapToClose: "Tap anywhere to close",
     },
     languages: {
       unknown: "Unknown",
@@ -575,6 +577,8 @@ const messages: Record<Locale, Messages> = {
       notificationPermissionDenied: "通知权限被拒绝。请在浏览器设置中开启。",
       exportAsImage: "导出为图片",
       exported: "已保存！",
+      longPressToSave: "长按图片保存到相册",
+      tapToClose: "点击任意位置关闭",
     },
     languages: {
       unknown: "未知",
