@@ -210,10 +210,10 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
     return (
         <div className="h-full flex flex-col">
-            <div className="flex-1 overflow-y-auto min-h-0 px-4 md:px-0 pt-4 md:pt-6 pb-6">
-                <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
+            <div className="flex-1 overflow-y-auto min-h-0 px-2 sm:px-4 md:px-0 pt-3 md:pt-6 pb-6">
+                <div className="max-w-4xl mx-auto space-y-3 md:space-y-6">
                     <Card className="glass">
-                        <CardHeader className="pb-4 p-4 md:p-6">
+                        <CardHeader className="pb-3 p-3 sm:p-4 md:p-6">
                             <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-start">
                                 <div className="space-y-1">
                                     <Heading as="h1" variant="pageTitle">
@@ -227,8 +227,8 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                                 )}
                             </div>
                         </CardHeader>
-                        <CardContent className="p-4 md:p-6 pt-0">
-                            <div className="mb-6" ref={videoRef}>
+                        <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
+                            <div className="mb-4 md:mb-6" ref={videoRef}>
                                 {hasVideo ? <VideoEmbed videoUrl={task.video_url} title={task.video_title} onReady={handleMediaReady} /> : null}
                                 {!hasVideo && audio?.status === "completed" && audioUrl ? (
                                     <AudioEmbed audioUrl={audioUrl} title={task.video_title} coverUrl={audioCoverUrl} sourceUrl={task.video_url} onReady={handleMediaReady} />
@@ -441,8 +441,8 @@ function SummarySection({
 
     return (
         <Card className="bg-black/20 border-white/5 group">
-            <CardContent className="p-4 md:p-8 space-y-6">
-                <div className="relative flex items-center justify-center min-h-[32px] mb-4">
+            <CardContent className="p-3 sm:p-4 md:p-8 space-y-4 md:space-y-6">
+                <div className="relative flex items-center justify-center min-h-[32px] mb-2 md:mb-4">
                     {hasSource && !isSameLanguage ? (
                         <div className="flex items-center bg-black/20 p-1 rounded-lg border border-white/5 transition-colors hover:bg-black/30">
                             <Button
@@ -481,7 +481,7 @@ function SummarySection({
                 </div>
                 <div className="grid gap-8">
                     {/* Overview Section */}
-                    <div className="bg-white/5 rounded-3xl p-6 md:p-8 border border-white/5 relative overflow-hidden transition-colors hover:bg-white/[0.07]">
+                    <div className="bg-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 border border-white/5 relative overflow-hidden transition-colors hover:bg-white/[0.07]">
                         <div className="absolute top-0 right-0 p-4 opacity-10">
                             <Sparkles className="w-24 h-24" />
                         </div>
@@ -492,7 +492,7 @@ function SummarySection({
                                     {t("tasks.summaryStructured.overviewTitle")}
                                 </h3>
                             </div>
-                            <div className="text-lg leading-relaxed text-muted-foreground whitespace-pre-wrap">
+                            <div className="text-base sm:text-lg leading-relaxed text-muted-foreground whitespace-pre-wrap">
                                 {parsed.overview}
                             </div>
                         </div>
@@ -500,7 +500,7 @@ function SummarySection({
 
                     {/* Keypoints Section */}
                     <div>
-                        <div className="flex items-center gap-3 mb-6 px-2">
+                        <div className="flex items-center gap-3 mb-4 md:mb-6 px-1 sm:px-2">
                             <Zap className="w-5 h-5 text-primary" />
                             <h3 className="text-xl font-bold tracking-tight text-white">
                                 {t("tasks.summaryStructured.keypointsTitle")}
