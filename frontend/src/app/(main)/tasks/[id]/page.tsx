@@ -18,6 +18,7 @@ import { Heading } from "@/components/ui/typography"
 import { TranscriptTimeline, buildTranscriptBlocks } from "@/components/tasks/TranscriptTimeline"
 import { formatSeconds } from "@/components/tasks/transcript"
 import { useTaskNotification } from "@/hooks/useTaskNotification"
+import { SummaryExportButton } from "@/components/tasks/SummaryExportButton"
 import { Bell, BellOff } from "lucide-react"
 
 type Task = {
@@ -466,7 +467,12 @@ function SummarySection({
                         </div>
                     ) : null}
 
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2">
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                        <SummaryExportButton
+                            title={taskTitle || ""}
+                            summary={parsed}
+                            t={t}
+                        />
                         <Button
                             variant="ghost"
                             size="sm"

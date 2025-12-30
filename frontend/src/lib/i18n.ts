@@ -249,6 +249,8 @@ const messages: Record<Locale, Messages> = {
       notificationTitle: "Task Completed",
       notificationBody: "Your video \"{title}\" is ready!",
       notificationPermissionDenied: "Notification permission denied. Please enable it in browser settings.",
+      exportAsImage: "Export as Image",
+      exported: "Saved!",
     },
     languages: {
       unknown: "Unknown",
@@ -571,6 +573,8 @@ const messages: Record<Locale, Messages> = {
       notificationTitle: "任务已完成",
       notificationBody: "您的视频 \"{title}\" 处理完成了！",
       notificationPermissionDenied: "通知权限被拒绝。请在浏览器设置中开启。",
+      exportAsImage: "导出为图片",
+      exported: "已保存！",
     },
     languages: {
       unknown: "未知",
