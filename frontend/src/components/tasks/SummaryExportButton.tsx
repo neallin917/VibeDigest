@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useCallback, useRef, RefObject } from "react"
+import { useState, useCallback, useRef, useEffect, RefObject } from "react"
+import { createPortal } from "react-dom"
 import { Share2, Camera, Copy, Check, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toPng } from "html-to-image"
@@ -16,8 +17,33 @@ export function SummaryShareButton({ containerRef, title, onCopyMarkdown, t }: S
     const [isOpen, setIsOpen] = useState(false)
     const [isExporting, setIsExporting] = useState(false)
     const [showSuccess, setShowSuccess] = useState<"image" | "markdown" | null>(null)
+    const buttonRef = useRef<HTMLButtonElement>(null)
+    const menuRef = useRef<HTMLDivElement>(null)
 
     const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+
+    // Position menu relative to button
+    useEffect(() => {
+        if (!isOpen || !buttonRef.current || !menuRef.current) return
+
+        const rect = buttonRef.current.getBoundingClientRect()
+        menuRef.current.style.top = `${rect.bottom + 8}px`
+        menuRef.current.style.right = `${window.innerWidth - rect.right}px`
+    }, [isOpen])
+
+    // Close on click outside
+    useEffect(() => {
+        if (!isOpen) return
+
+        const handleClick = (e: MouseEvent) => {
+            if (buttonRef.current?.contains(e.target as Node)) return
+            if (menuRef.current?.contains(e.target as Node)) return
+            setIsOpen(false)
+        }
+
+        document.addEventListener('click', handleClick, true)
+        return () => document.removeEventListener('click', handleClick, true)
+    }, [isOpen])
 
     const handleExportImage = useCallback(async () => {
         if (isExporting || !containerRef.current) return
@@ -133,33 +159,14 @@ export function SummaryShareButton({ containerRef, title, onCopyMarkdown, t }: S
         setTimeout(() => setShowSuccess(null), 2000)
     }, [onCopyMarkdown])
 
-    const buttonRef = useRef<HTMLButtonElement>(null)
-    const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null)
-
-    const openMenu = useCallback(() => {
-        if (buttonRef.current) {
-            const rect = buttonRef.current.getBoundingClientRect()
-            setMenuPosition({
-                top: rect.bottom + 8,
-                right: window.innerWidth - rect.right
-            })
-        }
-        setIsOpen(true)
-    }, [])
-
-    const closeMenu = useCallback(() => {
-        setIsOpen(false)
-        setMenuPosition(null)
-    }, [])
-
     return (
-        <div className="relative z-20" data-export-hide="true">
+        <div className="relative" data-export-hide="true">
             <Button
                 ref={buttonRef}
                 variant="ghost"
                 size="sm"
                 className="h-8 gap-1.5 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10 transition-colors"
-                onClick={() => isOpen ? closeMenu() : openMenu()}
+                onClick={() => setIsOpen(!isOpen)}
                 disabled={isExporting}
             >
                 {isExporting ? (
@@ -179,39 +186,32 @@ export function SummaryShareButton({ containerRef, title, onCopyMarkdown, t }: S
                 <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </Button>
 
-            {/* Dropdown Menu - Fixed positioning to avoid any parent overflow issues */}
-            {isOpen && menuPosition && (
-                <>
-                    {/* Backdrop */}
-                    <div
-                        className="fixed inset-0 z-[999]"
-                        onClick={closeMenu}
-                    />
-
-                    {/* Menu */}
-                    <div
-                        className="fixed z-[1000] min-w-[180px] rounded-lg border border-white/10 bg-[#1A1A1A] shadow-xl overflow-hidden"
-                        style={{ top: menuPosition.top, right: menuPosition.right }}
+            {/* Dropdown Menu - Rendered via Portal to body */}
+            {isOpen && typeof document !== 'undefined' && createPortal(
+                <div
+                    ref={menuRef}
+                    className="fixed z-[9999] min-w-[180px] rounded-lg border border-white/10 bg-[#1A1A1A] shadow-xl overflow-hidden"
+                    style={{ top: 0, right: 0 }}
+                >
+                    <button
+                        type="button"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/90 hover:bg-white/10 transition-colors"
+                        onClick={handleExportImage}
                     >
-                        <button
-                            type="button"
-                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/90 hover:bg-white/10 transition-colors"
-                            onClick={handleExportImage}
-                        >
-                            <Camera className="h-4 w-4 text-primary" />
-                            {t("tasks.exportAsImage")}
-                        </button>
-                        <div className="h-px bg-white/10" />
-                        <button
-                            type="button"
-                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/90 hover:bg-white/10 transition-colors"
-                            onClick={handleCopyMarkdown}
-                        >
-                            <Copy className="h-4 w-4 text-primary" />
-                            {t("tasks.copyToClipboard")}
-                        </button>
-                    </div>
-                </>
+                        <Camera className="h-4 w-4 text-primary" />
+                        {t("tasks.exportAsImage")}
+                    </button>
+                    <div className="h-px bg-white/10" />
+                    <button
+                        type="button"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/90 hover:bg-white/10 transition-colors"
+                        onClick={handleCopyMarkdown}
+                    >
+                        <Copy className="h-4 w-4 text-primary" />
+                        {t("tasks.copyToClipboard")}
+                    </button>
+                </div>,
+                document.body
             )}
         </div>
     )
