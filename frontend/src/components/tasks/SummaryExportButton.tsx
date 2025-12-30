@@ -134,11 +134,11 @@ export function SummaryShareButton({ containerRef, title, onCopyMarkdown, t }: S
     }, [onCopyMarkdown])
 
     return (
-        <div className="relative" data-export-hide="true">
+        <div className="relative z-20" data-export-hide="true">
             <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 gap-1.5 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                className="h-8 gap-1.5 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10 transition-colors"
                 onClick={() => setIsOpen(!isOpen)}
                 disabled={isExporting}
             >
@@ -169,7 +169,7 @@ export function SummaryShareButton({ containerRef, title, onCopyMarkdown, t }: S
                     />
 
                     {/* Menu */}
-                    <div className="absolute right-0 top-full mt-2 z-50 min-w-[180px] rounded-lg border border-white/10 bg-[#1A1A1A] shadow-xl overflow-hidden">
+                    <div className="absolute right-0 top-full mt-2 z-[100] min-w-[180px] rounded-lg border border-white/10 bg-[#1A1A1A] shadow-xl overflow-hidden">
                         <button
                             type="button"
                             className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/90 hover:bg-white/10 transition-colors"
