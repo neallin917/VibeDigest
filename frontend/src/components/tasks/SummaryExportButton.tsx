@@ -1,25 +1,28 @@
 "use client"
 
 import { useState, useCallback, RefObject } from "react"
-import { Camera, Check } from "lucide-react"
+import { Share2, Camera, Copy, Check, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toPng } from "html-to-image"
 
-interface SummaryExportButtonProps {
+interface SummaryShareButtonProps {
     containerRef: RefObject<HTMLElement | null>
     title: string
+    onCopyMarkdown: () => Promise<void>
     t: (key: string, vars?: Record<string, string | number>) => string
 }
 
-export function SummaryExportButton({ containerRef, title, t }: SummaryExportButtonProps) {
+export function SummaryShareButton({ containerRef, title, onCopyMarkdown, t }: SummaryShareButtonProps) {
+    const [isOpen, setIsOpen] = useState(false)
     const [isExporting, setIsExporting] = useState(false)
-    const [showSuccess, setShowSuccess] = useState(false)
+    const [showSuccess, setShowSuccess] = useState<"image" | "markdown" | null>(null)
 
     const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 
-    const handleExport = useCallback(async () => {
+    const handleExportImage = useCallback(async () => {
         if (isExporting || !containerRef.current) return
         setIsExporting(true)
+        setIsOpen(false)
 
         try {
             const element = containerRef.current
@@ -41,7 +44,6 @@ export function SummaryExportButton({ containerRef, title, t }: SummaryExportBut
 
             if (isMobile) {
                 // Mobile: Open image in new tab for easy long-press save
-                // Create a simple HTML page with the image centered
                 const htmlContent = `
 <!DOCTYPE html>
 <html>
@@ -106,22 +108,17 @@ export function SummaryExportButton({ containerRef, title, t }: SummaryExportBut
                 const blob = new Blob([htmlContent], { type: 'text/html' })
                 const url = URL.createObjectURL(blob)
                 window.open(url, '_blank')
-
-                // Clean up after a delay
                 setTimeout(() => URL.revokeObjectURL(url), 60000)
-
-                setShowSuccess(true)
-                setTimeout(() => setShowSuccess(false), 2000)
             } else {
                 // Desktop: direct download
                 const link = document.createElement('a')
                 link.download = `${sanitizeFilename(title)}.png`
                 link.href = dataUrl
                 link.click()
-
-                setShowSuccess(true)
-                setTimeout(() => setShowSuccess(false), 2000)
             }
+
+            setShowSuccess("image")
+            setTimeout(() => setShowSuccess(null), 2000)
         } catch (err) {
             console.error("Export failed:", err)
         } finally {
@@ -129,27 +126,71 @@ export function SummaryExportButton({ containerRef, title, t }: SummaryExportBut
         }
     }, [isExporting, containerRef, title, isMobile, t])
 
+    const handleCopyMarkdown = useCallback(async () => {
+        setIsOpen(false)
+        await onCopyMarkdown()
+        setShowSuccess("markdown")
+        setTimeout(() => setShowSuccess(null), 2000)
+    }, [onCopyMarkdown])
+
     return (
-        <Button
-            variant="ghost"
-            size="sm"
-            data-export-hide="true"
-            className="h-8 gap-2 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-            onClick={handleExport}
-            disabled={isExporting}
-            aria-label={t("tasks.exportAsImage")}
-        >
-            {isExporting ? (
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            ) : showSuccess ? (
-                <Check className="h-4 w-4 text-green-500" />
-            ) : (
-                <Camera className="h-4 w-4" />
+        <div className="relative" data-export-hide="true">
+            <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                onClick={() => setIsOpen(!isOpen)}
+                disabled={isExporting}
+            >
+                {isExporting ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                ) : showSuccess ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                ) : (
+                    <Share2 className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">
+                    {showSuccess === "image"
+                        ? t("tasks.exported")
+                        : showSuccess === "markdown"
+                            ? t("tasks.copied")
+                            : t("tasks.share")}
+                </span>
+                <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </Button>
+
+            {/* Dropdown Menu */}
+            {isOpen && (
+                <>
+                    {/* Backdrop */}
+                    <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setIsOpen(false)}
+                    />
+
+                    {/* Menu */}
+                    <div className="absolute right-0 top-full mt-2 z-50 min-w-[180px] rounded-lg border border-white/10 bg-[#1A1A1A] shadow-xl overflow-hidden">
+                        <button
+                            type="button"
+                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/90 hover:bg-white/10 transition-colors"
+                            onClick={handleExportImage}
+                        >
+                            <Camera className="h-4 w-4 text-primary" />
+                            {t("tasks.exportAsImage")}
+                        </button>
+                        <div className="h-px bg-white/10" />
+                        <button
+                            type="button"
+                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/90 hover:bg-white/10 transition-colors"
+                            onClick={handleCopyMarkdown}
+                        >
+                            <Copy className="h-4 w-4 text-primary" />
+                            {t("tasks.copyToClipboard")}
+                        </button>
+                    </div>
+                </>
             )}
-            <span className="hidden sm:inline">
-                {showSuccess ? t("tasks.exported") : t("tasks.exportAsImage")}
-            </span>
-        </Button>
+        </div>
     )
 }
 

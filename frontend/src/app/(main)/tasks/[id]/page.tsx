@@ -18,7 +18,7 @@ import { Heading } from "@/components/ui/typography"
 import { TranscriptTimeline, buildTranscriptBlocks } from "@/components/tasks/TranscriptTimeline"
 import { formatSeconds } from "@/components/tasks/transcript"
 import { useTaskNotification } from "@/hooks/useTaskNotification"
-import { SummaryExportButton } from "@/components/tasks/SummaryExportButton"
+import { SummaryShareButton } from "@/components/tasks/SummaryExportButton"
 import { Bell, BellOff } from "lucide-react"
 
 type Task = {
@@ -316,7 +316,6 @@ function SummarySection({
     onSeek: (seconds: number) => void
     t: (key: string, vars?: Record<string, string | number>) => string
 }) {
-    const [isCopied, setIsCopied] = useState(false)
     const [viewMode, setViewMode] = useState<"translated" | "original">("translated")
     const containerRef = useRef<HTMLDivElement>(null)
 
@@ -383,15 +382,9 @@ function SummarySection({
 
     const handleCopy = async () => {
         if (!summary?.content && !summarySource?.content) return
-        try {
-            const rawFallback = effectiveMode === "original" ? (summarySource?.content || "") : (summary?.content || "")
-            const textToCopy = parsed ? toMarkdown(parsed) : rawFallback
-            await navigator.clipboard.writeText(textToCopy)
-            setIsCopied(true)
-            setTimeout(() => setIsCopied(false), 2000)
-        } catch (err) {
-            console.error("Failed to copy:", err)
-        }
+        const rawFallback = effectiveMode === "original" ? (summarySource?.content || "") : (summary?.content || "")
+        const textToCopy = parsed ? toMarkdown(parsed) : rawFallback
+        await navigator.clipboard.writeText(textToCopy)
     }
 
     if (!summary) {
@@ -468,22 +461,13 @@ function SummarySection({
                         </div>
                     ) : null}
 
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-2" data-export-hide="true">
-                        <SummaryExportButton
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2" data-export-hide="true">
+                        <SummaryShareButton
                             containerRef={containerRef}
                             title={taskTitle || ""}
+                            onCopyMarkdown={handleCopy}
                             t={t}
                         />
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 gap-2 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-                            onClick={handleCopy}
-                            aria-label={isCopied ? t("tasks.copied") : t("tasks.copyToClipboard")}
-                        >
-                            {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                            <span className="hidden sm:inline">{isCopied ? t("tasks.copied") : t("tasks.copyToClipboard")}</span>
-                        </Button>
                     </div>
                 </div>
                 <div className="grid gap-8">
