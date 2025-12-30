@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, RefObject } from "react"
+import { useState, useCallback, useRef, RefObject } from "react"
 import { Share2, Camera, Copy, Check, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toPng } from "html-to-image"
@@ -133,13 +133,33 @@ export function SummaryShareButton({ containerRef, title, onCopyMarkdown, t }: S
         setTimeout(() => setShowSuccess(null), 2000)
     }, [onCopyMarkdown])
 
+    const buttonRef = useRef<HTMLButtonElement>(null)
+    const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null)
+
+    const openMenu = useCallback(() => {
+        if (buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect()
+            setMenuPosition({
+                top: rect.bottom + 8,
+                right: window.innerWidth - rect.right
+            })
+        }
+        setIsOpen(true)
+    }, [])
+
+    const closeMenu = useCallback(() => {
+        setIsOpen(false)
+        setMenuPosition(null)
+    }, [])
+
     return (
         <div className="relative z-20" data-export-hide="true">
             <Button
+                ref={buttonRef}
                 variant="ghost"
                 size="sm"
                 className="h-8 gap-1.5 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10 transition-colors"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => isOpen ? closeMenu() : openMenu()}
                 disabled={isExporting}
             >
                 {isExporting ? (
@@ -159,17 +179,20 @@ export function SummaryShareButton({ containerRef, title, onCopyMarkdown, t }: S
                 <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </Button>
 
-            {/* Dropdown Menu */}
-            {isOpen && (
+            {/* Dropdown Menu - Fixed positioning to avoid any parent overflow issues */}
+            {isOpen && menuPosition && (
                 <>
                     {/* Backdrop */}
                     <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setIsOpen(false)}
+                        className="fixed inset-0 z-[999]"
+                        onClick={closeMenu}
                     />
 
                     {/* Menu */}
-                    <div className="absolute right-0 top-full mt-2 z-[100] min-w-[180px] rounded-lg border border-white/10 bg-[#1A1A1A] shadow-xl overflow-hidden">
+                    <div
+                        className="fixed z-[1000] min-w-[180px] rounded-lg border border-white/10 bg-[#1A1A1A] shadow-xl overflow-hidden"
+                        style={{ top: menuPosition.top, right: menuPosition.right }}
+                    >
                         <button
                             type="button"
                             className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/90 hover:bg-white/10 transition-colors"
