@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, RefObject } from "react"
-import { Camera, Check, X, ArrowDown } from "lucide-react"
+import { Camera, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toPng } from "html-to-image"
 
@@ -14,7 +14,6 @@ interface SummaryExportButtonProps {
 export function SummaryExportButton({ containerRef, title, t }: SummaryExportButtonProps) {
     const [isExporting, setIsExporting] = useState(false)
     const [showSuccess, setShowSuccess] = useState(false)
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
     const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 
@@ -41,8 +40,78 @@ export function SummaryExportButton({ containerRef, title, t }: SummaryExportBut
             buttons.forEach(btn => btn.style.visibility = '')
 
             if (isMobile) {
-                // Mobile: show preview modal for long-press save
-                setPreviewUrl(dataUrl)
+                // Mobile: Open image in new tab for easy long-press save
+                // Create a simple HTML page with the image centered
+                const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3">
+    <title>${t("tasks.longPressToSave")}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .hint {
+            color: #10B981;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-align: center;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .arrow {
+            font-size: 32px;
+            margin-bottom: 16px;
+            animation: bounce 1s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(10px); }
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 16px;
+            border: 3px solid #10B981;
+            box-shadow: 0 0 40px rgba(16, 185, 129, 0.3);
+        }
+        .close-hint {
+            color: #666;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="hint">👇 ${t("tasks.longPressToSave")}</div>
+    <div class="arrow">⬇️</div>
+    <img src="${dataUrl}" alt="Summary">
+    <p class="close-hint">${t("tasks.closeTabAfterSave")}</p>
+</body>
+</html>
+`
+                const blob = new Blob([htmlContent], { type: 'text/html' })
+                const url = URL.createObjectURL(blob)
+                window.open(url, '_blank')
+
+                // Clean up after a delay
+                setTimeout(() => URL.revokeObjectURL(url), 60000)
+
+                setShowSuccess(true)
+                setTimeout(() => setShowSuccess(false), 2000)
             } else {
                 // Desktop: direct download
                 const link = document.createElement('a')
@@ -58,90 +127,29 @@ export function SummaryExportButton({ containerRef, title, t }: SummaryExportBut
         } finally {
             setIsExporting(false)
         }
-    }, [isExporting, containerRef, title, isMobile])
-
-    const closePreview = useCallback(() => {
-        if (previewUrl) {
-            URL.revokeObjectURL(previewUrl)
-        }
-        setPreviewUrl(null)
-        setShowSuccess(true)
-        setTimeout(() => setShowSuccess(false), 2000)
-    }, [previewUrl])
+    }, [isExporting, containerRef, title, isMobile, t])
 
     return (
-        <>
-            <Button
-                variant="ghost"
-                size="sm"
-                data-export-hide="true"
-                className="h-8 gap-2 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-                onClick={handleExport}
-                disabled={isExporting}
-                aria-label={t("tasks.exportAsImage")}
-            >
-                {isExporting ? (
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                ) : showSuccess ? (
-                    <Check className="h-4 w-4 text-green-500" />
-                ) : (
-                    <Camera className="h-4 w-4" />
-                )}
-                <span className="hidden sm:inline">
-                    {showSuccess ? t("tasks.exported") : t("tasks.exportAsImage")}
-                </span>
-            </Button>
-
-            {/* Mobile Preview Modal */}
-            {previewUrl && (
-                <div
-                    className="fixed inset-0 z-50 bg-black flex flex-col"
-                    onClick={closePreview}
-                >
-                    {/* Header */}
-                    <div className="flex items-center justify-between p-4 bg-black/80 backdrop-blur">
-                        <div className="flex items-center gap-2 text-white">
-                            <ArrowDown className="h-5 w-5 animate-bounce text-primary" />
-                            <span className="text-sm font-medium">{t("tasks.longPressToSave")}</span>
-                        </div>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-10 w-10 rounded-full bg-white/10 text-white hover:bg-white/20"
-                            onClick={closePreview}
-                        >
-                            <X className="h-6 w-6" />
-                        </Button>
-                    </div>
-
-                    {/* Image Container - takes remaining space */}
-                    <div
-                        className="flex-1 overflow-auto p-4 flex items-start justify-center"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {/* Image with highlight border */}
-                        <div className="relative">
-                            {/* Glow effect */}
-                            <div className="absolute -inset-2 bg-primary/20 rounded-2xl blur-xl" />
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src={previewUrl}
-                                alt="Summary export preview"
-                                className="relative max-w-full h-auto rounded-xl border-2 border-primary/50 shadow-2xl"
-                                style={{ maxHeight: 'calc(100vh - 140px)' }}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Footer hint */}
-                    <div className="p-4 text-center bg-black/80 backdrop-blur">
-                        <p className="text-white/60 text-xs">
-                            {t("tasks.tapToClose")}
-                        </p>
-                    </div>
-                </div>
+        <Button
+            variant="ghost"
+            size="sm"
+            data-export-hide="true"
+            className="h-8 gap-2 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+            onClick={handleExport}
+            disabled={isExporting}
+            aria-label={t("tasks.exportAsImage")}
+        >
+            {isExporting ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            ) : showSuccess ? (
+                <Check className="h-4 w-4 text-green-500" />
+            ) : (
+                <Camera className="h-4 w-4" />
             )}
-        </>
+            <span className="hidden sm:inline">
+                {showSuccess ? t("tasks.exported") : t("tasks.exportAsImage")}
+            </span>
+        </Button>
     )
 }
 

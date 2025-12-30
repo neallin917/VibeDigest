@@ -253,6 +253,7 @@ const messages: Record<Locale, Messages> = {
       exported: "Saved!",
       longPressToSave: "Long press on image to save",
       tapToClose: "Tap anywhere to close",
+      closeTabAfterSave: "Close this tab after saving",
     },
     languages: {
       unknown: "Unknown",
@@ -579,6 +580,7 @@ const messages: Record<Locale, Messages> = {
       exported: "已保存！",
       longPressToSave: "长按图片保存到相册",
       tapToClose: "点击任意位置关闭",
+      closeTabAfterSave: "保存后可关闭此页面",
     },
     languages: {
       unknown: "未知",
