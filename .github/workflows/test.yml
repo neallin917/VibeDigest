@@ -9,6 +9,21 @@ on:
 jobs:
   backend-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python
@@ -34,6 +49,7 @@ jobs:
         SUPABASE_SERVICE_KEY: "dummy-key"
         OPENAI_API_KEY: "dummy-key"
         RESEND_API_KEY: "dummy-key"
+        TEST_DATABASE_URL: "postgresql://postgres:test@localhost:5432/postgres"
       run: |
         export PYTHONPATH=$PYTHONPATH:$(pwd)/backend
         pytest -c backend/pytest.ini backend
