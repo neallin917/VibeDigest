@@ -36,9 +36,9 @@ def test_db(postgres_container):
     engine = create_engine(db_url)
     
     # 1. Read Schema
-    # We use the dump we created: /Volumes/ssd/AI-Video-Transcriber/backend/sql/full_schema_dump.txt
-    # But path might vary in CI? We assume local path for now or helper.
-    schema_path = "/Volumes/ssd/AI-Video-Transcriber/backend/sql/full_schema_dump.txt"
+    # Use path relative to this file (backend/tests/conftest.py)
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    schema_path = os.path.join(base_dir, "sql", "full_schema_dump.txt")
     if not os.path.exists(schema_path):
         # Fallback or error
         raise FileNotFoundError(f"Schema dump not found at {schema_path}")
