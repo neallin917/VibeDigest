@@ -90,6 +90,17 @@ def test_db(postgres_container):
     $$ LANGUAGE sql STABLE;
     
     -- Create missing tables that policies depend on
+    CREATE TABLE IF NOT EXISTS public.profiles (
+        id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+        tier text DEFAULT 'free',
+        credits_total integer DEFAULT 30,
+        credits_used integer DEFAULT 0,
+        usage_limit integer DEFAULT 100,
+        usage_count integer DEFAULT 0,
+        created_at timestamptz DEFAULT now(),
+        updated_at timestamptz DEFAULT now()
+    );
+
     CREATE TABLE IF NOT EXISTS public.tasks (
         id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
         user_id uuid REFERENCES auth.users(id),
@@ -132,6 +143,10 @@ def test_db(postgres_container):
     -- But first, ensure the user exists!
     INSERT INTO auth.users (id, email)
     VALUES ('00000000-0000-0000-0000-000000000001', 'test@example.com')
+    ON CONFLICT (id) DO NOTHING;
+
+    INSERT INTO public.profiles (id, tier, usage_limit, usage_count)
+    VALUES ('00000000-0000-0000-0000-000000000001', 'free', 100, 0)
     ON CONFLICT (id) DO NOTHING;
 
     INSERT INTO public.tasks (id, user_id, video_url, video_title, is_demo)
