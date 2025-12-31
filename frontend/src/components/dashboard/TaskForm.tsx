@@ -79,8 +79,10 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
         setMounted(true)
     }, [locale])
 
-    // Restore pending task from localStorage
+    // Restore pending task from localStorage (only for dashboard, not landing page)
     useEffect(() => {
+        if (simple) return // Don't restore on landing page
+
         const pendingUrl = localStorage.getItem("pendingTask_url")
         const pendingLang = localStorage.getItem("pendingTask_lang")
 
@@ -88,7 +90,7 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
             setUrl(pendingUrl)
             if (pendingLang) setLanguage(pendingLang)
         }
-    }, [])
+    }, [simple])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -180,28 +182,42 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
                                             disabled={loading}
                                         />
                                     </div>
-
-                                    {/* Sample URL */}
-                                    <button
-                                        type="button"
-                                        className="mt-2 pl-8 text-xs text-white/30 hover:text-primary transition-colors text-left"
-                                        onClick={() => setUrl(SAMPLE_URL)}
-                                    >
-                                        Try: youtube.com/watch?v=Get7K950Jk8
-                                    </button>
                                 </div>
 
-                                {/* Actions Row */}
-                                <div className="flex items-center justify-between gap-3 pt-1">
-                                    {/* Language Selector */}
-                                    <div className="shrink-0">
+                                {/* Actions Row - Balanced 3-part layout for true center */}
+                                <div className="flex items-center pt-1 w-full gap-2">
+                                    {/* Left Spacer - matches right column for true balance */}
+                                    <div className="flex-1 min-w-0 overflow-hidden" aria-hidden="true" />
+
+                                    {/* Center: Submit Button */}
+                                    <div className="flex-none flex justify-center min-w-0 overflow-hidden">
+                                        <Button
+                                            type="submit"
+                                            size="default"
+                                            disabled={loading}
+                                            className="h-10 md:h-12 px-3 md:px-8 rounded-xl bg-primary text-black font-bold hover:bg-emerald-400 shadow-[0_0_25px_rgba(62,207,142,0.2)] hover:shadow-[0_0_30px_rgba(62,207,142,0.35)] transition-all duration-300 hover:scale-[1.02] text-xs md:text-base whitespace-nowrap shrink min-w-0"
+                                        >
+                                            {loading ? (
+                                                <Sparkles className="animate-spin h-3 w-3 md:h-5 md:w-5 shrink-0" />
+                                            ) : (
+                                                <span className="flex items-center gap-1 md:gap-2">
+                                                    {t("taskForm.generate")} <ArrowRight className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+                                                </span>
+                                            )}
+                                        </Button>
+                                    </div>
+
+                                    {/* Right: Language Selector */}
+                                    <div className="flex-1 flex justify-end min-w-0 overflow-hidden">
                                         {mounted ? (
                                             <Select value={language} onValueChange={setLanguage}>
-                                                <SelectTrigger className="h-12 px-4 bg-black/50 border-white/10 hover:bg-black/70 hover:border-white/20 rounded-xl focus:ring-0 focus:ring-offset-0 gap-2 text-white/80 transition-all">
-                                                    <span className="text-[10px] uppercase font-semibold text-white/40">Output</span>
-                                                    <SelectValue />
+                                                <SelectTrigger className="h-10 md:h-12 px-2 md:px-4 bg-black/50 border-white/10 hover:bg-black/70 hover:border-white/20 rounded-xl focus:ring-0 focus:ring-offset-0 gap-1 md:gap-2 text-white/80 transition-all text-[10px] md:text-sm max-w-full overflow-hidden shrink min-w-0">
+                                                    <span className="hidden lg:inline text-[10px] uppercase font-semibold text-white/40 shrink-0">Output</span>
+                                                    <div className="truncate min-w-0">
+                                                        <SelectValue />
+                                                    </div>
                                                 </SelectTrigger>
-                                                <SelectContent align="start" className="glass border-white/10">
+                                                <SelectContent align="end" className="glass border-white/10">
                                                     {SUPPORTED_LOCALES.map((localeKey) => (
                                                         <SelectItem key={localeKey} value={localeKey}>
                                                             {LOCALE_LABEL[localeKey]}
@@ -210,25 +226,9 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
                                                 </SelectContent>
                                             </Select>
                                         ) : (
-                                            <div className="w-32 h-12 bg-black/50 rounded-xl" />
+                                            <div className="w-16 md:w-32 h-10 md:h-12 bg-black/50 rounded-xl" />
                                         )}
                                     </div>
-
-                                    {/* Submit Button */}
-                                    <Button
-                                        type="submit"
-                                        size="default"
-                                        disabled={loading}
-                                        className="h-11 md:h-12 px-6 md:px-8 rounded-xl bg-primary text-black font-bold hover:bg-emerald-400 shadow-[0_0_25px_rgba(62,207,142,0.2)] hover:shadow-[0_0_30px_rgba(62,207,142,0.35)] transition-all duration-300 hover:scale-[1.02]"
-                                    >
-                                        {loading ? (
-                                            <Sparkles className="animate-spin h-5 w-5" />
-                                        ) : (
-                                            <span className="flex items-center gap-2">
-                                                {t("taskForm.generate")} <ArrowRight className="h-4 w-4" />
-                                            </span>
-                                        )}
-                                    </Button>
                                 </div>
                             </form>
                         </div>
