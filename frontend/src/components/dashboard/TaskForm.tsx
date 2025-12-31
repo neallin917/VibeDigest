@@ -20,7 +20,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
-import { Sparkles, Video, ArrowRight } from "lucide-react"
+import { Sparkles, Video, ArrowRight, AlertCircle, ExternalLink, CheckCircle2 } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 import { ApiClient } from "@/lib/api"
 import { useI18n } from "@/components/i18n/I18nProvider"
@@ -30,10 +30,42 @@ import { cn } from "@/lib/utils"
 
 const SAMPLE_URL = "https://www.youtube.com/watch?v=Get7K950Jk8"
 
+// URL validation patterns for supported platforms
+const SUPPORTED_URL_PATTERNS = [
+    // YouTube
+    { pattern: /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/i, platform: "YouTube" },
+    // Bilibili
+    { pattern: /^(https?:\/\/)?(www\.|m\.)?bilibili\.com\/(video|)\/.+/i, platform: "Bilibili" },
+    { pattern: /^(https?:\/\/)?b23\.tv\/.+/i, platform: "Bilibili" },
+    // Xiaoyuzhou
+    { pattern: /^(https?:\/\/)?(www\.)?xiaoyuzhoufm\.com\/(episode|podcast)\/.+/i, platform: "小宇宙" },
+    // Apple Podcasts
+    { pattern: /^(https?:\/\/)?podcasts\.apple\.com\/.+/i, platform: "Apple Podcasts" },
+]
+
+function validateUrl(url: string): { valid: boolean; platform?: string } {
+    const trimmed = url.trim()
+    if (!trimmed) return { valid: false }
+
+    // Add https:// if missing for validation
+    let urlToCheck = trimmed
+    if (!urlToCheck.match(/^https?:\/\//i)) {
+        urlToCheck = `https://${urlToCheck}`
+    }
+
+    for (const { pattern, platform } of SUPPORTED_URL_PATTERNS) {
+        if (pattern.test(urlToCheck)) {
+            return { valid: true, platform }
+        }
+    }
+    return { valid: false }
+}
+
 export function TaskForm({ simple = false, className }: { simple?: boolean, className?: string }) {
     const [url, setUrl] = useState("")
     const [loading, setLoading] = useState(false)
     const [showQuotaDialog, setShowQuotaDialog] = useState(false)
+    const [showUrlHelpDialog, setShowUrlHelpDialog] = useState(false)
     const [mounted, setMounted] = useState(false)
     const router = useRouter()
     const supabase = createClient()
@@ -61,6 +93,13 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!url) return
+
+        // Validate URL before submission
+        const validation = validateUrl(url)
+        if (!validation.valid) {
+            setShowUrlHelpDialog(true)
+            return
+        }
 
         setLoading(true)
         try {
@@ -214,6 +253,49 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+
+                {/* URL Help Dialog */}
+                <Dialog open={showUrlHelpDialog} onOpenChange={setShowUrlHelpDialog}>
+                    <DialogContent className="max-w-md">
+                        <DialogHeader>
+                            <div className="flex items-center gap-2 text-amber-500">
+                                <AlertCircle className="h-5 w-5" />
+                                <DialogTitle>{t("taskForm.urlHelp.title")}</DialogTitle>
+                            </div>
+                            <DialogDescription className="pt-2">
+                                {t("taskForm.urlHelp.description")}
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="space-y-3 py-2">
+                            <p className="text-sm font-medium text-foreground">
+                                {t("taskForm.urlHelp.supportedPlatforms")}
+                            </p>
+                            <div className="space-y-2">
+                                {[
+                                    { name: "YouTube", example: "youtube.com/watch?v=xxx" },
+                                    { name: "Apple Podcasts", example: "podcasts.apple.com/..." },
+                                    { name: "Bilibili", example: "bilibili.com/video/BVxxx" },
+                                    { name: t("taskForm.urlHelp.xiaoyuzhou"), example: "xiaoyuzhoufm.com/episode/xxx" },
+                                ].map((platform) => (
+                                    <div key={platform.name} className="flex items-start gap-2 text-sm">
+                                        <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                                        <div>
+                                            <span className="font-medium">{platform.name}</span>
+                                            <span className="text-muted-foreground ml-2 text-xs">{platform.example}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <DialogFooter>
+                            <Button onClick={() => setShowUrlHelpDialog(false)} className="w-full">
+                                {t("taskForm.urlHelp.gotIt")}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         )
     }
@@ -292,6 +374,49 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
                         </Button>
                         <Button onClick={() => router.push("/settings/pricing")}>
                             {t("taskForm.quotaExceeded.confirm")}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* URL Help Dialog */}
+            <Dialog open={showUrlHelpDialog} onOpenChange={setShowUrlHelpDialog}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <div className="flex items-center gap-2 text-amber-500">
+                            <AlertCircle className="h-5 w-5" />
+                            <DialogTitle>{t("taskForm.urlHelp.title")}</DialogTitle>
+                        </div>
+                        <DialogDescription className="pt-2">
+                            {t("taskForm.urlHelp.description")}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-3 py-2">
+                        <p className="text-sm font-medium text-foreground">
+                            {t("taskForm.urlHelp.supportedPlatforms")}
+                        </p>
+                        <div className="space-y-2">
+                            {[
+                                { name: "YouTube", example: "youtube.com/watch?v=xxx" },
+                                { name: "Apple Podcasts", example: "podcasts.apple.com/..." },
+                                { name: "Bilibili", example: "bilibili.com/video/BVxxx" },
+                                { name: t("taskForm.urlHelp.xiaoyuzhou"), example: "xiaoyuzhoufm.com/episode/xxx" },
+                            ].map((platform) => (
+                                <div key={platform.name} className="flex items-start gap-2 text-sm">
+                                    <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                                    <div>
+                                        <span className="font-medium">{platform.name}</span>
+                                        <span className="text-muted-foreground ml-2 text-xs">{platform.example}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button onClick={() => setShowUrlHelpDialog(false)} className="w-full">
+                            {t("taskForm.urlHelp.gotIt")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
