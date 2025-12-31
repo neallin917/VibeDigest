@@ -109,7 +109,7 @@ function TemplateCard({ task }: { task: Task }) {
     )
 }
 
-export function CommunityTemplates({ limit }: { limit?: number }) {
+export function CommunityTemplates({ limit, showHeader = true }: { limit?: number, showHeader?: boolean }) {
     const { t } = useI18n()
     const [tasks, setTasks] = useState<Task[]>([])
     const [loading, setLoading] = useState(true)
@@ -156,15 +156,17 @@ export function CommunityTemplates({ limit }: { limit?: number }) {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center gap-3">
-                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-primary" />
-                    {t("dashboard.communityExamples") || "Community Examples"}
-                </h2>
-                <span className="text-xs text-muted-foreground">
-                    {t("dashboard.communityExamplesHint") || "Try these ready-made examples"}
-                </span>
-            </div>
+            {showHeader && (
+                <div className="flex items-center gap-3">
+                    <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-primary" />
+                        {t("dashboard.communityExamples") || "Community Examples"}
+                    </h2>
+                    <span className="text-xs text-muted-foreground">
+                        {t("dashboard.communityExamplesHint") || "Try these ready-made examples"}
+                    </span>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {tasks.map((task) => (
