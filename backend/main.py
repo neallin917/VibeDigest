@@ -600,13 +600,27 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
                 logger.info("Using existing transcript result. Fetching metadata only...")
                 try:
                     # Quick metadata fetch
-                    vt, th, dau = await video_processor.extract_info_only(video_url)
-                    video_title = vt or video_title
-                    thumbnail_url = th or thumbnail_url
-                    direct_audio_url = dau
+                    info = await video_processor.extract_info_only(video_url)
+                    video_title = info.get("title") or video_title
+                    thumbnail_url = info.get("thumbnail") or thumbnail_url
+                    direct_audio_url = info.get("audio_url")
                     
                     # Update DB
-                    db_client.update_task_status(task_id, progress=30, video_title=video_title, thumbnail_url=thumbnail_url)
+                    db_client.update_task_status(
+                        task_id, 
+                        progress=30, 
+                        video_title=video_title, 
+                        thumbnail_url=thumbnail_url,
+                        # Pass extracted metadata
+                        author=info.get("author"),
+                        author_url=info.get("author_url"),
+                        author_image_url=info.get("author_image_url"),
+                        description=info.get("description"),
+                        keywords=info.get("tags") or info.get("categories"),
+                        view_count=info.get("view_count"),
+                        upload_date=info.get("upload_date"), # Check format consistency
+                        duration=info.get("duration")
+                    )
                 except Exception as e:
                     logger.error(f"Metadata fetch failed: {e}")
                     # Non-fatal?
@@ -619,9 +633,23 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
 
             logger.info(f"Downloading {video_url} (Supadata skipped/failed)...")
             try:
-                audio_path, video_title, thumbnail_url, direct_audio_url = await video_processor.download_and_convert(video_url, TEMP_DIR)
+                audio_path, video_title, thumbnail_url, direct_audio_url, info = await video_processor.download_and_convert(video_url, TEMP_DIR)
                 # Update Title and Thumbnail in DB
-                db_client.update_task_status(task_id, progress=30, video_title=video_title, thumbnail_url=thumbnail_url)
+                db_client.update_task_status(
+                    task_id, 
+                    progress=30, 
+                    video_title=video_title, 
+                    thumbnail_url=thumbnail_url,
+                    # Pass extracted metadata
+                    author=info.get("author"),
+                    author_url=info.get("author_url"),
+                    author_image_url=info.get("author_image_url"),
+                    description=info.get("description"),
+                    keywords=info.get("tags") or info.get("categories"),
+                    view_count=info.get("view_count"),
+                    upload_date=info.get("upload_date"),
+                    duration=info.get("duration")
+                )
             except Exception as e:
                 db_client.update_task_status(task_id, status="error", error=f"Download failed: {str(e)}")
                 return

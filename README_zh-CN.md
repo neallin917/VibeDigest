@@ -38,6 +38,19 @@
 - **处理**: `yt-dlp` (下载), `pydub` (音频操作)
 - **管理器**: `uv` 用于快速 Python 包管理
 
+## 🎹 Vibe Coding (高效开发)
+
+为了让开发过程更加流畅（"Vibe Coding"），我们提供了一个统一的 `Makefile`。无需记忆复杂的命令，直接使用以下快捷指令：
+
+```bash
+make help            # 显示所有可用命令
+make install         # 一键安装所有依赖 (前后端)
+make start-backend   # 启动本地后端
+make start-frontend  # 启动前端
+make start-docker    # 使用 Docker 启动全栈
+make test            # 运行所有测试
+```
+
 ## 🏁 快速开始
 
 ### 先决条件

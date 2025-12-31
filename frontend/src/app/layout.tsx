@@ -9,6 +9,10 @@ import { Providers } from "@/components/providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://vibedigest.neallin.xyz"),
+  alternates: {
+    canonical: "./",
+  },
   title: {
     default: "VibeDigest - AI Video Summarizer & Transcriber",
     template: "%s | VibeDigest",
