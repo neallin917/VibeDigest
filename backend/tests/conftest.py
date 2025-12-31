@@ -5,7 +5,7 @@ from typing import AsyncGenerator
 import os
 import time
 from sqlalchemy import create_engine, text
-from testcontainers.postgres import PostgresContainer
+
 
 @pytest.fixture(scope="session")
 def anyio_backend():
