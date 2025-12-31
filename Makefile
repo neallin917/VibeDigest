@@ -58,7 +58,7 @@ test: test-backend test-frontend
 
 test-backend:
 	@echo "Running backend tests..."
-	pytest
+	export PYTHONPATH=$$(pwd)/backend && pytest -c backend/pytest.ini backend
 
 test-frontend:
 	@echo "Running frontend tests..."
