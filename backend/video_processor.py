@@ -117,10 +117,16 @@ class VideoProcessor:
             return None
 
     def _fetch_xiaoyuzhou_episode_cover(self, page_url: str, timeout_seconds: float = 8.0) -> Optional[str]:
+        # Deprecated wrapper for backward compatibility if needed, but we will replace usages
+        m = self._fetch_xiaoyuzhou_metadata(page_url, timeout_seconds)
+        return m.get("thumbnail")
+
+    def _fetch_xiaoyuzhou_metadata(self, page_url: str, timeout_seconds: float = 8.0) -> dict:
         """
         Xiaoyuzhou episode pages embed richer data in __NEXT_DATA__.
-        This is usually the true episode cover, while og:image may be podcast/author cover.
+        Returns dict with keys: author (podcast title), thumbnail, etc.
         """
+        metadata = {}
         try:
             req = Request(
                 page_url,
@@ -140,26 +146,164 @@ class VideoProcessor:
                 flags=re.IGNORECASE | re.DOTALL,
             )
             if not m:
-                return None
+                return {}
 
             data = json.loads(m.group(1))
-            episode = (
-                (data.get("props") or {})
-                .get("pageProps", {})
-                .get("episode", {})
-            )
-            image = (episode.get("image") or {}) if isinstance(episode, dict) else {}
+            props = (data.get("props") or {}).get("pageProps", {})
+            episode = props.get("episode", {})
+            podcast = episode.get("podcast", {})
 
+            # Author / Podcast Title
+            if podcast and isinstance(podcast, dict):
+                metadata["author"] = podcast.get("title")
+                metadata["author_url"] = f"https://www.xiaoyuzhoufm.com/podcast/{podcast.get('pid')}" if podcast.get("pid") else ""
+                # Podcast Cover (Author Image)
+                p_image = (podcast.get("image") or {}) if isinstance(podcast, dict) else {}
+                for k in ("picUrl", "largePicUrl", "middlePicUrl", "thumbnailUrl"):
+                     v = p_image.get(k)
+                     if isinstance(v, str) and v:
+                         metadata["author_image"] = v
+                         break
+
+            # Episode Thumbnail
+            image = (episode.get("image") or {}) if isinstance(episode, dict) else {}
             # Prefer largest, fall back
             for k in ("largePicUrl", "middlePicUrl", "smallPicUrl", "picUrl", "thumbnailUrl"):
                 v = image.get(k)
                 if isinstance(v, str) and v:
-                    return v
-            return None
+                    metadata["thumbnail"] = v
+                    break
+            
+            return metadata
         except Exception as e:
-            logger.warning(f"解析 xiaoyuzhou episode 封面失败（非致命）: {e}")
-            return None
+            logger.warning(f"解析 xiaoyuzhou metadata 失败（非致命）: {e}")
+            return {}
 
+    def _fetch_apple_metadata(self, page_url: str, timeout_seconds: float = 8.0) -> dict:
+        """
+        Apple Podcast pages often have the author in meta tags or specific classes 
+        that yt-dlp might miss for direct audio links.
+        """
+        metadata = {}
+        try:
+             # Basic regex fallback because importing lxml/bs4 might be overkill if not already there
+             req = Request(page_url, headers={"User-Agent": "Mozilla/5.0"}, method="GET")
+             with urlopen(req, timeout=timeout_seconds) as resp:
+                 html = resp.read(1024 * 1024).decode("utf-8", errors="ignore")
+             
+             # Extract Author (Artist)
+             # <span class="product-header__identity ..."> ... <a ...>Artist Name</a> ... </span>
+             # Or more simply, looking for specific property meta tags
+             # <meta property="og:title" content="Episode Title" />
+             # Apple often puts "Podcast Name" in apple-itunes-app banner or similar, but generic OpenGraph is safer.
+             # Actually, simpler: verify "music-link" or "podcast-header".
+             
+             # Attempt to find "artistName" in JSON-LD usually present
+             m_json = re.search(r'<script type="application/ld\+json">\s*({.*?})\s*</script>', html, re.DOTALL)
+             if m_json:
+                 try:
+                     data = json.loads(m_json.group(1))
+                     # data can be a list or dict
+                     if isinstance(data, dict):
+                          # usually @graph or direct
+                          if "author" in data and isinstance(data["author"], dict):
+                              metadata["author"] = data["author"].get("name")
+                          if "image" in data:
+                              metadata["author_image"] = data["image"]
+                 except: 
+                     pass
+             
+             if not metadata.get("author"):
+                 # Fallback regex for "podcast-header__identity" which usually contains the Author link
+                 # <span class="product-header__identity podcast-header__identity"> by <a ...>The Daily</a> </span>
+                 m_author = re.search(r'podcast-header__identity[^>]*>.*?<a[^>]*>(.*?)</a>', html, re.DOTALL | re.IGNORECASE)
+                 if m_author:
+                     metadata["author"] = m_author.group(1).strip()
+            
+             return metadata
+        except Exception:
+             return {}
+
+    def _fetch_bilibili_avatar(self, mid: str) -> Optional[str]:
+        """
+        Fetch Bilibili user avatar using their MID (Uploader ID).
+        API: https://api.bilibili.com/x/space/acc/info?mid={mid}
+        """
+        if not mid:
+            return None
+        try:
+             api_url = f"https://api.bilibili.com/x/space/acc/info?mid={mid}"
+             # Use a standard browser UA and Referer to avoid -799/403
+             headers = {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Referer": "https://space.bilibili.com/",
+                "Origin": "https://space.bilibili.com"
+             }
+             req = Request(api_url, headers=headers, method="GET")
+             with urlopen(req, timeout=5) as resp:
+                 data = json.loads(resp.read().decode("utf-8"))
+             
+             # Response: { code: 0, data: { face: "url", ... } }
+             if data.get("code") == 0:
+                 return data.get("data", {}).get("face")
+        except Exception as e:
+            logger.warning(f"Failed to fetch Bilibili avatar for mid={mid}: {e}")
+        return None
+    def _enrich_metadata(self, url: str, info: dict) -> None:
+        """
+        Enrich yt-dlp info dict with platform-specific extractions.
+        Modifies info in-place.
+        """
+        if self._is_xiaoyuzhou_url(url):
+            self._enrich_xiaoyuzhou(url, info)
+        elif "podcasts.apple.com" in url:
+            self._enrich_apple(url, info)
+        elif "bilibili" in url:
+            self._enrich_bilibili(url, info)
+
+    def _enrich_xiaoyuzhou(self, url: str, info: dict) -> None:
+        """Enrich Xiaoyuzhou metadata."""
+        xyz_meta = self._fetch_xiaoyuzhou_metadata(url)
+        
+        # Thumbnail hierarchy: API > og:image
+        if xyz_meta.get("thumbnail"):
+            info["thumbnail"] = xyz_meta.get("thumbnail")
+        elif not info.get("thumbnail"):
+            og_image = self._fetch_og_image(url)
+            if og_image:
+                info["thumbnail"] = og_image
+        
+        # Author info
+        if xyz_meta.get("author"):
+            info["uploader"] = xyz_meta.get("author")
+            info["uploader_id"] = xyz_meta.get("author") # Fallback ID
+        if xyz_meta.get("author_image"):
+            info["uploader_avatar"] = xyz_meta.get("author_image")
+        if xyz_meta.get("author_url"):
+            info["uploader_url"] = xyz_meta.get("author_url")
+
+    def _enrich_apple(self, url: str, info: dict) -> None:
+        """Enrich Apple Podcasts metadata."""
+        if not info.get("uploader") or info.get("uploader") == "Unknown":
+            apple_meta = self._fetch_apple_metadata(url)
+            if apple_meta.get("author"):
+                info["uploader"] = apple_meta.get("author")
+            if apple_meta.get("author_image"):
+                info["uploader_avatar"] = apple_meta.get("author_image")
+
+    def _enrich_bilibili(self, url: str, info: dict) -> None:
+        """Enrich Bilibili metadata."""
+        # Ensure author_url
+        if not info.get("uploader_url") and info.get("uploader_id"):
+            mid = str(info.get("uploader_id"))
+            if mid.isdigit():
+                info["uploader_url"] = f"https://space.bilibili.com/{mid}"
+                
+                # Fetch avatar if missing
+                if not info.get("uploader_avatar"):
+                    avatar = self._fetch_bilibili_avatar(mid)
+                    if avatar:
+                        info["uploader_avatar"] = avatar
     def _extract_direct_audio_url_from_info(self, info: dict) -> Optional[str]:
         """
         Best-effort: extract a direct audio URL from yt-dlp info dict.
@@ -208,17 +352,14 @@ class VideoProcessor:
         if isinstance(url, str) and url:
             return url
         return None
+        return None
     
-    async def download_and_convert(self, url: str, output_dir: Path) -> tuple[str, str, Optional[str], Optional[str]]:
+    async def download_and_convert(self, url: str, output_dir: Path) -> tuple[str, str, Optional[str], Optional[str], dict]:
         """
         下载视频并转换为m4a格式
         
-        Args:
-            url: 视频链接
-            output_dir: 输出目录
-            
         Returns:
-            转换后的音频文件路径
+            (audio_file_path, video_title, thumbnail_url, direct_audio_url, metadata_dict)
         """
         try:
             # 创建输出目录
@@ -327,20 +468,33 @@ class VideoProcessor:
                 except Exception as e:
                     logger.error(f"重封装失败：{e}")
             
-            # Extract thumbnail (best effort)
+            # Extract known metadata and enrich
+            self._enrich_metadata(url, info)
+
+            # Update local vars from enriched info
             thumbnail = info.get('thumbnail')
-            # For xiaoyuzhou, prefer episode cover from og:image over podcast/author cover
-            if self._is_xiaoyuzhou_url(url):
-                episode_cover = self._fetch_xiaoyuzhou_episode_cover(url)
-                if episode_cover:
-                    thumbnail = episode_cover
-                else:
-                    og_image = self._fetch_og_image(url)
-                    if og_image:
-                        thumbnail = og_image
-            
+            video_title = info.get('title') or video_title # Ensure title consistency if enriched
+
             logger.info(f"音频文件已保存: {audio_file}")
-            return audio_file, video_title, thumbnail, direct_audio_url
+
+            # Construct Metadata Dict
+            author_url = info.get("uploader_url") or info.get("channel_url") or ""
+
+            metadata = {
+                "author": info.get("uploader") or info.get("uploader_id") or "Unknown",
+                "author_url": author_url,
+                "description": info.get("description") or "",
+                "tags": info.get("tags") or [],
+                "categories": info.get("categories") or [],
+                "view_count": info.get("view_count") or 0,
+                "upload_date": info.get("upload_date") or "", # YYYYMMDD
+                "duration": info.get("duration") or 0,
+                "original_url": url,
+                "title": video_title,
+                "thumbnail_url": thumbnail,
+            }
+
+            return audio_file, video_title, thumbnail, direct_audio_url, metadata
             
         except Exception as e:
             logger.error(f"下载视频失败: {str(e)}")
@@ -542,10 +696,10 @@ class VideoProcessor:
             logger.warning(f"yt-dlp subtitle extraction failed: {e}")
             return None
 
-    async def extract_info_only(self, url: str) -> tuple[str, Optional[str], Optional[str]]:
+    async def extract_info_only(self, url: str) -> dict:
         """
         Extract metadata without downloading the full audio.
-        Returns: (video_title, thumbnail_url, direct_audio_url)
+        Returns: metadata_dict (includes title, thumbnail, audio_url, etc.)
         """
         import asyncio
         start_time = asyncio.get_event_loop().time()
@@ -557,27 +711,40 @@ class VideoProcessor:
             'quiet': True,
             'no_warnings': True,
             'extract_flat': False, # We need formats for direct audio url
+            'http_headers': self._build_http_headers(url),
         }
         
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = await asyncio.to_thread(ydl.extract_info, url, False)
                 
+                # Enrich with custom logic
+                self._enrich_metadata(url, info)
+                
                 video_title = info.get('title', 'unknown')
                 thumbnail = info.get('thumbnail')
                 
-                # Logic from download_and_convert for hydration
-                if self._is_xiaoyuzhou_url(url):
-                    episode_cover = self._fetch_xiaoyuzhou_episode_cover(url)
-                    if episode_cover:
-                        thumbnail = episode_cover
-                    else:
-                        og_image = self._fetch_og_image(url)
-                        if og_image:
-                            thumbnail = og_image
-
                 direct_audio_url = self._extract_direct_audio_url_from_info(info)
-                return video_title, thumbnail, direct_audio_url
+
+                author_url = info.get("uploader_url") or info.get("channel_url") or ""
+
+
+                return {
+                    "title": video_title,
+                    "thumbnail": thumbnail,
+                    "audio_url": direct_audio_url,
+                    # Prioritize explicitly set uploader
+                    "author": info.get("uploader") or info.get("uploader_id") or "Unknown",
+                    "author_url": author_url,
+                    "author_image_url": info.get("uploader_avatar") or "", # Pass extracted avatar
+                    "description": info.get("description") or "",
+                    "tags": info.get("tags") or [],
+                    "categories": info.get("categories") or [],
+                    "view_count": info.get("view_count") or 0,
+                    "upload_date": info.get("upload_date") or "",
+                    "duration": info.get("duration") or 0,
+                    "original_url": url
+                }
         except Exception as e:
             logger.error(f"Metadata extraction failed: {e}")
             raise e

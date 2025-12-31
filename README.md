@@ -38,6 +38,19 @@
 - **Processing**: `yt-dlp` (Download), `pydub` (Audio manipulation)
 - **Manager**: `uv` for fast Python package management
 
+## 🎹 Vibe Coding (Development)
+
+We provide a unified `Makefile` for a seamless "Vibe Coding" experience. Instead of remembering complex commands, use these simple shortcuts:
+
+```bash
+make help            # Show all available commands
+make install         # Install all dependencies (backend + frontend)
+make start-backend   # Start the backend locally
+make start-frontend  # Start the frontend
+make start-docker    # Start the full stack with Docker
+make test            # Run all tests
+```
+
 ## 🏁 Getting Started
 
 ### Prerequisites
@@ -152,7 +165,11 @@ To provide instant results and save computation resources, VibeDigest implements
 ## 🧪 Running Tests
 
 ### Backend Tests (Pytest)
-Runs `pytest` with mocked external services (Safe & Free).
+Runs `pytest` with a **REAL** transient Postgres database (via Docker/Testcontainers) for integration tests, mocking only the AI/External services.
+
+**Requirements**:
+- Docker Desktop must be running.
+
 ```bash
 # Run from project root
 export PYTHONPATH=backend

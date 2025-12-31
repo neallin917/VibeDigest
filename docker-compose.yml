@@ -1,12 +1,12 @@
 services:
-  transcriber-backend:
+  backend-dev:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: transcriber-backend
+    container_name: transcriber-backend-dev
     restart: unless-stopped
     # ---------------------------------------------------------
-    # AGILITY CONFIGURATION (DEV MODE)
+    # DEV MODE - For local Vibe Coding only
     # ---------------------------------------------------------
     volumes:
       # Sync source code instantly. Editing 'backend' folder updates container.
@@ -15,28 +15,12 @@ services:
       - ./temp:/app/temp
       - ./downloads:/app/downloads
     ports:
-      - "16080:8000"
+      # Dev uses 16081 to avoid conflict with Prod (16080)
+      - "16081:8000"
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-    # ---------------------------------------------------------
     # ---------------------------------------------------------
     env_file:
       - ./backend/.env
     environment:
-      # Overrides or additional vars if needed
       - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-base}
-    networks:
-      - traefik
-
-    labels:
-      - "traefik.enable=true"
-      # Router
-      - "traefik.http.routers.transcriber.rule=Host(`transcriber.neallin.xyz`)"
-      - "traefik.http.routers.transcriber.entrypoints=web"
-      # TLS Removed: Cloudflare Tunnel terminates SSL -> sends HTTP to Traefik:80 (web)
-
-      # Service
-      - "traefik.http.services.transcriber.loadbalancer.server.port=8000"
-
-networks:
-  traefik:
-    external: true
+    # No Traefik labels - Dev is NOT exposed to internet

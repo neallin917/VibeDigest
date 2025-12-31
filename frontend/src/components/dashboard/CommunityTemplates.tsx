@@ -16,6 +16,8 @@ type Task = {
     thumbnail_url?: string
     status: string
     created_at: string
+    author?: string
+    author_image_url?: string
 }
 
 const getPlatformFromUrl = (url: string) => {
@@ -36,14 +38,15 @@ const getPlatformFromUrl = (url: string) => {
 function TemplateCard({ task }: { task: Task }) {
     const router = useRouter()
     const platform = getPlatformFromUrl(task.video_url)
+    const showAuthor = task.author && task.author !== "Unknown"
 
     return (
         <div
             onClick={() => router.push(`/tasks/${task.id}`)}
-            className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.03] to-transparent backdrop-blur-sm cursor-pointer transition-all duration-300 hover:border-white/20 hover:shadow-[0_8px_32px_rgba(62,207,142,0.15)] hover:scale-[1.02]"
+            className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.03] to-transparent backdrop-blur-sm cursor-pointer transition-all duration-300 hover:border-white/20 hover:shadow-[0_8px_32px_rgba(62,207,142,0.15)] hover:scale-[1.02] h-full"
         >
             {/* Thumbnail Area */}
-            <div className="relative aspect-video w-full overflow-hidden bg-black/40">
+            <div className="relative aspect-video w-full overflow-hidden bg-black/40 shrink-0">
                 {task.thumbnail_url ? (
                     <img
                         src={task.thumbnail_url}
@@ -70,14 +73,36 @@ function TemplateCard({ task }: { task: Task }) {
 
             {/* Content Area */}
             <div className="flex flex-1 flex-col p-4">
-                <h3 className="font-semibold text-foreground line-clamp-2 text-sm leading-snug group-hover:text-white transition-colors">
+                <h3 className="font-semibold text-foreground line-clamp-2 text-sm leading-snug group-hover:text-white transition-colors mb-2">
                     {task.video_title || task.video_url}
                 </h3>
 
-                {/* View Action */}
-                <div className="mt-4 flex items-center gap-1 text-xs font-medium text-primary opacity-0 translate-x-[-4px] transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
-                    <span>View Example</span>
-                    <ArrowRight className="h-3 w-3" />
+                {/* Author Info (replacing View Example) */}
+                <div className="mt-auto flex items-center gap-2 min-h-[20px]">
+                    {showAuthor ? (
+                        <>
+                            {task.author_image_url ? (
+                                <img
+                                    src={task.author_image_url}
+                                    alt={task.author || "Author"}
+                                    className="h-5 w-5 rounded-full object-cover border border-white/10 shrink-0"
+                                    referrerPolicy="no-referrer"
+                                />
+                            ) : (
+                                <div className="h-5 w-5 rounded-full bg-white/10 flex items-center justify-center border border-white/10 shrink-0">
+                                    <span className="text-[10px] text-white/70 font-bold leading-none">
+                                        {(task.author || "U").charAt(0).toUpperCase()}
+                                    </span>
+                                </div>
+                            )}
+                            <span className="text-xs font-medium text-muted-foreground truncate leading-tight">
+                                {task.author}
+                            </span>
+                        </>
+                    ) : (
+                        /* Maintain height for alignment if no author */
+                        <div className="h-5" />
+                    )}
                 </div>
             </div>
         </div>
@@ -96,7 +121,7 @@ export function CommunityTemplates({ limit }: { limit?: number }) {
             // Query tasks where is_demo = true (managed in database)
             let query = supabase
                 .from('tasks')
-                .select('id, video_url, video_title, thumbnail_url, status, created_at')
+                .select('id, video_url, video_title, thumbnail_url, status, created_at, author, author_image_url')
                 .eq('is_demo', true)
                 .eq('status', 'completed')
                 .order('created_at', { ascending: false })

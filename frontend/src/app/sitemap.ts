@@ -1,20 +1,20 @@
 import { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-    const baseUrl = 'https://vibedigest.neallin.xyz'
+  const baseUrl = 'https://vibedigest.neallin.xyz'
 
-    // Base routes
-    const routes = [
-        '',
-        '/login',
-        '/pricing',
-        // Add other static routes here
-    ].map((route) => ({
-        url: `${baseUrl}${route}`,
-        lastModified: new Date(),
-        changeFrequency: 'daily' as const,
-        priority: route === '' ? 1 : 0.8,
-    }))
+  // Define static routes
+  const routes = [
+    '',
+    '/pricing',
+    '/login',
+    '/privacy',
+  ]
 
-    return routes
+  return routes.map((route) => ({
+    url: `${baseUrl}${route}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly',
+    priority: route === '' ? 1 : 0.8,
+  }))
 }

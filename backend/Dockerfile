@@ -18,6 +18,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Create temp dir for processing
 RUN mkdir -p temp downloads
 
+# Copy source code (required for production mode without volume mounts)
+COPY . .
+
 # Command
 # Note: This is overriden by docker-compose for dev mode, but good default for prod.
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

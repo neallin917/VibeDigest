@@ -74,28 +74,31 @@ export default function LandingPage() {
         </div>
 
         {/* Feature Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-16 md:mt-24 max-w-7xl w-full px-4">
-          <FeatureCard
-            icon={Zap}
-            title={t("landing.feature1Title")}
-            desc={renderWithBold(t("landing.feature1Desc"))}
-          />
-          <FeatureCard
-            icon={Layers}
-            title={t("landing.feature2Title")}
-            desc={renderWithBold(t("landing.feature2Desc"))}
-          />
-          <FeatureCard
-            icon={Globe}
-            title={t("landing.feature3Title")}
-            desc={renderWithBold(t("landing.feature3Desc"))}
-          />
-          <FeatureCard
-            icon={FileText}
-            title={t("landing.feature4Title")}
-            desc={renderWithBold(t("landing.feature4Desc"))}
-          />
-        </div>
+        <section className="w-full max-w-7xl mx-auto mt-16 md:mt-24 px-4">
+          <h2 className="sr-only">Features</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <FeatureCard
+              icon={Zap}
+              title={t("landing.feature1Title")}
+              desc={renderWithBold(t("landing.feature1Desc"))}
+            />
+            <FeatureCard
+              icon={Layers}
+              title={t("landing.feature2Title")}
+              desc={renderWithBold(t("landing.feature2Desc"))}
+            />
+            <FeatureCard
+              icon={Globe}
+              title={t("landing.feature3Title")}
+              desc={renderWithBold(t("landing.feature3Desc"))}
+            />
+            <FeatureCard
+              icon={FileText}
+              title={t("landing.feature4Title")}
+              desc={renderWithBold(t("landing.feature4Desc"))}
+            />
+          </div>
+        </section>
       </main>
 
 
