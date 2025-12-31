@@ -193,6 +193,13 @@ const messages: Record<Locale, Messages> = {
         confirm: "View Plans",
         cancel: "Cancel"
       },
+      urlHelp: {
+        title: "Unsupported URL",
+        description: "The link you entered doesn't appear to be from a supported platform. Please paste a link from one of our supported platforms.",
+        supportedPlatforms: "Supported platforms:",
+        xiaoyuzhou: "Xiaoyuzhou",
+        gotIt: "Got it"
+      },
     },
     tasks: {
       recentTasks: "Recent Tasks",
@@ -514,6 +521,13 @@ const messages: Record<Locale, Messages> = {
         description: "您的免费额度已用完或点数不足。请升级方案或充值点数以继续使用。",
         confirm: "查看方案",
         cancel: "取消"
+      },
+      urlHelp: {
+        title: "不支持的链接",
+        description: "您输入的链接似乎不是来自我们支持的平台。请粘贴以下平台的视频或播客链接。",
+        supportedPlatforms: "支持的平台：",
+        xiaoyuzhou: "小宇宙",
+        gotIt: "知道了"
       },
     },
     tasks: {
