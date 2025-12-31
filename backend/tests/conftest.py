@@ -97,20 +97,32 @@ def test_db(postgres_container):
         status text DEFAULT 'pending',
         progress integer DEFAULT 0,
         video_title text,
+        thumbnail_url text,
+        error_message text,
+        author text,
+        author_url text,
+        author_image_url text,
+        description text,
+        keywords text[],
+        view_count bigint,
+        upload_date timestamptz,
+        duration integer,
         created_at timestamptz DEFAULT now(),
         updated_at timestamptz DEFAULT now(),
         is_demo boolean DEFAULT false,
-        summary_language text -- inferred requirement
+        summary_language text
     );
 
     CREATE TABLE IF NOT EXISTS public.task_outputs (
         id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
         task_id uuid REFERENCES public.tasks(id) ON DELETE CASCADE,
+        user_id uuid NOT NULL REFERENCES auth.users(id),
         kind text,
         locale text,
         status text DEFAULT 'pending',
         progress integer DEFAULT 0,
         content jsonb,
+        error_message text,
         attempt integer DEFAULT 0,
         created_at timestamptz DEFAULT now(),
         updated_at timestamptz DEFAULT now()
