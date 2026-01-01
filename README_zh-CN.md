@@ -22,7 +22,7 @@
 - **安全认证**：通过 Supabase Auth 集成电子邮件和 Google 登录支持。
 - **多语言 UI (i18n)**：内置 UI 语言切换器，支持阿拉伯语的 RTL。
 - **灵活定价**：混合模式（订阅 + 按需付费），具有年度计费选项和透明的使用跟踪。
-- **支付（可选）**：通过 Stripe 进行卡支付，通过 Coinbase Commerce 进行加密货币结帐。
+- **支付（可选）**：通过 Creem 进行卡支付（无需公司注册），通过 Coinbase Commerce 进行加密货币结帐。
 
 ## 🛠 技术栈
 
@@ -78,7 +78,8 @@ make test            # 运行所有测试
     - `SUPABASE_SERVICE_KEY`
     - `OPENAI_API_KEY`
     - `RESEND_API_KEY` (可选，用于反馈邮件)
-    - `STRIPE_SECRET_KEY` (可选，用于定价 / Stripe 结帐)
+    - `CREEM_API_KEY` (可选，用于定价 / Creem 结帐)
+    - `CREEM_WEBHOOK_SECRET` (可选，用于 Creem webhook 验证)
     - `COINBASE_API_KEY` (可选，用于加密货币结帐)
     - `COINBASE_WEBHOOK_SECRET` (可选，用于 Coinbase webhook 验证)
     - `OPENAI_SUMMARY_MATCH_THRESHOLD` (可选，默认: 4.0。越低 = 时间戳匹配越多，越高 = 更严格)
@@ -160,7 +161,8 @@ make test            # 运行所有测试
 ## 🧱 数据库迁移 (Supabase)
 
 - **定价架构**: `backend/sql/01_pricing_schema.sql`
-- **支付订单 (Stripe + Coinbase)**: `backend/sql/02_payment_orders.sql`
+- **支付订单 (Creem + Coinbase)**: `backend/sql/02_payment_orders.sql`
+- **Stripe 到 Creem 迁移**: `backend/sql/03_stripe_to_creem_migration.sql`
 
 ## 🧪 运行测试
 

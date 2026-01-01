@@ -22,15 +22,15 @@ type Profile = {
     extra_credits: number
 }
 
-// Price IDs
-const PRO_MONTHLY_PRICE_ID = "price_1ShU6GP16NRNsVf5dcAqHHDV"
-const PRO_ANNUAL_PRICE_ID = "price_1ShVNXP16NRNsVf56kArMPa4"
-const CREDIT_PACK_PRICE_ID = "price_1ShU6pP16NRNsVf5EdlEFgOE"
+// Creem Product IDs
+const PRO_MONTHLY_PRODUCT_ID = "prod_3lXRz2ypke2tUAIbsbrdvv"
+const PRO_ANNUAL_PRODUCT_ID = "prod_2rOdq3nC3kDbAPEO47eYKl"
+const CREDIT_PACK_PRODUCT_ID = "prod_lcSEEQdt57GWImjDUwYrX"
 
 export default function PricingPage() {
     const { t } = useI18n()
     const [isAnnual, setIsAnnual] = useState(true)
-    const [paymentMethod] = useState<'card' | 'crypto'>('crypto')
+    const [paymentMethod] = useState<'card' | 'crypto'>('card')  // Default to Creem (card)
     const [loading, setLoading] = useState(false)
     const [profile, setProfile] = useState<Profile | null>(null)
     const [supabase] = useState(() => createClient())
@@ -120,13 +120,7 @@ export default function PricingPage() {
                         <UsageCard className="w-full" />
                     </div>
 
-                    {paymentMethod === "crypto" && (
-                        <div className="lg:col-span-12">
-                            <p className="mx-auto lg:mx-0 w-fit text-xs text-yellow-500 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20 animate-in fade-in slide-in-from-top-1">
-                                Credit Card support coming soon. {t("pricing.cryptoWarning")} (USDC Only)
-                            </p>
-                        </div>
-                    )}
+
                 </section>
 
                 {/* Pricing Cards */}
@@ -257,7 +251,7 @@ export default function PricingPage() {
                                 <Button
                                     className="w-full bg-emerald-600/20 text-emerald-500 hover:bg-emerald-600/30 rounded-full"
                                     size="xl"
-                                    onClick={() => alert("Manage Subscription via Stripe Portal coming soon!")}
+                                    onClick={() => alert("Manage Subscription via Creem Customer Portal")}
                                 >
                                     {t("pricing.pro.manage")}
                                 </Button>
@@ -265,7 +259,7 @@ export default function PricingPage() {
                                 <Button
                                     className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-semibold shadow-lg shadow-emerald-500/20"
                                     size="xl"
-                                    onClick={() => handleCheckout(isAnnual ? PRO_ANNUAL_PRICE_ID : PRO_MONTHLY_PRICE_ID)}
+                                    onClick={() => handleCheckout(isAnnual ? PRO_ANNUAL_PRODUCT_ID : PRO_MONTHLY_PRODUCT_ID)}
                                     disabled={loading}
                                 >
                                     {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -301,7 +295,7 @@ export default function PricingPage() {
                             <Button
                                 className="w-full"
                                 variant="secondary"
-                                onClick={() => handleCheckout(CREDIT_PACK_PRICE_ID)}
+                                onClick={() => handleCheckout(CREDIT_PACK_PRODUCT_ID)}
                                 disabled={loading}
                             >
                                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <PlusCircleIcon />}

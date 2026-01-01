@@ -16,9 +16,10 @@ class Settings:
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
     SUPABASE_SERVICE_KEY: str = os.getenv("SUPABASE_SERVICE_KEY", "")
     
-    # Stripe
-    STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
-    STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+    # Creem Payment
+    CREEM_API_KEY: str = os.getenv("CREEM_API_KEY", "")
+    CREEM_WEBHOOK_SECRET: str = os.getenv("CREEM_WEBHOOK_SECRET", "")
+    CREEM_API_BASE: str = os.getenv("CREEM_API_BASE", "https://api.creem.io")  # Use https://test-api.creem.io for test mode
     
     # Coinbase
     COINBASE_API_KEY: str = os.getenv("COINBASE_API_KEY", "")
@@ -54,24 +55,23 @@ class Settings:
     # Defaulting to whisper-1 for now, but ready to switch to gpt-4o-transcribe
     OPENAI_TRANSCRIPTION_MODEL: str = os.getenv("OPENAI_TRANSCRIPTION_MODEL", "whisper-1")
 
-    # Pricing / Plans
-    # Using a dictionary for easy lookup by ID if needed, or just constants
+    # Pricing / Plans (Creem Product IDs)
     PRICES: Dict[str, PriceConfig] = {
         "CREDIT_PACK": PriceConfig(
-            id="price_1ShU6pP16NRNsVf5EdlEFgOE",
+            id="prod_lcSEEQdt57GWImjDUwYrX",
             amount=5.00,
-            name="20 Credits Top-up (One-time)",
-            credits=20,
+            name="50 Credits Top-up (One-time)",
+            credits=50,
             mode='payment'
         ),
         "PRO_MONTHLY": PriceConfig(
-            id="price_1ShU6GP16NRNsVf5dcAqHHDV",
+            id="prod_3lXRz2ypke2tUAIbsbrdvv",
             amount=9.90,
             name="Pro Plan (1 Month)",
             mode='subscription'
         ),
         "PRO_ANNUAL": PriceConfig(
-            id="price_1ShVNXP16NRNsVf56kArMPa4",
+            id="prod_2rOdq3nC3kDbAPEO47eYKl",
             amount=99.00,
             name="Pro Plan (1 Year)",
             mode='subscription'

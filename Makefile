@@ -2,7 +2,7 @@
 .PHONY: install-backend install-frontend
 .PHONY: start-backend start-frontend start-dev start-prod
 .PHONY: test-backend test-frontend
-.PHONY: stop deploy
+.PHONY: stop restart-dev restart-prod deploy
 
 # Default target
 help:
@@ -13,6 +13,8 @@ help:
 	@echo "  make start-dev     - Start backend in Docker (Dev Mode, hot reload)"
 	@echo "  make start-prod    - Start backend in Docker (Prod Mode, stable)"
 	@echo "  make stop          - Stop all Docker containers"
+	@echo "  make restart-dev   - Restart backend in Docker (Dev Mode)"
+	@echo "  make restart-prod  - Restart backend in Docker (Prod Mode)"
 	@echo "  make deploy        - Deploy to Production (Same as start-prod for now)"
 	@echo "  make test          - Run all tests"
 	@echo "  make lint          - Run formatters and linters"
@@ -52,6 +54,16 @@ stop:
 	@echo "Stopping all containers..."
 	docker-compose down
 	docker-compose -f docker-compose.prod.yml down
+
+restart-dev:
+	@echo "Restarting Docker (Dev Mode)..."
+	docker-compose down
+	docker-compose up --build
+
+restart-prod:
+	@echo "Restarting Docker (Prod Mode)..."
+	docker-compose -f docker-compose.prod.yml down
+	docker-compose -f docker-compose.prod.yml up --build -d
 
 # --- Testing ---
 test: test-backend test-frontend

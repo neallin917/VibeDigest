@@ -292,28 +292,43 @@ class DBClient:
         except Exception as e:
             logger.error(f"Failed to add credits: {e}")
 
-    def update_subscription(self, stripe_customer_id: str, tier: str, period_end: str):
-        """Update subscription status from Stripe Webhook."""
+    def update_subscription(self, creem_customer_id: str, tier: str, period_end: str):
+        """Update subscription status from Creem Webhook (by customer id)."""
         limit = 100 if tier == 'pro' else 3
         query = """
             UPDATE profiles 
             SET tier = :tier, usage_limit = :limit, usage_count = 0, period_end = :period_end
-            WHERE stripe_customer_id = :cid
+            WHERE creem_customer_id = :cid
         """
         try:
             self._execute_query(query, {
-                "tier": tier, "limit": limit, "period_end": period_end, "cid": stripe_customer_id
+                "tier": tier, "limit": limit, "period_end": period_end, "cid": creem_customer_id
             })
         except Exception as e:
             logger.error(f"Failed to update subscription: {e}")
 
-    def link_stripe_customer(self, user_id: str, stripe_customer_id: str):
-        """Link a Stripe Customer ID to a user."""
-        query = "UPDATE profiles SET stripe_customer_id = :cid WHERE id = :uid"
+    def update_subscription_by_user(self, user_id: str, tier: str, period_end: str):
+        """Update subscription status by user_id (for first-time subscriptions)."""
+        limit = 100 if tier == 'pro' else 3
+        query = """
+            UPDATE profiles 
+            SET tier = :tier, usage_limit = :limit, usage_count = 0, period_end = :period_end
+            WHERE id = :uid
+        """
         try:
-            self._execute_query(query, {"cid": stripe_customer_id, "uid": user_id})
+            self._execute_query(query, {
+                "tier": tier, "limit": limit, "period_end": period_end, "uid": user_id
+            })
         except Exception as e:
-            logger.error(f"Failed to link stripe customer: {e}")
+            logger.error(f"Failed to update subscription by user: {e}")
+
+    def link_creem_customer(self, user_id: str, creem_customer_id: str):
+        """Link a Creem Customer ID to a user."""
+        query = "UPDATE profiles SET creem_customer_id = :cid WHERE id = :uid"
+        try:
+            self._execute_query(query, {"cid": creem_customer_id, "uid": user_id})
+        except Exception as e:
+            logger.error(f"Failed to link creem customer: {e}")
 
     # -------------------------------------------------------------------------
     # Payment / Order Methods (Unified)

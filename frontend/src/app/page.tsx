@@ -54,6 +54,10 @@ export default function LandingPage() {
 
       <footer className="py-10 text-center text-gray-600 text-sm border-t border-white/5 relative z-10 bg-[#0A0A0A]">
         <p>© 2024 VibeDigest. All rights reserved.</p>
+        <div className="mt-4 flex justify-center gap-6">
+          <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
+          <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
+        </div>
       </footer>
     </div>
   )
