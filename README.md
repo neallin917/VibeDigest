@@ -22,7 +22,7 @@
 - **Secure Authentication**: Integrated email and Google login support via Supabase Auth.
 - **Multi-language UI (i18n)**: Built-in UI language switcher with RTL support for Arabic.
 - **Flexible Pricing**: Hybrid model (Subscription + Pay-as-you-go) with Annual billing options and transparent usage tracking.
-- **Payments (Optional)**: Card payments via Stripe, and crypto checkout via Coinbase Commerce.
+- **Payments (Optional)**: Card payments via Creem (no company registration required), and crypto checkout via Coinbase Commerce.
 
 ## 🛠 Technology Stack
 
@@ -78,7 +78,8 @@ make test            # Run all tests
     - `SUPABASE_SERVICE_KEY`
     - `OPENAI_API_KEY`
     - `RESEND_API_KEY` (Optional, for Feedback emails)
-    - `STRIPE_SECRET_KEY` (Optional, for Pricing / Stripe Checkout)
+    - `CREEM_API_KEY` (Optional, for Pricing / Creem Checkout)
+    - `CREEM_WEBHOOK_SECRET` (Optional, for Creem webhook verification)
     - `COINBASE_API_KEY` (Optional, for Crypto Checkout)
     - `COINBASE_WEBHOOK_SECRET` (Optional, for Coinbase webhook verification)
     - `OPENAI_SUMMARY_MATCH_THRESHOLD` (Optional, default: 4.0. Lower = more timestamp matches, Higher = stricter)
@@ -160,7 +161,8 @@ To provide instant results and save computation resources, VibeDigest implements
 ## 🧱 Database Migrations (Supabase)
 
 - **Pricing schema**: `backend/sql/01_pricing_schema.sql`
-- **Payment orders (Stripe + Coinbase)**: `backend/sql/02_payment_orders.sql`
+- **Payment orders (Creem + Coinbase)**: `backend/sql/02_payment_orders.sql`
+- **Stripe to Creem migration**: `backend/sql/03_stripe_to_creem_migration.sql`
 
 ## 🧪 Running Tests
 

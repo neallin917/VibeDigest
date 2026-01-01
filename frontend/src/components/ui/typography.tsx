@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 const textVariants = cva("", {
   variants: {
     variant: {
-      body: "text-sm leading-6",
+      body: "text-base leading-relaxed",
       bodySm: "text-xs leading-5",
       caption: "text-xs leading-4",
     },

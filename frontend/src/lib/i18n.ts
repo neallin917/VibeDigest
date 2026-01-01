@@ -391,7 +391,7 @@ const messages: Record<Locale, Messages> = {
         },
         payments: {
           title: "2. Payments",
-          content: "We accept payments via Credit Card (Stripe) and Cryptocurrency (Coinbase Commerce).",
+          content: "We accept payments via Credit Card.",
           list: {
             l1: "Prices are in USD.",
             l2: "We strictly adhere to OFAC regulations and do not provide services to sanctioned countries or individuals.",
@@ -787,7 +787,7 @@ const messages: Record<Locale, Messages> = {
         },
         payments: {
           title: "2. 支付",
-          content: "我们接受信用卡 (Stripe) 和加密货币 (Coinbase Commerce) 支付。",
+          content: "我们接受信用卡支付。",
           list: {
             l1: "价格以美元 (USD) 计。",
             l2: "我们严格遵守 OFAC 法规，不向受制裁国家或个人提供服务。",

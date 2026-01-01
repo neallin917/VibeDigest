@@ -38,8 +38,7 @@ export function FeaturesSection() {
             icon: Share2,
             title: t("landing.visualMindMaps"),
             desc: t("landing.visualMindMapsDesc"),
-            color: "text-purple-400",
-            comingSoon: true
+            color: "text-purple-400"
         },
         {
             icon: MessageSquare,

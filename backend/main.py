@@ -14,7 +14,9 @@ import shutil
 from urllib.parse import urlparse
 from urllib.parse import urlunparse
 from dotenv import load_dotenv
-import stripe
+import httpx
+import hmac
+import hashlib
 from coinbase_commerce.client import Client as CoinbaseClient
 from coinbase_commerce.webhook import Webhook as CoinbaseWebhook
 
@@ -91,8 +93,10 @@ db_client = DBClient()
 notifier = Notifier()
 supadata_client = SupadataClient()
 
-# Stripe Config
-stripe.api_key = settings.STRIPE_SECRET_KEY
+# Creem API Config
+CREEM_API_BASE = settings.CREEM_API_BASE
+CREEM_API_KEY = settings.CREEM_API_KEY
+CREEM_WEBHOOK_SECRET = settings.CREEM_WEBHOOK_SECRET
 
 # Coinbase Config
 coinbase_client = CoinbaseClient(api_key=settings.COINBASE_API_KEY)
@@ -303,90 +307,115 @@ async def submit_feedback(
 
     return {"status": "received", "message": "Thank you for your feedback!"}
 
-@app.post("/api/webhook/stripe")
-async def stripe_webhook(request: Request):
+@app.post("/api/webhook/creem")
+async def creem_webhook(request: Request):
+    """Handle Creem payment webhooks."""
     payload = await request.body()
-    sig_header = request.headers.get("stripe-signature")
-    event = None
-
+    sig_header = request.headers.get("creem-signature")
+    
+    # Verify signature using HMAC-SHA256
+    if CREEM_WEBHOOK_SECRET and sig_header:
+        expected_sig = hmac.new(
+            CREEM_WEBHOOK_SECRET.encode('utf-8'),
+            payload,
+            hashlib.sha256
+        ).hexdigest()
+        
+        if not hmac.compare_digest(expected_sig, sig_header):
+            logger.warning("Creem webhook signature verification failed")
+            raise HTTPException(status_code=400, detail="Invalid signature")
+    
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail="Invalid payload")
-    except stripe.error.SignatureVerificationError as e:
-        raise HTTPException(status_code=400, detail="Invalid signature")
-
-    # Handle the event
-    if event['type'] == 'checkout.session.completed':
-        session = event['data']['object']
-        mode = session.get('mode')
-        cid = session.get('customer')
-        user_id = session.get('client_reference_id')
+        event = json.loads(payload.decode('utf-8'))
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    
+    event_type = event.get('eventType')
+    obj = event.get('object', {})
+    
+    logger.info(f"Creem webhook received: {event_type}")
+    
+    if event_type == 'checkout.completed':
+        # Extract data from checkout object
+        checkout_id = obj.get('id')
+        metadata = obj.get('metadata', {})
+        user_id = metadata.get('user_id')
+        customer = obj.get('customer', {})
+        customer_id = customer.get('id') if isinstance(customer, dict) else customer
+        order = obj.get('order', {})
+        product = obj.get('product', {})
+        subscription = obj.get('subscription', {})
         
-        # Link Customer ID if present
-        if user_id and cid:
-            db_client.link_stripe_customer(user_id, cid)
-
-        # Unified Order: Update to completed
-        # We need to find the order. Stripe Session ID is in session['id']
-        session_id = session['id']
-        order = db_client.get_payment_order_by_provider_id(session_id)
-        if order:
-             if order.get('status') == 'completed':
-                 logger.info(f"Order {order['id']} already completed. Skipping webhook.")
-                 return {"status": "success", "message": "Already processed"}
-                 
-             db_client.update_payment_order(
-                 order['id'], 
-                 status='completed', 
-                 metadata={"stripe_customer": cid, "mode": mode}
-             )
-
-        # Handle Line Items? Or just mode.
-        # Ideally we check what was bought. 
-        # For simplicity, we assume mode + metadata or lookup session items if needed.
-        # But here we can check if it matches our Known Price IDs if expanded, 
-        # or simplified logic:
+        # Link Creem Customer ID (if we have user_id)
+        if user_id and customer_id:
+            db_client.link_creem_customer(user_id, customer_id)
         
-        if mode == 'subscription':
-            # This is a new subscription or update
-            # We treat it as 'pro'
-            # We need to get period_end from subscription object?
-            # session has 'subscription' ID.
-            sub_id = session.get('subscription')
-            sub = stripe.Subscription.retrieve(sub_id)
-            current_period_end = datetime.datetime.fromtimestamp(sub['current_period_end'])
-            
-            # Need to find user by customer_id if user_id is missing
-            # (In recurring payments, client_reference_id might be missing in webhook?)
-            # Actually invoice.payment_succeeded is better for recurring. 
-            # checkout.session.completed is for the initial signup.
+        # Update payment order if exists
+        if checkout_id:
+            existing_order = db_client.get_payment_order_by_provider_id(checkout_id)
+            if existing_order:
+                if existing_order.get('status') == 'completed':
+                    logger.info(f"Order {existing_order['id']} already completed. Skipping.")
+                    return {"status": "success", "message": "Already processed"}
+                    
+                db_client.update_payment_order(
+                    existing_order['id'],
+                    status='completed',
+                    metadata={"creem_customer": customer_id, "checkout_id": checkout_id}
+                )
+        
+        # Determine product type
+        billing_type = product.get('billing_type', 'one_time') if isinstance(product, dict) else 'one_time'
+        product_id = product.get('id') if isinstance(product, dict) else product
+        
+        if billing_type == 'recurring' and subscription:
+            # Subscription purchase - activate Pro
+            # Calculate period_end (Creem doesn't provide this directly, estimate from billing_period)
+            billing_period = product.get('billing_period', 'every-month')
+            now = datetime.datetime.now(datetime.timezone.utc)
+            if 'year' in billing_period:
+                period_end = now + datetime.timedelta(days=365)
+            else:
+                period_end = now + datetime.timedelta(days=30)
             
             if user_id:
-                # First time signup
-                db_client.update_subscription(cid, 'pro', current_period_end.isoformat())
+                db_client.update_subscription_by_user(user_id, 'pro', period_end.isoformat())
+                logger.info(f"Activated Pro subscription for user {user_id}")
                 
-        elif mode == 'payment':
-            # One time payment (Credits)
-            # Verify if it is the credit pack
-            # We assume it is for now (MVP)
-            if user_id:
-                db_client.add_credits(user_id, 20)
-
-    elif event['type'] == 'invoice.payment_succeeded':
-        invoice = event['data']['object']
-        # Recurring payment success
-        cid = invoice.get('customer')
-        sub_id = invoice.get('subscription')
+        else:
+            # One-time payment (Credits)
+            price = settings.get_price_by_id(product_id)
+            if price and price.credits > 0 and user_id:
+                db_client.add_credits(user_id, price.credits)
+                logger.info(f"Added {price.credits} credits to user {user_id}")
+    
+    elif event_type == 'subscription.paid':
+        # Recurring payment success - renew subscription
+        subscription = obj
+        customer_id = subscription.get('customer')
+        product = subscription.get('product', {})
+        billing_period = product.get('billing_period', 'every-month') if isinstance(product, dict) else 'every-month'
         
-        if sub_id:
-            sub = stripe.Subscription.retrieve(sub_id)
-            current_period_end = datetime.datetime.fromtimestamp(sub['current_period_end'])
-            # Renew Pro
-            db_client.update_subscription(cid, 'pro', current_period_end.isoformat())
-
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if 'year' in str(billing_period):
+            period_end = now + datetime.timedelta(days=365)
+        else:
+            period_end = now + datetime.timedelta(days=30)
+        
+        if customer_id:
+            db_client.update_subscription(customer_id, 'pro', period_end.isoformat())
+            logger.info(f"Renewed Pro subscription for customer {customer_id}")
+    
+    elif event_type in ('subscription.canceled', 'subscription.expired'):
+        # Subscription canceled or expired - downgrade to free
+        subscription = obj
+        customer_id = subscription.get('customer')
+        
+        if customer_id:
+            # Set period_end to now to immediately downgrade
+            db_client.update_subscription(customer_id, 'free', datetime.datetime.now(datetime.timezone.utc).isoformat())
+            logger.info(f"Canceled subscription for customer {customer_id}")
+    
     return {"status": "success"}
 
 @app.post("/api/create-crypto-charge")
@@ -975,61 +1004,58 @@ async def update_task_title(
 
 @app.post("/api/create-checkout-session")
 async def create_checkout_session(
-    price_id: str = Form(...),
+    price_id: str = Form(...),  # This is now Creem product_id
     user_id: str = Depends(get_current_user)
 ):
-    """Create Stripe Checkout Session."""
+    """Create Creem Checkout Session."""
     price = settings.get_price_by_id(price_id)
     if not price:
-        raise HTTPException(status_code=400, detail="Invalid Price ID")
-        
-    mode = price.mode
+        raise HTTPException(status_code=400, detail="Invalid Product ID")
         
     try:
-        checkout_session = stripe.checkout.Session.create(
-            client_reference_id=user_id,
-            line_items=[
-                {
-                    'price': price_id,
-                    'quantity': 1,
+        # Create Creem Checkout Session via REST API
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{CREEM_API_BASE}/v1/checkouts",
+                headers={
+                    "x-api-key": CREEM_API_KEY,
+                    "Content-Type": "application/json"
                 },
-            ],
-            mode=mode,
-            success_url=settings.FRONTEND_URL + "/settings/pricing?success=true",
-            cancel_url=settings.FRONTEND_URL + "/settings/pricing?canceled=true",
-        )
+                json={
+                    "product_id": price_id,
+                    "success_url": settings.FRONTEND_URL + "/settings/pricing?success=true",
+                    "metadata": {
+                        "user_id": user_id
+                    }
+                },
+                timeout=30.0
+            )
+            
+            if response.status_code != 200:
+                error_detail = response.text
+                logger.error(f"Creem checkout creation failed: {response.status_code} - {error_detail}")
+                raise HTTPException(status_code=500, detail=f"Checkout creation failed: {error_detail}")
+            
+            checkout_data = response.json()
+            checkout_url = checkout_data.get('checkout_url')
+            checkout_id = checkout_data.get('id')
+            
+            if not checkout_url:
+                raise HTTPException(status_code=500, detail="No checkout URL returned")
         
-        # Unified Order Creation (Pending)
-        # We treat Stripe session creation as the start of an order.
-        # But we don't know the amount for sure if it's dynamic, but here it's fixed Price ID.
-        # We'll rely on webhook to confirm, but good to track "attempt".
-        try:
-             # Just logs, non-blocking
-             db_client.create_payment_order(user_id, "stripe", 0.0, "USD") 
-             # Note: We need to update this with session_id, but session object above has it.
-             # Actually, better to insert AFTER session create so we have session.id
-             # But create_payment_order returns order object.
-             # Let's do it cleanly:
-        except:
-             pass
-
-        # Update the order with session ID? 
-        # To do it right:
-        # 1. Create Order
-        # order = db_client.create_payment_order(...)
-        # 2. Create Session (pass order_id in metadata?)
-        # 3. Update Order with session.id
-        
-        # Implementation:
+        # Create payment order for tracking
         amount_est = price.amount
+        order = db_client.create_payment_order(user_id, "creem", amount_est, "USD")
+        if order and checkout_id:
+            db_client.update_payment_order(order['id'], provider_payment_id=checkout_id)
         
-        order = db_client.create_payment_order(user_id, "stripe", amount_est, "USD")
-        if order:
-             db_client.update_payment_order(order['id'], provider_payment_id=checkout_session.id)
+        return {"url": checkout_url}
         
-        return {"url": checkout_session.url}
+    except httpx.RequestError as e:
+        logger.error(f"Creem API request failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Payment service unavailable: {str(e)}")
     except Exception as e:
-        logger.error(f"Stripe session creation failed: {e}")
+        logger.error(f"Creem session creation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

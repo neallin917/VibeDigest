@@ -127,7 +127,7 @@ docker-compose -f docker-compose.test.yml up -d
     *   `usage_count`: Monthly resets
     *   `extra_credits`: Top-up packs
     *   **Logic**:
-        *   **Annual Support**: Frontend handles toggle (`isAnnual`) to switch Stripe Price IDs.
+        *   **Annual Support**: Frontend handles toggle (`isAnnual`) to switch Creem Product IDs.
         *   **Localization**: Plan names/features are fully localized in `i18n.ts`.
 
 ---
@@ -320,7 +320,7 @@ Demo tasks are featured content visible to all users (including anonymous visito
 
 ### 10.1 Zero Token Consumption Policy
 - **NEVER** call real paid APIs (OpenAI, DeepSeek, Anthropic) in tests.
-- **NEVER** perform real billing transactions (Stripe, Coinbase).
+- **NEVER** perform real billing transactions (Creem, Coinbase).
 - **NEVER** download large files (YouTube) during tests.
 - **Solution**: Use `unittest.mock` to intercept `transcriber.transcribe`, `summarizer.summarize`, and `video_processor.download`.
 
@@ -350,7 +350,7 @@ Demo tasks are featured content visible to all users (including anonymous visito
 *   [x] **OpenAI Backend Migration**
 *   [x] **Email Notifications (Resend)**
 *   [ ] **Vector Search (Embeddings)**
-*   [ ] **Stripe Integration**
+*   [x] **Creem Integration** (Card payments without company registration)
 
 ---
 
