@@ -19,7 +19,18 @@ import { TranscriptTimeline, buildTranscriptBlocks } from "@/components/tasks/Tr
 import { formatSeconds } from "@/components/tasks/transcript"
 import { useTaskNotification } from "@/hooks/useTaskNotification"
 import { SummaryShareButton } from "@/components/tasks/SummaryExportButton"
-import { Bell, BellOff } from "lucide-react"
+import { Bell, BellOff, Network } from "lucide-react"
+import dynamic from 'next/dynamic'
+import type { MindMapNode } from "@/components/tasks/MindMap"
+
+const MindMap = dynamic(() => import("@/components/tasks/MindMap").then(mod => mod.MindMap), {
+    ssr: false,
+    loading: () => (
+        <div className="w-full h-[500px] border border-white/5 rounded-xl bg-[#1A1A1A] flex items-center justify-center text-muted-foreground">
+            Loading Mind Map...
+        </div>
+    )
+})
 
 type Task = {
     id: string
@@ -258,9 +269,12 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                             )}
 
                             <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="w-full">
-                                <TabsList className="grid w-full grid-cols-2 h-12">
+                                <TabsList className="grid w-full grid-cols-3 h-12">
                                     <TabsTrigger value="summary" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm">
                                         <FileText className="hidden sm:block h-4 w-4" /> {t("tasks.tabSummary")}
+                                    </TabsTrigger>
+                                    <TabsTrigger value="mindmap" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm">
+                                        <Network className="hidden sm:block h-4 w-4" /> MindMap
                                     </TabsTrigger>
                                     <TabsTrigger value="script" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm">
                                         <Subtitles className="hidden sm:block h-4 w-4" /> {t("tasks.tabScript")}
@@ -276,6 +290,15 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                                         canSeek={Boolean(mediaController)}
                                         onSeek={handleSeek}
                                         t={t}
+                                    />
+                                </TabsContent>
+
+                                <TabsContent value="mindmap" className="mt-4 md:mt-6 space-y-4">
+                                    <MindMapSection
+                                        summary={summary}
+                                        summarySource={summarySource}
+                                        t={t}
+                                        locale={locale}
                                     />
                                 </TabsContent>
 
@@ -866,4 +889,113 @@ function TaskProgress({
             </div>
         </div>
     )
+}
+
+function MindMapSection({
+    summary,
+    summarySource,
+    t,
+    locale,
+}: {
+    summary?: Output
+    summarySource?: Output
+    t: (key: string, vars?: Record<string, string | number>) => string
+    locale: string
+}) {
+    // Parse structured summary
+    const parseSummary = (output?: Output) => {
+        if (!output?.content) return null
+        try {
+            const obj = JSON.parse(output.content) as StructuredSummaryV1
+            if (!obj || typeof obj !== "object") return null
+            if (typeof obj.overview !== "string") return null
+            if (!Array.isArray(obj.keypoints)) return null
+            return obj
+        } catch {
+            return null
+        }
+    }
+
+    const translatedParsed = parseSummary(summary)
+    const sourceParsed = parseSummary(summarySource)
+
+    // Check if languages are the same
+    const isSameLanguage = (() => {
+        if (!translatedParsed || !sourceParsed) return false
+        const lang1 = (translatedParsed.language || "").toLowerCase()
+        const lang2 = (sourceParsed.language || "").toLowerCase()
+        return lang1 === lang2
+    })()
+
+    // Use translated version preferentially, fallback to source
+    const hasSource = Boolean(summarySource && summarySource.status === "completed" && sourceParsed)
+    const parsed = translatedParsed || (hasSource && !isSameLanguage ? sourceParsed : null)
+
+    // Convert summary to MindMap node structure
+    // Structure: Overview (root) -> Keypoints -> Evidence
+    const mindMapData: MindMapNode | null = parsed ? {
+        content: parsed.overview,
+        children: parsed.keypoints
+            .filter(kp => kp.title)
+            .map((kp, idx) => ({
+                content: `${idx + 1}. ${kp.title}`,
+                children: kp.evidence ? [{ content: kp.evidence, children: [] }] : []
+            }))
+    } : null
+
+    // Loading state
+    if (!summary) {
+        return (
+            <Card className="bg-black/20 border-white/5 min-h-[500px] flex items-center justify-center">
+                <CardContent className="text-center text-muted-foreground p-6 md:p-10">
+                    <div className="mb-4 flex justify-center">
+                        <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center mx-auto">
+                            <Network className="h-6 w-6 opacity-50" />
+                        </div>
+                    </div>
+                    {t("tasks.contentPending")}
+                </CardContent>
+            </Card>
+        )
+    }
+
+    // Error state
+    if (summary.status === "error") {
+        return (
+            <Card className="bg-red-950/20 border-red-500/30">
+                <CardContent className="p-6 flex flex-col items-center gap-4 text-red-300">
+                    <p>{t("tasks.failedToGenerate", { error: summary.error_message || "" })}</p>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    // Processing state
+    if (summary.status === "processing" || summary.status === "pending") {
+        return (
+            <Card className="bg-black/20 border-white/5 min-h-[500px] flex items-center justify-center">
+                <CardContent className="p-6 md:p-10 text-center space-y-4">
+                    <div className="flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
+                    <div>
+                        <p className="font-medium text-foreground">{t("tasks.generatingContent")}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{t("tasks.percentComplete", { percent: summary.progress })}</p>
+                    </div>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    // No data parsed
+    if (!mindMapData) {
+        return (
+            <Card className="bg-black/20 border-white/5 min-h-[500px] flex items-center justify-center">
+                <CardContent className="text-center text-muted-foreground p-6 md:p-10">
+                    <Network className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>{t("tasks.summaryPlaceholder")}</p>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    return <MindMap data={mindMapData} />
 }
