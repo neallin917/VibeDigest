@@ -1,8 +1,8 @@
 "use client"
 
-import { use, useState, useEffect, useCallback, useRef } from "react"
+import { use, useState, useEffect, useCallback, useRef, useMemo } from "react"
 import Link from "next/link"
-import { FileText, Subtitles, Copy, Check, Sparkles, PlayCircle, Quote, Zap } from "lucide-react"
+import { FileText, Subtitles, Copy, Check, Sparkles, PlayCircle, Quote, Zap, Languages, ChevronDown } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress"
 import { createClient } from "@/lib/supabase"
 import ReactMarkdown from "react-markdown"
 import { useI18n } from "@/components/i18n/I18nProvider"
+import { LOCALE_LABEL, type Locale } from "@/lib/i18n"
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 import { VideoEmbed, supportsVideoEmbed } from "@/components/tasks/VideoEmbed"
 import { AudioEmbed } from "@/components/tasks/AudioEmbed"
@@ -284,19 +285,18 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                                 <TabsContent value="summary" className="mt-4 md:mt-6 space-y-4">
                                     <SummarySection
                                         taskTitle={task.video_title}
-                                        summary={summary}
-                                        summarySource={summarySource}
+                                        outputs={outputs}
                                         summaryPlaceholder={t("tasks.summaryPlaceholder")}
                                         canSeek={Boolean(mediaController)}
                                         onSeek={handleSeek}
                                         t={t}
+                                        locale={locale}
                                     />
                                 </TabsContent>
 
                                 <TabsContent value="mindmap" className="mt-4 md:mt-6 space-y-4">
                                     <MindMapSection
-                                        summary={summary}
-                                        summarySource={summarySource}
+                                        outputs={outputs}
                                         t={t}
                                         locale={locale}
                                     />
@@ -324,28 +324,33 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
 function SummarySection({
     taskTitle,
-    summary,
-    summarySource,
+    outputs,
     summaryPlaceholder,
     canSeek,
     onSeek,
     t,
+    locale,
 }: {
     taskTitle?: string
-    summary?: Output
-    summarySource?: Output
+    outputs: Output[]
     summaryPlaceholder: string
     canSeek: boolean
     onSeek: (seconds: number) => void
     t: (key: string, vars?: Record<string, string | number>) => string
+    locale: string
 }) {
-    const [viewMode, setViewMode] = useState<"translated" | "original">("translated")
     const containerRef = useRef<HTMLDivElement>(null)
+    const [isLangOpen, setIsLangOpen] = useState(false)
 
-    const translatedParsed = (() => {
-        if (!summary?.content) return null
+    // Get all available summary outputs
+    const summaryOutputs = outputs.filter(o => o.kind === 'summary' && o.status === 'completed')
+    const summarySource = outputs.find(o => o.kind === 'summary_source' && o.status === 'completed')
+
+    // Parse structured summary
+    const parseSummary = (output?: Output) => {
+        if (!output?.content) return null
         try {
-            const obj = JSON.parse(summary.content) as StructuredSummaryV1
+            const obj = JSON.parse(output.content) as StructuredSummaryV1
             if (!obj || typeof obj !== "object") return null
             if (typeof obj.overview !== "string") return null
             if (!Array.isArray(obj.keypoints)) return null
@@ -353,37 +358,62 @@ function SummarySection({
         } catch {
             return null
         }
-    })()
+    }
 
-    const sourceParsed = (() => {
-        if (!summarySource?.content) return null
-        try {
-            const obj = JSON.parse(summarySource.content) as StructuredSummaryV1
-            if (!obj || typeof obj !== "object") return null
-            if (typeof obj.overview !== "string") return null
-            if (!Array.isArray(obj.keypoints)) return null
-            return obj
-        } catch {
-            return null
+    // Build available locales map: key -> { output, parsed, nativeLabel }
+    // Key is the language code (e.g., 'en', 'zh') to deduplicate
+    const availableLocales = useMemo(() => {
+        const map = new Map<string, { output: Output; parsed: StructuredSummaryV1; isSource?: boolean }>()
+
+        // Add summary_source first (so translations can override if same language)
+        if (summarySource) {
+            const parsed = parseSummary(summarySource)
+            if (parsed) {
+                const lang = (parsed.language || 'source').toLowerCase()
+                map.set(lang, { output: summarySource, parsed, isSource: true })
+            }
         }
-    })()
 
-    const hasSource = Boolean(summarySource && summarySource.status === "completed" && sourceParsed)
+        // Add all translated summaries by their content language (not locale)
+        // This will override source if they have the same language
+        for (const output of summaryOutputs) {
+            const parsed = parseSummary(output)
+            if (parsed) {
+                const lang = (parsed.language || output.locale || 'unknown').toLowerCase()
+                // Only add if we don't have this language yet, or prefer translated over source
+                if (!map.has(lang) || map.get(lang)?.isSource) {
+                    map.set(lang, { output, parsed })
+                }
+            }
+        }
 
-    // Check if languages are effectively the same
-    const isSameLanguage = (() => {
-        if (!translatedParsed || !sourceParsed) return false
-        // Heuristic: compare language strings (e.g. "en" vs "en")
-        const lang1 = (translatedParsed.language || "").toLowerCase()
-        const lang2 = (sourceParsed.language || "").toLowerCase()
-        // Or if the content is identical by simple check (optional, but language code is safer first step)
-        return lang1 === lang2
-    })()
+        return map
+    }, [summaryOutputs, summarySource])
 
-    // If languages are the same, force "translated" (which is actually the localized version intended for display)
-    // and effectively disable the toggle (hide it in UI).
-    const effectiveMode: "translated" | "original" = (hasSource && !isSameLanguage) ? viewMode : "translated"
-    const parsed = effectiveMode === "original" ? sourceParsed : translatedParsed
+    // Determine initial locale: prefer user's current locale, then 'en', then first available
+    const initialLocale = useMemo(() => {
+        if (availableLocales.has(locale)) return locale
+        if (availableLocales.has('en')) return 'en'
+        const keys = Array.from(availableLocales.keys())
+        return keys[0] || 'en'
+    }, [availableLocales, locale])
+
+    const [selectedLocale, setSelectedLocale] = useState<string>(initialLocale)
+
+    // Get current selection
+    const current = availableLocales.get(selectedLocale) || availableLocales.get(initialLocale)
+    const parsed = current?.parsed || null
+
+    // Get native language label
+    const getLocaleLabel = (lang: string) => {
+        if (lang in LOCALE_LABEL) {
+            return LOCALE_LABEL[lang as Locale]
+        }
+        return lang.toUpperCase()
+    }
+
+    const availableLocalesList = Array.from(availableLocales.keys())
+    const showLanguageSelector = availableLocalesList.length > 1
 
     const toMarkdown = (data: StructuredSummaryV1) => {
         const lines: string[] = []
@@ -404,13 +434,15 @@ function SummarySection({
     }
 
     const handleCopy = async () => {
-        if (!summary?.content && !summarySource?.content) return
-        const rawFallback = effectiveMode === "original" ? (summarySource?.content || "") : (summary?.content || "")
-        const textToCopy = parsed ? toMarkdown(parsed) : rawFallback
+        if (!parsed) return
+        const textToCopy = toMarkdown(parsed)
         await navigator.clipboard.writeText(textToCopy)
     }
 
-    if (!summary) {
+    // Get any summary for status check
+    const anySummary = summaryOutputs[0] || summarySource || outputs.find(o => o.kind === 'summary')
+
+    if (!anySummary) {
         return (
             <Card className="bg-black/20 border-white/5 min-h-[220px] md:min-h-[300px] flex items-center justify-center">
                 <CardContent className="text-center text-muted-foreground p-6 md:p-10">
@@ -425,25 +457,25 @@ function SummarySection({
         )
     }
 
-    if (summary.status === "error") {
+    if (anySummary.status === "error") {
         return (
             <Card className="bg-red-950/20 border-red-500/30">
                 <CardContent className="p-6 flex flex-col items-center gap-4 text-red-300">
-                    <p>{t("tasks.failedToGenerate", { error: summary.error_message || "" })}</p>
+                    <p>{t("tasks.failedToGenerate", { error: anySummary.error_message || "" })}</p>
                     <p className="text-sm text-red-200/80">{t("tasks.processingHint1")}</p>
                 </CardContent>
             </Card>
         )
     }
 
-    if (summary.status === "processing" || summary.status === "pending") {
+    if (anySummary.status === "processing" || anySummary.status === "pending") {
         return (
             <Card className="bg-black/20 border-white/5 min-h-[220px] md:min-h-[300px] flex items-center justify-center">
                 <CardContent className="p-6 md:p-10 text-center space-y-4">
                     <div className="flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
                     <div>
                         <p className="font-medium text-foreground">{t("tasks.generatingContent")}</p>
-                        <p className="text-sm text-muted-foreground mt-1">{t("tasks.percentComplete", { percent: summary.progress })}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{t("tasks.percentComplete", { percent: anySummary.progress })}</p>
                     </div>
                 </CardContent>
             </Card>
@@ -452,7 +484,7 @@ function SummarySection({
 
     if (!parsed) {
         // Backward compatibility: old markdown summaries
-        return <OutputCard output={summary} placeholder={summaryPlaceholder} />
+        return <OutputCard output={anySummary} placeholder={summaryPlaceholder} />
     }
 
     const hasAnyAnchors = parsed.keypoints.some((kp) => typeof kp.startSeconds === "number" && Number.isFinite(kp.startSeconds))
@@ -461,28 +493,43 @@ function SummarySection({
         <Card ref={containerRef} className="bg-black/20 border-white/5 group">
             <CardContent className="p-3 sm:p-4 md:p-8 space-y-4 md:space-y-6">
                 <div className="relative flex items-center justify-center min-h-[32px] mb-2 md:mb-4">
-                    {hasSource && !isSameLanguage ? (
-                        <div className="flex items-center bg-black/20 p-1 rounded-lg border border-white/5 transition-colors hover:bg-black/30">
+                    {showLanguageSelector && (
+                        <div className="relative">
                             <Button
-                                type="button"
+                                variant="outline"
                                 size="sm"
-                                variant={effectiveMode === "original" ? "secondary" : "ghost"}
-                                className="h-7 text-xs px-3 hover:bg-white/10"
-                                onClick={() => setViewMode("original")}
+                                onClick={() => setIsLangOpen(!isLangOpen)}
+                                className="gap-2 h-8 px-3 bg-black/30 border-white/10 hover:bg-black/50 hover:border-white/20"
                             >
-                                {t("tasks.summaryStructured.showOriginal")}
+                                <Languages className="h-4 w-4" />
+                                <span>{getLocaleLabel(selectedLocale)}</span>
+                                <ChevronDown className={`h-3 w-3 transition-transform ${isLangOpen ? 'rotate-180' : ''}`} />
                             </Button>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant={effectiveMode === "translated" ? "secondary" : "ghost"}
-                                className="h-7 text-xs px-3 hover:bg-white/10"
-                                onClick={() => setViewMode("translated")}
-                            >
-                                {t("tasks.summaryStructured.showTranslated")}
-                            </Button>
+                            {isLangOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setIsLangOpen(false)} />
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 min-w-[140px] py-1 bg-[#1A1A1A] border border-white/10 rounded-lg shadow-xl">
+                                        {availableLocalesList.map((lang) => (
+                                            <button
+                                                key={lang}
+                                                onClick={() => {
+                                                    setSelectedLocale(lang)
+                                                    setIsLangOpen(false)
+                                                }}
+                                                className={`w-full px-3 py-2 text-left text-sm hover:bg-white/10 transition-colors flex items-center gap-2 ${selectedLocale === lang ? 'text-primary' : 'text-white/80'
+                                                    }`}
+                                            >
+                                                {selectedLocale === lang && <Check className="h-3 w-3" />}
+                                                <span className={selectedLocale === lang ? '' : 'ml-5'}>
+                                                    {getLocaleLabel(lang)}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
                         </div>
-                    ) : null}
+                    )}
 
                     <div className="absolute right-0 top-1/2 -translate-y-1/2" data-export-hide="true">
                         <SummaryShareButton
@@ -892,16 +939,18 @@ function TaskProgress({
 }
 
 function MindMapSection({
-    summary,
-    summarySource,
+    outputs,
     t,
     locale,
 }: {
-    summary?: Output
-    summarySource?: Output
+    outputs: Output[]
     t: (key: string, vars?: Record<string, string | number>) => string
     locale: string
 }) {
+    // Get all available summary outputs (both summary and summary_source)
+    const summaryOutputs = outputs.filter(o => o.kind === 'summary' && o.status === 'completed')
+    const summarySource = outputs.find(o => o.kind === 'summary_source' && o.status === 'completed')
+
     // Parse structured summary
     const parseSummary = (output?: Output) => {
         if (!output?.content) return null
@@ -916,23 +965,52 @@ function MindMapSection({
         }
     }
 
-    const translatedParsed = parseSummary(summary)
-    const sourceParsed = parseSummary(summarySource)
+    // Build available locales map: key -> { output, parsed }
+    // Key is the language code from content (e.g., 'en', 'zh') to deduplicate
+    const availableLocales = useMemo(() => {
+        const map = new Map<string, { output: Output; parsed: StructuredSummaryV1; isSource?: boolean }>()
 
-    // Check if languages are the same
-    const isSameLanguage = (() => {
-        if (!translatedParsed || !sourceParsed) return false
-        const lang1 = (translatedParsed.language || "").toLowerCase()
-        const lang2 = (sourceParsed.language || "").toLowerCase()
-        return lang1 === lang2
-    })()
+        // Add summary_source first (so translations can override if same language)
+        if (summarySource) {
+            const parsed = parseSummary(summarySource)
+            if (parsed) {
+                const lang = (parsed.language || 'source').toLowerCase()
+                map.set(lang, { output: summarySource, parsed, isSource: true })
+            }
+        }
 
-    // Use translated version preferentially, fallback to source
-    const hasSource = Boolean(summarySource && summarySource.status === "completed" && sourceParsed)
-    const parsed = translatedParsed || (hasSource && !isSameLanguage ? sourceParsed : null)
+        // Add all translated summaries by their content language (not locale)
+        // This will override source if they have the same language
+        for (const output of summaryOutputs) {
+            const parsed = parseSummary(output)
+            if (parsed) {
+                const lang = (parsed.language || output.locale || 'unknown').toLowerCase()
+                // Only add if we don't have this language yet, or prefer translated over source
+                if (!map.has(lang) || map.get(lang)?.isSource) {
+                    map.set(lang, { output, parsed })
+                }
+            }
+        }
+
+        return map
+    }, [summaryOutputs, summarySource])
+
+    // Determine initial locale: prefer user's current locale, then 'en', then first available
+    const initialLocale = useMemo(() => {
+        if (availableLocales.has(locale)) return locale
+        if (availableLocales.has('en')) return 'en'
+        const keys = Array.from(availableLocales.keys())
+        return keys[0] || 'source'
+    }, [availableLocales, locale])
+
+    const [selectedLocale, setSelectedLocale] = useState<string>(initialLocale)
+    const [isOpen, setIsOpen] = useState(false)
+
+    // Get current selection
+    const current = availableLocales.get(selectedLocale) || availableLocales.get(initialLocale)
+    const parsed = current?.parsed || null
 
     // Convert summary to MindMap node structure
-    // Structure: Overview (root) -> Keypoints -> Evidence
     const mindMapData: MindMapNode | null = parsed ? {
         content: parsed.overview,
         children: parsed.keypoints
@@ -943,8 +1021,11 @@ function MindMapSection({
             }))
     } : null
 
+    // Get any summary for status check
+    const anySummary = summaryOutputs[0] || summarySource || outputs.find(o => o.kind === 'summary')
+
     // Loading state
-    if (!summary) {
+    if (!anySummary) {
         return (
             <Card className="bg-black/20 border-white/5 min-h-[500px] flex items-center justify-center">
                 <CardContent className="text-center text-muted-foreground p-6 md:p-10">
@@ -960,25 +1041,25 @@ function MindMapSection({
     }
 
     // Error state
-    if (summary.status === "error") {
+    if (anySummary.status === "error") {
         return (
             <Card className="bg-red-950/20 border-red-500/30">
                 <CardContent className="p-6 flex flex-col items-center gap-4 text-red-300">
-                    <p>{t("tasks.failedToGenerate", { error: summary.error_message || "" })}</p>
+                    <p>{t("tasks.failedToGenerate", { error: anySummary.error_message || "" })}</p>
                 </CardContent>
             </Card>
         )
     }
 
     // Processing state
-    if (summary.status === "processing" || summary.status === "pending") {
+    if (anySummary.status === "processing" || anySummary.status === "pending") {
         return (
             <Card className="bg-black/20 border-white/5 min-h-[500px] flex items-center justify-center">
                 <CardContent className="p-6 md:p-10 text-center space-y-4">
                     <div className="flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
                     <div>
                         <p className="font-medium text-foreground">{t("tasks.generatingContent")}</p>
-                        <p className="text-sm text-muted-foreground mt-1">{t("tasks.percentComplete", { percent: summary.progress })}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{t("tasks.percentComplete", { percent: anySummary.progress })}</p>
                     </div>
                 </CardContent>
             </Card>
@@ -997,5 +1078,61 @@ function MindMapSection({
         )
     }
 
-    return <MindMap data={mindMapData} />
+    // Get display label for a locale - use native language names for universal recognition
+    const getLocaleLabel = (lang: string) => {
+        if (lang in LOCALE_LABEL) {
+            return LOCALE_LABEL[lang as Locale]
+        }
+        // Fallback to uppercase locale code
+        return lang.toUpperCase()
+    }
+
+    const availableLocalesList = Array.from(availableLocales.keys())
+    const showLanguageSelector = availableLocalesList.length > 1
+
+    return (
+        <div className="space-y-4">
+            {/* Language selector */}
+            {showLanguageSelector && (
+                <div className="flex justify-center">
+                    <div className="relative">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsOpen(!isOpen)}
+                            className="gap-2 h-8 px-3 bg-black/30 border-white/10 hover:bg-black/50 hover:border-white/20"
+                        >
+                            <Languages className="h-4 w-4" />
+                            <span>{getLocaleLabel(selectedLocale)}</span>
+                            <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                        </Button>
+                        {isOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 min-w-[140px] py-1 bg-[#1A1A1A] border border-white/10 rounded-lg shadow-xl">
+                                    {availableLocalesList.map((loc) => (
+                                        <button
+                                            key={loc}
+                                            onClick={() => {
+                                                setSelectedLocale(loc)
+                                                setIsOpen(false)
+                                            }}
+                                            className={`w-full px-3 py-2 text-left text-sm hover:bg-white/10 transition-colors flex items-center gap-2 ${selectedLocale === loc ? 'text-primary' : 'text-white/80'
+                                                }`}
+                                        >
+                                            {selectedLocale === loc && <Check className="h-3 w-3" />}
+                                            <span className={selectedLocale === loc ? '' : 'ml-5'}>
+                                                {getLocaleLabel(loc)}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+            <MindMap key={selectedLocale} data={mindMapData} />
+        </div>
+    )
 }

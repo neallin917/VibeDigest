@@ -212,10 +212,10 @@ const messages: Record<Locale, Messages> = {
       },
       topup: {
         title: "Top Up",
-        price: "$2.99",
+        price: "$4.99",
         desc: "Pay as you go, one-time payment",
         features: {
-          f1: "20 videos per pack",
+          f1: "50 videos per pack",
           f2: "Never expires",
           f3: "Use alongside any plan"
         },
@@ -600,10 +600,10 @@ const messages: Record<Locale, Messages> = {
       },
       topup: {
         title: "充值包",
-        price: "$2.99",
+        price: "$4.99",
         desc: "即付即用，一次性付费",
         features: {
-          f1: "每包 20 个视频",
+          f1: "每包 50 个视频",
           f2: "永久有效",
           f3: "可搭配任意方案使用"
         },
@@ -972,10 +972,10 @@ const messages: Record<Locale, Messages> = {
       },
       topup: {
         title: "Recarga",
-        price: "$2.99",
+        price: "$4.99",
         desc: "Paga lo que usas, pago único",
         features: {
-          f1: "20 videos por paquete",
+          f1: "50 videos por paquete",
           f2: "Nunca caduca",
           f3: "Úsalo junto con cualquier plan"
         },
@@ -2361,10 +2361,10 @@ const messages: Record<Locale, Messages> = {
       },
       topup: {
         title: "チャージ",
-        price: "$2.99",
+        price: "$4.99",
         desc: "必要な分だけ購入（買い切り）",
         features: {
-          f1: "1パック20本分",
+          f1: "1パック50本分",
           f2: "有効期限なし",
           f3: "どのプランでも併用可能"
         },
@@ -2626,10 +2626,10 @@ const messages: Record<Locale, Messages> = {
       },
       topup: {
         title: "충전",
-        price: "$2.99",
+        price: "$4.99",
         desc: "필요한 만큼 구매 (일회성 결제)",
         features: {
-          f1: "팩당 동영상 20개",
+          f1: "팩당 동영상 50개",
           f2: "만료 없음",
           f3: "모든 요금제와 함께 사용 가능"
         },
