@@ -471,6 +471,27 @@ function SummarySection({
         digest: "📝 摘要",
     }
 
+    // Determine dynamic keypoints title
+    const keypointsTitle = useMemo(() => {
+        const structure = classification?.info_structure
+        if (!structure) return t("tasks.summaryStructured.keypointsTitle")
+
+        const keyMap: Record<string, string> = {
+            sequential: "tasks.summaryStructured.sequentialTitle",
+            argumentative: "tasks.summaryStructured.argumentativeTitle",
+            comparative: "tasks.summaryStructured.comparativeTitle",
+            hierarchical: "tasks.summaryStructured.hierarchicalTitle",
+            narrative_arc: "tasks.summaryStructured.narrativeArcTitle",
+            thematic: "tasks.summaryStructured.thematicTitle",
+            qa_format: "tasks.summaryStructured.qaFormatTitle",
+            data_driven: "tasks.summaryStructured.dataDrivenTitle"
+        }
+
+        const key = keyMap[structure]
+        // Fallback to default if structure matches nothing or translation logic needs safety
+        return key ? t(key) : t("tasks.summaryStructured.keypointsTitle")
+    }, [classification, t])
+
     // Get native language label
     const getLocaleLabel = (lang: string) => {
         if (lang in LOCALE_LABEL) {
@@ -559,6 +580,8 @@ function SummarySection({
 
     const hasAnyAnchors = parsed.keypoints.some((kp) => typeof kp.startSeconds === "number" && Number.isFinite(kp.startSeconds))
 
+
+
     return (
         <Card ref={containerRef} className="bg-black/20 border-white/5 group">
             <CardContent className="p-3 sm:p-4 md:p-8 space-y-4 md:space-y-6">
@@ -640,6 +663,7 @@ function SummarySection({
                                     {t("tasks.summaryStructured.overviewTitle")}
                                 </h3>
                             </div>
+
                             <div className="text-base sm:text-lg leading-relaxed text-muted-foreground whitespace-pre-wrap">
                                 {parsed.overview}
                             </div>
@@ -651,7 +675,7 @@ function SummarySection({
                         <div className="flex items-center gap-3 mb-4 md:mb-6 px-1 sm:px-2">
                             <Zap className="w-5 h-5 text-primary" />
                             <h3 className="text-xl font-bold tracking-tight text-white">
-                                {t("tasks.summaryStructured.keypointsTitle")}
+                                {keypointsTitle}
                             </h3>
                         </div>
 

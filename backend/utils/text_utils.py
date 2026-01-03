@@ -190,8 +190,12 @@ def remove_timestamps_and_meta(text: str) -> str:
         if s.startswith('# '):
             # 跳过顶级标题（通常是视频标题，可在最终加回）
             continue
-        if s.startswith('**检测语言:**') or s.startswith('**语言概率:**'):
+        
+        # Robust metadata check
+        # Matches: **检测语言:**, **检测语言: zh**, **Detected Language:**, etc.
+        if re.match(r"^\*\*?(检测语言|语言概率|Detected Language|Language Probability)[:：]", s, flags=re.IGNORECASE):
             continue
+            
         kept.append(line)
     # 规范空行
     cleaned = '\n'.join(kept)
