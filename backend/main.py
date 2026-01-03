@@ -1,43 +1,42 @@
+import asyncio
+import datetime
+import hashlib
+import hmac
+import json
+import logging
+import os
+import shutil
+import uuid
+from pathlib import Path
+from typing import Optional, List
+from urllib.parse import urlparse, urlunparse
+
+from dotenv import load_dotenv
+
+# Load environment variables before other local imports
+env_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
+import httpx
+from coinbase_commerce.client import Client as CoinbaseClient
+from coinbase_commerce.webhook import Webhook as CoinbaseWebhook
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, BackgroundTasks, Depends, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-import os
-import asyncio
-import datetime
-import logging
-from pathlib import Path
-from typing import Optional, List
-import uuid
-import json
-import shutil
-from urllib.parse import urlparse
-from urllib.parse import urlunparse
-from dotenv import load_dotenv
-import httpx
-import hmac
-import hashlib
-from coinbase_commerce.client import Client as CoinbaseClient
-from coinbase_commerce.webhook import Webhook as CoinbaseWebhook
+from pydantic import BaseModel
+import sentry_sdk
 
-# Load environment variables
-# Load environment variables
-env_path = Path(__file__).parent / ".env"
-load_dotenv(dotenv_path=env_path)
-
-from video_processor import VideoProcessor
-from transcriber import Transcriber
-from transcriber import format_markdown_from_raw_segments
-from summarizer import Summarizer
-from translator import Translator
-
+from config import settings
 from db_client import DBClient
 from notifier import Notifier
 from supadata_client import SupadataClient
+from summarizer import Summarizer
+from transcriber import Transcriber, format_markdown_from_raw_segments
+from translator import Translator
+from video_processor import VideoProcessor
 from utils.url import normalize_video_url
-from pydantic import BaseModel
-from config import settings
-import sentry_sdk
 
 # Langfuse V3 setup moved to Background Workers section below
 
@@ -86,6 +85,7 @@ TEMP_DIR = PROJECT_ROOT / "temp"
 TEMP_DIR.mkdir(exist_ok=True)
 
 # Initialize Processors
+# These instances are created once at startup and reused across requests.
 video_processor = VideoProcessor()
 transcriber = Transcriber()
 summarizer = Summarizer()
@@ -616,14 +616,14 @@ async def _execute_pipeline_core(task_id: str, video_url: str, summary_lang: str
         # Update Task Status
         db_client.update_task_status(task_id, status="processing", progress=10)
 
-        # Try yt-dlp subtitles first (Free & Fast)
-
-    
+        # Step 2: Obtain Transcript (Supadata -> Local Whisper fallback)
+        logger.info(f"Task {task_id}: Processing transcript for {video_url}")
+        
         # Simple heuristic to prioritize Supadata for YouTube
         is_youtube = "youtube.com" in video_url or "youtu.be" in video_url
     
         if is_youtube:
-            # 1. Try Supadata (Official/High Quality)
+            # Attempt fetching from Supadata (fast & high quality)
             try:
                 # 30% progress for "Fetching Transcript"
                 db_client.update_task_status(task_id, status="processing", progress=20)
