@@ -586,43 +586,54 @@ function SummarySection({
         <Card ref={containerRef} className="bg-black/20 border-white/5 group">
             <CardContent className="p-3 sm:p-4 md:p-8 space-y-4 md:space-y-6">
                 <div className="relative flex items-center justify-center min-h-[32px] mb-2 md:mb-4">
-                    {showLanguageSelector && (
-                        <div className="relative">
-                            <Button
+                    <div className="flex flex-1 items-center justify-center gap-3">
+                        {classification && (
+                            <Badge
                                 variant="outline"
-                                size="sm"
-                                onClick={() => setIsLangOpen(!isLangOpen)}
-                                className="gap-2 h-8 px-3 bg-black/30 border-white/10 hover:bg-black/50 hover:border-white/20"
+                                className="px-3 py-1 text-xs font-normal border bg-blue-500/10 text-blue-400 border-blue-500/20"
                             >
-                                <Languages className="h-4 w-4" />
-                                <span>{getLocaleLabel(selectedLocale)}</span>
-                                <ChevronDown className={`h-3 w-3 transition-transform ${isLangOpen ? 'rotate-180' : ''}`} />
-                            </Button>
-                            {isLangOpen && (
-                                <>
-                                    <div className="fixed inset-0 z-40" onClick={() => setIsLangOpen(false)} />
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 min-w-[140px] py-1 bg-[#1A1A1A] border border-white/10 rounded-lg shadow-xl">
-                                        {availableLocalesList.map((lang) => (
-                                            <button
-                                                key={lang}
-                                                onClick={() => {
-                                                    setSelectedLocale(lang)
-                                                    setIsLangOpen(false)
-                                                }}
-                                                className={`w-full px-3 py-2 text-left text-sm hover:bg-white/10 transition-colors flex items-center gap-2 ${selectedLocale === lang ? 'text-primary' : 'text-white/80'
-                                                    }`}
-                                            >
-                                                {selectedLocale === lang && <Check className="h-3 w-3" />}
-                                                <span className={selectedLocale === lang ? '' : 'ml-5'}>
-                                                    {getLocaleLabel(lang)}
-                                                </span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    )}
+                                {CLS_LABELS[classification.content_form] || classification.content_form}
+                            </Badge>
+                        )}
+
+                        {showLanguageSelector && (
+                            <div className="relative">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setIsLangOpen(!isLangOpen)}
+                                    className="gap-2 h-8 px-3 bg-black/30 border-white/10 hover:bg-black/50 hover:border-white/20"
+                                >
+                                    <Languages className="h-4 w-4" />
+                                    <span>{getLocaleLabel(selectedLocale)}</span>
+                                    <ChevronDown className={`h-3 w-3 transition-transform ${isLangOpen ? 'rotate-180' : ''}`} />
+                                </Button>
+                                {isLangOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-40" onClick={() => setIsLangOpen(false)} />
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 min-w-[140px] py-1 bg-[#1A1A1A] border border-white/10 rounded-lg shadow-xl">
+                                            {availableLocalesList.map((lang) => (
+                                                <button
+                                                    key={lang}
+                                                    onClick={() => {
+                                                        setSelectedLocale(lang)
+                                                        setIsLangOpen(false)
+                                                    }}
+                                                    className={`w-full px-3 py-2 text-left text-sm hover:bg-white/10 transition-colors flex items-center gap-2 ${selectedLocale === lang ? 'text-primary' : 'text-white/80'
+                                                        }`}
+                                                >
+                                                    {selectedLocale === lang && <Check className="h-3 w-3" />}
+                                                    <span className={selectedLocale === lang ? '' : 'ml-5'}>
+                                                        {getLocaleLabel(lang)}
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
 
                     <div className="absolute right-0 top-1/2 -translate-y-1/2" data-export-hide="true">
                         <SummaryShareButton
@@ -634,24 +645,6 @@ function SummarySection({
                     </div>
                 </div>
 
-                {/* Classification Tags */}
-                {classification && (
-                    <div className="flex flex-wrap justify-center gap-2 mb-2 animate-in fade-in slide-in-from-top-1 duration-500">
-                        {[
-                            { key: classification.content_form, color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
-                            { key: classification.info_structure, color: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
-                            { key: classification.cognitive_goal, color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" }
-                        ].map((item, i) => (
-                            <Badge
-                                key={i}
-                                variant="outline"
-                                className={`px-2.5 py-1 text-xs font-normal border ${item.color}`}
-                            >
-                                {CLS_LABELS[item.key] || item.key}
-                            </Badge>
-                        ))}
-                    </div>
-                )}
 
                 <div className="grid gap-8">
                     {/* Overview Section */}

@@ -483,6 +483,7 @@ class VideoProcessor:
             metadata = {
                 "author": info.get("uploader") or info.get("uploader_id") or "Unknown",
                 "author_url": author_url,
+                "author_image_url": info.get("uploader_avatar") or "",
                 "description": info.get("description") or "",
                 "tags": info.get("tags") or [],
                 "categories": info.get("categories") or [],

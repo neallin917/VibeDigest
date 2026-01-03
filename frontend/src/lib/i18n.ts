@@ -157,6 +157,16 @@ const messages: Record<Locale, Messages> = {
       contactSupport: "Contact Support",
       helpCenter: "Help Center",
     },
+    categories: {
+      tutorial: "Tutorial",
+      interview: "Interview",
+      monologue: "Monologue",
+      news: "News",
+      review: "Review",
+      finance: "Finance",
+      narrative: "Narrative",
+      casual: "Casual",
+    },
     dashboard: {
       title: "Dashboard",
       subtitle: "Manage your video transcriptions and summaries.",
@@ -547,6 +557,16 @@ const messages: Record<Locale, Messages> = {
       feature3Title: "知识库",
       feature3Desc: "自动整理你的视频学习笔记，随时回顾。",
       footer: "由 Supabase & Next.js 驱动",
+    },
+    categories: {
+      tutorial: "教程",
+      interview: "访谈",
+      monologue: "独白",
+      news: "新闻",
+      review: "评测",
+      finance: "财经",
+      narrative: "叙事",
+      casual: "随笔",
     },
     dashboard: {
       title: "工作台",
