@@ -129,7 +129,7 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
             localStorage.removeItem("pendingTask_lang")
 
             setUrl("")
-            router.refresh()
+            // router.refresh() // Removed to speed up navigation
             if (res?.task_id) {
                 router.push(`/tasks/${res.task_id}`)
             }

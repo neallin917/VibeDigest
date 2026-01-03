@@ -1,4 +1,5 @@
 import os
+import logging
 from typing import Dict, Optional
 from pydantic import BaseModel
 
@@ -60,6 +61,10 @@ class Settings:
     # 'legacy' - Use the original generic prompt (default)
     # 'v2_classified' - Use 3-layer classification system (content_form, info_structure, cognitive_goal)
     SUMMARY_STRATEGY: str = os.getenv("SUMMARY_STRATEGY", "legacy")
+
+    def __init__(self):
+        # Log strategy on init to confirm loading
+        logging.info(f"Config Loaded. SUMMARY_STRATEGY='{self.SUMMARY_STRATEGY}'")
 
     # Pricing / Plans (Creem Product IDs)
     PRICES: Dict[str, PriceConfig] = {

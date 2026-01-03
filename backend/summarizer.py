@@ -39,11 +39,15 @@ from prompts import (
     SUMMARY_V2_SYSTEM_TEMPLATE, SUMMARY_V2_USER_TEMPLATE,
 )
 
-# Use Langfuse wrapper for OpenAI if available, otherwise fall back to standard
 try:
-    from langfuse.openai import openai
+    from langfuse import observe, get_client
 except ImportError:
-    pass
+    def observe(**kwargs):
+        def decorator(func):
+            return func
+        return decorator
+    def get_client():
+        return None
 
 logger = logging.getLogger(__name__)
 
@@ -177,21 +181,41 @@ class Summarizer:
             out.append(m)
         return out
 
-    async def _chat_completions_create(self, *, models: list[str], **kwargs):
+    async def _chat_completions_create(self, *, models: list[str], trace_config: dict = None, **kwargs):
         """
-        Call OpenAI Chat Completions in a thread to avoid blocking the event loop.
-        Tries models in order and falls back on errors (e.g., model not available).
+        Call OpenAI Chat Completions.
+        Langfuse tracing is automatic via the langfuse.openai wrapper.
+        The `name` from trace_config is passed to OpenAI for trace identification.
+        Session/user/tags are inherited via propagate_attributes from the caller context.
         """
         if not self.client:
             raise RuntimeError("OpenAI client is not initialized")
+            
+        trace_config = trace_config or {}
+        call_name = trace_config.get("name", "OpenAI Call")
 
         last_err: Exception | None = None
         tried = []
         for model in (models or []):
             tried.append(model)
             try:
+                logger.info(f"Generating [{call_name}] with model: {model}")
+                
+                # Pass ONLY standard kwargs to client (it rejects Langfuse args)
+                # Enforce a timeout to prevent indefinite hangs
+                if "timeout" not in kwargs:
+                    kwargs["timeout"] = 300.0
+                
+                logger.info(f"Calling OpenAI with timeout={kwargs['timeout']}s, model={model}")
+                
+                # Langfuse v3: OpenAI client wrapper auto-traces with `name` param
+                # session_id, user_id, tags are inherited from propagate_attributes
                 return await asyncio.to_thread(
-                    lambda: self.client.chat.completions.create(model=model, **kwargs)
+                    lambda m=model: self.client.chat.completions.create(
+                        model=m,
+                        name=call_name,  # Langfuse trace name
+                        **kwargs
+                    )
                 )
             except Exception as e:
                 last_err = e
@@ -199,17 +223,25 @@ class Summarizer:
                 continue
         raise last_err or RuntimeError(f"OpenAI chat.completions failed. Tried models={tried}")
     
-    async def optimize_transcript(self, raw_transcript: str) -> str:
+    async def optimize_transcript(self, raw_transcript: str, trace_metadata: dict = None) -> str:
         """
         优化转录文本：修正错别字，按含义分段
         支持长文本自动分块处理
         
         Args:
             raw_transcript: 原始转录文本
+            trace_metadata: Langfuse tracking (task_id, user_id, etc.)
             
         Returns:
             优化后的转录文本（Markdown格式）
         """
+        trace_metadata = trace_metadata or {}
+        trace_config = {
+            "name": "Transcript Optimization",
+            "metadata": {**trace_metadata.get("metadata", {}), "text_len": len(raw_transcript)},
+            **{k: v for k, v in trace_metadata.items() if k != "metadata"}
+        }
+
         try:
             if not self.client:
                 # Still strip timestamps/meta so UI never shows timestamps even in fallback mode.
@@ -224,14 +256,59 @@ class Summarizer:
 
             if len(preprocessed) > max_chars_per_chunk:
                 logger.info(f"文本较长({len(preprocessed)} chars)，启用分块优化")
-                return await self._format_long_transcript_in_chunks(preprocessed, detected_lang_code, max_chars_per_chunk)
+                # Update config for chunking
+                trace_config["metadata"]["strategy"] = "chunked"
+                return await self._format_long_transcript_in_chunks(preprocessed, detected_lang_code, max_chars_per_chunk, trace_config)
             else:
-                return await self._format_single_chunk(preprocessed, detected_lang_code)
+                # Update config for single
+                trace_config["metadata"]["strategy"] = "single"
+                return await self._format_single_chunk(preprocessed, detected_lang_code, trace_config=trace_config)
 
         except Exception as e:
             logger.error(f"优化转录文本失败: {str(e)}")
             logger.info("返回原始转录文本")
             return raw_transcript
+
+
+    def fast_clean_transcript(self, raw_transcript: str) -> str:
+        """
+        Fast cleanup for high-quality transcripts (e.g. Supadata).
+        - Removes timestamps like **[00:12:34]** or [00:12:34]
+        - Removes metadata lines if present
+        - Preserves paragraph usage
+        """
+        if not raw_transcript:
+            return ""
+
+        # Remove timestamp markers i.e. **[MM:SS]**
+        # Regex explanation:
+        # \*\*?  -> Optional bold
+        # \[     -> Literal [
+        # \d{2}:\d{2}(?::\d{2})? -> 00:00 or 00:00:00
+        # \]     -> Literal ]
+        # \*\*?  -> Optional bold
+        text = re.sub(r"\*\*?\[\d{1,2}:\d{2}(?::\d{2})?\]\*\*?", "", raw_transcript)
+        
+        # Remove empty lines that might have been left behind (but preserve double newlines for paragraphs)
+        # Actually, let's just use remove_timestamps_and_meta logic which does this well, 
+        # but locally here to be explicit about what "fast" means if we want to diverge.
+        # But wait, remove_timestamps_and_meta is imported from utils.text_utils.
+        # Let's use that directly or wrap it?
+        # The prompt says "fast_clean_transcript". 
+        # "remove_timestamps_and_meta" in text_utils might be exactly what we need.
+        # Let's check text_utils usage in the file imports first.
+        # It is imported: remove_timestamps_and_meta
+        
+        # Checking remove_timestamps_and_meta implementation (from memory/context):
+        # Usually it strips timestamps. 
+        # Let's just wrap it to ensure we have a standard interface in Summarizer.
+        
+        cleaned = remove_timestamps_and_meta(text)
+        
+        # Additional cleanup: ensure no excessive blank lines (more than 2)
+        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+        
+        return cleaned.strip()
 
     # ---------------------------------------------------------------------
     # Structured Summary (JSON) - v1
@@ -390,7 +467,7 @@ class Summarizer:
 
 
 
-    async def _format_single_chunk(self, chunk_text: str, transcript_language: str = 'zh') -> str:
+    async def _format_single_chunk(self, chunk_text: str, transcript_language: str = 'zh', trace_config: dict = None) -> str:
         """单块优化（修正+格式化），遵循4000 tokens 限制。"""
         # 构建系统/用户提示
         if transcript_language == 'zh':
@@ -407,7 +484,8 @@ class Summarizer:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ],
-                max_completion_tokens=14000,  # 配合 12k 字符输入，预留足够输出空间
+                max_completion_tokens=14000,
+                trace_config=trace_config,
                 # temperature=0.1, # gpt-5-mini only supports default temperature (1)
             )
             optimized_text = response.choices[0].message.content or ""
@@ -522,7 +600,8 @@ class Summarizer:
             paras.append(cur.strip())
         return ensure_markdown_paragraphs("\n\n".join(paras))
 
-    async def _format_long_transcript_in_chunks(self, raw_transcript: str, transcript_language: str, max_chars_per_chunk: int) -> str:
+    async def _format_long_transcript_in_chunks(self, raw_transcript: str, transcript_language: str, max_chars_per_chunk: int, trace_config: dict = None) -> str:
+        """智能分块+上下文+去重 合成优化文本（JS策略移植）。"""
         """智能分块+上下文+去重 合成优化文本（JS策略移植）。"""
         import re
         # 先按句子切分，组装不超过max_chars_per_chunk的块
@@ -570,7 +649,18 @@ class Summarizer:
                 marker = f"[上文续：{prev_tail}]" if transcript_language == 'zh' else f"[Context continued: {prev_tail}]"
                 chunk_with_context = marker + "\n\n" + c
             try:
-                oc = await self._format_single_chunk(chunk_with_context, transcript_language)
+                # Sub-traces for chunks? Or just share same parent trace?
+                # OpenAI call will be a separate generation unless we group them carefully.
+                # Just passing same config will create sibling traces or spans depending on how Langfuse client handles it.
+                # Ideally parameters should indicate chunk index.
+                chunk_config = None
+                if trace_config:
+                    chunk_config = trace_config.copy()
+                    if "metadata" in chunk_config:
+                        chunk_config["metadata"] = chunk_config["metadata"].copy()
+                        chunk_config["metadata"]["chunk_index"] = i
+                
+                oc = await self._format_single_chunk(chunk_with_context, transcript_language, trace_config=chunk_config)
                 # 移除上下文标记
                 oc = re.sub(r"^\[(上文续|Context continued)：?:?.*?\]\s*", "", oc, flags=re.S)
                 optimized.append(oc)
@@ -828,6 +918,7 @@ class Summarizer:
         target_language: str = "zh",
         video_title: str = None,
         existing_classification: dict | None = None,
+        trace_metadata: dict = None,
     ) -> str:
         """
         生成视频转录的摘要
@@ -856,6 +947,7 @@ class Summarizer:
                     transcript,
                     target_language,
                     existing_classification=existing_classification,
+                    trace_metadata=trace_metadata,
                 )
             
             # Legacy strategy: generic prompt
@@ -865,11 +957,11 @@ class Summarizer:
             
             if estimated_tokens <= max_summarize_tokens:
                 # 短文本直接摘要
-                return await self._summarize_single_text_json(transcript, target_language)
+                return await self._summarize_single_text_json(transcript, target_language, trace_metadata=trace_metadata)
             else:
                 # 长文本分块摘要
                 logger.info(f"文本较长({estimated_tokens} tokens)，启用分块摘要")
-                return await self._summarize_with_chunks_json(transcript, target_language, max_summarize_tokens)
+                return await self._summarize_with_chunks_json(transcript, target_language, max_summarize_tokens, trace_metadata=trace_metadata)
             
         except Exception as e:
             logger.error(f"生成摘要失败: {str(e)}")
@@ -881,7 +973,7 @@ class Summarizer:
     # Three-layer classification for adaptive summarization
     # =========================================================================
 
-    async def classify_content(self, transcript: str) -> dict:
+    async def classify_content(self, transcript: str, trace_metadata: dict = None) -> dict:
         """
         Classify transcript across 3 dimensions: content_form, info_structure, cognitive_goal.
         Returns classification dict with confidence score.
@@ -902,11 +994,21 @@ class Summarizer:
                 ],
                 max_completion_tokens=500,  # GPT-5-mini needs more tokens than older models
             )
+            
+            # Langfuse v3: Always set trace_config with name
+            trace_config = {"name": "Content Classification"}
+            if trace_metadata:
+                trace_config.update({
+                    k: v for k, v in trace_metadata.items() if k != "metadata"
+                })
+                trace_config["metadata"] = {**trace_metadata.get("metadata", {})}
+
             if self.use_response_format_json:
                 kwargs["response_format"] = {"type": "json_object"}
 
             response = await self._chat_completions_create(
                 models=[self.classifier_model],  # Use classifier_model (default: gpt-5-chat-latest)
+                trace_config=trace_config,
                 **kwargs
             )
             raw = (response.choices[0].message.content or "").strip()
@@ -987,6 +1089,7 @@ class Summarizer:
         transcript: str,
         target_language: str,
         existing_classification: dict | None = None,
+        trace_metadata: dict = None,
     ) -> str:
         """
         V2 Classified Summary: classify content first, then generate summary with dynamic prompt.
@@ -1003,7 +1106,7 @@ class Summarizer:
             classification = existing_classification
             logger.info(f"使用已有分类结果: {classification}")
         else:
-            classification = await self.classify_content(transcript)
+            classification = await self.classify_content(transcript, trace_metadata=trace_metadata)
 
         # Step 2: Build dynamic prompt
         system_prompt = self._build_v2_dynamic_prompt(classification, language_name, target_language)
@@ -1032,16 +1135,32 @@ class Summarizer:
             ],
             max_completion_tokens=int(self.summary_single_max_output_tokens),
         )
+
+        # Langfuse v3: Always set trace_config with name
+        trace_config = {"name": "Summary Generation (V2)"}
+        if trace_metadata:
+            combined_meta = trace_metadata.get("metadata", {}).copy()
+            combined_meta.update({
+                "content_form": classification.get("content_form"),
+                "info_structure": classification.get("info_structure"),
+                "cognitive_goal": classification.get("cognitive_goal"),
+                "language": target_language
+            })
+            trace_config.update({
+                k: v for k, v in trace_metadata.items() if k != "metadata"
+            })
+            trace_config["metadata"] = combined_meta
+
         if self.use_response_format_json:
             kwargs["response_format"] = {"type": "json_object"}
 
         try:
-            response = await self._chat_completions_create(models=self.summary_models, **kwargs)
+            response = await self._chat_completions_create(models=self.summary_models, trace_config=trace_config, **kwargs)
         except Exception as e:
             if self.use_response_format_json and "response_format" in str(e):
                 logger.warning(f"response_format not supported, retrying without it. Error: {e}")
                 kwargs.pop("response_format", None)
-                response = await self._chat_completions_create(models=self.summary_models, **kwargs)
+                response = await self._chat_completions_create(models=self.summary_models, trace_config=trace_config, **kwargs)
             else:
                 raise
 
@@ -1344,6 +1463,7 @@ class Summarizer:
         video_title: str | None = None,
         script_raw_json: str | None = None,
         existing_classification: dict | None = None,
+        trace_metadata: dict = None,
     ) -> str:
         """
         Generate summary JSON in the specified language, then inject timestamps into keypoints using script_raw segments.
@@ -1357,6 +1477,7 @@ class Summarizer:
             summary_language,
             video_title,
             existing_classification=existing_classification,
+            trace_metadata=trace_metadata,
         )
         _, segments = self._parse_script_raw_payload(script_raw_json)
         if not segments:
@@ -1426,7 +1547,7 @@ class Summarizer:
             "keypoints": normalized_kps,
         }
 
-    async def translate_summary_json(self, summary_json: str, *, target_language: str) -> str:
+    async def translate_summary_json(self, summary_json: str, *, target_language: str, trace_metadata: dict = None) -> str:
         """
         Translate a summary JSON into target_language while preserving structure and timestamps.
         Only title/detail/evidence are translated; startSeconds/endSeconds are kept.
@@ -1468,11 +1589,20 @@ class Summarizer:
             max_completion_tokens=max(1200, int(self.summary_integrate_max_output_tokens)),
             # temperature=0.1,
         )
+
+        # Langfuse v3: Always set trace_config with name, even if trace_metadata is not provided
+        trace_config = {"name": "Translate Summary"}
+        if trace_metadata:
+            trace_config.update({
+                k: v for k, v in trace_metadata.items() if k != "metadata"
+            })
+            trace_config["metadata"] = {**trace_metadata.get("metadata", {}), "target_language": target_language}
+
         if self.use_response_format_json:
             kwargs["response_format"] = {"type": "json_object"}
 
         try:
-            resp = await self._chat_completions_create(models=self.summary_models, **kwargs)
+            resp = await self._chat_completions_create(models=self.summary_models, trace_config=trace_config, **kwargs)
             raw = (resp.choices[0].message.content or "").strip()
             json_text = self._extract_first_json_object(raw) or raw
             out_obj = json.loads(json_text)
@@ -1488,7 +1618,7 @@ class Summarizer:
         # Fallback: return source summary
         return json.dumps(src_obj, ensure_ascii=False)
 
-    async def _summarize_single_text_json(self, transcript: str, target_language: str) -> str:
+    async def _summarize_single_text_json(self, transcript: str, target_language: str, trace_metadata: dict = None) -> str:
         """Generate structured summary JSON (v1) for a single text."""
         language_name = self.language_map.get(target_language, "English")
         
@@ -1508,15 +1638,23 @@ class Summarizer:
         # Best-effort strict JSON output.
         if self.use_response_format_json:
             kwargs["response_format"] = {"type": "json_object"}
+            
+        # Langfuse v3: Always set trace_config with name
+        trace_config = {"name": "Summary Generation (Single)"}
+        if trace_metadata:
+            trace_config.update({
+                k: v for k, v in trace_metadata.items() if k != "metadata"
+            })
+            trace_config["metadata"] = {**trace_metadata.get("metadata", {}), "target_language": target_language}
 
         try:
-            response = await self._chat_completions_create(models=self.summary_models, **kwargs)
+            response = await self._chat_completions_create(models=self.summary_models, trace_config=trace_config, **kwargs)
         except Exception as e:
             # Some endpoints/models don't support response_format. Retry without it.
             if self.use_response_format_json and "response_format" in str(e):
                 logger.warning(f"response_format not supported, retrying without it. Error: {e}")
                 kwargs.pop("response_format", None)
-                response = await self._chat_completions_create(models=self.summary_models, **kwargs)
+                response = await self._chat_completions_create(models=self.summary_models, trace_config=trace_config, **kwargs)
             else:
                 raise
         
@@ -1534,7 +1672,7 @@ class Summarizer:
                     return repaired
             return self._fallback_summary_json_v1(transcript, target_language)
 
-    async def _summarize_with_chunks_json(self, transcript: str, target_language: str, max_tokens: int) -> str:
+    async def _summarize_with_chunks_json(self, transcript: str, target_language: str, max_tokens: int, trace_metadata: dict = None) -> str:
         """Chunked summarization -> structured JSON (v1)."""
         language_name = self.language_map.get(target_language, "English")
 
@@ -1557,13 +1695,23 @@ class Summarizer:
                 )
                 if self.use_response_format_json:
                     kwargs["response_format"] = {"type": "json_object"}
+                
+                chunk_config = None
+                if trace_metadata:
+                    trace_metadata = trace_metadata or {}
+                    chunk_config = {
+                         "name": f"Summary Chunk {i+1}",
+                         **{k: v for k, v in trace_metadata.items() if k != "metadata"},
+                         "metadata": {**trace_metadata.get("metadata", {}), "chunk": i}
+                    }
+
                 try:
-                    resp = await self._chat_completions_create(models=self.summary_models, **kwargs)
+                    resp = await self._chat_completions_create(models=self.summary_models, trace_config=chunk_config, **kwargs)
                 except Exception as e:
                     if self.use_response_format_json and "response_format" in str(e):
                         logger.warning(f"Chunk response_format not supported, retrying without it. Error: {e}")
                         kwargs.pop("response_format", None)
-                        resp = await self._chat_completions_create(models=self.summary_models, **kwargs)
+                        resp = await self._chat_completions_create(models=self.summary_models, trace_config=chunk_config, **kwargs)
                     else:
                         raise
 

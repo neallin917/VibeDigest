@@ -22,7 +22,8 @@ from coinbase_commerce.webhook import Webhook as CoinbaseWebhook
 
 # Load environment variables
 # Load environment variables
-load_dotenv()
+env_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=env_path)
 
 from video_processor import VideoProcessor
 from transcriber import Transcriber
@@ -37,6 +38,13 @@ from utils.url import normalize_video_url
 from pydantic import BaseModel
 from config import settings
 import sentry_sdk
+
+# Langfuse V3
+try:
+    from langfuse import get_client
+except ImportError:
+    def get_client():
+        return None
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
@@ -53,14 +61,12 @@ app = FastAPI(title="VibeDigest API (v2)", version="2.0.0")
 
 @app.on_event("shutdown")
 def shutdown_event():
-    # Flush Langfuse events if available
+    # Flush Langfuse events (v3 SDK)
     try:
-        if hasattr(langfuse_context, "flush"):
-            langfuse_context.flush()
-        # Fallback if using raw SDK
-        import langfuse
-        if hasattr(langfuse, "flush"):
-            langfuse.flush()
+        from langfuse import get_client
+        lf = get_client()
+        if lf:
+            lf.flush()
     except:
         pass
 
@@ -136,15 +142,15 @@ async def process_video(
     background_tasks: BackgroundTasks,
     video_url: str = Form(...),
     summary_language: str = Form(default="zh"),
-
     user_id: str = Depends(get_current_user)
 ):
     """
-    Start a new video processing task.
-    Creates 1 Task + N Outputs (Script, Summary, [Translations...]).
+    Start a new video processing task (Optimized for low latency).
+    1. Check Quota.
+    2. Create Task.
+    3. Offload all logic (cache check, output creation, processing) to background.
     """
     # Normalize URL if scheme is missing
-    # We use our robust utility now
     video_url = normalize_video_url(video_url)
 
     # 0. Check Quota / Credits
@@ -155,109 +161,12 @@ async def process_video(
         # 1. Create Task (Always create a new container)
         task = db_client.create_task(user_id=user_id, video_url=video_url)
         task_id = task['id']
-        logger.info(f"Created task {task_id} for user {user_id}")
-
-        # 2. Check for Existing Task (Deduplication / Cache Warmup)
-        existing_task = db_client.find_latest_completed_task_by_url(video_url)
+        logger.info(f"Created task {task_id} for user {user_id}. Queuing background pipeline...")
         
-        cached_script_found = False
-        cached_summary_found = False
-        
-        if existing_task:
-            logger.info(f"Cache hit: {video_url} found in task {existing_task['id']}")
-            # Copy Title & Thumbnail
-            db_client.update_task_status(
-                task_id, 
-                video_title=existing_task.get('video_title'), 
-                thumbnail_url=existing_task.get('thumbnail_url')
-            )
-            
-            existing_outputs = db_client.get_task_outputs(existing_task['id'])
-            
-            for out in existing_outputs:
-                if out.get("status") != "completed":
-                    continue
-                
-                k = out.get("kind")
-                val = out.get("content")
-                loc = out.get("locale")
-                
-                # Reusable outputs that are language-agnostic (or source-specific)
-                if k in ["script", "script_raw", "summary_source", "audio"]:
-                    try:
-                        db_client.create_completed_task_output(task_id, user_id, k, val, locale=loc)
-                        if k == "script":
-                            cached_script_found = True
-                    except Exception as e:
-                        logger.warning(f"Failed to copy output {k}: {e}")
+        # 2. Start Background Processing (pass user_id for output creation)
+        background_tasks.add_task(run_pipeline, task_id, video_url, summary_language, user_id)
 
-                # Copy summary if it matches requested language
-                if k == "summary":
-                    # If requested summary_language matches the cached one
-                    # Note: locale might be None in DB or empty string?
-                    cached_locale = (loc or "zh").lower()
-                    requested_locale = (summary_language or "zh").lower()
-                    
-                    if cached_locale == requested_locale:
-                        try:
-                            db_client.create_completed_task_output(task_id, user_id, k, val, locale=loc)
-                            cached_summary_found = True
-                        except Exception as e:
-                            logger.warning(f"Failed to copy match summary: {e}")
-
-        # 3. Create MISSING Outputs (Pending)
-        # Verify what we have now
-        outputs = [] # needed for variable scope?
-        
-        # Audio Output (if needed and not copied)
-        # We check if audio kind already exists for this task
-        current_outputs = db_client.get_task_outputs(task_id)
-        existing_kinds = set(o['kind'] for o in current_outputs)
-
-        # Helper to create if missing
-        def ensure_output(kind, locale=None):
-            if kind == "summary" and cached_summary_found:
-                 return # Already copied exact match
-            if kind in existing_kinds and kind != "summary": # Logic for summary is special (locale)
-                 return
-            # For summary, if we didn't mark cached_summary_found, we need to create it.
-            # But wait, existing_kinds check might see 'summary' if we copied it.
-            # If we didn't copy it, it won't be in existing_kinds.
-            
-            if kind not in existing_kinds:
-                 db_client.create_task_output(task_id, user_id, kind=kind, locale=locale)
-
-        # Audio Logic
-        host = urlparse(video_url).hostname or ""
-        host = host.replace("www.", "")
-        if (host.endswith("xiaoyuzhoufm.com") or host.endswith("apple.com")) and "audio" not in existing_kinds:
-             ensure_output("audio")
-
-        ensure_output("script")
-        ensure_output("script_raw")
-        ensure_output("summary_source")
-        
-        # Classification output (only for v2_classified strategy)
-        if settings.SUMMARY_STRATEGY == "v2_classified":
-            ensure_output("classification")
-
-        # Summary output (requested language)
-        # Check if we already have a summary output with correct locale in current_outputs
-        has_correct_summary = any(o['kind'] == 'summary' and str(o.get('locale')).lower() == str(summary_language).lower() for o in current_outputs)
-        if not has_correct_summary:
-             db_client.create_task_output(task_id, user_id, kind="summary", locale=summary_language)
-
-        # 4. Start Background Processing
-        # If everything was cached (script + summary), run_pipeline will finish instantly.
-        background_tasks.add_task(run_pipeline, task_id, video_url, summary_language)
-
-        msg = "Task started"
-        if cached_script_found and cached_summary_found:
-             msg = "Task completed (cached)"
-        elif cached_script_found:
-             msg = "Task started (Transcript cached)"
-
-        return {"task_id": task_id, "message": msg}
+        return {"task_id": task_id, "message": "Task started"}
 
     except Exception as e:
         logger.error(f"Error creating task: {e}")
@@ -528,15 +437,16 @@ async def coinbase_webhook(request: Request):
 # Background Workers
 # -------------------------------------------------------------------------
 
-# Langfuse Decorator
+# Langfuse V3: propagate_attributes for automatic trace context
 try:
-    from langfuse.decorators import observe, langfuse_context
+    from langfuse import get_client as get_langfuse_client, propagate_attributes
 except ImportError:
-    def observe(**kwargs):
-        def decorator(func):
-            return func
-        return decorator
-    langfuse_context = None
+    def get_langfuse_client():
+        return None
+    from contextlib import contextmanager
+    @contextmanager
+    def propagate_attributes(**kwargs):
+        yield
 
 # Concurrency Control
 # Limit concurrent heavy processing tasks to avoid OOM/CPU saturation.
@@ -544,59 +454,168 @@ except ImportError:
 MAX_CONCURRENT_JOBS = 4
 processing_limiter = asyncio.Semaphore(MAX_CONCURRENT_JOBS)
 
-@observe(name="video-processing-pipeline")
-async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
+async def run_pipeline(task_id: str, video_url: str, summary_lang: str, user_id: str):
     """
     Main orchestration pipeline.
     Wrapped in a Semaphore to limit concurrency.
+    Uses Langfuse propagate_attributes for automatic trace context propagation.
     """
+    from contextlib import nullcontext
+    
     async with processing_limiter:
         logger.info(f"Task {task_id} acquiring execution slot... (Active: {MAX_CONCURRENT_JOBS - processing_limiter._value})")
         
-        # 0. Initial State & Cache Check
-        task_record = db_client.get_task(task_id)
-        outputs = db_client.get_task_outputs(task_id)
-        
-        script_output = next((o for o in outputs if o['kind'] == 'script'), None)
-        script_raw_output = next((o for o in outputs if o['kind'] == 'script_raw'), None)
-        
-        transcript_result = None
-        video_title = task_record.get("video_title") or "Unknown"
-        thumbnail_url = task_record.get("thumbnail_url")
-        
-        # If script is already completed (e.g. copied from cache), we simulate a transcript result
-        # so that we skip the download/transcribe phases.
-        if script_output and script_output.get("status") == "completed" and script_output.get("content"):
-            logger.info(f"Pipeline: Detected cached script for {task_id}. Skipping download/transcribe.")
-            
-            # Reconstruct transcript_result tuple (md, raw, lang)
-            # content = optimized script. We use it as MD for simplicity in this flow, 
-            # though strictly transcript_result usually implies timestamped MD. 
-            # We will handle this in the Transcribe block.
-            content = script_output.get("content")
-            
-            raw_json_str = "{}"
-            if script_raw_output and script_raw_output.get("content"):
-                 raw_json_str = script_raw_output.get("content")
-            
-            lang = "unknown"
-            try:
-                lang = json.loads(raw_json_str).get("language", "unknown")
-            except:
-                pass
-                
-            transcript_result = (content, raw_json_str, lang)
-            
-        # 1. Download Video (or Skipped)
-        # 2. Transcribe (updates Script output)
-        # 3. Summarize (updates Summary output)
-        # 4. Translate (updates Translation outputs)
-    if langfuse_context:
-        langfuse_context.update_current_trace(
-            user_id=task_id, # Or actual user_id if we passed it
-            tags=["pipeline", "video-processing"],
-            metadata={"video_url": video_url, "task_id": task_id}
+        # Langfuse V3: Use propagate_attributes to set trace-level context
+        # All child OpenAI calls will automatically inherit session_id, user_id, tags
+        langfuse = get_langfuse_client()
+        observation_ctx = (
+            langfuse.start_as_current_observation(
+                as_type="span",
+                name="Video Processing Pipeline",
+                input={"video_url": video_url, "summary_lang": summary_lang}
+            ) if langfuse else nullcontext()
         )
+        
+        with observation_ctx:
+            with propagate_attributes(
+                session_id=str(task_id),
+                user_id=str(user_id),
+                tags=["pipeline"]
+            ):
+                # Execute the pipeline core logic
+                await _execute_pipeline_core(task_id, video_url, summary_lang, user_id)
+
+
+async def _execute_pipeline_core(task_id: str, video_url: str, summary_lang: str, user_id: str):
+    """
+    Inner pipeline execution. Called within Langfuse propagate_attributes context.
+    All OpenAI calls made here will inherit session_id, user_id, and tags automatically.
+    """
+    logger.info(f"[Pipeline Start] Task={task_id}, URL={video_url}, Lang={summary_lang}")
+    
+    try:
+         # 2. Check for Existing Task (Deduplication / Cache Warmup)
+        existing_task = db_client.find_latest_completed_task_by_url(video_url)
+        
+        cached_script_found = False
+        cached_summary_found = False
+        
+        if existing_task:
+            logger.info(f"Cache hit: {video_url} found in task {existing_task['id']}")
+            # Copy Title & Thumbnail
+            db_client.update_task_status(
+                task_id, 
+                video_title=existing_task.get('video_title'), 
+                thumbnail_url=existing_task.get('thumbnail_url')
+            )
+            
+            existing_outputs = db_client.get_task_outputs(existing_task['id'])
+            
+            for out in existing_outputs:
+                if out.get("status") != "completed":
+                    continue
+                
+                k = out.get("kind")
+                val = out.get("content")
+                loc = out.get("locale")
+                
+                # Reusable outputs that are language-agnostic (or source-specific)
+                if k in ["script", "script_raw", "summary_source", "audio"]:
+                    try:
+                        db_client.create_completed_task_output(task_id, user_id, k, val, locale=loc)
+                        if k == "script":
+                            cached_script_found = True
+                    except Exception as e:
+                        logger.warning(f"Failed to copy output {k}: {e}")
+
+                # Copy match summary
+                if k == "summary":
+                    cached_locale = (loc or "zh").lower()
+                    requested_locale = (summary_lang or "zh").lower()
+                    
+                    if cached_locale == requested_locale:
+                        try:
+                            db_client.create_completed_task_output(task_id, user_id, k, val, locale=loc)
+                            cached_summary_found = True
+                        except Exception as e:
+                            logger.warning(f"Failed to copy match summary: {e}")
+
+        # 3. Create MISSING Outputs (Pending)
+        current_outputs = db_client.get_task_outputs(task_id)
+        existing_kinds = set(o['kind'] for o in current_outputs)
+
+        def ensure_output(kind, locale=None):
+            if kind == "summary" and cached_summary_found:
+                 return 
+            if kind in existing_kinds and kind != "summary": 
+                 return
+            
+            if kind not in existing_kinds:
+                 db_client.create_task_output(task_id, user_id, kind=kind, locale=locale)
+
+        # Audio Logic (re-parse host since we don't have it here)
+        host = urlparse(video_url).hostname or ""
+        host = host.replace("www.", "")
+        if (host.endswith("xiaoyuzhoufm.com") or host.endswith("apple.com")) and "audio" not in existing_kinds:
+             ensure_output("audio")
+
+        ensure_output("script")
+        ensure_output("script_raw")
+        ensure_output("summary_source")
+        
+        if settings.SUMMARY_STRATEGY == "v2_classified":
+            ensure_output("classification")
+
+        has_correct_summary = any(o['kind'] == 'summary' and str(o.get('locale')).lower() == str(summary_lang).lower() for o in current_outputs)
+        if not has_correct_summary:
+             db_client.create_task_output(task_id, user_id, kind="summary", locale=summary_lang)
+             
+    except Exception as e:
+        logger.error(f"Error during initialization phase: {e}")
+        # Non-fatal? If we fail to create outputs, subsequent steps might fail gracefully or we should abort.
+        # But let's try to proceed. 
+
+    # --- END PHASE 0 ---
+
+    task_record = db_client.get_task(task_id)
+    outputs = db_client.get_task_outputs(task_id)
+    
+    script_output = next((o for o in outputs if o['kind'] == 'script'), None)
+    script_raw_output = next((o for o in outputs if o['kind'] == 'script_raw'), None)
+    
+    transcript_result = None
+    video_title = task_record.get("video_title") or "Unknown"
+    thumbnail_url = task_record.get("thumbnail_url")
+    
+    # If script is already completed (e.g. copied from cache), we simulate a transcript result
+    # so that we skip the download/transcribe phases.
+    if script_output and script_output.get("status") == "completed" and script_output.get("content"):
+        logger.info(f"Pipeline: Detected cached script for {task_id}. Skipping download/transcribe.")
+        
+        # Reconstruct transcript_result tuple (md, raw, lang)
+        # content = optimized script. We use it as MD for simplicity in this flow, 
+        # though strictly transcript_result usually implies timestamped MD. 
+        # We will handle this in the Transcribe block.
+        content = script_output.get("content")
+        
+        raw_json_str = "{}"
+        if script_raw_output and script_raw_output.get("content"):
+             raw_json_str = script_raw_output.get("content")
+        
+        lang = "unknown"
+        try:
+            lang = json.loads(raw_json_str).get("language", "unknown")
+        except:
+            pass
+            
+        transcript_result = (content, raw_json_str, lang)
+        
+    # 1. Download Video (or Skipped)
+    # 2. Transcribe (updates Script output)
+    # 3. Summarize (updates Summary output)
+    # 4. Translate (updates Translation outputs)
+    
+    # Langfuse trace context is set via propagate_attributes above
 
     try:
         # Update Task Status
@@ -604,10 +623,10 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
 
         # Try yt-dlp subtitles first (Free & Fast)
 
-        
+    
         # Simple heuristic to prioritize Supadata for YouTube
         is_youtube = "youtube.com" in video_url or "youtu.be" in video_url
-        
+    
         if is_youtube:
             # 1. Try Supadata (Official/High Quality)
             try:
@@ -624,10 +643,10 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
         audio_path = None
         # video_title/thumb initialized above
         direct_audio_url = None
-        
+    
         if transcript_result:
             # OPTION A: Transcript Already Fetched (Supadata, or Cache).
-            
+        
             # Check if we need metadata
             if not video_title or video_title == "Unknown" or not thumbnail_url:
                 logger.info("Using existing transcript result. Fetching metadata only...")
@@ -637,7 +656,7 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
                     video_title = info.get("title") or video_title
                     thumbnail_url = info.get("thumbnail") or thumbnail_url
                     direct_audio_url = info.get("audio_url")
-                    
+                
                     # Update DB
                     db_client.update_task_status(
                         task_id, 
@@ -710,21 +729,21 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
         outputs = db_client.get_task_outputs(task_id)
         script_output = next((o for o in outputs if o['kind'] == 'script'), None)
         script_raw_output = next((o for o in outputs if o['kind'] == 'script_raw'), None)
-        
+    
         script_text = ""
         script_text_with_timestamps = ""
         raw_json = None
-        
+    
         # CHECK: Is script already available (from cache copy)?
         if script_output and script_output.get("status") == "completed" and script_output.get("content"):
             logger.info("Script output already completed (Cache Hit). Skipping transcribe.")
             script_text = script_output.get("content")
             script_text_with_timestamps = script_text # Approximation if content is optimized
-            
+        
             # Try to populate raw_json from script_raw if available
             if script_raw_output and script_raw_output.get("content"):
                 raw_json = script_raw_output.get("content")
-        
+    
         elif script_output:
             # Need to transcribe
             try:
@@ -733,20 +752,20 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
                     logger.info("Using pre-fetched transcript for output.")
                     script_text_with_timestamps, raw_json, detected_language = transcript_result
                     db_client.update_output_status(script_output['id'], status="processing", progress=10)
-                    
+                
                     if script_raw_output:
                         db_client.update_output_status(script_raw_output['id'], status="completed", progress=100, content=raw_json)
                 else:
                     # Use OpenAI Whisper
                     if not audio_path:
                         raise Exception("Audio path missing for local transcription")
-                        
+                    
                     db_client.update_output_status(script_output['id'], status="processing", progress=10)
                     script_text_with_timestamps, raw_json, detected_language = await transcriber.transcribe_with_raw(audio_path)
-                    
+                
                     if script_raw_output:
                         db_client.update_output_status(script_raw_output['id'], status="completed", progress=100, content=raw_json)
-                    
+                
                     # Always (re)generate... logic is same
                     try:
                         payload = json.loads(raw_json or "{}")
@@ -759,9 +778,22 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
                 # C. Optimization (Optional step, usually part of Summary or specific output)
                 if script_text_with_timestamps:
                     # This produces a timestamp-free, meta-free clean transcript for UI display.
-                    optimized_script = await summarizer.optimize_transcript(script_text_with_timestamps)
-                    script_text = optimized_script  # Use optimized for downstream + store in DB
                 
+                    if transcript_result:
+                         # Supadata source: Fast path (Regex only)
+                         logger.info("Using fast transcript cleanup for Supadata source (skipping LLM).")
+                         optimized_script = summarizer.fast_clean_transcript(script_text_with_timestamps)
+                    else:
+                        # Whisper source: use LLM to fix grammar/segments
+                        trace_meta = {
+                            "session_id": str(task_id),
+                            "user_id": str(user_id),
+                            "metadata": {"video_url": video_url}
+                        }
+                        optimized_script = await summarizer.optimize_transcript(script_text_with_timestamps, trace_metadata=trace_meta)
+                    
+                    script_text = optimized_script  # Use optimized for downstream + store in DB
+            
                 if script_text:
                     db_client.update_output_status(script_output['id'], status="completed", progress=100, content=script_text)
 
@@ -777,7 +809,9 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
         # Run classification as a separate step so it can be reused/retried independently
         classification_result = None
         classification_output = next((o for o in outputs if o['kind'] == 'classification'), None)
-        
+    
+        # Debug Log
+        logger.info(f"Pipeline Debug: Strategy={settings.SUMMARY_STRATEGY}, HasScript={bool(script_text)}")
         if settings.SUMMARY_STRATEGY == "v2_classified" and script_text:
             if classification_output:
                 if classification_output.get("status") == "completed" and classification_output.get("content"):
@@ -791,7 +825,14 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
                     # Run classification
                     try:
                         db_client.update_output_status(classification_output['id'], status="processing", progress=10)
-                        classification_result = await summarizer.classify_content(script_text)
+                    
+                        trace_meta = {
+                            "session_id": str(task_id), 
+                            "user_id": str(user_id),
+                            "metadata": {"video_url": video_url}
+                        }
+                    
+                        classification_result = await summarizer.classify_content(script_text, trace_metadata=trace_meta)
                         db_client.update_output_status(
                             classification_output['id'],
                             status="completed",
@@ -803,6 +844,12 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
                         logger.warning(f"Classification failed: {e}")
                         db_client.update_output_status(classification_output['id'], status="error", error=str(e))
                         # Classification failure is non-fatal, continue with default
+
+        base_trace_meta = {
+            "session_id": str(task_id),
+            "user_id": str(user_id),
+            "metadata": {"video_url": video_url}
+        }
 
         # E. Summarize
         summary_output = next((o for o in outputs if o['kind'] == 'summary'), None)
@@ -832,12 +879,18 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
                             source_summary_json = summary_source_output.get("content")
                         else:
                             db_client.update_output_status(summary_source_output['id'], status="processing", progress=20)
+                        
+                            summary_trace_meta = base_trace_meta.copy()
+                            summary_trace_meta["metadata"]["kind"] = "summary_source"
+                            summary_trace_meta["metadata"]["target_language"] = transcript_language
+
                             source_summary_json = await summarizer.summarize_in_language_with_anchors(
                                 script_text,
                                 summary_language=transcript_language,
                                 video_title=video_title,
                                 script_raw_json=raw_json,
                                 existing_classification=classification_result,
+                                trace_metadata=summary_trace_meta,
                             )
                             db_client.update_output_status(
                                 summary_source_output['id'],
@@ -870,6 +923,7 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
 
                         db_client.update_output_status(summary_output['id'], status="completed", progress=100, content=summary_json)
                 except Exception as e:
+                    logger.error(f"Summary generation failed: {e}")
                     if summary_output:
                         db_client.update_output_status(summary_output['id'], status="error", error=str(e))
                     if summary_source_output:
@@ -887,6 +941,7 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
         # Final Task Status
         # If any output is error? Or just complete?
         # Logic: If Script is done, Task is mostly done.
+        logger.info(f"[Pipeline Complete] Task={task_id} finished successfully")
         db_client.update_task_status(task_id, status="completed", progress=100)
 
     except Exception as e:
