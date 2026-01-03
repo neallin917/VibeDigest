@@ -213,6 +213,27 @@ class DBClient:
         })
         return rows[0] if rows else None
 
+    def upsert_completed_task_output(self, task_id: str, user_id: str, kind: str, content: str, locale: str = None) -> Dict[str, Any]:
+        """Upsert a task_output row that is already completed (for caching or overwriting)."""
+        # First check if it exists (placeholder or failed previous attempt)
+        check_q = "SELECT id FROM task_outputs WHERE task_id = :tid AND kind = :kind"
+        params = {"tid": task_id, "kind": kind}
+        
+        # Locale matching logic
+        if locale:
+            check_q += " AND LOWER(locale) = LOWER(:loc)"
+            params["loc"] = locale
+        else:
+            check_q += " AND locale IS NULL"
+        
+        existing = self._execute_query(check_q, params)
+        if existing:
+            oid = existing[0]['id']
+            self.update_output_status(oid, status='completed', progress=100, content=content)
+            return self.get_output(oid)
+        else:
+            return self.create_completed_task_output(task_id, user_id, kind, content, locale)
+
     def validate_token(self, token: str) -> Optional[str]:
         """Validate Supabase JWT and return user_id."""
         # Use Supabase Client as usual for Auth

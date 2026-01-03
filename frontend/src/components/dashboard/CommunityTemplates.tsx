@@ -2,12 +2,17 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { PlayCircle, Sparkles, Clock, ArrowRight, Loader2 } from "lucide-react"
+import { PlayCircle, Sparkles, Loader2 } from "lucide-react"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { createClient } from "@/lib/supabase"
 
 // Demo tasks are managed via is_demo field in the database
 // No hardcoded IDs needed - just set is_demo = true in Supabase
+
+type TaskOutput = {
+    kind: string
+    content: string | object
+}
 
 type Task = {
     id: string
@@ -18,6 +23,18 @@ type Task = {
     created_at: string
     author?: string
     author_image_url?: string
+    task_outputs?: TaskOutput[]
+}
+
+const CATEGORY_MAP: Record<string, string> = {
+    tutorial: "教程",
+    interview: "访谈",
+    monologue: "独白",
+    news: "新闻",
+    review: "评测",
+    finance: "财经",
+    narrative: "叙事",
+    casual: "随笔",
 }
 
 const getPlatformFromUrl = (url: string) => {
@@ -35,10 +52,50 @@ const getPlatformFromUrl = (url: string) => {
     }
 }
 
+const CATEGORY_STYLES: Record<string, string> = {
+    tutorial: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+    interview: "bg-violet-500/10 text-violet-500 border-violet-500/20",
+    monologue: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+    news: "bg-red-500/10 text-red-500 border-red-500/20",
+    review: "bg-orange-500/10 text-orange-500 border-orange-500/20",
+    finance: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+    narrative: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
+    casual: "bg-slate-500/10 text-slate-500 border-slate-500/20",
+}
+
 function TemplateCard({ task }: { task: Task }) {
     const router = useRouter()
+    const { t } = useI18n()
     const platform = getPlatformFromUrl(task.video_url)
     const showAuthor = task.author && task.author !== "Unknown"
+
+    // Extract category from task_outputs
+    let categoryLabel = ""
+    let categoryKey = ""
+    if (task.task_outputs) {
+        const classificationOutput = task.task_outputs.find(o => o.kind === 'classification')
+        if (classificationOutput && classificationOutput.content) {
+            try {
+                const content = typeof classificationOutput.content === 'string'
+                    ? JSON.parse(classificationOutput.content)
+                    : classificationOutput.content
+                const form = content.content_form
+                // @ts-ignore - dynamic key access for i18n
+                if (form) {
+                    categoryKey = form
+                    categoryLabel = t(`categories.${form}`) || form
+                    // Fallback to English/Code if translation missing/key matches default
+                    if (categoryLabel.startsWith("categories.")) categoryLabel = form
+                }
+            } catch (e) {
+                // Ignore parsing errors
+            }
+        }
+    }
+
+    const badgeStyle = (categoryKey && CATEGORY_STYLES[categoryKey])
+        ? CATEGORY_STYLES[categoryKey]
+        : "bg-primary/10 text-primary border-primary/20"
 
     return (
         <div
@@ -77,7 +134,7 @@ function TemplateCard({ task }: { task: Task }) {
                     {task.video_title || task.video_url}
                 </h3>
 
-                {/* Author Info (replacing View Example) */}
+                {/* Author Info & Category */}
                 <div className="mt-auto flex items-center gap-2 min-h-[20px]">
                     {showAuthor ? (
                         <>
@@ -100,8 +157,17 @@ function TemplateCard({ task }: { task: Task }) {
                             </span>
                         </>
                     ) : (
-                        /* Maintain height for alignment if no author */
+                        /* Maintain height schema if no author, but still might want category */
                         <div className="h-5" />
+                    )}
+
+                    {/* Category Badge (Bottom Right of Content) */}
+                    {categoryLabel && (
+                        <div className="ml-auto flex shrink-0">
+                            <span className={`rounded-md px-2 py-0.5 text-[10px] font-medium border whitespace-nowrap shadow-sm ${badgeStyle}`}>
+                                {categoryLabel}
+                            </span>
+                        </div>
                     )}
                 </div>
             </div>
@@ -119,9 +185,23 @@ export function CommunityTemplates({ limit, showHeader = true }: { limit?: numbe
         async function fetchDemoTasks() {
             setLoading(true)
             // Query tasks where is_demo = true (managed in database)
+            // Also fetch task_outputs to get classification
             let query = supabase
                 .from('tasks')
-                .select('id, video_url, video_title, thumbnail_url, status, created_at, author, author_image_url')
+                .select(`
+                    id, 
+                    video_url, 
+                    video_title, 
+                    thumbnail_url, 
+                    status, 
+                    created_at, 
+                    author, 
+                    author_image_url,
+                    task_outputs (
+                        kind,
+                        content
+                    )
+                `)
                 .eq('is_demo', true)
                 .eq('status', 'completed')
                 .order('created_at', { ascending: false })
@@ -130,10 +210,17 @@ export function CommunityTemplates({ limit, showHeader = true }: { limit?: numbe
                 query = query.limit(limit)
             }
 
-            const { data } = await query
+            // Explicitly cast the response to handle the joined data structure if TS complains,
+            // or let inference work. The return type implies the structure.
+            const { data, error } = await query
 
             if (data) {
-                setTasks(data)
+                // We might need to map the data if Supabase types are strict, 
+                // but usually the JS client returns what's asked.
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                setTasks(data as any as Task[])
+            } else if (error) {
+                console.error("Error fetching demo tasks:", error)
             }
             setLoading(false)
         }

@@ -156,6 +156,12 @@ async def process_video(
         # 1. Create Task (Always create a new container)
         task = db_client.create_task(user_id=user_id, video_url=video_url)
         task_id = task['id']
+
+        # 1.1 Create Essential Placeholders (Synchronous)
+        # This ensures UI has something to show immediately and satisfies integration tests.
+        db_client.create_task_output(task_id, user_id, kind="script")
+        db_client.create_task_output(task_id, user_id, kind="summary", locale=summary_language)
+
         logger.info(f"Created task {task_id} for user {user_id}. Queuing background pipeline...")
         
         # 2. Start Background Processing (pass user_id for output creation)
@@ -517,7 +523,7 @@ async def _execute_pipeline_core(task_id: str, video_url: str, summary_lang: str
                 # Reusable outputs that are language-agnostic (or source-specific)
                 if k in ["script", "script_raw", "summary_source", "audio"]:
                     try:
-                        db_client.create_completed_task_output(task_id, user_id, k, val, locale=loc)
+                        db_client.upsert_completed_task_output(task_id, user_id, k, val, locale=loc)
                         if k == "script":
                             cached_script_found = True
                     except Exception as e:
@@ -530,7 +536,7 @@ async def _execute_pipeline_core(task_id: str, video_url: str, summary_lang: str
                     
                     if cached_locale == requested_locale:
                         try:
-                            db_client.create_completed_task_output(task_id, user_id, k, val, locale=loc)
+                            db_client.upsert_completed_task_output(task_id, user_id, k, val, locale=loc)
                             cached_summary_found = True
                         except Exception as e:
                             logger.warning(f"Failed to copy match summary: {e}")
