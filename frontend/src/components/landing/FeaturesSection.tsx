@@ -57,35 +57,35 @@ export function FeaturesSection() {
     ]
 
     return (
-        <section className="py-24 px-6 relative">
+        <section className="py-16 px-4 relative">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
 
-            <div className="text-center mb-16 relative z-10">
-                <Heading as="h2" className="text-3xl md:text-5xl font-bold mb-6">
+            <div className="text-center mb-12 relative z-10">
+                <Heading as="h2" className="text-2xl md:text-3xl font-bold mb-4">
                     Everything you need to <span className="text-primary">learn faster</span>
                 </Heading>
-                <Text className="max-w-2xl mx-auto text-gray-400 text-lg">
+                <Text className="max-w-xl mx-auto text-muted-foreground text-base">
                     {t("landing.smartSummarizationDesc")}
                 </Text>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto relative z-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto relative z-10">
                 {features.map((feature, index) => (
-                    <div key={index} className="group p-8 rounded-3xl bg-[#141414] border border-white/5 hover:border-white/10 hover:bg-[#1A1A1A] transition-all duration-300">
-                        <div className={`w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 ${feature.color}`}>
-                            <feature.icon className="w-6 h-6" />
+                    <div key={index} className="group p-6 rounded-2xl bg-card border border-white/5 hover:border-white/10 hover:bg-[#1A1A1A] transition-all duration-300">
+                        <div className={`w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 ${feature.color}`}>
+                            <feature.icon className="w-5 h-5" />
                         </div>
-                        <div className="flex items-center gap-3 mb-3">
-                            <Heading as="h3" className="text-xl font-bold text-white">
+                        <div className="flex items-center gap-3 mb-2">
+                            <Heading as="h3" className="text-lg font-bold text-foreground">
                                 {feature.title}
                             </Heading>
                             {feature.comingSoon && (
-                                <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-medium border-white/10 bg-white/5 text-gray-400">
+                                <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-medium border-white/10 bg-white/5 text-muted-foreground">
                                     Coming Soon
                                 </Badge>
                             )}
                         </div>
-                        <Text className="text-gray-400 leading-relaxed">
+                        <Text className="text-muted-foreground leading-relaxed text-sm">
                             {feature.desc}
                         </Text>
                     </div>

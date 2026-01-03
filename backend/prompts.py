@@ -272,3 +272,304 @@ Rules:
 }}
 Note: startSeconds/endSeconds may be omitted for items where they are missing in the input.
 """
+
+# =============================================================================
+# V2 CLASSIFIED SUMMARY SYSTEM
+# Three-layer content classification for adaptive summarization
+# =============================================================================
+
+# Content Classifier Prompt - identifies 3 dimensions in one call
+CONTENT_CLASSIFIER_SYSTEM = """You are a content analysis expert. Analyze the given transcript and classify it across 3 dimensions.
+Return ONLY valid JSON (no markdown).
+
+Schema:
+{
+  "content_form": string,     // One of: tutorial, interview, monologue, news, review, finance, narrative, casual
+  "info_structure": string,   // One of: hierarchical, sequential, argumentative, comparative, narrative_arc, thematic, qa_format, data_driven
+  "cognitive_goal": string,   // One of: understand, decide, execute, inspire, digest
+  "confidence": number        // 0.0 to 1.0
+}
+
+Definitions:
+
+CONTENT_FORM (what type of content is this?):
+- tutorial: Educational content with teaching intent
+- interview: Multi-person Q&A or dialogue
+- monologue: Single person expressing views/experiences
+- news: Event reporting, time-sensitive information
+- review: Evaluation/critique of products or things
+- finance: Market analysis, investment views
+- narrative: Stories, vlogs, personal experiences
+- casual: Casual chat, no clear topic
+
+INFO_STRUCTURE (how is information organized?):
+- hierarchical: Concept → sub-concepts → details (tree-like)
+- sequential: Step 1 → Step 2 → Step 3 (linear process)
+- argumentative: Thesis → evidence → conclusion (persuasive)
+- comparative: A vs B analysis
+- narrative_arc: Beginning → development → climax → resolution
+- thematic: Topic A, Topic B, parallel expansion
+- qa_format: Question → answer alternating
+- data_driven: Analysis based on data/facts
+
+COGNITIVE_GOAL (what does the user want to gain?):
+- understand: Learn concepts/principles
+- decide: Make choices/judgments
+- execute: Follow steps to do something
+- inspire: Get new perspectives/insights
+- digest: Quick summary of what happened
+"""
+
+CONTENT_CLASSIFIER_USER = """Analyze this transcript and classify it:
+
+{transcript_sample}
+
+Return JSON classification only."""
+
+# =============================================================================
+# STRUCTURE TEMPLATES - How to organize keypoints based on info_structure
+# =============================================================================
+
+STRUCTURE_TEMPLATE_HIERARCHICAL = """
+Organize keypoints in a hierarchical structure:
+- Main concept/theme as primary keypoint
+- Sub-concepts as supporting keypoints
+- Details and examples as evidence
+Order: Top-down from most general to most specific."""
+
+STRUCTURE_TEMPLATE_SEQUENTIAL = """
+Organize keypoints as a step-by-step sequence:
+- Each keypoint represents a distinct step or phase
+- Include prerequisites and dependencies
+- Title format: "Step N: [Action]" or "[Phase]: [Description]"
+Order: Strictly chronological/procedural."""
+
+STRUCTURE_TEMPLATE_ARGUMENTATIVE = """
+Organize keypoints following argument structure:
+- Lead with main thesis/claim
+- Supporting evidence and reasoning
+- Counter-arguments if mentioned
+- Final conclusion
+Order: Thesis → Evidence → Conclusion."""
+
+STRUCTURE_TEMPLATE_COMPARATIVE = """
+Organize keypoints for comparison:
+- Identify objects being compared
+- Key differences and similarities
+- Evaluation criteria
+- Recommendation/verdict if given
+Format: "[Subject A] vs [Subject B]: [Dimension]"."""
+
+STRUCTURE_TEMPLATE_NARRATIVE_ARC = """
+Organize keypoints following story structure:
+- Background/setting
+- Inciting incident or problem
+- Development and challenges
+- Resolution or reflection
+Order: Chronological story arc."""
+
+STRUCTURE_TEMPLATE_THEMATIC = """
+Organize keypoints by topic/theme:
+- Group related information together
+- Each keypoint covers one distinct topic
+- No strict order required
+Format: "[Topic]: [Key insight]"."""
+
+STRUCTURE_TEMPLATE_QA = """
+Organize keypoints as Q&A pairs:
+- Capture key questions asked
+- Include the essential answers
+- Group related Q&A if applicable
+Format: "Q: [Question] → A: [Answer gist]"."""
+
+STRUCTURE_TEMPLATE_DATA_DRIVEN = """
+Organize keypoints around data and analysis:
+- Key data points and statistics
+- Analysis and interpretation
+- Implications and conclusions
+Include specific numbers/percentages when available."""
+
+# =============================================================================
+# GOAL TEMPLATES - What to emphasize based on cognitive_goal
+# =============================================================================
+
+GOAL_TEMPLATE_UNDERSTAND = """
+Focus on knowledge extraction:
+- Clearly define concepts and terminology
+- Explain underlying principles and mechanisms
+- Provide context for why things work this way
+- Note scope and limitations
+- Include examples that aid understanding"""
+
+GOAL_TEMPLATE_DECIDE = """
+Focus on decision support:
+- Clearly state conclusions and recommendations
+- Provide supporting evidence and reasoning
+- Highlight pros and cons if applicable
+- Note risks and uncertainties
+- Include counter-arguments or alternative views"""
+
+GOAL_TEMPLATE_EXECUTE = """
+Focus on actionable steps:
+- List prerequisites and requirements
+- Provide clear, numbered steps
+- Include specific commands/actions when mentioned
+- Highlight common pitfalls and warnings
+- Note expected outcomes for each step"""
+
+GOAL_TEMPLATE_INSPIRE = """
+Focus on insight extraction:
+- Highlight unique or contrarian perspectives
+- Extract memorable quotes and phrases
+- Capture paradigm-shifting ideas
+- Note provocative questions raised
+- Include "aha moments" and key realizations"""
+
+GOAL_TEMPLATE_DIGEST = """
+Focus on essential facts:
+- Be extremely concise
+- Capture only core information
+- Use bullet-point style details
+- Skip elaborate explanations
+- One-sentence summary per keypoint"""
+
+# =============================================================================
+# FORM SUPPLEMENTS - Additional context based on content_form
+# =============================================================================
+
+FORM_SUPPLEMENT_TUTORIAL = """
+Additional context: This is educational content.
+- Preserve technical accuracy
+- Include code/command examples if mentioned
+- Note version-specific information"""
+
+FORM_SUPPLEMENT_INTERVIEW = """
+Additional context: This is an interview/dialogue.
+- Attribute key views to speakers when clear
+- Capture noteworthy quotes
+- Note points of agreement/disagreement"""
+
+FORM_SUPPLEMENT_MONOLOGUE = """
+Additional context: This is a single-speaker presentation.
+- Focus on the speaker's main message
+- Capture personal experiences/stories if relevant
+- Note rhetorical devices or emphasis"""
+
+FORM_SUPPLEMENT_NEWS = """
+Additional context: This is news/current affairs.
+- Include who, what, when, where, why
+- Note sources cited
+- Distinguish facts from analysis"""
+
+FORM_SUPPLEMENT_REVIEW = """
+Additional context: This is a review/evaluation.
+- Include rating/score if given
+- List specific pros and cons mentioned
+- Note comparison to alternatives"""
+
+FORM_SUPPLEMENT_FINANCE = """
+Additional context: This is financial/investment content.
+- Include specific numbers, prices, percentages
+- Note timeframes and dates
+- Distinguish analysis from opinion
+- IMPORTANT: Include risk factors mentioned"""
+
+FORM_SUPPLEMENT_NARRATIVE = """
+Additional context: This is story/experiential content.
+- Capture the narrative arc
+- Note emotional moments
+- Include lessons learned or reflections"""
+
+FORM_SUPPLEMENT_CASUAL = """
+Additional context: This is casual/informal content.
+- Extract interesting topics discussed
+- Capture notable opinions or jokes
+- Be selective - focus on substance"""
+
+# Mapping dictionaries for dynamic prompt construction
+STRUCTURE_TEMPLATES = {
+    "hierarchical": STRUCTURE_TEMPLATE_HIERARCHICAL,
+    "sequential": STRUCTURE_TEMPLATE_SEQUENTIAL,
+    "argumentative": STRUCTURE_TEMPLATE_ARGUMENTATIVE,
+    "comparative": STRUCTURE_TEMPLATE_COMPARATIVE,
+    "narrative_arc": STRUCTURE_TEMPLATE_NARRATIVE_ARC,
+    "thematic": STRUCTURE_TEMPLATE_THEMATIC,
+    "qa_format": STRUCTURE_TEMPLATE_QA,
+    "data_driven": STRUCTURE_TEMPLATE_DATA_DRIVEN,
+}
+
+GOAL_TEMPLATES = {
+    "understand": GOAL_TEMPLATE_UNDERSTAND,
+    "decide": GOAL_TEMPLATE_DECIDE,
+    "execute": GOAL_TEMPLATE_EXECUTE,
+    "inspire": GOAL_TEMPLATE_INSPIRE,
+    "digest": GOAL_TEMPLATE_DIGEST,
+}
+
+FORM_SUPPLEMENTS = {
+    "tutorial": FORM_SUPPLEMENT_TUTORIAL,
+    "interview": FORM_SUPPLEMENT_INTERVIEW,
+    "monologue": FORM_SUPPLEMENT_MONOLOGUE,
+    "news": FORM_SUPPLEMENT_NEWS,
+    "review": FORM_SUPPLEMENT_REVIEW,
+    "finance": FORM_SUPPLEMENT_FINANCE,
+    "narrative": FORM_SUPPLEMENT_NARRATIVE,
+    "casual": FORM_SUPPLEMENT_CASUAL,
+}
+
+# V2 Summary with dynamic prompts
+SUMMARY_V2_SYSTEM_TEMPLATE = """You are a professional content analyst and knowledge distiller.
+Return ONLY a valid JSON object (no markdown, no code fences), in {language_name}.
+
+{structure_instruction}
+
+{goal_instruction}
+
+{form_supplement}
+
+You must output this exact schema:
+{{
+  "version": 2,
+  "language": "{target_language}",
+  "content_type": {{
+    "content_form": "{content_form}",
+    "info_structure": "{info_structure}",
+    "cognitive_goal": "{cognitive_goal}"
+  }},
+  "overview": string,
+  "keypoints": [
+    {{
+      "title": string,
+      "detail": string,
+      "evidence": string
+    }}
+  ]
+}}
+
+Content requirements:
+- overview: ONE readable paragraph that explains what this content is about, why it matters, and the main thread. No headings.
+- keypoints: Number based on content density. Quality > quantity.
+  Each keypoint must be a knowledge-bearing insight (not a vague topic label).
+  - title: a crisp insight headline (short; no filler).
+  - detail: ONE concise paragraph (2–5 sentences). Do NOT use bullet lists.
+  - evidence: MUST be an EXACT QUOTE from the transcript in the ORIGINAL SOURCE LANGUAGE (do not translate). Used for timestamp alignment.
+- Coverage: ensure keypoints cover early/middle/late parts.
+- Order: The keypoints MUST be listed in strict chronological order as they appear in the transcript.
+- Faithfulness: do not invent facts.
+- ANTI-HALLUCINATION: Do NOT copy the transcript verbatim. You must SYNTHESIZE and SUMMARIZE. The output MUST be in the target language {language_name}.
+"""
+
+SUMMARY_V2_USER_TEMPLATE = """Summarize the following transcript into the required JSON schema in {language_name}.
+
+Transcript:
+{transcript}
+
+---
+Constraint Checklist & Confidence Score:
+1. Generate valid JSON? Yes.
+2. Output in {language_name}? Yes.
+3. Content synthesized (not copied)? Yes.
+
+Please generate the JSON summary now based on the system instructions (Form: {content_type_info}).
+"""
+

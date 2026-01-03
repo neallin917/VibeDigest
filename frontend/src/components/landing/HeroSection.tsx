@@ -22,7 +22,7 @@ export function HeroSection() {
             <div className="space-y-6 max-w-4xl">
                 <Heading
                     as="h1"
-                    className="text-5xl md:text-7xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white via-white/95 to-white/60 leading-[1.1] mb-6"
+                    className="text-4xl md:text-6xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white via-white/95 to-white/60 leading-[1.1] mb-6"
                 >
                     {t("landing.titlePrefix")}{" "}
                     <span className="block mt-2 text-primary drop-shadow-[0_0_30px_rgba(62,207,142,0.3)]">
@@ -30,7 +30,7 @@ export function HeroSection() {
                     </span>
                 </Heading>
 
-                <Text tone="muted" className="max-w-2xl mx-auto text-lg md:text-xl leading-relaxed text-gray-400">
+                <Text tone="muted" className="max-w-2xl mx-auto text-base md:text-lg leading-relaxed text-muted-foreground">
                     {renderWithBold(t("landing.smartSummarizationDesc"))}
                 </Text>
             </div>

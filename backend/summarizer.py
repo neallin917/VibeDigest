@@ -32,7 +32,11 @@ from prompts import (
     SUMMARY_CHUNK_SYSTEM, SUMMARY_CHUNK_USER,
     SUMMARY_INTEGRATE_SYSTEM, SUMMARY_INTEGRATE_USER,
     JSON_REPAIR_SYSTEM, JSON_REPAIR_USER,
-    TRANSLATE_JSON_SYSTEM
+    TRANSLATE_JSON_SYSTEM,
+    # V2 Classified Summary System
+    CONTENT_CLASSIFIER_SYSTEM, CONTENT_CLASSIFIER_USER,
+    STRUCTURE_TEMPLATES, GOAL_TEMPLATES, FORM_SUPPLEMENTS,
+    SUMMARY_V2_SYSTEM_TEMPLATE, SUMMARY_V2_USER_TEMPLATE,
 )
 
 # Use Langfuse wrapper for OpenAI if available, otherwise fall back to standard
@@ -145,6 +149,8 @@ class Summarizer:
         )
         self.enable_json_repair = self._read_bool_env("OPENAI_SUMMARY_JSON_REPAIR", True)
         self.json_repair_model = (os.getenv("OPENAI_JSON_REPAIR_MODEL") or "").strip() or settings.OPENAI_HELPER_MODEL
+        # Model for content classification (use gpt-5-mini for cost efficiency)
+        self.classifier_model = (os.getenv("OPENAI_CLASSIFIER_MODEL") or "").strip() or "gpt-5-mini"
         # Best-effort strict JSON mode (if the endpoint/model supports response_format).
         self.use_response_format_json = self._read_bool_env("OPENAI_USE_RESPONSE_FORMAT_JSON", True)
         
@@ -816,16 +822,24 @@ class Summarizer:
         
         return '\n\n'.join(basic_paragraphs)
 
-    async def summarize(self, transcript: str, target_language: str = "zh", video_title: str = None) -> str:
+    async def summarize(
+        self,
+        transcript: str,
+        target_language: str = "zh",
+        video_title: str = None,
+        existing_classification: dict | None = None,
+    ) -> str:
         """
         生成视频转录的摘要
         
         Args:
             transcript: 转录文本
             target_language: 目标语言代码
+            video_title: 视频标题（可选）
+            existing_classification: 已有的分类结果（可选，V2策略可复用）
             
         Returns:
-            摘要文本（Markdown格式）
+            摘要文本（JSON格式）
         """
         try:
             if not self.client:
@@ -835,6 +849,16 @@ class Summarizer:
             # Normalize language code to ensure we get the correct language name
             target_language = self._normalize_lang_code(target_language)
             
+            # Check strategy setting
+            if settings.SUMMARY_STRATEGY == "v2_classified":
+                logger.info("使用 V2 三层分类总结策略")
+                return await self._summarize_v2_classified(
+                    transcript,
+                    target_language,
+                    existing_classification=existing_classification,
+                )
+            
+            # Legacy strategy: generic prompt
             # 估算转录文本长度，决定是否需要分块摘要
             estimated_tokens = self._estimate_tokens(transcript)
             max_summarize_tokens = int(self.summary_single_max_est_tokens)
@@ -849,6 +873,194 @@ class Summarizer:
             
         except Exception as e:
             logger.error(f"生成摘要失败: {str(e)}")
+            return self._fallback_summary_json_v1(transcript, target_language)
+
+
+    # =========================================================================
+    # V2 CLASSIFIED SUMMARY SYSTEM
+    # Three-layer classification for adaptive summarization
+    # =========================================================================
+
+    async def classify_content(self, transcript: str) -> dict:
+        """
+        Classify transcript across 3 dimensions: content_form, info_structure, cognitive_goal.
+        Returns classification dict with confidence score.
+        
+        This is a public method that can be called independently for testing/debugging.
+        """
+        # Use full transcript for classification (no sampling)
+        transcript_sample = transcript
+
+        system_prompt = CONTENT_CLASSIFIER_SYSTEM
+        user_prompt = CONTENT_CLASSIFIER_USER.format(transcript_sample=transcript_sample)
+
+        try:
+            kwargs = dict(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_completion_tokens=500,  # GPT-5-mini needs more tokens than older models
+            )
+            if self.use_response_format_json:
+                kwargs["response_format"] = {"type": "json_object"}
+
+            response = await self._chat_completions_create(
+                models=[self.classifier_model],  # Use classifier_model (default: gpt-5-chat-latest)
+                **kwargs
+            )
+            raw = (response.choices[0].message.content or "").strip()
+            json_text = self._extract_first_json_object(raw) or raw
+            classification = json.loads(json_text)
+            
+            # Validate and normalize
+            valid_forms = {"tutorial", "interview", "monologue", "news", "review", "finance", "narrative", "casual"}
+            valid_structures = {"hierarchical", "sequential", "argumentative", "comparative", "narrative_arc", "thematic", "qa_format", "data_driven"}
+            valid_goals = {"understand", "decide", "execute", "inspire", "digest"}
+            
+            content_form = classification.get("content_form", "casual")
+            if content_form not in valid_forms:
+                content_form = "casual"
+            
+            info_structure = classification.get("info_structure", "thematic")
+            if info_structure not in valid_structures:
+                info_structure = "thematic"
+            
+            cognitive_goal = classification.get("cognitive_goal", "digest")
+            if cognitive_goal not in valid_goals:
+                cognitive_goal = "digest"
+            
+            confidence = float(classification.get("confidence", 0.5))
+            
+            result = {
+                "content_form": content_form,
+                "info_structure": info_structure,
+                "cognitive_goal": cognitive_goal,
+                "confidence": confidence,
+            }
+            logger.info(f"内容分类结果: {result}")
+            return result
+            
+        except Exception as e:
+            logger.warning(f"内容分类失败，使用默认值: {e}")
+            return {
+                "content_form": "casual",
+                "info_structure": "thematic",
+                "cognitive_goal": "digest",
+                "confidence": 0.0,
+            }
+
+    def _build_v2_dynamic_prompt(
+        self,
+        classification: dict,
+        language_name: str,
+        target_language: str,
+    ) -> tuple[str, str]:
+        """
+        Build dynamic system and user prompts based on 3-layer classification.
+        Returns (system_prompt, user_prompt_template).
+        """
+        content_form = classification.get("content_form", "casual")
+        info_structure = classification.get("info_structure", "thematic")
+        cognitive_goal = classification.get("cognitive_goal", "digest")
+
+        # Get templates (with fallbacks)
+        structure_instruction = STRUCTURE_TEMPLATES.get(info_structure, STRUCTURE_TEMPLATES["thematic"])
+        goal_instruction = GOAL_TEMPLATES.get(cognitive_goal, GOAL_TEMPLATES["digest"])
+        form_supplement = FORM_SUPPLEMENTS.get(content_form, FORM_SUPPLEMENTS["casual"])
+
+        system_prompt = SUMMARY_V2_SYSTEM_TEMPLATE.format(
+            language_name=language_name,
+            target_language=target_language,
+            structure_instruction=structure_instruction,
+            goal_instruction=goal_instruction,
+            form_supplement=form_supplement,
+            content_form=content_form,
+            info_structure=info_structure,
+            cognitive_goal=cognitive_goal,
+        )
+
+        return system_prompt
+
+    async def _summarize_v2_classified(
+        self,
+        transcript: str,
+        target_language: str,
+        existing_classification: dict | None = None,
+    ) -> str:
+        """
+        V2 Classified Summary: classify content first, then generate summary with dynamic prompt.
+        
+        Args:
+            transcript: The transcript text
+            target_language: Target language code
+            existing_classification: If provided, skip classification and use this result
+        """
+        language_name = self.language_map.get(target_language, "English")
+
+        # Step 1: Classify content (or use existing)
+        if existing_classification:
+            classification = existing_classification
+            logger.info(f"使用已有分类结果: {classification}")
+        else:
+            classification = await self.classify_content(transcript)
+
+        # Step 2: Build dynamic prompt
+        system_prompt = self._build_v2_dynamic_prompt(classification, language_name, target_language)
+        
+        # Format human-readable content type for prompt reinforcement
+        content_type_info = (
+            f"Form: {classification.get('content_form')}, "
+            f"Structure: {classification.get('info_structure')}, "
+            f"Goal: {classification.get('cognitive_goal')}"
+        )
+        
+        user_prompt = SUMMARY_V2_USER_TEMPLATE.format(
+            language_name=language_name,
+            transcript=transcript,
+            content_type_info=content_type_info,
+        )
+
+        logger.info(f"使用 V2 分类生成摘要: form={classification['content_form']}, "
+                    f"structure={classification['info_structure']}, goal={classification['cognitive_goal']}")
+
+        # Step 3: Generate summary
+        kwargs = dict(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_completion_tokens=int(self.summary_single_max_output_tokens),
+        )
+        if self.use_response_format_json:
+            kwargs["response_format"] = {"type": "json_object"}
+
+        try:
+            response = await self._chat_completions_create(models=self.summary_models, **kwargs)
+        except Exception as e:
+            if self.use_response_format_json and "response_format" in str(e):
+                logger.warning(f"response_format not supported, retrying without it. Error: {e}")
+                kwargs.pop("response_format", None)
+                response = await self._chat_completions_create(models=self.summary_models, **kwargs)
+            else:
+                raise
+
+        raw = (response.choices[0].message.content or "").strip()
+        json_text = self._extract_first_json_object(raw) or raw
+
+        try:
+            obj = json.loads(json_text)
+            # Ensure content_type is in the output
+            if "content_type" not in obj:
+                obj["content_type"] = classification
+            obj = self._validate_summary_json_v1(obj, target_language)
+            return json.dumps(obj, ensure_ascii=False)
+        except Exception as e:
+            logger.warning(f"V2 Summary JSON parse/validate failed. Error: {e}")
+            if self.enable_json_repair:
+                repaired = await self._repair_summary_json_v1(raw_text=raw, target_language=target_language)
+                if repaired:
+                    return repaired
             return self._fallback_summary_json_v1(transcript, target_language)
 
     # ---------------------------------------------------------------------
@@ -1131,12 +1343,21 @@ class Summarizer:
         summary_language: str,
         video_title: str | None = None,
         script_raw_json: str | None = None,
+        existing_classification: dict | None = None,
     ) -> str:
         """
         Generate summary JSON in the specified language, then inject timestamps into keypoints using script_raw segments.
         This should be used for the stable `summary_source` (transcript language).
+        
+        Args:
+            existing_classification: Pre-computed classification result (for V2 strategy reuse)
         """
-        base = await self.summarize(transcript, summary_language, video_title)
+        base = await self.summarize(
+            transcript,
+            summary_language,
+            video_title,
+            existing_classification=existing_classification,
+        )
         _, segments = self._parse_script_raw_payload(script_raw_json)
         if not segments:
             return base

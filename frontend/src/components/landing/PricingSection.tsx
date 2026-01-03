@@ -69,51 +69,51 @@ export function PricingSection() {
     ]
 
     return (
-        <section className="py-24 px-6 relative">
-            <div className="text-center mb-20">
-                <Heading as="h2" className="text-3xl md:text-5xl font-bold mb-4 font-heading">
+        <section className="py-16 px-4 relative"> {/* Reduced py-24 -> py-16, px-6 -> px-4 */}
+            <div className="text-center mb-12"> {/* Reduced mb-20 -> mb-12 */}
+                <Heading as="h2" className="text-2xl md:text-3xl font-bold mb-3 font-heading"> {/* Reduced text-3xl/5xl -> 2xl/3xl */}
                     {t("landing.simplePricing")}
                 </Heading>
-                <Text className="text-gray-400 text-lg">
+                <Text className="text-muted-foreground text-base"> {/* Reduced text-lg -> text-base */}
                     {t("landing.simplePricingSubtitle")}
                 </Text>
             </div>
 
-            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6"> {/* Reduced max-w-7xl, gap-8 -> gap-6 */}
                 {plans.map((plan, index) => (
                     <div
                         key={index}
                         className={`
-                relative p-10 rounded-3xl flex flex-col
+                relative p-6 rounded-2xl flex flex-col {/* Reduced p-10 -> p-6, rounded-3xl -> 2xl */}
                 ${plan.highlight
-                                ? 'bg-[#0F1C18] border-2 border-primary shadow-[0_0_50px_rgba(52,211,153,0.15)] transform md:scale-105 z-10'
-                                : 'bg-[#141414] border border-white/10 hover:border-white/20 transition-colors'
+                                ? 'bg-[#0F1C18] border-2 border-primary shadow-[0_0_40px_rgba(52,211,153,0.1)] transform md:scale-105 z-10'
+                                : 'bg-card border border-white/10 hover:border-white/20 transition-colors' // Use theme vars
                             }
               `}
                     >
                         {plan.highlight && (
-                            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-black text-xs font-bold px-4 py-1.5 rounded-full tracking-wide">
+                            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-black text-[10px] font-bold px-3 py-1 rounded-full tracking-wide uppercase"> {/* Smaller badge */}
                                 MOST POPULAR
                             </div>
                         )}
 
-                        <Heading as="h3" className={`text-2xl font-bold mb-3 ${plan.highlight ? 'text-primary' : 'text-white'}`}>
+                        <Heading as="h3" className={`text-lg font-bold mb-2 ${plan.highlight ? 'text-primary' : 'text-foreground'}`}> {/* Reduced text-2xl -> text-lg */}
                             {plan.title}
                         </Heading>
 
-                        <div className="text-4xl font-bold mb-6 text-white font-heading">
+                        <div className="text-3xl font-bold mb-4 text-foreground font-heading"> {/* Reduced text-4xl -> text-3xl */}
                             {plan.price}
-                            {plan.key === 'pro' && <span className="text-sm font-normal text-gray-500 ml-1">{t("pricing.pro.unit")}</span>}
+                            {plan.key === 'pro' && <span className="text-xs font-normal text-muted-foreground ml-1">{t("pricing.pro.unit")}</span>}
                         </div>
 
-                        <Text className="text-gray-500 mb-8 leading-relaxed">
+                        <Text className="text-muted-foreground mb-6 leading-relaxed text-sm"> {/* Reduced text-gray-500 -> muted-foreground, added text-sm */}
                             {plan.desc}
                         </Text>
 
-                        <ul className="space-y-5 mb-10 flex-1">
+                        <ul className="space-y-3 mb-8 flex-1"> {/* Reduced space-y-5 -> 3, mb-10 -> 8 */}
                             {plan.features.map((feature, i) => (
-                                <li key={i} className="flex items-center gap-4 text-base text-gray-300">
-                                    <CheckCircle2 className={`w-5 h-5 ${plan.highlight ? 'text-primary' : 'text-primary/70'}`} />
+                                <li key={i} className="flex items-center gap-3 text-sm text-foreground/80"> {/* Reduced text-base -> text-sm, gap-4 -> 3 */}
+                                    <CheckCircle2 className={`w-4 h-4 ${plan.highlight ? 'text-primary' : 'text-primary/70'}`} /> {/* Reduced w-5 h-5 -> w-4 h-4 */}
                                     <span>{feature}</span>
                                 </li>
                             ))}
@@ -123,10 +123,10 @@ export function PricingSection() {
                             variant={plan.highlight ? "default" : "outline"}
                             onClick={handlePlanClick}
                             className={`
-                  w-full py-6 text-lg rounded-2xl font-bold transition-all
+                  w-full h-10 text-sm rounded-xl font-semibold transition-all {/* Replaced py-6 text-lg -> h-10 text-sm */}
                   ${plan.highlight
-                                    ? 'bg-primary hover:bg-primary/90 text-black shadow-xl shadow-primary/20'
-                                    : 'border-white/10 hover:bg-white/5 text-white hover:text-white'
+                                    ? 'bg-primary hover:bg-primary/90 text-black shadow-lg shadow-primary/10'
+                                    : 'border-white/10 hover:bg-white/5 text-foreground hover:text-foreground'
                                 }
                 `}
                         >

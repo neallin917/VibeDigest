@@ -37,23 +37,29 @@ class Settings:
     # OpenAI Models
     # Summary & Analysis Chain (Preferred -> Fallback)
     OPENAI_SUMMARY_MODELS: list[str] = [
-        os.getenv("OPENAI_SUMMARY_MODEL_PREFERRED", "gpt-5.2"),
+        os.getenv("OPENAI_SUMMARY_MODEL_PREFERRED", "gpt-4o-mini"), # V2 策略推荐模型 (gpt-5 系列在长文本摘要中表现不佳)
+        "gpt-4o",
+        "gpt-5.2",
         "gpt-5",
         "gpt-5-mini",
         "gpt-5-nano",
         "gpt-4.1",
-        "gpt-4o",
     ]
     
     # Helper Models (for simpler tasks like JSON repair, formatting)
     OPENAI_HELPER_MODEL: str = os.getenv("OPENAI_HELPER_MODEL", "gpt-5-mini")
     
     # Translation Models
-    OPENAI_TRANSLATION_MODEL: str = os.getenv("OPENAI_TRANSLATION_MODEL", "gpt-4o")
+    OPENAI_TRANSLATION_MODEL: str = os.getenv("OPENAI_TRANSLATION_MODEL", "gpt-4.1-mini")
 
     # Transcription Models
     # Defaulting to whisper-1 for now, but ready to switch to gpt-4o-transcribe
     OPENAI_TRANSCRIPTION_MODEL: str = os.getenv("OPENAI_TRANSCRIPTION_MODEL", "whisper-1")
+
+    # Summary Strategy
+    # 'legacy' - Use the original generic prompt (default)
+    # 'v2_classified' - Use 3-layer classification system (content_form, info_structure, cognitive_goal)
+    SUMMARY_STRATEGY: str = os.getenv("SUMMARY_STRATEGY", "legacy")
 
     # Pricing / Plans (Creem Product IDs)
     PRICES: Dict[str, PriceConfig] = {
