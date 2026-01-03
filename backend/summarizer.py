@@ -40,12 +40,8 @@ from prompts import (
 )
 
 try:
-    from langfuse import observe, get_client
+    from langfuse import get_client
 except ImportError:
-    def observe(**kwargs):
-        def decorator(func):
-            return func
-        return decorator
     def get_client():
         return None
 

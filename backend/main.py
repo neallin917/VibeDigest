@@ -39,12 +39,7 @@ from pydantic import BaseModel
 from config import settings
 import sentry_sdk
 
-# Langfuse V3
-try:
-    from langfuse import get_client
-except ImportError:
-    def get_client():
-        return None
+# Langfuse V3 setup moved to Background Workers section below
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
