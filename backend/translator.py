@@ -5,6 +5,7 @@ from config import settings
 from utils.openai_client import get_openai_client
 from utils.text_utils import LANGUAGE_MAP, detect_language, smart_chunk_text
 from prompts import TRANSLATE_SYSTEM, TRANSLATE_USER, TRANSLATE_CHUNK_SYSTEM
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +18,7 @@ class Translator:
              logger.info("OpenAI客户端初始化成功 (Translator)")
         else:
              logger.warning("OpenAI API不可用 (Translator)")
-        
-        # 语言映射
         self.language_map = LANGUAGE_MAP
-    
-
-    
-
     
     async def translate_text(self, text: str, target_language: str, source_language: Optional[str] = None) -> str:
         """
@@ -71,16 +66,18 @@ class Translator:
         user_prompt = TRANSLATE_USER.format(source_lang=source_lang_name, target_lang=target_lang_name, text=text)
 
         try:
-            response = self.client.chat.completions.create(
-                model=settings.OPENAI_TRANSLATION_MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                max_completion_tokens=4000,
-                # temperature=0.1
-            )
+            def _call():
+                return self.client.chat.completions.create(
+                    model=settings.OPENAI_TRANSLATION_MODEL,
+                    name="Text Translation",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    max_completion_tokens=4000
+                )
             
+            response = await asyncio.to_thread(_call)
             return response.choices[0].message.content
             
         except Exception as e:
@@ -93,7 +90,6 @@ class Translator:
         logger.info(f"分割为 {len(chunks)} 个块进行翻译")
         
         translated_chunks = []
-        
         for i, chunk in enumerate(chunks):
             logger.info(f"正在翻译第 {i+1}/{len(chunks)} 块...")
             
@@ -103,30 +99,27 @@ class Translator:
                 current_part=i+1,
                 total_parts=len(chunks)
             )
-
-            # Reuse User Prompt structure for chunks as it's simple
             user_prompt = TRANSLATE_USER.format(source_lang=source_lang_name, target_lang=target_lang_name, text=chunk)
 
             try:
-                response = self.client.chat.completions.create(
-                    model=settings.OPENAI_TRANSLATION_MODEL,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    max_completion_tokens=4000,
-                    # temperature=0.1
-                )
+                def _call():
+                    return self.client.chat.completions.create(
+                        model=settings.OPENAI_TRANSLATION_MODEL,
+                        name=f"Chunk Translation ({i+1}/{len(chunks)})",
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ],
+                        max_completion_tokens=4000
+                    )
                 
-                translated_chunk = response.choices[0].message.content
-                translated_chunks.append(translated_chunk)
+                response = await asyncio.to_thread(_call)
+                translated_chunks.append(response.choices[0].message.content)
                 
             except Exception as e:
                 logger.error(f"翻译第 {i+1} 块失败: {e}")
-                # 失败时保留原文
                 translated_chunks.append(chunk)
         
-        # 合并翻译结果
         return "\n\n".join(translated_chunks)
     
     def should_translate(self, source_language: str, target_language: str) -> bool:

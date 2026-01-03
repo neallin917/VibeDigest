@@ -158,10 +158,7 @@ class Summarizer:
         # Default lowered from 6.0 to 4.0 to catch more valid matches with slight rewording.
         self.summary_match_threshold = float(os.getenv("OPENAI_SUMMARY_MATCH_THRESHOLD", "4.0"))
         
-        # 支持的语言映射
-        self.language_map = LANGUAGE_MAP
-        
-        # 支持的语言映射
+        # 语言映射
         self.language_map = LANGUAGE_MAP
 
     @staticmethod
