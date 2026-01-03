@@ -25,12 +25,15 @@
 
   --color-border: #262626;
 
-  /* Larger border radii for modern look */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-2xl: 1.25rem;
+  /* Larger border radii for modern look - Revised for Compact Feel */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  /* Standard button/input radius */
+  --radius-xl: 0.75rem;
+  /* Card radius */
+  --radius-2xl: 1rem;
+  /* Large container radius */
   --radius-3xl: 1.5rem;
   --radius-full: 9999px;
 
@@ -122,7 +125,8 @@
 
 :root {
   color-scheme: dark;
-  --radius: 0.75rem;
+  --radius: 0.5rem;
+  /* Base radius lowered for sharper feel */
 
   /* Deeper Dark Theme (modernized) */
   --background: #0F0F0F;
@@ -202,6 +206,7 @@
   }
 
   body {
-    @apply bg-background text-foreground text-base leading-relaxed;
+    /* Compact mode: text-sm (14px) base */
+    @apply bg-background text-foreground text-sm leading-relaxed;
   }
 }

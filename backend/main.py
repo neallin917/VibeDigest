@@ -236,6 +236,10 @@ async def process_video(
         ensure_output("script")
         ensure_output("script_raw")
         ensure_output("summary_source")
+        
+        # Classification output (only for v2_classified strategy)
+        if settings.SUMMARY_STRATEGY == "v2_classified":
+            ensure_output("classification")
 
         # Summary output (requested language)
         # Check if we already have a summary output with correct locale in current_outputs
@@ -768,7 +772,39 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
                 db_client.update_task_status(task_id, status="error", error=err)
                 return
 
-        # D. Summarize
+
+        # D. Classification (V2 Strategy Only)
+        # Run classification as a separate step so it can be reused/retried independently
+        classification_result = None
+        classification_output = next((o for o in outputs if o['kind'] == 'classification'), None)
+        
+        if settings.SUMMARY_STRATEGY == "v2_classified" and script_text:
+            if classification_output:
+                if classification_output.get("status") == "completed" and classification_output.get("content"):
+                    # Use cached classification
+                    try:
+                        classification_result = json.loads(classification_output.get("content"))
+                        logger.info(f"Using cached classification: {classification_result}")
+                    except:
+                        pass
+                elif classification_output.get("status") != "error":
+                    # Run classification
+                    try:
+                        db_client.update_output_status(classification_output['id'], status="processing", progress=10)
+                        classification_result = await summarizer.classify_content(script_text)
+                        db_client.update_output_status(
+                            classification_output['id'],
+                            status="completed",
+                            progress=100,
+                            content=json.dumps(classification_result, ensure_ascii=False),
+                        )
+                        logger.info(f"Classification completed: {classification_result}")
+                    except Exception as e:
+                        logger.warning(f"Classification failed: {e}")
+                        db_client.update_output_status(classification_output['id'], status="error", error=str(e))
+                        # Classification failure is non-fatal, continue with default
+
+        # E. Summarize
         summary_output = next((o for o in outputs if o['kind'] == 'summary'), None)
         summary_source_output = next((o for o in outputs if o['kind'] == 'summary_source'), None)
 
@@ -801,6 +837,7 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
                                 summary_language=transcript_language,
                                 video_title=video_title,
                                 script_raw_json=raw_json,
+                                existing_classification=classification_result,
                             )
                             db_client.update_output_status(
                                 summary_source_output['id'],
@@ -819,6 +856,7 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str):
                                 summary_language=transcript_language,
                                 video_title=video_title,
                                 script_raw_json=raw_json,
+                                existing_classification=classification_result,
                             )
 
                         # If requested language differs from transcript language, translate while preserving anchors.

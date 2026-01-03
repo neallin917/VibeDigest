@@ -53,9 +53,16 @@ type Output = {
     error_message?: string
 }
 
+type ContentType = {
+    content_form: string
+    info_structure: string
+    cognitive_goal: string
+}
+
 type StructuredSummaryV1 = {
     version: number
     language: string
+    content_type?: ContentType
     overview: string
     keypoints: Array<{
         title: string
@@ -64,6 +71,13 @@ type StructuredSummaryV1 = {
         startSeconds?: number
         endSeconds?: number
     }>
+}
+
+type ClassificationOutput = {
+    content_form: string
+    info_structure: string
+    cognitive_goal: string
+    confidence: number
 }
 
 type MediaController = {
@@ -345,6 +359,7 @@ function SummarySection({
     // Get all available summary outputs
     const summaryOutputs = outputs.filter(o => o.kind === 'summary' && o.status === 'completed')
     const summarySource = outputs.find(o => o.kind === 'summary_source' && o.status === 'completed')
+    const classificationOutput = outputs.find(o => o.kind === 'classification' && o.status === 'completed')
 
     // Parse structured summary
     const parseSummary = (output?: Output) => {
@@ -355,6 +370,16 @@ function SummarySection({
             if (typeof obj.overview !== "string") return null
             if (!Array.isArray(obj.keypoints)) return null
             return obj
+        } catch {
+            return null
+        }
+    }
+
+    // Parse classification from standalone output
+    const parseClassification = (output?: Output): ClassificationOutput | null => {
+        if (!output?.content) return null
+        try {
+            return JSON.parse(output.content) as ClassificationOutput
         } catch {
             return null
         }
@@ -404,6 +429,48 @@ function SummarySection({
     const current = availableLocales.get(selectedLocale) || availableLocales.get(initialLocale)
     const parsed = current?.parsed || null
 
+    // Helper: Determine classification data
+    const classification = useMemo(() => {
+        // 1. Try to get from current summary content
+        if (parsed?.content_type) {
+            return parsed.content_type
+        }
+        // 2. Fallback to standalone classification output
+        if (classificationOutput) {
+            const cls = parseClassification(classificationOutput)
+            if (cls) return cls
+        }
+        return null
+    }, [parsed, classificationOutput])
+
+    // Label mapping for classification
+    const CLS_LABELS: Record<string, string> = {
+        // Content Form
+        tutorial: "📚 教程",
+        interview: "🎙️ 访谈",
+        monologue: "🗣️ 独白",
+        finance: "💰 财经",
+        review: "⭐ 评测",
+        news: "📰 新闻",
+        narrative: "📖 故事",
+        casual: "☕ 闲聊",
+        // Structure
+        hierarchical: "🌳 层级",
+        sequential: "➡️ 流程",
+        argumentative: "⚖️ 论证",
+        comparative: "🆚 对比",
+        narrative_arc: "📈 叙事",
+        thematic: "🧩 主题",
+        qa_format: "❓ 问答",
+        data_driven: "📊 数据",
+        // Goal
+        understand: "🧠 理解",
+        decide: "🤔 决策",
+        execute: "🛠️ 实操",
+        inspire: "✨ 灵感",
+        digest: "📝 摘要",
+    }
+
     // Get native language label
     const getLocaleLabel = (lang: string) => {
         if (lang in LOCALE_LABEL) {
@@ -418,6 +485,9 @@ function SummarySection({
     const toMarkdown = (data: StructuredSummaryV1) => {
         const lines: string[] = []
         if (taskTitle) lines.push(`# ${taskTitle}`, "")
+
+        // Add classification tags to markdown only if desired, skipping for now to keep clean
+
         lines.push(`## ${t("tasks.summaryStructured.overviewTitle")}`, "", data.overview.trim(), "")
         lines.push(`## ${t("tasks.summaryStructured.keypointsTitle")}`, "")
         for (const kp of data.keypoints) {
@@ -540,6 +610,26 @@ function SummarySection({
                         />
                     </div>
                 </div>
+
+                {/* Classification Tags */}
+                {classification && (
+                    <div className="flex flex-wrap justify-center gap-2 mb-2 animate-in fade-in slide-in-from-top-1 duration-500">
+                        {[
+                            { key: classification.content_form, color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+                            { key: classification.info_structure, color: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
+                            { key: classification.cognitive_goal, color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" }
+                        ].map((item, i) => (
+                            <Badge
+                                key={i}
+                                variant="outline"
+                                className={`px-2.5 py-1 text-xs font-normal border ${item.color}`}
+                            >
+                                {CLS_LABELS[item.key] || item.key}
+                            </Badge>
+                        ))}
+                    </div>
+                )}
+
                 <div className="grid gap-8">
                     {/* Overview Section */}
                     <div className="bg-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 border border-white/5 relative overflow-hidden transition-colors hover:bg-white/[0.07]">
@@ -585,7 +675,7 @@ function SummarySection({
                     </div>
                 </div>
             </CardContent>
-        </Card>
+        </Card >
     )
 }
 

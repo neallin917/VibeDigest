@@ -29,31 +29,32 @@ export function HowItWorksSection() {
     ]
 
     return (
-        <section className="py-24 px-6 relative overflow-hidden">
+
+        <section className="py-16 px-4 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-900/10 rounded-full blur-[100px] pointer-events-none" />
 
-            <div className="text-center mb-20 relative z-10">
-                <Heading as="h2" className="text-3xl md:text-5xl font-bold mb-4 font-heading">
+            <div className="text-center mb-12 relative z-10">
+                <Heading as="h2" className="text-2xl md:text-3xl font-bold mb-3 font-heading">
                     {t("landing.howItWorks")}
                 </Heading>
-                <Text className="text-gray-400 text-lg">
+                <Text className="text-muted-foreground text-base">
                     {t("landing.howItWorksSubtitle")}
                 </Text>
             </div>
 
-            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 relative z-10">
+            <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
                 {steps.map((step, index) => (
                     <div key={index} className="flex flex-col items-center text-center group">
-                        <div className="w-20 h-20 rounded-2xl bg-[#141414] border border-white/10 flex items-center justify-center mb-8 relative group-hover:border-primary/50 transition-colors duration-300 shadow-xl shadow-black/20">
-                            <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-primary text-black font-bold flex items-center justify-center text-sm shadow-lg shadow-primary/20">
+                        <div className="w-16 h-16 rounded-2xl bg-card border border-white/10 flex items-center justify-center mb-6 relative group-hover:border-primary/50 transition-colors duration-300 shadow-xl shadow-black/20">
+                            <div className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-primary text-black font-bold flex items-center justify-center text-xs shadow-lg shadow-primary/20">
                                 {step.step}
                             </div>
-                            <step.icon className="w-8 h-8 text-primary group-hover:scale-110 transition-transform duration-300" />
+                            <step.icon className="w-7 h-7 text-primary group-hover:scale-110 transition-transform duration-300" />
                         </div>
-                        <Heading as="h3" className="text-xl font-bold mb-4 text-white">
+                        <Heading as="h3" className="text-lg font-bold mb-2 text-foreground">
                             {step.title}
                         </Heading>
-                        <Text className="text-gray-400 leading-relaxed max-w-xs">
+                        <Text className="text-muted-foreground leading-relaxed max-w-xs text-sm">
                             {step.desc}
                         </Text>
                     </div>
