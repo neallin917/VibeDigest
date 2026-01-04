@@ -23,9 +23,9 @@ type Profile = {
 }
 
 // Creem Product IDs
-const PRO_MONTHLY_PRODUCT_ID = "prod_3lXRz2ypke2tUAIbsbrdvv"
-const PRO_ANNUAL_PRODUCT_ID = "prod_2rOdq3nC3kDbAPEO47eYKl"
-const CREDIT_PACK_PRODUCT_ID = "prod_lcSEEQdt57GWImjDUwYrX"
+const PRO_MONTHLY_PRODUCT_ID = "prod_5XoWWMZN6ptDexocrwyqT0"
+const PRO_ANNUAL_PRODUCT_ID = "prod_1pLnYf7AwktcAhRhkjiJTh"
+const CREDIT_PACK_PRODUCT_ID = "prod_5VVI5ldN9dtI7tbHaST5OB"
 
 export default function PricingPage() {
     const { t } = useI18n()
