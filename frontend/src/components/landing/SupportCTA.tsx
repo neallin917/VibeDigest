@@ -3,7 +3,7 @@
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { Heading, Text } from "@/components/ui/typography"
 import { Button } from "@/components/ui/button"
-import { Mail, HelpCircle } from "lucide-react"
+import { Mail } from "lucide-react"
 import { FeedbackDialog } from "@/components/layout/FeedbackDialog"
 
 export function SupportCTA() {
@@ -34,14 +34,6 @@ export function SupportCTA() {
                                 {t("landing.contactSupport")}
                             </Button>
                         </FeedbackDialog>
-
-                        <Button
-                            variant="outline"
-                            className="bg-transparent border-white/20 text-white font-semibold text-base h-11 px-8 rounded-full hover:bg-white/5 gap-2"
-                        >
-                            <HelpCircle className="w-4 h-4" />
-                            {t("landing.helpCenter")}
-                        </Button>
                     </div>
                 </div>
             </div>

@@ -10,12 +10,12 @@ import { createClient } from "@/lib/supabase"
 // Demo tasks are managed via is_demo field in the database
 // No hardcoded IDs needed - just set is_demo = true in Supabase
 
-type TaskOutput = {
+export type TaskOutput = {
     kind: string
     content: string | object
 }
 
-type Task = {
+export type Task = {
     id: string
     video_url: string
     video_title?: string

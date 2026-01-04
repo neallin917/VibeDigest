@@ -156,7 +156,7 @@ const messages: Record<Locale, Messages> = {
       stillHaveQuestions: "Still have questions?",
       stillHaveQuestionsDesc: "Our support team is here to help you get the most out of the AI Summarizer. Reach out anytime, and we'll get back to you within 24 hours.",
       contactSupport: "Contact Support",
-      helpCenter: "Help Center",
+
     },
     categories: {
       tutorial: "Tutorial",
@@ -545,7 +545,7 @@ const messages: Record<Locale, Messages> = {
       stillHaveQuestions: "还有问题？",
       stillHaveQuestionsDesc: "我们的支持团队随时为您服务，帮助您充分利用 AI 摘要工具。随时联系，我们将在 24 小时内回复。",
       contactSupport: "联系支持",
-      helpCenter: "帮助中心",
+
     },
     home: {
       titleEmphasis: "AI 视频",

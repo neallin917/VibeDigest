@@ -1,7 +1,6 @@
 import { GoogleOneTap } from "@/components/auth/GoogleOneTap"
 import { LandingUserButton } from "@/components/auth/LandingUserButton"
 import { LanguageInlineSelect } from "@/components/i18n/LanguageInlineSelect"
-import { CommunityTemplates } from "@/components/dashboard/CommunityTemplates"
 import { HeroSection } from "@/components/landing/HeroSection"
 import { FeaturesSection } from "@/components/landing/FeaturesSection"
 import { HowItWorksSection } from "@/components/landing/HowItWorksSection"
@@ -9,56 +8,11 @@ import { PricingSection } from "@/components/landing/PricingSection"
 import { TestimonialsSection } from "@/components/landing/TestimonialsSection"
 import { SupportCTA } from "@/components/landing/SupportCTA"
 import { LandingNav } from "@/components/landing/LandingNav"
-import { createClient } from "@/lib/supabase/server"
+import { ServerCommunityTemplates } from "@/components/dashboard/ServerCommunityTemplates"
+import { TemplatesSkeleton } from "@/components/dashboard/TemplatesSkeleton"
+import { Suspense } from "react"
 
-// Demo tasks are managed via is_demo field in the database
-// No hardcoded IDs needed - just set is_demo = true in Supabase
-
-type TaskOutput = {
-  kind: string
-  content: string | object
-}
-
-type Task = {
-  id: string
-  video_url: string
-  video_title?: string
-  thumbnail_url?: string
-  status: string
-  created_at: string
-  author?: string
-  author_image_url?: string
-  task_outputs?: TaskOutput[]
-}
-
-export default async function LandingPage() {
-  const supabase = await createClient()
-
-  // Query tasks where is_demo = true (managed in database)
-  // Also fetch task_outputs to get classification
-  const { data } = await supabase
-    .from('tasks')
-    .select(`
-            id, 
-            video_url, 
-            video_title, 
-            thumbnail_url, 
-            status, 
-            created_at, 
-            author, 
-            author_image_url,
-            task_outputs (
-                kind,
-                content
-            )
-        `)
-    .eq('is_demo', true)
-    .eq('status', 'completed')
-    .order('created_at', { ascending: false })
-    .limit(8)
-
-  const initialTasks = (data || []) as any as Task[]
-
+export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen bg-[#0A0A0A] text-[#F5F5F5] relative overflow-hidden font-sans">
       {/* Google One Tap Login */}
@@ -92,7 +46,9 @@ export default async function LandingPage() {
             <span className="text-sm text-gray-500 hidden md:inline-block">Try these ready-made examples</span>
           </div>
 
-          <CommunityTemplates limit={8} showHeader={false} initialTasks={initialTasks} />
+          <Suspense fallback={<TemplatesSkeleton />}>
+            <ServerCommunityTemplates limit={8} showHeader={false} />
+          </Suspense>
         </div>
 
         <FeaturesSection />
