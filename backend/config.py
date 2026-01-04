@@ -69,20 +69,20 @@ class Settings:
     # Pricing / Plans (Creem Product IDs)
     PRICES: Dict[str, PriceConfig] = {
         "CREDIT_PACK": PriceConfig(
-            id="prod_lcSEEQdt57GWImjDUwYrX",
+            id="prod_5VVI5ldN9dtI7tbHaST5OB",
             amount=5.00,
             name="50 Credits Top-up (One-time)",
             credits=50,
             mode='payment'
         ),
         "PRO_MONTHLY": PriceConfig(
-            id="prod_3lXRz2ypke2tUAIbsbrdvv",
+            id="prod_5XoWWMZN6ptDexocrwyqT0",
             amount=9.90,
             name="Pro Plan (1 Month)",
             mode='subscription'
         ),
         "PRO_ANNUAL": PriceConfig(
-            id="prod_2rOdq3nC3kDbAPEO47eYKl",
+            id="prod_1pLnYf7AwktcAhRhkjiJTh",
             amount=99.00,
             name="Pro Plan (1 Year)",
             mode='subscription'
