@@ -305,6 +305,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                                         onSeek={handleSeek}
                                         t={t}
                                         locale={locale}
+                                        coverUrl={task.thumbnail_url}
                                     />
                                 </TabsContent>
 
@@ -344,6 +345,7 @@ function SummarySection({
     onSeek,
     t,
     locale,
+    coverUrl,
 }: {
     taskTitle?: string
     outputs: Output[]
@@ -352,6 +354,7 @@ function SummarySection({
     onSeek: (seconds: number) => void
     t: (key: string, vars?: Record<string, string | number>) => string
     locale: string
+    coverUrl?: string
 }) {
     const containerRef = useRef<HTMLDivElement>(null)
     const [isLangOpen, setIsLangOpen] = useState(false)
@@ -443,32 +446,32 @@ function SummarySection({
         return null
     }, [parsed, classificationOutput])
 
-    // Label mapping for classification
+    // Label mapping for classification - using i18n
     const CLS_LABELS: Record<string, string> = {
-        // Content Form
-        tutorial: "📚 教程",
-        interview: "🎙️ 访谈",
-        monologue: "🗣️ 独白",
-        finance: "💰 财经",
-        review: "⭐ 评测",
-        news: "📰 新闻",
-        narrative: "📖 故事",
-        casual: "☕ 闲聊",
-        // Structure
-        hierarchical: "🌳 层级",
-        sequential: "➡️ 流程",
-        argumentative: "⚖️ 论证",
-        comparative: "🆚 对比",
-        narrative_arc: "📈 叙事",
-        thematic: "🧩 主题",
-        qa_format: "❓ 问答",
-        data_driven: "📊 数据",
-        // Goal
-        understand: "🧠 理解",
-        decide: "🤔 决策",
-        execute: "🛠️ 实操",
-        inspire: "✨ 灵感",
-        digest: "📝 摘要",
+        // Content Form - use i18n categories
+        tutorial: `📚 ${t("categories.tutorial")}`,
+        interview: `🎙️ ${t("categories.interview")}`,
+        monologue: `🗣️ ${t("categories.monologue")}`,
+        finance: `💰 ${t("categories.finance")}`,
+        review: `⭐ ${t("categories.review")}`,
+        news: `📰 ${t("categories.news")}`,
+        narrative: `📖 ${t("categories.narrative")}`,
+        casual: `☕ ${t("categories.casual")}`,
+        // Structure (not internationalized, keeping as concise labels)
+        hierarchical: "🌳",
+        sequential: "➡️",
+        argumentative: "⚖️",
+        comparative: "🆚",
+        narrative_arc: "📈",
+        thematic: "🧩",
+        qa_format: "❓",
+        data_driven: "📊",
+        // Goal (not shown in UI currently)
+        understand: "🧠",
+        decide: "🤔",
+        execute: "🛠️",
+        inspire: "✨",
+        digest: "📝",
     }
 
     // Determine dynamic keypoints title
@@ -591,6 +594,7 @@ function SummarySection({
                             <Badge
                                 variant="outline"
                                 className="px-3 py-1 text-xs font-normal border bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                data-export-hide="true"
                             >
                                 {CLS_LABELS[classification.content_form] || classification.content_form}
                             </Badge>
@@ -639,6 +643,7 @@ function SummarySection({
                         <SummaryShareButton
                             containerRef={containerRef}
                             title={taskTitle || ""}
+                            coverUrl={coverUrl}
                             onCopyMarkdown={handleCopy}
                             t={t}
                         />

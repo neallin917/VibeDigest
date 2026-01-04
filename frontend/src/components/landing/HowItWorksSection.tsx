@@ -30,7 +30,7 @@ export function HowItWorksSection() {
 
     return (
 
-        <section className="py-16 px-4 relative overflow-hidden">
+        <section id="how-it-works" className="py-16 px-4 relative overflow-hidden scroll-mt-24">
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-900/10 rounded-full blur-[100px] pointer-events-none" />
 
             <div className="text-center mb-12 relative z-10">

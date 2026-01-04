@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase"
+import { useI18n } from "@/components/i18n/I18nProvider"
 import { Button } from "@/components/ui/button"
 import { UserPlus, LogOut } from "lucide-react"
 import {
@@ -22,6 +23,7 @@ interface User {
 }
 
 export function LandingUserButton() {
+    const { t } = useI18n()
     const [user, setUser] = useState<User | null>(null)
     const [loading, setLoading] = useState(true)
     const supabase = createClient()
@@ -65,7 +67,7 @@ export function LandingUserButton() {
             <Link href="/login">
                 <Button variant="outline" size="sm" className="gap-2 bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20">
                     <UserPlus className="h-4 w-4" />
-                    Sign Up
+                    {t("auth.signUp")}
                 </Button>
             </Link>
         )
@@ -100,12 +102,12 @@ export function LandingUserButton() {
                 </div>
                 <DropdownMenuItem asChild>
                     <Link href="/dashboard" className="cursor-pointer">
-                        Go to Dashboard
+                        {t("auth.goToDashboard")}
                     </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleLogout} className="text-red-400 focus:text-red-400 cursor-pointer">
                     <LogOut className="mr-2 h-4 w-4" />
-                    Log out
+                    {t("auth.logout")}
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>

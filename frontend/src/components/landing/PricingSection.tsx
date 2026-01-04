@@ -69,7 +69,7 @@ export function PricingSection() {
     ]
 
     return (
-        <section className="py-16 px-4 relative"> {/* Reduced py-24 -> py-16, px-6 -> px-4 */}
+        <section id="pricing" className="py-16 px-4 relative scroll-mt-24"> {/* Reduced py-24 -> py-16, px-6 -> px-4 */}
             <div className="text-center mb-12"> {/* Reduced mb-20 -> mb-12 */}
                 <Heading as="h2" className="text-2xl md:text-3xl font-bold mb-3 font-heading"> {/* Reduced text-3xl/5xl -> 2xl/3xl */}
                     {t("landing.simplePricing")}

@@ -18,7 +18,7 @@ export function HeroSection() {
     }
 
     return (
-        <section className="flex flex-col items-center justify-center px-6 pt-32 pb-14 md:pt-40 md:pb-20 text-center space-y-10 relative z-10">
+        <section id="hero" className="flex flex-col items-center justify-center px-6 pt-32 pb-14 md:pt-40 md:pb-20 text-center space-y-10 relative z-10">
             <div className="space-y-6 max-w-4xl">
                 <Heading
                     as="h1"
