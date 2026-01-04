@@ -29,11 +29,7 @@ export default function LandingPage() {
         <div className="absolute bottom-[-20%] left-[15%] w-[50%] h-[50%] bg-emerald-500/5 rounded-full blur-[150px]" />
       </div>
 
-      {/* Header */}
-      <header className="absolute top-6 right-6 z-50 flex items-center gap-4">
-        <LandingUserButton />
-        <LanguageInlineSelect />
-      </header>
+
 
       <main className="flex-1 w-full">
         <HeroSection />

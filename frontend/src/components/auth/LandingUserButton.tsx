@@ -5,7 +5,7 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { Button } from "@/components/ui/button"
-import { UserPlus, LogOut } from "lucide-react"
+import { LogOut } from "lucide-react"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -66,7 +66,6 @@ export function LandingUserButton() {
         return (
             <Link href="/login">
                 <Button variant="outline" size="sm" className="gap-2 bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20">
-                    <UserPlus className="h-4 w-4" />
                     {t("auth.signUp")}
                 </Button>
             </Link>
