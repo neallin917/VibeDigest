@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { PlayCircle, Sparkles, Loader2 } from "lucide-react"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { createClient } from "@/lib/supabase"
@@ -105,11 +106,13 @@ function TemplateCard({ task }: { task: Task }) {
             {/* Thumbnail Area */}
             <div className="relative aspect-video w-full overflow-hidden bg-black/40 shrink-0">
                 {task.thumbnail_url ? (
-                    <img
+                    <Image
                         src={task.thumbnail_url}
                         alt={task.video_title || "Video thumbnail"}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
                         referrerPolicy="no-referrer"
+                        unoptimized
                     />
                 ) : (
                     <div className="flex h-full items-center justify-center">
@@ -139,12 +142,16 @@ function TemplateCard({ task }: { task: Task }) {
                     {showAuthor ? (
                         <>
                             {task.author_image_url ? (
-                                <img
-                                    src={task.author_image_url}
-                                    alt={task.author || "Author"}
-                                    className="h-5 w-5 rounded-full object-cover border border-white/10 shrink-0"
-                                    referrerPolicy="no-referrer"
-                                />
+                                <div className="relative h-5 w-5 shrink-0 rounded-full overflow-hidden border border-white/10">
+                                    <Image
+                                        src={task.author_image_url}
+                                        alt={task.author || "Author"}
+                                        fill
+                                        className="object-cover"
+                                        referrerPolicy="no-referrer"
+                                        unoptimized
+                                    />
+                                </div>
                             ) : (
                                 <div className="h-5 w-5 rounded-full bg-white/10 flex items-center justify-center border border-white/10 shrink-0">
                                     <span className="text-[10px] text-white/70 font-bold leading-none">
@@ -175,13 +182,17 @@ function TemplateCard({ task }: { task: Task }) {
     )
 }
 
-export function CommunityTemplates({ limit, showHeader = true }: { limit?: number, showHeader?: boolean }) {
+export function CommunityTemplates({ limit, showHeader = true, initialTasks = [] }: { limit?: number, showHeader?: boolean, initialTasks?: Task[] }) {
     const { t } = useI18n()
-    const [tasks, setTasks] = useState<Task[]>([])
-    const [loading, setLoading] = useState(true)
+    const [tasks, setTasks] = useState<Task[]>(initialTasks)
+    const [loading, setLoading] = useState(initialTasks.length === 0)
     const supabase = createClient()
 
     useEffect(() => {
+        if (initialTasks.length > 0) {
+            setLoading(false)
+            return
+        }
         async function fetchDemoTasks() {
             setLoading(true)
             // Query tasks where is_demo = true (managed in database)
