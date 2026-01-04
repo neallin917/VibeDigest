@@ -3,6 +3,18 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "img.youtube.com" },
+      { protocol: "https", hostname: "i.ytimg.com" },
+      { protocol: "https", hostname: "archive.biliimg.com" },
+      { protocol: "https", hostname: "i0.hdslb.com" },
+      { protocol: "https", hostname: "i1.hdslb.com" },
+      { protocol: "https", hostname: "i2.hdslb.com" },
+      { protocol: "https", hostname: "p16-sign-sg.tiktokcdn.com" },
+      { protocol: "https", hostname: "p16-sign-va.tiktokcdn.com" },
+    ],
+  },
 };
 
 export default withSentryConfig(nextConfig, {
