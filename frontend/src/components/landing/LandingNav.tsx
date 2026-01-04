@@ -2,7 +2,16 @@
 
 import { useEffect, useState } from "react"
 import { useI18n } from "@/components/i18n/I18nProvider"
-import { Sparkles } from "lucide-react"
+import { Menu } from "lucide-react"
+import { LandingUserButton } from "@/components/auth/LandingUserButton"
+import { BrandLogo } from "@/components/layout/BrandLogo"
+import { LanguageInlineSelect } from "@/components/i18n/LanguageInlineSelect"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 const navItems = [
     { id: "hero", key: "product" },
@@ -78,38 +87,76 @@ export function LandingNav() {
     }
 
     return (
-        <nav
-            className={`fixed top-5 left-1/2 -translate-x-1/2 z-40 transition-all duration-300 ${isScrolled ? "shadow-xl shadow-black/30" : ""
-                }`}
-        >
-            <div className="flex items-center gap-1 px-2 py-1.5 rounded-full bg-black/10 backdrop-blur-3xl border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
-                {/* Brand Logo */}
+        <nav className="fixed top-6 left-0 right-0 z-50 px-6 h-14 flex items-center pointer-events-none">
+            <div className="max-w-7xl mx-auto w-full flex items-center justify-between pointer-events-auto">
+                {/* Left: Brand Logo */}
                 <div
                     onClick={() => scrollToSection("hero")}
-                    className="flex items-center gap-2 px-3 py-2 cursor-pointer group"
+                    className="flex-shrink-0 cursor-pointer transition-opacity hover:opacity-80"
                 >
-                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-primary to-emerald-400 flex items-center justify-center shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-shadow">
-                        <Sparkles className="w-3.5 h-3.5 text-black" />
-                    </div>
-                    <span className="text-sm font-semibold text-white/90 hidden sm:block">VibeDigest</span>
+                    <BrandLogo textClassName="text-lg font-semibold tracking-tight" />
                 </div>
 
-                {/* Separator */}
-                <div className="w-px h-5 bg-white/10 mx-1" />
+                {/* Center: Navigation Capsule */}
+                <div className="absolute left-1/2 -translate-x-1/2 hidden md:block">
+                    <div className={`
+                        flex items-center gap-1 px-2 py-1.5 rounded-full 
+                        bg-black/20 backdrop-blur-md 
+                        border border-white/10 
+                        shadow-[0_0_0_1px_rgba(255,255,255,0.05)]
+                        transition-all duration-300
+                        ${isScrolled ? "shadow-lg shadow-black/20 bg-black/40" : ""}
+                    `}>
+                        {navItems.slice(1).map((item) => (
+                            <button
+                                key={item.id}
+                                onClick={() => scrollToSection(item.id)}
+                                className={`
+                                    px-5 py-2 rounded-full text-[13px] font-medium tracking-wide transition-all duration-300
+                                    ${activeSection === item.id
+                                        ? "bg-white text-black shadow-md"
+                                        : "text-white/70 hover:text-white hover:bg-white/10"
+                                    }
+                                `}
+                            >
+                                {labels[item.key]}
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
-                {/* Nav Items */}
-                {navItems.slice(1).map((item) => (
-                    <button
-                        key={item.id}
-                        onClick={() => scrollToSection(item.id)}
-                        className={`px-5 py-2 rounded-full text-[13px] font-medium transition-all duration-200 ${activeSection === item.id
-                            ? "bg-primary text-black shadow-lg shadow-primary/25"
-                            : "text-white/60 hover:text-white hover:bg-white/[0.08]"
-                            }`}
-                    >
-                        {labels[item.key]}
-                    </button>
-                ))}
+                {/* Right: Actions & Mobile Menu */}
+                <div className="flex items-center gap-3">
+                    <div className="hidden md:flex items-center gap-3">
+                        <LanguageInlineSelect />
+                        <div className="h-4 w-px bg-white/10 mx-1" />
+                        <LandingUserButton />
+                    </div>
+
+                    {/* Mobile Menu Trigger */}
+                    <div className="md:hidden flex items-center gap-2">
+                        <LanguageInlineSelect />
+                        <LandingUserButton />
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button className="p-2 -mr-2 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+                                    <Menu className="w-5 h-5" />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48 bg-black/90 border-white/10 backdrop-blur-xl">
+                                {navItems.slice(1).map((item) => (
+                                    <DropdownMenuItem
+                                        key={item.id}
+                                        onClick={() => scrollToSection(item.id)}
+                                        className={`cursor-pointer ${activeSection === item.id ? "text-primary focus:text-primary" : "text-white/70"}`}
+                                    >
+                                        {labels[item.key]}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </div>
             </div>
         </nav>
     )

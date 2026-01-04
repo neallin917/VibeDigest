@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { NAV_ITEMS } from "@/components/layout/navItems"
 import { FeedbackDialog } from "@/components/layout/FeedbackDialog"
+import { BrandLogo } from "./BrandLogo"
 
 function isActiveNav(pathname: string, href: string) {
   if (pathname === href) return true
@@ -34,7 +35,7 @@ export function MobileHeader() {
     <div className="md:hidden sticky top-0 z-40 border-b border-white/10 bg-black/40 backdrop-blur-md">
       <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-4">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-primary font-bold">{t("brand.appName")}</span>
+          <BrandLogo />
         </div>
 
         <Dialog>

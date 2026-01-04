@@ -11,7 +11,8 @@ import { createClient } from "@/lib/supabase"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { FeedbackDialog } from "./FeedbackDialog"
 import { NAV_ITEMS } from "@/components/layout/navItems"
-import { Heading, Text } from "@/components/ui/typography"
+
+import { BrandLogo } from "./BrandLogo"
 
 export function Sidebar({ onHide }: { onHide?: () => void }) {
     const pathname = usePathname()
@@ -30,12 +31,7 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
             <div className="p-6">
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2 min-w-0">
-                        <Text as="span" className="text-primary" weight="semibold">
-                            ⚡
-                        </Text>
-                        <Heading as="h1" variant="h3" className="m-0 truncate">
-                            {t("brand.appName")}
-                        </Heading>
+                        <BrandLogo textClassName="text-lg" />
                     </div>
 
                     {onHide ? (
