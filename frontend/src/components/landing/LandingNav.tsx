@@ -82,7 +82,7 @@ export function LandingNav() {
             className={`fixed top-5 left-1/2 -translate-x-1/2 z-40 transition-all duration-300 ${isScrolled ? "shadow-xl shadow-black/30" : ""
                 }`}
         >
-            <div className="flex items-center gap-1 px-2 py-1.5 rounded-full bg-[#1a1a1a]/80 backdrop-blur-2xl border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
+            <div className="flex items-center gap-1 px-2 py-1.5 rounded-full bg-black/10 backdrop-blur-3xl border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
                 {/* Brand Logo */}
                 <div
                     onClick={() => scrollToSection("hero")}

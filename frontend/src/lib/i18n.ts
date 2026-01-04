@@ -73,6 +73,7 @@ const messages: Record<Locale, Messages> = {
       haveAccount: "Already have an account? Sign In",
       noAccount: "Don't have an account? Sign Up",
       signUpToContinue: "Sign up to get started",
+      goToDashboard: "Go to Dashboard",
       checkEmailForConfirmation: "Please check your email to confirm your account.",
       errors: {
         invalidCredentials: "Invalid login credentials",
@@ -426,7 +427,7 @@ const messages: Record<Locale, Messages> = {
   },
   zh: {
     brand: {
-      name: "AI 视频笔记",
+      name: "VibeDigest",
       appName: "VibeDigest",
       versionTag: "Alpha",
     },
@@ -459,6 +460,7 @@ const messages: Record<Locale, Messages> = {
       haveAccount: "已有账户？登录",
       noAccount: "没有账户？注册",
       signUpToContinue: "注册以开始使用",
+      goToDashboard: "进入工作台",
       checkEmailForConfirmation: "请检查您的邮箱以确认账户。",
       errors: {
         invalidCredentials: "登录凭据无效",
@@ -871,6 +873,7 @@ const messages: Record<Locale, Messages> = {
       haveAccount: "¿Ya tienes cuenta? Inicia sesión",
       noAccount: "¿No tienes cuenta? Regístrate",
       signUpToContinue: "Regístrate para comenzar",
+      goToDashboard: "Ir al Panel",
       checkEmailForConfirmation: "Revisa tu correo para confirmar tu cuenta.",
       errors: {
         invalidCredentials: "Credenciales inválidas",
@@ -1153,7 +1156,9 @@ const messages: Record<Locale, Messages> = {
       sending: "جاري الإرسال...",
       sendMagicLink: "إرسال الرابط السحري",
       checkYourEmail: "تفقد بريدك",
+      signUp: "إنشاء حساب",
       logout: "تسجيل الخروج",
+      goToDashboard: "الذهاب إلى لوحة التحكم",
     },
     landing: {
       titlePrefix: "تلخيص الفيديو والبودكاست",
@@ -1375,7 +1380,9 @@ const messages: Record<Locale, Messages> = {
       sending: "Envoi...",
       sendMagicLink: "Envoyer le lien magique",
       checkYourEmail: "Vérifiez votre email",
+      signUp: "S'inscrire",
       logout: "Déconnexion",
+      goToDashboard: "Aller au Tableau de bord",
     },
     landing: {
       titlePrefix: "Résumés Vidéo & Podcast",
@@ -1597,7 +1604,9 @@ const messages: Record<Locale, Messages> = {
       sending: "Отправка...",
       sendMagicLink: "Отправить ссылку",
       checkYourEmail: "Проверьте почту",
+      signUp: "Регистрация",
       logout: "Выйти",
+      goToDashboard: "Перейти на панель",
     },
     landing: {
       titlePrefix: "AI Суммаризатор Видео",
@@ -1819,7 +1828,9 @@ const messages: Record<Locale, Messages> = {
       sending: "Enviando...",
       sendMagicLink: "Enviar link mágico",
       checkYourEmail: "Verifique seu e-mail",
+      signUp: "Cadastrar",
       logout: "Sair",
+      goToDashboard: "Ir para o Painel",
     },
     landing: {
       titlePrefix: "Resumidor de Vídeo",
@@ -2041,7 +2052,9 @@ const messages: Record<Locale, Messages> = {
       sending: "भेज रहा है...",
       sendMagicLink: "मैजिक लिंक भेजें",
       checkYourEmail: "अपना ईमेल चेक करें",
+      signUp: "साइन अप",
       logout: "लॉग आउट",
+      goToDashboard: "डैशबोर्ड पर जाएं",
     },
     landing: {
       titlePrefix: "AI वीडियो और पॉडकास्ट",
@@ -2266,7 +2279,9 @@ const messages: Record<Locale, Messages> = {
       sending: "送信中...",
       sendMagicLink: "ログインリンクを送信",
       checkYourEmail: "メールを確認してください",
+      signUp: "新規登録",
       logout: "ログアウト",
+      goToDashboard: "ダッシュボードへ",
     },
     landing: {
       titlePrefix: "AI 動画・ポッドキャスト",
@@ -2531,7 +2546,9 @@ const messages: Record<Locale, Messages> = {
       sending: "전송 중...",
       sendMagicLink: "로그인 링크 보내기",
       checkYourEmail: "이메일을 확인하세요",
+      signUp: "회원가입",
       logout: "로그아웃",
+      goToDashboard: "대시보드로 이동",
     },
     landing: {
       titlePrefix: "AI 비디오 및 팟캐스트",
