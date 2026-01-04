@@ -10,6 +10,7 @@ import { Providers } from "@/components/providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  applicationName: "VibeDigest",
   metadataBase: new URL("https://vibedigest.neallin.xyz"),
   alternates: {
     canonical: "./",
@@ -64,19 +65,28 @@ export default function RootLayout({
   children: React.ReactNode;
   auth: React.ReactNode;
 }>) {
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "VibeDigest",
-    "applicationCategory": "ProductivityApplication",
-    "operatingSystem": "Web",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD",
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "VibeDigest",
+      "applicationCategory": "ProductivityApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+      },
+      "description": "AI-powered tool to transform videos and podcasts into structured insights.",
     },
-    "description": "AI-powered tool to transform videos and podcasts into structured insights.",
-  };
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "VibeDigest",
+      "alternateName": ["Vibe Digest", "AI Video Summarizer"],
+      "url": "https://vibedigest.neallin.xyz"
+    }
+  ];
 
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
