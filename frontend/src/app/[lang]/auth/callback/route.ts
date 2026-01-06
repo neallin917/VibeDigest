@@ -2,10 +2,11 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
-export async function GET(request: Request) {
+export async function GET(request: Request, { params }: { params: Promise<{ lang: string }> }) {
     const { searchParams, origin } = new URL(request.url)
     const code = searchParams.get('code')
-    const next = searchParams.get('next') ?? '/dashboard'
+    const { lang } = await params
+    const next = searchParams.get('next') ?? `/${lang}/dashboard`
 
     if (code) {
         const cookieStore = await cookies()
@@ -45,12 +46,12 @@ export async function GET(request: Request) {
             }
         } else {
             console.error('Auth callback error:', error)
-            return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`)
+            return NextResponse.redirect(`${origin}/${lang}/login?error=${encodeURIComponent(error.message)}`)
         }
     } else {
         console.log('No code found in auth callback URL')
     }
 
     // return the user to an error page with instructions
-    return NextResponse.redirect(`${origin}/login?message=Could not login with provider&reason=no_code`)
+    return NextResponse.redirect(`${origin}/${lang}/login?message=Could not login with provider&reason=no_code`)
 }

@@ -108,7 +108,7 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
             if (!session) {
                 localStorage.setItem("pendingTask_url", url)
                 localStorage.setItem("pendingTask_lang", language)
-                router.push("/login")
+                router.push(`/${locale}/login`)
                 return
             }
 
@@ -246,7 +246,7 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
                             <Button variant="outline" onClick={() => setShowQuotaDialog(false)}>
                                 {t("taskForm.quotaExceeded.cancel")}
                             </Button>
-                            <Button onClick={() => router.push("/settings/pricing")}>
+                            <Button onClick={() => router.push(`/${locale}/settings/pricing`)}>
                                 {t("taskForm.quotaExceeded.confirm")}
                             </Button>
                         </DialogFooter>
@@ -371,7 +371,7 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
                         <Button variant="outline" onClick={() => setShowQuotaDialog(false)}>
                             {t("taskForm.quotaExceeded.cancel")}
                         </Button>
-                        <Button onClick={() => router.push("/settings/pricing")}>
+                        <Button onClick={() => router.push(`/${locale}/settings/pricing`)}>
                             {t("taskForm.quotaExceeded.confirm")}
                         </Button>
                     </DialogFooter>
