@@ -249,7 +249,10 @@ export function TaskList({ showHeader = true, excludeDemo = false }: { showHeade
                 {tasks.map((task) => (
                     <div
                         key={task.id}
-                        onClick={() => router.push(`/tasks/${task.id}`)}
+                        onClick={() => {
+                            const slug = encodeURIComponent((task.video_title || "video").trim().replace(/\s+/g, '-'));
+                            router.push(`/${locale}/tasks/${task.id}/${slug}`)
+                        }}
                         className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-white/5 bg-black/20 backdrop-blur-sm hover:bg-black/40 hover:border-white/20 transition-all cursor-pointer group"
                     >
                         {/* Thumbnail Placeholder */}

@@ -10,6 +10,7 @@
 - **Next-Gen Frontend**: Built with **Next.js 14+ (App Router)** and **TailwindCSS** for a responsive, fluid experience.
 - **Premium UX**: A dark-mode-first design featuring "Supabase-style" glassmorphism and refined animations.
 - **Advanced Backend**: Powered by **FastAPI** and the official **OpenAI API** for industry-leading transcription accuracy.
+- **Robust Workflow**: Orchestrated by **LangGraph** for resilient, stateful task execution and error handling.
 - **Real-time Updates**: Instant feedback on task progress via **Supabase Realtime**.
 
 ## 🚀 Features
@@ -34,6 +35,7 @@
 
 ### Backend (The Service Worker)
 - **Core**: FastAPI (Python 3.10+)
+- **Orchestration**: **LangGraph** (Stateful Graphs) + **LangChain** (LLM Interface)
 - **AI Engine**: OpenAI API (Whisper)
 - **Processing**: `yt-dlp` (Download), `pydub` (Audio manipulation)
 - **Manager**: `uv` for fast Python package management

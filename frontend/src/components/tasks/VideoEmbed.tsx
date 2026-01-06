@@ -82,35 +82,39 @@ export function supportsVideoEmbed(videoUrl: string): boolean {
 export function VideoEmbed({
   videoUrl,
   title,
+  coverUrl,
   onReady,
 }: {
   videoUrl: string
   title?: string
+  coverUrl?: string
   onReady?: OnReady
 }) {
   const bilibili = getBilibiliVideoId(videoUrl)
-  if (bilibili?.bvid || bilibili?.aid) return <BilibiliPlayer bilibili={bilibili} title={title} onReady={onReady} />
+  if (bilibili?.bvid || bilibili?.aid) return <BilibiliPlayer bilibili={bilibili} title={title} coverUrl={coverUrl} onReady={onReady} />
 
   const youtubeId = getYouTubeVideoId(videoUrl)
   if (!youtubeId) return null
 
   // Use IFrame Player API for seek support.
-  return <YouTubePlayer videoId={youtubeId} title={title} onReady={onReady} />
-
+  return <YouTubePlayer videoId={youtubeId} title={title} coverUrl={coverUrl} onReady={onReady} />
 }
 
 function BilibiliPlayer({
   bilibili,
   title,
+  coverUrl,
   onReady,
 }: {
   bilibili: { bvid?: string; aid?: string; page?: string }
   title?: string
+  coverUrl?: string
   onReady?: OnReady
 }) {
   // Bilibili does not provide a stable public JS API for iframe embeds.
   // Best-effort seek: reload iframe with a `t=` parameter (seconds). If unsupported, UX remains unchanged.
   const [seekSeconds, setSeekSeconds] = useState<number | null>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
 
   useEffect(() => {
     onReady?.({
@@ -136,6 +140,32 @@ function BilibiliPlayer({
 
   const src = `https://player.bilibili.com/player.html?${params.toString()}`
   const iframeKey = seekSeconds === null ? "bili-base" : `bili-t-${seekSeconds}`
+
+  // Facade Mode
+  if (coverUrl && !isPlaying && seekSeconds === null) {
+    return (
+      <div
+        className="overflow-hidden rounded-xl border border-white/10 bg-black/20 cursor-pointer group relative"
+        onClick={() => setIsPlaying(true)}
+      >
+        <div className="aspect-video w-full relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={coverUrl}
+            alt={title || "Video thumbnail"}
+            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20 group-hover:scale-110 transition-transform">
+              <svg className="w-8 h-8 text-white fill-current" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20">

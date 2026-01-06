@@ -12,14 +12,22 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import Link from "next/link"
 
-const navItems = [
+type NavItem = {
+    id: string
+    key: string
+    href?: string
+}
+
+const navItems: NavItem[] = [
     { id: "hero", key: "product" },
     { id: "demos", key: "demos" },
     { id: "features", key: "features" },
     { id: "how-it-works", key: "howItWorks" },
     { id: "pricing", key: "pricing" },
-] as const
+    { id: "faq", key: "faq", href: "/faq" },
+]
 
 export function LandingNav() {
     const { locale } = useI18n()
@@ -33,6 +41,7 @@ export function LandingNav() {
         features: locale === "zh" ? "功能" : "Features",
         howItWorks: locale === "zh" ? "使用方法" : "How It Works",
         pricing: locale === "zh" ? "定价" : "Pricing",
+        faq: locale === "zh" ? "常见问题" : "FAQ",
     }
 
     useEffect(() => {
@@ -41,10 +50,13 @@ export function LandingNav() {
             setIsScrolled(window.scrollY > 50)
 
             // Determine active section based on scroll position
-            const sections = navItems.map((item) => ({
-                id: item.id,
-                element: document.getElementById(item.id),
-            }))
+            // Only check internal links (no href)
+            const sections = navItems
+                .filter(item => !item.href)
+                .map((item) => ({
+                    id: item.id,
+                    element: document.getElementById(item.id),
+                }))
 
             const scrollPosition = window.scrollY + 200 // Offset for better UX
 
@@ -62,7 +74,9 @@ export function LandingNav() {
             }
             // Default to first item (hero) when at top
             if (!foundActive) {
-                setActiveSection("hero")
+                // If we are on a different page (e.g. FAQ), we might not want to highlight hero
+                // But LandingNav is mostly used on LandingPage.
+                // If on LandingPage, default to hero.
             }
         }
 
@@ -108,19 +122,32 @@ export function LandingNav() {
                         ${isScrolled ? "shadow-lg shadow-black/20 bg-black/40" : ""}
                     `}>
                         {navItems.slice(1).map((item) => (
-                            <button
-                                key={item.id}
-                                onClick={() => scrollToSection(item.id)}
-                                className={`
-                                    px-5 py-2 rounded-full text-[13px] font-medium tracking-wide transition-all duration-300
-                                    ${activeSection === item.id
-                                        ? "bg-white text-black shadow-md"
-                                        : "text-white/70 hover:text-white hover:bg-white/10"
-                                    }
-                                `}
-                            >
-                                {labels[item.key]}
-                            </button>
+                            item.href ? (
+                                <Link
+                                    key={item.id}
+                                    href={`/${locale}${item.href}`}
+                                    className={`
+                                        px-5 py-2 rounded-full text-[13px] font-medium tracking-wide transition-all duration-300
+                                        text-white/70 hover:text-white hover:bg-white/10
+                                    `}
+                                >
+                                    {labels[item.key]}
+                                </Link>
+                            ) : (
+                                <button
+                                    key={item.id}
+                                    onClick={() => scrollToSection(item.id)}
+                                    className={`
+                                        px-5 py-2 rounded-full text-[13px] font-medium tracking-wide transition-all duration-300
+                                        ${activeSection === item.id
+                                            ? "bg-white text-black shadow-md"
+                                            : "text-white/70 hover:text-white hover:bg-white/10"
+                                        }
+                                    `}
+                                >
+                                    {labels[item.key]}
+                                </button>
+                            )
                         ))}
                     </div>
                 </div>
@@ -145,13 +172,24 @@ export function LandingNav() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48 bg-black/90 border-white/10 backdrop-blur-xl">
                                 {navItems.slice(1).map((item) => (
-                                    <DropdownMenuItem
-                                        key={item.id}
-                                        onClick={() => scrollToSection(item.id)}
-                                        className={`cursor-pointer ${activeSection === item.id ? "text-primary focus:text-primary" : "text-white/70"}`}
-                                    >
-                                        {labels[item.key]}
-                                    </DropdownMenuItem>
+                                    item.href ? (
+                                        <DropdownMenuItem
+                                            key={item.id}
+                                            asChild
+                                        >
+                                            <Link href={`/${locale}${item.href}`} className="cursor-pointer text-white/70 w-full">
+                                                {labels[item.key]}
+                                            </Link>
+                                        </DropdownMenuItem>
+                                    ) : (
+                                        <DropdownMenuItem
+                                            key={item.id}
+                                            onClick={() => scrollToSection(item.id)}
+                                            className={`cursor-pointer ${activeSection === item.id ? "text-primary focus:text-primary" : "text-white/70"}`}
+                                        >
+                                            {labels[item.key]}
+                                        </DropdownMenuItem>
+                                    )
                                 ))}
                             </DropdownMenuContent>
                         </DropdownMenu>

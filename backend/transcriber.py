@@ -368,11 +368,13 @@ class Transcriber:
         self.last_detected_language = None
         
     def _init_client(self):
-        """延迟初始化 OpenAI 客户端"""
+        """延迟初始化 OpenAI 客户端 (Async)"""
         if self.client is None:
-            self.client = get_openai_client()
+            # Import new factory
+            from utils.openai_client import get_async_openai_client
+            self.client = get_async_openai_client()
             if self.client:
-                logger.info(f"OpenAI 客户端初始化完成 (Transcriber)")
+                logger.info(f"OpenAI Async Client initialized (Transcriber)")
             else:
                 raise ValueError("未找到 OPENAI_API_KEY 环境变量")
     
@@ -398,12 +400,22 @@ class Transcriber:
         Returns:
             (markdown_text, raw_segments_json, detected_language)
         """
-        from contextlib import nullcontext
+        from contextlib import nullcontext, asynccontextmanager
         
         # Langfuse V3: Create a span for Whisper transcription
+        # Langfuse async wrapper handles context automatically if we use the wrapped client.
+        # But here we want a span. 
         try:
             from langfuse import get_client
             langfuse = get_client()
+            # Langfuse's default observation context is synchronous context manager, 
+            # but we are in async function. 
+            # However, `langfuse.start_as_current_observation` returns a context manager 
+            # that handles thread-local state. It usually works fine in async if we don't switch threads wildly.
+            # But let's check if we need special handling.
+            # The simplest way is to just let the wrapped client handle generation traces.
+            # But the user code was manually creating a span "Whisper Transcription".
+            
             observation_ctx = (
                 langfuse.start_as_current_observation(
                     as_type="generation",
@@ -415,6 +427,10 @@ class Transcriber:
         except ImportError:
             observation_ctx = nullcontext()
         
+        # Use simple try-finally since async context manager support in langfuse might vary
+        # Actually langfuse observation is a context manager, not async context manager.
+        # We can wrap it.
+        
         with observation_ctx as gen:
             try:
                 # 检查文件是否存在
@@ -424,7 +440,7 @@ class Transcriber:
                 # 初始化客户端
                 self._init_client()
                 
-                logger.info(f"开始使用 OpenAI 转录音频: {audio_path}")
+                logger.info(f"开始使用 OpenAI (Async) 转录音频: {audio_path}")
             
                 # 检查文件大小 (OpenAI 限制 25MB)
                 file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
@@ -446,17 +462,15 @@ class Transcriber:
                 try:
                     for chunk_path, offset in files_to_transcribe:
                         logger.info(f"正在转录分片: {chunk_path} (偏移: {offset}s)")
-                    
-                        def _do_transcribe(path=chunk_path):
-                            with open(path, "rb") as audio_file:
-                                return self.client.audio.transcriptions.create(
-                                    model=self.model_name,
-                                    file=audio_file,
-                                    language=language,
-                                    response_format="verbose_json"
-                                )
-                    
-                        transcript = await asyncio.to_thread(_do_transcribe)
+                        
+                        # Native Async Call
+                        with open(chunk_path, "rb") as audio_file:
+                            transcript = await self.client.audio.transcriptions.create(
+                                model=self.model_name,
+                                file=audio_file,
+                                language=language,
+                                response_format="verbose_json"
+                            )
                     
                         # 记录第一个分片的语言检测结果
                         if offset == 0.0:

@@ -750,26 +750,4 @@ class VideoProcessor:
             logger.error(f"Metadata extraction failed: {e}")
             raise e
 
-        """
-        获取视频信息
-        
-        Args:
-            url: 视频链接
-            
-        Returns:
-            视频信息字典
-        """
-        try:
-            with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
-                info = ydl.extract_info(url, download=False)
-                return {
-                    'title': info.get('title', ''),
-                    'duration': info.get('duration', 0),
-                    'uploader': info.get('uploader', ''),
-                    'upload_date': info.get('upload_date', ''),
-                    'description': info.get('description', ''),
-                    'view_count': info.get('view_count', 0),
-                }
-        except Exception as e:
-            logger.error(f"获取视频信息失败: {str(e)}")
-            raise Exception(f"获取视频信息失败: {str(e)}")
+

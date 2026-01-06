@@ -65,7 +65,7 @@ export function MainShell({ children }: { children: React.ReactNode }) {
 
   // Public paths that don't require authentication
   // /tasks/* is public so unauthenticated users can view demo tasks
-  const isPublicPath = pathname?.startsWith('/tasks/')
+  const isPublicPath = pathname?.startsWith('/tasks/') || pathname?.startsWith('/explore')
 
   const sidebarHidden = useSyncExternalStore(
     subscribeSidebarHidden,

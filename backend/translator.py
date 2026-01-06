@@ -1,8 +1,10 @@
 import logging
-import re
+import os
 from typing import Optional
 from config import settings
-from utils.openai_client import get_openai_client
+# from utils.openai_client import get_openai_client # Deprecated for Translator
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage, HumanMessage
 from utils.text_utils import LANGUAGE_MAP, detect_language, smart_chunk_text
 from prompts import TRANSLATE_SYSTEM, TRANSLATE_USER, TRANSLATE_CHUNK_SYSTEM
 import asyncio
@@ -10,15 +12,28 @@ import asyncio
 logger = logging.getLogger(__name__)
 
 class Translator:
-    """文本翻译器，使用GPT-4o进行高质量翻译"""
+    """文本翻译器，使用 LangChain ChatOpenAI 进行高质量翻译"""
     
     def __init__(self):
-        self.client = get_openai_client()
-        if self.client:
-             logger.info("OpenAI客户端初始化成功 (Translator)")
-        else:
-             logger.warning("OpenAI API不可用 (Translator)")
         self.language_map = LANGUAGE_MAP
+        # Initialize ChatOpenAI client
+        # We rely on OPENAI_API_KEY env var being set
+        api_key = os.getenv("OPENAI_API_KEY")
+        base_url = os.getenv("OPENAI_BASE_URL")
+        
+        if api_key:
+             logger.info("ChatOpenAI initialized (Translator)")
+             # Initialize with default translation model
+             self.llm = ChatOpenAI(
+                 model=settings.OPENAI_TRANSLATION_MODEL,
+                 api_key=api_key,
+                 base_url=base_url,
+                 temperature=0.3, # Slightly lower temp for translation consistency
+                 max_tokens=4000
+             )
+        else:
+             logger.warning("OpenAI API Key missing, Translator will fail.")
+             self.llm = None
     
     async def translate_text(self, text: str, target_language: str, source_language: Optional[str] = None) -> str:
         """
@@ -33,8 +48,8 @@ class Translator:
             翻译后的文本
         """
         try:
-            if not self.client:
-                logger.warning("OpenAI API不可用，无法翻译")
+            if not self.llm:
+                logger.warning("ChatOpenAI API不可用，无法翻译")
                 return text
             
             if not source_language:
@@ -66,19 +81,13 @@ class Translator:
         user_prompt = TRANSLATE_USER.format(source_lang=source_lang_name, target_lang=target_lang_name, text=text)
 
         try:
-            def _call():
-                return self.client.chat.completions.create(
-                    model=settings.OPENAI_TRANSLATION_MODEL,
-                    name="Text Translation",
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    max_completion_tokens=4000
-                )
-            
-            response = await asyncio.to_thread(_call)
-            return response.choices[0].message.content
+            messages = [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt)
+            ]
+            # Use ainvoke for native async
+            response = await self.llm.ainvoke(messages, config={"run_name": "Text Translation"})
+            return response.content
             
         except Exception as e:
             logger.error(f"单文本翻译失败: {e}")
@@ -102,19 +111,17 @@ class Translator:
             user_prompt = TRANSLATE_USER.format(source_lang=source_lang_name, target_lang=target_lang_name, text=chunk)
 
             try:
-                def _call():
-                    return self.client.chat.completions.create(
-                        model=settings.OPENAI_TRANSLATION_MODEL,
-                        name=f"Chunk Translation ({i+1}/{len(chunks)})",
-                        messages=[
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_prompt}
-                        ],
-                        max_completion_tokens=4000
-                    )
+                messages = [
+                    SystemMessage(content=system_prompt),
+                    HumanMessage(content=user_prompt)
+                ]
                 
-                response = await asyncio.to_thread(_call)
-                translated_chunks.append(response.choices[0].message.content)
+                # Use ainvoke with specific run name for tracing
+                response = await self.llm.ainvoke(
+                    messages, 
+                    config={"run_name": f"Chunk Translation ({i+1}/{len(chunks)})"}
+                )
+                translated_chunks.append(response.content)
                 
             except Exception as e:
                 logger.error(f"翻译第 {i+1} 块失败: {e}")

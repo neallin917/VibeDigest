@@ -23,7 +23,7 @@ interface User {
 }
 
 export function LandingUserButton() {
-    const { t } = useI18n()
+    const { t, locale } = useI18n()
     const [user, setUser] = useState<User | null>(null)
     const [loading, setLoading] = useState(true)
     const supabase = createClient()
@@ -64,7 +64,7 @@ export function LandingUserButton() {
     // Not logged in - show Sign Up button
     if (!user) {
         return (
-            <Link href="/login">
+            <Link href={`/${locale}/login`}>
                 <Button variant="outline" size="sm" className="gap-2 bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20">
                     {t("auth.signUp")}
                 </Button>
@@ -100,7 +100,7 @@ export function LandingUserButton() {
                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                 </div>
                 <DropdownMenuItem asChild>
-                    <Link href="/dashboard" className="cursor-pointer">
+                    <Link href={`/${locale}/dashboard`} className="cursor-pointer">
                         {t("auth.goToDashboard")}
                     </Link>
                 </DropdownMenuItem>
