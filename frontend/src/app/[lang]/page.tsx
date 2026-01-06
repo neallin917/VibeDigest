@@ -12,7 +12,8 @@ import { ServerCommunityTemplates } from "@/components/dashboard/ServerCommunity
 import { TemplatesSkeleton } from "@/components/dashboard/TemplatesSkeleton"
 import { Suspense } from "react"
 
-export default function LandingPage() {
+export default async function LandingPage({ params }: { params: Promise<{ lang: string }> }) {
+  const { lang } = await params;
   return (
     <div className="flex flex-col min-h-screen bg-[#0A0A0A] text-[#F5F5F5] relative overflow-hidden font-sans">
       {/* Google One Tap Login */}
@@ -67,8 +68,10 @@ export default function LandingPage() {
       <footer className="py-10 text-center text-gray-600 text-sm border-t border-white/5 relative z-10 bg-[#0A0A0A]">
         <p>© 2024 VibeDigest. All rights reserved.</p>
         <div className="mt-4 flex justify-center gap-6">
-          <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
-          <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
+          <a href={`/${lang}/about`} className="hover:text-white transition-colors">{lang === 'zh' ? '关于我们' : 'About'}</a>
+          <a href={`/${lang}/faq`} className="hover:text-white transition-colors">{lang === 'zh' ? '常见问题' : 'FAQ'}</a>
+          <a href={`/${lang}/privacy`} className="hover:text-white transition-colors">{lang === 'zh' ? '隐私政策' : 'Privacy Policy'}</a>
+          <a href={`/${lang}/terms`} className="hover:text-white transition-colors">{lang === 'zh' ? '服务条款' : 'Terms of Service'}</a>
         </div>
       </footer>
     </div>

@@ -1,12 +1,12 @@
 import { MetadataRoute } from 'next'
-import { createClient } from '@/lib/supabase-server'
+import { supabasePublic } from '@/lib/supabase-public'
 
 const locales = ["en", "zh", "es", "ar", "fr", "ru", "pt", "hi", "ja", "ko"];
 const defaultLocale = "en";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://vibedigest.neallin.xyz'
-  const supabase = await createClient()
+  const supabase = supabasePublic
 
   // Static routes
   const staticPaths = [
@@ -16,6 +16,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/privacy',
     '/terms',
     '/explore',
+    '/about',
+    '/faq',
   ]
 
   // Dynamic routes from Tasks indicating public content (demos)
