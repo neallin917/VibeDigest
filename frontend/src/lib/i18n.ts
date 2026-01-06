@@ -178,7 +178,7 @@ const messages: Record<Locale, Messages> = {
         plan: "Plan",
         extra: "Extra"
       },
-      communityExamples: "Community Examples",
+      communityExamples: "Community",
       communityExamplesHint: "Try these ready-made examples"
     },
     history: {
@@ -581,7 +581,7 @@ const messages: Record<Locale, Messages> = {
         plan: "方案",
         extra: "额外包",
       },
-      communityExamples: "社区示例",
+      communityExamples: "社区",
       communityExamplesHint: "试试这些精选的示例内容",
     },
     history: {

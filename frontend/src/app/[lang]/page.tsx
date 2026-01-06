@@ -38,7 +38,7 @@ export default function LandingPage() {
 
           <div className="flex items-center gap-4 mb-8">
             <div className="w-1 h-8 bg-primary rounded-full"></div>
-            <h2 className="text-2xl font-bold">Community Examples</h2>
+            <h2 className="text-2xl font-bold">Community</h2>
             <span className="text-sm text-gray-500 hidden md:inline-block">Curated public demos. Your tasks are private.</span>
           </div>
 
@@ -51,7 +51,7 @@ export default function LandingPage() {
               href="/explore"
               className="group flex items-center gap-2 px-8 py-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-primary/50 text-white font-medium transition-all hover:shadow-[0_0_20px_rgba(34,197,94,0.15)]"
             >
-              View All Examples
+              View All
               <span className="group-hover:translate-x-1 transition-transform">→</span>
             </a>
           </div>

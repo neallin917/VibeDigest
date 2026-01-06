@@ -261,7 +261,7 @@ export function CommunityTemplates({ limit, showHeader = true, initialTasks = []
                 <div className="flex items-center gap-3">
                     <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
                         <Sparkles className="h-5 w-5 text-primary" />
-                        {t("dashboard.communityExamples") || "Community Examples"}
+                        {t("dashboard.communityExamples") || "Community"}
                     </h2>
                     <span className="text-xs text-muted-foreground">
                         {t("dashboard.communityExamplesHint") || "Try these ready-made examples"}
