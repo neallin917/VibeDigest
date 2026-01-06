@@ -72,43 +72,48 @@ export function LandingUserButton() {
         )
     }
 
-    // Logged in - show avatar with dropdown
+    // Logged in - show dashboard button with avatar
     const avatarUrl = user.user_metadata?.avatar_url
     const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User'
     const initials = displayName.charAt(0).toUpperCase()
 
     return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-full hover:ring-2 hover:ring-primary/50 transition-all focus:outline-none focus:ring-2 focus:ring-primary/50">
-                    {avatarUrl ? (
-                        <img
-                            src={avatarUrl}
-                            alt={displayName}
-                            className="w-8 h-8 rounded-full border border-white/20"
-                        />
-                    ) : (
-                        <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-sm font-medium">
-                            {initials}
-                        </div>
-                    )}
-                </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 glass border-white/10">
-                <div className="px-3 py-2 border-b border-white/10">
-                    <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
-                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                </div>
-                <DropdownMenuItem asChild>
-                    <Link href={`/${locale}/dashboard`} className="cursor-pointer">
-                        {t("auth.goToDashboard")}
-                    </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleLogout} className="text-red-400 focus:text-red-400 cursor-pointer">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    {t("auth.logout")}
-                </DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2">
+            {/* Direct Dashboard Button */}
+            <Link href={`/${locale}/dashboard`}>
+                <Button variant="outline" size="sm" className="gap-2 bg-primary/10 border-primary/30 hover:bg-primary/20 hover:border-primary/40 text-primary">
+                    {t("auth.goToDashboard")}
+                </Button>
+            </Link>
+
+            {/* Avatar with Dropdown */}
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <button className="flex items-center gap-2 rounded-full hover:ring-2 hover:ring-primary/50 transition-all focus:outline-none focus:ring-2 focus:ring-primary/50">
+                        {avatarUrl ? (
+                            <img
+                                src={avatarUrl}
+                                alt={displayName}
+                                className="w-8 h-8 rounded-full border border-white/20"
+                            />
+                        ) : (
+                            <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-sm font-medium">
+                                {initials}
+                            </div>
+                        )}
+                    </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 glass border-white/10">
+                    <div className="px-3 py-2 border-b border-white/10">
+                        <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
+                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    </div>
+                    <DropdownMenuItem onClick={handleLogout} className="text-red-400 focus:text-red-400 cursor-pointer">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        {t("auth.logout")}
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
     )
 }

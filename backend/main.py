@@ -202,11 +202,19 @@ async def retry_output(
 async def submit_feedback(
     background_tasks: BackgroundTasks,
     feedback: FeedbackModel,
-    user_id: str = Depends(get_current_user)
+    authorization: Optional[str] = Header(None)
 ):
     """
     Submit user feedback/complaint.
+    Allows anonymous submissions for landing page visitors.
     """
+    # Try to get user_id from token, fallback to "anonymous" if not logged in
+    user_id = "anonymous"
+    if authorization:
+        validated_user = db_client.validate_token(authorization)
+        if validated_user:
+            user_id = validated_user
+    
     logger.info(f"FEEDBACK [{feedback.category}] from {user_id}: {feedback.message} (Contact: {feedback.contact_email})")
     
     # Send email in background

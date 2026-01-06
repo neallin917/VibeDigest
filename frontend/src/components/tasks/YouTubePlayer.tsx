@@ -66,18 +66,40 @@ export function YouTubePlayer({
 }) {
   const containerId = useMemo(() => `yt-${videoId}-${Math.random().toString(16).slice(2)}`, [videoId])
   const playerRef = useRef<any>(null)
-  const onReadyRef = useRef<OnReady | undefined>(onReady)
   const [isReady, setIsReady] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
+  // Track pending seek time when user clicks timestamp before player is ready
+  const pendingSeekRef = useRef<number | null>(null)
 
   // Auto-play if no coverUrl is provided (backward compatibility / legacy behavior)
   useEffect(() => {
     if (!coverUrl) setIsPlaying(true)
   }, [coverUrl])
 
+  // Provide seek controller immediately on mount (even when in facade mode)
+  // This allows users to click timestamps before the video has started playing
   useEffect(() => {
-    onReadyRef.current = onReady
-  }, [onReady])
+    onReady?.({
+      seek: (seconds: number) => {
+        const s = Math.max(0, Number.isFinite(seconds) ? seconds : 0)
+        if (playerRef.current && isReady) {
+          // Player is ready, seek directly
+          try {
+            playerRef.current.seekTo(s, true)
+            playerRef.current.playVideo()
+          } catch {
+            // ignore
+          }
+        } else {
+          // Player not ready yet - store pending seek and trigger playback
+          pendingSeekRef.current = s
+          if (!isPlaying) {
+            setIsPlaying(true)
+          }
+        }
+      },
+    })
+  }, [onReady, isReady, isPlaying])
 
   useEffect(() => {
     if (!isPlaying) return
@@ -114,18 +136,18 @@ export function YouTubePlayer({
           events: {
             onReady: () => {
               if (disposed) return
+              playerRef.current = player
               setIsReady(true)
-              onReadyRef.current?.({
-                seek: (seconds: number) => {
-                  try {
-                    const s = Math.max(0, Number.isFinite(seconds) ? seconds : 0)
-                    player.seekTo(s, true)
-                    player.playVideo()
-                  } catch {
-                    // ignore
-                  }
-                },
-              })
+              // Handle pending seek from facade mode
+              if (pendingSeekRef.current !== null) {
+                try {
+                  player.seekTo(pendingSeekRef.current, true)
+                  player.playVideo()
+                } catch {
+                  // ignore
+                }
+                pendingSeekRef.current = null
+              }
             },
           },
         })

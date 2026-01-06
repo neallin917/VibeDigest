@@ -4,9 +4,15 @@ import { useEffect, useMemo, useState } from "react"
 
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, LogOut } from "lucide-react"
+import { ChevronLeft, Home, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { createClient } from "@/lib/supabase"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { FeedbackDialog } from "./FeedbackDialog"
@@ -30,9 +36,9 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
         <div className="hidden md:flex h-dvh w-64 flex-col border-r border-white/5 bg-black/60 backdrop-blur-2xl relative z-10 bg-grid-dense">
             <div className="p-6">
                 <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 min-w-0">
+                    <Link href="/" className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
                         <BrandLogo textClassName="text-lg" />
-                    </div>
+                    </Link>
 
                     {onHide ? (
                         <Button
@@ -70,30 +76,60 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
                 })}
             </div>
 
-            <div className="p-4 border-t border-white/5 space-y-4">
-                {userEmail && (
-                    <div className="px-1 py-2 mb-2 text-xs text-muted-foreground truncate border-b border-white/5">
-                        {userEmail}
-                    </div>
-                )}
+            {/* 辅助功能区 */}
+            <div className="px-4 py-3 border-t border-white/5">
+                <div className="space-y-1">
+                    <FeedbackDialog />
+                    <Button
+                        variant="ghost"
+                        asChild
+                        className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground hover:bg-white/5"
+                    >
+                        <Link href="/">
+                            <Home className="h-4 w-4" />
+                            {t("nav.backToHome")}
+                        </Link>
+                    </Button>
+                </div>
+            </div>
 
-                <FeedbackDialog />
-
-                <Button
-                    variant="ghost"
-                    onClick={async () => {
-                        // Disable One Tap auto-select to prevent auto-login loop
-                        if (typeof window !== 'undefined' && window.google?.accounts?.id) {
-                            window.google.accounts.id.disableAutoSelect()
-                        }
-                        await supabase.auth.signOut()
-                        window.location.href = '/'
-                    }}
-                    className="w-full justify-start gap-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
-                >
-                    <LogOut className="h-4 w-4" />
-                    {t("auth.logout")}
-                </Button>
+            {/* 用户卡片区 - 下拉菜单设计 */}
+            <div className="p-4 border-t border-white/5">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all">
+                            {/* 用户头像 */}
+                            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-sm font-medium">
+                                {userEmail?.charAt(0).toUpperCase() || "U"}
+                            </div>
+                            {/* 用户邮箱 */}
+                            <p className="flex-1 text-left text-xs text-muted-foreground truncate">
+                                {userEmail || "Guest"}
+                            </p>
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" side="top" className="w-56 glass border-white/10">
+                        <div className="px-3 py-2 border-b border-white/10">
+                            <p className="text-sm font-medium text-foreground truncate">
+                                {userEmail?.split('@')[0] || "User"}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
+                        </div>
+                        <DropdownMenuItem
+                            onClick={async () => {
+                                if (typeof window !== 'undefined' && window.google?.accounts?.id) {
+                                    window.google.accounts.id.disableAutoSelect()
+                                }
+                                await supabase.auth.signOut()
+                                window.location.href = '/'
+                            }}
+                            className="text-red-400 focus:text-red-400 cursor-pointer"
+                        >
+                            <LogOut className="mr-2 h-4 w-4" />
+                            {t("auth.logout")}
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
         </div>
     )

@@ -52,6 +52,7 @@ const messages: Record<Locale, Messages> = {
       menu: "Menu",
       showSidebar: "Show sidebar",
       hideSidebar: "Hide sidebar",
+      backToHome: "Back to Home",
     },
     auth: {
       welcomeBack: "Welcome Back",
@@ -439,6 +440,7 @@ const messages: Record<Locale, Messages> = {
       menu: "菜单",
       showSidebar: "显示侧边栏",
       hideSidebar: "隐藏侧边栏",
+      backToHome: "返回首页",
     },
     auth: {
       welcomeBack: "欢迎回来",
@@ -852,6 +854,7 @@ const messages: Record<Locale, Messages> = {
       settings: "Ajustes",
       showSidebar: "Mostrar barra lateral",
       hideSidebar: "Ocultar barra lateral",
+      backToHome: "Volver al Inicio",
     },
     auth: {
       welcomeBack: "Bienvenido de nuevo",
@@ -1146,6 +1149,7 @@ const messages: Record<Locale, Messages> = {
       settings: "الإعدادات",
       showSidebar: "إظهار الشريط الجانبي",
       hideSidebar: "إخفاء الشريط الجانبي",
+      backToHome: "العودة إلى الرئيسية",
     },
     auth: {
       welcomeBack: "مرحبًا بعودتك",
@@ -1370,6 +1374,7 @@ const messages: Record<Locale, Messages> = {
       settings: "Paramètres",
       showSidebar: "Afficher la barre latérale",
       hideSidebar: "Masquer la barre latérale",
+      backToHome: "Retour à l'accueil",
     },
     auth: {
       welcomeBack: "Bon retour",
@@ -1594,6 +1599,7 @@ const messages: Record<Locale, Messages> = {
       settings: "Настройки",
       showSidebar: "Показать боковую панель",
       hideSidebar: "Скрыть боковую панель",
+      backToHome: "Вернуться на главную",
     },
     auth: {
       welcomeBack: "С возвращением",
@@ -1818,6 +1824,7 @@ const messages: Record<Locale, Messages> = {
       settings: "Configurações",
       showSidebar: "Mostrar barra lateral",
       hideSidebar: "Ocultar barra lateral",
+      backToHome: "Voltar ao Início",
     },
     auth: {
       welcomeBack: "Bem-vindo de volta",
@@ -2042,6 +2049,7 @@ const messages: Record<Locale, Messages> = {
       settings: "सेटिंग्स",
       showSidebar: "साइडबार दिखाएँ",
       hideSidebar: "साइडबार छिपाएँ",
+      backToHome: "होम पर वापस जाएँ",
     },
     auth: {
       welcomeBack: "वापसी पर स्वागत है",
@@ -2269,6 +2277,7 @@ const messages: Record<Locale, Messages> = {
       menu: "メニュー",
       showSidebar: "サイドバーを表示",
       hideSidebar: "サイドバーを非表示",
+      backToHome: "ホームに戻る",
     },
     auth: {
       welcomeBack: "おかえりなさい",
@@ -2536,6 +2545,7 @@ const messages: Record<Locale, Messages> = {
       menu: "메뉴",
       showSidebar: "사이드바 표시",
       hideSidebar: "사이드바 숨기기",
+      backToHome: "홈으로 돌아가기",
     },
     auth: {
       welcomeBack: "환영합니다",
