@@ -94,9 +94,8 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!url) return
 
-        // Validate URL before submission
+        // Validate URL before submission (including empty check)
         const validation = validateUrl(url)
         if (!validation.valid) {
             setShowUrlHelpDialog(true)
