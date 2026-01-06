@@ -101,6 +101,20 @@ test.describe('Navigation', () => {
         const heading = page.locator('h1, h2').first();
         await expect(heading).toBeVisible();
     });
+
+    test('demo task page is accessible without login', async ({ page }) => {
+        // Mock a demo task URL with locale
+        // We use a fake ID, but we expect the shell NOT to redirect to login.
+        // It might show 404 or loading, but NOT the login page.
+        await page.goto('/en/tasks/123/demo-video-slug');
+
+        // Should not be redirected to login
+        await expect(page).not.toHaveURL(/\/login/);
+
+        // Wait a bit to ensure no Client-side redirect happens
+        await page.waitForTimeout(1000);
+        await expect(page).not.toHaveURL(/\/login/);
+    });
 });
 
 test.describe('SEO & Metadata', () => {

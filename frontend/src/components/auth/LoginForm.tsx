@@ -22,7 +22,7 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
     const [loading, setLoading] = useState(false)
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
     const supabase = createClient()
-    const { t } = useI18n()
+    const { t, locale } = useI18n()
 
     const getErrorMessage = (errorMsg: string) => {
         if (errorMsg.includes("Invalid login credentials")) return t("auth.errors.invalidCredentials") || errorMsg
@@ -36,7 +36,7 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: `${window.location.origin}/auth/callback`
+                redirectTo: `${window.location.origin}/${locale}/auth/callback`
             }
         })
         if (error) setMessage({ type: 'error', text: getErrorMessage(error.message) })
@@ -53,7 +53,7 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
                 email,
                 password,
                 options: {
-                    emailRedirectTo: `${window.location.origin}/auth/callback`
+                    emailRedirectTo: `${window.location.origin}/${locale}/auth/callback`
                 }
             })
             if (error) {
@@ -62,7 +62,7 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
             } else {
                 console.log("Sign up successful:", data)
                 if (data.session) {
-                    window.location.href = "/"
+                    window.location.href = `/${locale}/dashboard`
                 } else {
                     setMessage({ type: 'success', text: t("auth.checkEmailForConfirmation") || "Please check your email to confirm your account." })
                 }
@@ -75,13 +75,13 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
             if (error) {
                 setMessage({ type: 'error', text: getErrorMessage(error.message) })
             } else {
-                window.location.href = "/"
+                window.location.href = `/${locale}/dashboard`
             }
         } else {
             const { error } = await supabase.auth.signInWithOtp({
                 email,
                 options: {
-                    emailRedirectTo: `${window.location.origin}/auth/callback`
+                    emailRedirectTo: `${window.location.origin}/${locale}/auth/callback`
                 }
             })
 

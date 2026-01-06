@@ -62,6 +62,14 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
                         <Link
                             key={item.href}
                             href={href}
+                            onClick={(e) => {
+                                if (!userEmail) {
+                                    e.preventDefault()
+                                    // Use router.push to navigate to login with next param
+                                    // We need to import useRouter if not already available
+                                    window.location.href = `/${locale}/login`
+                                }
+                            }}
                             className={cn(
                                 "flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                                 pathname === href

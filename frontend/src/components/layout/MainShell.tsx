@@ -56,7 +56,7 @@ function getSidebarHiddenServerSnapshot() {
 }
 
 export function MainShell({ children }: { children: React.ReactNode }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const router = useRouter()
   const pathname = usePathname()
   const [isLoading, setIsLoading] = useState(true)
@@ -65,7 +65,12 @@ export function MainShell({ children }: { children: React.ReactNode }) {
 
   // Public paths that don't require authentication
   // /tasks/* is public so unauthenticated users can view demo tasks
-  const isPublicPath = pathname?.startsWith('/tasks/') || pathname?.startsWith('/explore')
+  // Check for paths like: /tasks/..., /explore, or /en/tasks/..., /en/explore
+  const isPublicPath =
+    pathname?.includes('/tasks/') ||
+    pathname?.endsWith('/tasks') ||
+    pathname?.includes('/explore') ||
+    pathname?.endsWith('/explore')
 
   const sidebarHidden = useSyncExternalStore(
     subscribeSidebarHidden,
@@ -85,7 +90,7 @@ export function MainShell({ children }: { children: React.ReactNode }) {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session && !isPublicPath) {
         // Redirect to landing page if not authenticated and not on public path
-        router.replace("/")
+        router.replace(`/${locale}`)
         return
       }
       setIsAuthenticated(!!session)
@@ -97,7 +102,7 @@ export function MainShell({ children }: { children: React.ReactNode }) {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session && !isPublicPath) {
-        router.replace("/")
+        router.replace(`/${locale}`)
       } else {
         setIsAuthenticated(!!session)
         setIsLoading(false)

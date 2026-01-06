@@ -8,16 +8,16 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase"
 
 export function PricingSection() {
-    const { t } = useI18n()
+    const { t, locale } = useI18n()
     const router = useRouter()
     const supabase = createClient()
 
     const handlePlanClick = async () => {
         const { data: { session } } = await supabase.auth.getSession()
         if (!session) {
-            router.push("/login?next=/settings/pricing")
+            router.push(`/${locale}/login?next=/${locale}/settings/pricing`)
         } else {
-            router.push("/settings/pricing")
+            router.push(`/${locale}/settings/pricing`)
         }
     }
 
