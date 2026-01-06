@@ -1,7 +1,9 @@
 import sys
+import os
 import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
+import pytest
 
 # Setup path
 sys.path.append(str(Path(__file__).parent.parent))
@@ -10,9 +12,14 @@ load_dotenv(env_path)
 
 from supadata_client import SupadataClient
 
+@pytest.mark.skipif(
+    not os.getenv("SUPADATA_API_KEY"),
+    reason="SUPADATA_API_KEY not set - skipping external API test"
+)
 async def test_supadata():
     client = SupadataClient()
-    print(f"Testing Supadata API with key: {client.api_key[:5]}... if present")
+    api_key_preview = client.api_key[:5] if client.api_key else "NOT SET"
+    print(f"Testing Supadata API with key: {api_key_preview}...")
     
     url = "https://youtube.com/watch?v=lAy9RKQSi2U"
     print(f"Fetching transcript for: {url}")
