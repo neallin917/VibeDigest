@@ -12,6 +12,8 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useRouter, usePathname } from "next/navigation"
+
 import Link from "next/link"
 
 type NavItem = {
@@ -31,6 +33,8 @@ const navItems: NavItem[] = [
 
 export function LandingNav() {
     const { locale } = useI18n()
+    const router = useRouter()
+    const pathname = usePathname()
     const [activeSection, setActiveSection] = useState<string>("hero")
     const [isScrolled, setIsScrolled] = useState(false)
 
@@ -48,6 +52,10 @@ export function LandingNav() {
         const handleScroll = () => {
             // Check if scrolled past hero section
             setIsScrolled(window.scrollY > 50)
+
+            // Only update active section if we are on the landing page
+            const isLandingPage = pathname === `/${locale}` || pathname === `/${locale}/`
+            if (!isLandingPage) return;
 
             // Determine active section based on scroll position
             // Only check internal links (no href)
@@ -72,21 +80,22 @@ export function LandingNav() {
                     }
                 }
             }
-            // Default to first item (hero) when at top
-            if (!foundActive) {
-                // If we are on a different page (e.g. FAQ), we might not want to highlight hero
-                // But LandingNav is mostly used on LandingPage.
-                // If on LandingPage, default to hero.
-            }
         }
 
         window.addEventListener("scroll", handleScroll, { passive: true })
         handleScroll() // Initial check
 
         return () => window.removeEventListener("scroll", handleScroll)
-    }, [])
+    }, [pathname, locale])
 
     const scrollToSection = (id: string) => {
+        const isLandingPage = pathname === `/${locale}` || pathname === `/${locale}/`
+
+        if (!isLandingPage) {
+            router.push(`/${locale}#${id}`)
+            return
+        }
+
         const element = document.getElementById(id)
         if (element) {
             const headerOffset = 100
