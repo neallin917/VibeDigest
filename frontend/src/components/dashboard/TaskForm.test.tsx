@@ -90,9 +90,9 @@ describe('TaskForm', () => {
         expect(formDataArg.get('video_url')).toBe('https://youtube.com/watch?v=test')
         expect(formDataArg.get('summary_language')).toBe('en')
 
-        // Check Router Redirect
+        // Check Router Redirect (locale-prefixed route)
         await waitFor(() => {
-            expect(pushMock).toHaveBeenCalledWith('/tasks/task-123')
+            expect(pushMock).toHaveBeenCalledWith('/en/tasks/task-123')
         })
     })
 
