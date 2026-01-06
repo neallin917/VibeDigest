@@ -10,6 +10,7 @@
 - **下一代前端**：使用 **Next.js 14+ (App Router)** 和 **TailwindCSS** 构建，以获得响应迅速、流畅的体验。
 - **卓越的用户体验**：以暗模式为主的设计，具有“Supabase 风格”的玻璃拟态和精致的动画。
 - **高级后端**：由 **FastAPI** 和官方 **OpenAI API**驱动，以获得业界领先的转录准确性。
+- **强大的工作流**：由 **LangGraph** 编排，实现弹性的、有状态的任务执行和错误处理。
 - **实时更新**：通过 **Supabase Realtime** 即时反馈任务进度。
 
 ## 🚀 功能
@@ -34,6 +35,7 @@
 
 ### 后端 (The Service Worker)
 - **核心**: FastAPI (Python 3.10+)
+- **编排**: **LangGraph** (状态图) + **LangChain** (LLM 接口)
 - **AI 引擎**: OpenAI API (Whisper)
 - **处理**: `yt-dlp` (下载), `pydub` (音频操作)
 - **管理器**: `uv` 用于快速 Python 包管理

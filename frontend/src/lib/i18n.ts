@@ -83,8 +83,8 @@ const messages: Record<Locale, Messages> = {
       }
     },
     landing: {
-      titlePrefix: "AI Video & Podcast",
-      titleEmphasis: "Summarizer",
+      titlePrefix: "AI Video Summarizer &",
+      titleEmphasis: "Transcriber for YouTube",
       subtitle:
         "Transform long content into structured insights. Absorb information efficiently with AI summaries, keypoints, and translations.",
       greeting: "Drop a podcast or video. We’ll handle the rest.",

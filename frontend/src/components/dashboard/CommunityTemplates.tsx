@@ -66,7 +66,7 @@ const CATEGORY_STYLES: Record<string, string> = {
 
 function TemplateCard({ task }: { task: Task }) {
     const router = useRouter()
-    const { t } = useI18n()
+    const { t, locale } = useI18n()
     const platform = getPlatformFromUrl(task.video_url)
     const showAuthor = task.author && task.author !== "Unknown"
 
@@ -100,7 +100,10 @@ function TemplateCard({ task }: { task: Task }) {
 
     return (
         <div
-            onClick={() => router.push(`/tasks/${task.id}`)}
+            onClick={() => {
+                const slug = encodeURIComponent((task.video_title || "video").trim().replace(/\s+/g, '-'));
+                router.push(`/${locale}/tasks/${task.id}/${slug}`)
+            }}
             className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.03] to-transparent backdrop-blur-sm cursor-pointer transition-all duration-300 hover:border-white/20 hover:shadow-[0_8px_32px_rgba(62,207,142,0.15)] hover:scale-[1.02] h-full"
         >
             {/* Thumbnail Area */}

@@ -25,7 +25,7 @@ function isActiveNav(pathname: string, href: string) {
 export function MobileHeader() {
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const supabase = createClient()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUserEmail(user?.email || null))
@@ -56,17 +56,20 @@ export function MobileHeader() {
             ) : null}
 
             <div className="space-y-2">
-              {NAV_ITEMS.map((item) => (
-                <DialogClose asChild key={item.href}>
-                  <Link
-                    href={item.href}
-                    className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-white/5 hover:text-foreground"
-                  >
-                    <item.icon className="h-4 w-4" />
-                    {t(item.key)}
-                  </Link>
-                </DialogClose>
-              ))}
+              {NAV_ITEMS.map((item) => {
+                const href = `/${locale}${item.href}`
+                return (
+                  <DialogClose asChild key={item.href}>
+                    <Link
+                      href={href}
+                      className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {t(item.key)}
+                    </Link>
+                  </DialogClose>
+                )
+              })}
             </div>
 
             <div className="pt-2 border-t border-white/10 space-y-2">
@@ -98,17 +101,18 @@ export function MobileHeader() {
 
 export function MobileBottomNav() {
   const pathname = usePathname()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-black/60 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
       <div className="grid grid-cols-4 w-full">
         {NAV_ITEMS.map((item) => {
-          const isActive = isActiveNav(pathname, item.href)
+          const fullHref = `/${locale}${item.href}`
+          const isActive = isActiveNav(pathname, fullHref)
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={fullHref}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 py-2 text-[11px] font-medium transition-colors",
                 isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"

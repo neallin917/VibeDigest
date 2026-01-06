@@ -11,6 +11,7 @@ VibeDigest is a full-stack tool engineered to download videos, transcribe audio,
 **v3 Changes (Current):**
 - **Frontend Migration**: Fully rewritten in **Next.js 14+ (App Router)** & **TailwindCSS**.
 - **Backend Migration**: Switched from `faster-whisper` to **OpenAI API** (Official Endpoint).
+- **Core Orchestration**: Migrated to **LangGraph** & **LangChain** for robust, stateful video processing workflows.
 - **Design System**: "Supabase-style" aesthetic (Dark mode, Glassmorphism, Emerald Green accents).
 - **Auth**: **Web2 Only** (Email/Google) via Supabase Auth. Web3 Login removed in v3.1.
 
@@ -23,6 +24,7 @@ VibeDigest is a full-stack tool engineered to download videos, transcribe audio,
 
 - `backend/`: **Backend Source** (Python)
     - `main.py`: FastAPI entry point (Control Plane).
+    - `workflow.py`: **LangGraph** Workflow Definition (State & Nodes).
     - `db_client.py`: Supabase Service Role interactions (Data Plane).
     - `transcriber.py`: OpenAI Whisper Integration + `pydub` Chunking.
     - `notifier.py`: Email notifications via Resend.
@@ -115,6 +117,7 @@ docker-compose -f docker-compose.test.yml up -d
 
 ### 3.2 Backend (Service Worker)
 *   **Framework**: FastAPI (Python 3.10+).
+*   **Orchestration**: **LangGraph** (Stateful Graphs) + **LangChain** (LLM Interface).
 *   **Role**: Stateless worker. **Triggered via HTTP**, writes state to Supabase.
 *   **Key Libs**: `openai`, `yt-dlp`, `pydub`, `resend`, `httpx` (Supadata optional).
 *   **Package Manager**: `uv` (Required).
@@ -139,39 +142,35 @@ docker-compose -f docker-compose.test.yml up -d
 *   **Data Plane (Realtime)**: Frontend subscribes to Supabase (`supabase.channel`) to **watch** work.
 *   **Rule**: Frontend **NEVER** waits for the HTTP response to update the UI. It waits for the **Database** to update via Realtime.
 
-### 4.2 Core Application Flow (Step-by-Step)
+### 4.2 Core Application Flow (LangGraph)
 
 1.  **Submission**:
     *   User submits YouTube URL in `TaskForm`.
     *   Frontend calls `ApiClient.processVideo()`.
 2.  **Scheduling**:
-    *   Backend `main.py` receives request.
-    *   Background Task spawned (`FastAPI.BackgroundTasks`).
-    *   Immediate HTTP 200 OK returned with `task_id`.
-3.  **Processing (Async)**:
-    *   Worker checks Supabase: Is this video already done?
-    *   If New:
-        *   Sets `tasks.status = 'processing'`.
-        *   For YouTube: if `SUPADATA_API_KEY` is configured, **try Supadata transcript** first.
-            *   If Supadata succeeds: fetch metadata only (`yt-dlp` info extract), persist `script_raw` + `script` from Supadata segments.
-            *   If Supadata fails/unavailable: fallback to download + Whisper.
-        *   Downloads audio (`yt-dlp`) (fallback path).
-        *   Transcribes (`OpenAI Whisper`) (fallback path).
-        *   Generates Summary (`OpenAI ChatCompletion`).
-        *   Generates Summary (`OpenAI ChatCompletion`).
-    *   If Cached (Exact Match):
-        *   **Clones** outputs from the existing task to the new task.
-        *   Sets status to 'completed' immediately.
-    *   If Smart Resume (Partial Match):
-        *   **Reuses** existing `script` output from DB to skip Download/Transcribe.
-        *   Only runs Summary/Translation steps.
+    *   Backend `main.py` receives request and spawns a **Background Task**.
+    *   Invokes `workflow_app.ainvoke(initial_state)`.
+3.  **Graph Execution (Stateful)**:
+    *   **Node: `check_cache`**: Checks DB for existing results using URL/Params.
+        *   *Hit*: Clones results to new task and **finishes**.
+        *   *Miss*: Continues to `fetch_data`.
+    *   **Node: `fetch_data`**:
+        *   Tries **Supadata** (YouTube only) if configured.
+        *   Fallback: Downloads video (`yt-dlp`) and extracts audio.
+    *   **Node: `transcribe`**:
+        *   If Supadata skipped this: Calls **OpenAI Whisper** on audio file.
+        *   Generates `script` (Markdown) and `script_raw` (JSON).
+    *   **Node: `summarize`**:
+        *   Uses **LangChain ChatOpenAI** to generate summary (`v2` JSON schema).
+        *   Handles chunking for long transcripts automatically.
+    *   **Node: `classify`**:
+        *   Tags content type/structure using LLM.
 4.  **Completion & Notification**:
-    *   Worker updates `tasks.status = 'completed'` and inserts `task_outputs`.
-    *   Worker triggers `notifier.py` to send email (if enabled).
-5.  **UI Update & Notification**:
+    *   Graph updates `tasks.status = 'completed'` and inserts `task_outputs`.
+    *   Triggers `notifier.py` to send email (if enabled).
+5.  **UI Update**:
     *   Supabase Realtime pushes change to Frontend.
     *   Frontend updates `TaskCard` from "Processing" to "Done".
-    *   `useTaskNotification` hook triggers a browser notification if subscribed.
 
 ### 4.3 Core Data Models
 **Table: `tasks`**

@@ -18,7 +18,7 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
     const pathname = usePathname()
     const [userEmail, setUserEmail] = useState<string | null>(null)
     const supabase = useMemo(() => createClient(), [])
-    const { t } = useI18n()
+    const { t, locale } = useI18n()
 
     useEffect(() => {
         supabase.auth.getUser().then(({ data: { user } }) => {
@@ -50,21 +50,24 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
             </div>
 
             <div className="flex-1 px-4 py-2 space-y-1">
-                {NAV_ITEMS.map((item) => (
-                    <Link
-                        key={item.href}
-                        href={item.href}
-                        className={cn(
-                            "flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-                            pathname === item.href
-                                ? "bg-primary/15 text-primary shadow-[0_0_15px_rgba(62,207,142,0.15)]"
-                                : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                        )}
-                    >
-                        <item.icon className="h-4 w-4" />
-                        {t(item.key)}
-                    </Link>
-                ))}
+                {NAV_ITEMS.map((item) => {
+                    const href = `/${locale}${item.href}`
+                    return (
+                        <Link
+                            key={item.href}
+                            href={href}
+                            className={cn(
+                                "flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                                pathname === href
+                                    ? "bg-primary/15 text-primary shadow-[0_0_15px_rgba(62,207,142,0.15)]"
+                                    : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                            )}
+                        >
+                            <item.icon className="h-4 w-4" />
+                            {t(item.key)}
+                        </Link>
+                    )
+                })}
             </div>
 
             <div className="p-4 border-t border-white/5 space-y-4">

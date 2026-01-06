@@ -249,6 +249,12 @@ class SupadataClient:
                     from transcriber import format_markdown_from_raw_segments
                     markdown_text = format_markdown_from_raw_segments(final_segments, detected_language=detected_lang)
                 
+                    # Validation: Check for known demo/mock content
+                    # Supadata sometimes returns "Adaptive Learning Framework (ALF)" as a placeholder when it fails to fetch real transcript.
+                    if "Adaptive Learning Framework" in markdown_text or "ALF" in markdown_text:
+                         logger.warning("Supadata returned generic demo/mock content (Adaptive Learning Framework). Treating as failure to force fallback.")
+                         return None, None, None
+
                     return markdown_text, raw_json, detected_lang
 
                 except Exception as e:

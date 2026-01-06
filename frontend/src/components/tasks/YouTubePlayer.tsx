@@ -56,22 +56,32 @@ function loadYouTubeIframeAPI(): Promise<any> {
 export function YouTubePlayer({
   videoId,
   title,
+  coverUrl,
   onReady,
 }: {
   videoId: string
   title?: string
+  coverUrl?: string
   onReady?: OnReady
 }) {
   const containerId = useMemo(() => `yt-${videoId}-${Math.random().toString(16).slice(2)}`, [videoId])
   const playerRef = useRef<any>(null)
   const onReadyRef = useRef<OnReady | undefined>(onReady)
   const [isReady, setIsReady] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+
+  // Auto-play if no coverUrl is provided (backward compatibility / legacy behavior)
+  useEffect(() => {
+    if (!coverUrl) setIsPlaying(true)
+  }, [coverUrl])
 
   useEffect(() => {
     onReadyRef.current = onReady
   }, [onReady])
 
   useEffect(() => {
+    if (!isPlaying) return
+
     let disposed = false
 
     void (async () => {
@@ -98,6 +108,7 @@ export function YouTubePlayer({
             rel: 0,
             modestbranding: 1,
             playsinline: 1,
+            autoplay: coverUrl ? 1 : 0, // Autoplay if coming from facade click
             origin: typeof window !== "undefined" ? window.location.origin : undefined,
           },
           events: {
@@ -136,7 +147,32 @@ export function YouTubePlayer({
       }
       playerRef.current = null
     }
-  }, [containerId, videoId])
+  }, [containerId, videoId, isPlaying, coverUrl])
+
+  if (coverUrl && !isPlaying) {
+    return (
+      <div
+        className="overflow-hidden rounded-xl border border-white/10 bg-black/20 cursor-pointer group relative"
+        onClick={() => setIsPlaying(true)}
+      >
+        <div className="aspect-video w-full relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={coverUrl}
+            alt={title || "Video thumbnail"}
+            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20 group-hover:scale-110 transition-transform">
+              <svg className="w-8 h-8 text-white fill-current" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
