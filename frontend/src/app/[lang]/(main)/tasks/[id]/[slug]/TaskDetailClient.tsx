@@ -109,8 +109,8 @@ interface TaskDetailClientProps {
     initialOutputs: Output[]
 }
 
-// Feature flag for Learning Tab (hidden in production until fully ready)
-const SHOW_LEARNING_TAB = process.env.NEXT_PUBLIC_FEATURE_LEARNING_TAB === 'true'
+// Feature flag for Learning Tab (set to true when ready for production)
+const SHOW_LEARNING_TAB = false
 
 export default function TaskDetailClient({ id, initialTask, initialOutputs }: TaskDetailClientProps) {
     const [task, setTask] = useState<Task | null>(initialTask)
