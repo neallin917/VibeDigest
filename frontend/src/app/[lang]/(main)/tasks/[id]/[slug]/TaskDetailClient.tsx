@@ -109,6 +109,9 @@ interface TaskDetailClientProps {
     initialOutputs: Output[]
 }
 
+// Feature flag for Learning Tab (hidden in production until fully ready)
+const SHOW_LEARNING_TAB = process.env.NEXT_PUBLIC_FEATURE_LEARNING_TAB === 'true'
+
 export default function TaskDetailClient({ id, initialTask, initialOutputs }: TaskDetailClientProps) {
     const [task, setTask] = useState<Task | null>(initialTask)
     const [outputs, setOutputs] = useState<Output[]>(initialOutputs)
@@ -300,13 +303,15 @@ export default function TaskDetailClient({ id, initialTask, initialOutputs }: Ta
                             )}
 
                             <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="w-full">
-                                <TabsList className="grid w-full grid-cols-4 h-12">
+                                <TabsList className={`grid w-full h-12 ${SHOW_LEARNING_TAB ? 'grid-cols-4' : 'grid-cols-3'}`}>
                                     <TabsTrigger value="summary" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm">
                                         <FileText className="hidden sm:block h-4 w-4" /> {t("tasks.tabSummary")}
                                     </TabsTrigger>
-                                    <TabsTrigger value="learning" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm">
-                                        <Zap className="hidden sm:block h-4 w-4 text-emerald-400" /> {t("tasks.tabLearning")}
-                                    </TabsTrigger>
+                                    {SHOW_LEARNING_TAB && (
+                                        <TabsTrigger value="learning" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm">
+                                            <Zap className="hidden sm:block h-4 w-4 text-emerald-400" /> {t("tasks.tabLearning")}
+                                        </TabsTrigger>
+                                    )}
                                     <TabsTrigger value="mindmap" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm">
                                         <Network className="hidden sm:block h-4 w-4" /> MindMap
                                     </TabsTrigger>
@@ -328,13 +333,15 @@ export default function TaskDetailClient({ id, initialTask, initialOutputs }: Ta
                                     />
                                 </TabsContent>
 
-                                <TabsContent value="learning" className="mt-4 md:mt-6 outline-none">
-                                    {comprehensionBrief?.status === 'completed' ? (
-                                        <ComprehensionBriefSection content={comprehensionBrief.content} />
-                                    ) : (
-                                        <OutputCard output={comprehensionBrief} placeholder={t("tasks.summaryPlaceholder")} />
-                                    )}
-                                </TabsContent>
+                                {SHOW_LEARNING_TAB && (
+                                    <TabsContent value="learning" className="mt-4 md:mt-6 outline-none">
+                                        {comprehensionBrief?.status === 'completed' ? (
+                                            <ComprehensionBriefSection content={comprehensionBrief.content} />
+                                        ) : (
+                                            <OutputCard output={comprehensionBrief} placeholder={t("tasks.summaryPlaceholder")} />
+                                        )}
+                                    </TabsContent>
+                                )}
 
                                 <TabsContent value="mindmap" className="mt-4 md:mt-6 space-y-4">
                                     <MindMapSection
