@@ -115,7 +115,7 @@ function TemplateCard({ task }: { task: Task }) {
                         fill
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
                         referrerPolicy="no-referrer"
-                        unoptimized
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
                     />
                 ) : (
                     <div className="flex h-full items-center justify-center">
@@ -152,7 +152,7 @@ function TemplateCard({ task }: { task: Task }) {
                                         fill
                                         className="object-cover"
                                         referrerPolicy="no-referrer"
-                                        unoptimized
+                                        sizes="20px"
                                     />
                                 </div>
                             ) : (

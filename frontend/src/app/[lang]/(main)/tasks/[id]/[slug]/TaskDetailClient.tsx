@@ -1,14 +1,14 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
-import { FileText, Subtitles, Copy, Check, Sparkles, PlayCircle, Quote, Zap, Languages, ChevronDown } from "lucide-react"
+import { FileText, Subtitles, Copy, Check, Sparkles, PlayCircle, Quote, Zap, Languages, ChevronDown, Target, AlertTriangle, ArrowRight, X, UserMinus, UserCheck } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { createClient } from "@/lib/supabase"
-import ReactMarkdown from "react-markdown"
+// import ReactMarkdown from "react-markdown" // Lazy loaded below
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { LOCALE_LABEL, type Locale } from "@/lib/i18n"
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
@@ -30,6 +30,10 @@ const MindMap = dynamic(() => import("@/components/tasks/MindMap").then(mod => m
             Loading Mind Map...
         </div>
     )
+})
+
+const Markdown = dynamic(() => import("react-markdown"), {
+    loading: () => <div className="h-4 w-full animate-pulse bg-white/5 rounded" />
 })
 
 export type Task = {
@@ -77,6 +81,22 @@ type ClassificationOutput = {
     info_structure: string
     cognitive_goal: string
     confidence: number
+}
+
+type ComprehensionBriefResponse = {
+    core_intent: string
+    core_position: string
+    key_insights: Array<{
+        title: string
+        new_perspective: string
+        why_it_matters: string
+    }>
+    what_to_ignore: string[]
+    target_audience: {
+        who_benefits: string[]
+        who_wont: string[]
+    }
+    reusable_takeaway: string
 }
 
 type MediaController = {
@@ -190,6 +210,7 @@ export default function TaskDetailClient({ id, initialTask, initialOutputs }: Ta
 
     const script = getLocalizedOutput('script')
     const summary = getLocalizedOutput('summary')
+    const comprehensionBrief = getLocalizedOutput('comprehension_brief')
     // Source matches don't have multiple locales usually, but good to keep consistent if we add them
     const summarySource = outputs.find(o => o.kind === 'summary_source')
     const scriptRaw = outputs.find(o => o.kind === 'script_raw')
@@ -279,9 +300,12 @@ export default function TaskDetailClient({ id, initialTask, initialOutputs }: Ta
                             )}
 
                             <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="w-full">
-                                <TabsList className="grid w-full grid-cols-3 h-12">
+                                <TabsList className="grid w-full grid-cols-4 h-12">
                                     <TabsTrigger value="summary" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm">
                                         <FileText className="hidden sm:block h-4 w-4" /> {t("tasks.tabSummary")}
+                                    </TabsTrigger>
+                                    <TabsTrigger value="learning" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm">
+                                        <Zap className="hidden sm:block h-4 w-4 text-emerald-400" /> {t("tasks.tabLearning")}
                                     </TabsTrigger>
                                     <TabsTrigger value="mindmap" className="gap-2 px-2 sm:px-3 text-xs sm:text-sm">
                                         <Network className="hidden sm:block h-4 w-4" /> MindMap
@@ -302,6 +326,14 @@ export default function TaskDetailClient({ id, initialTask, initialOutputs }: Ta
                                         locale={locale}
                                         coverUrl={task.thumbnail_url}
                                     />
+                                </TabsContent>
+
+                                <TabsContent value="learning" className="mt-4 md:mt-6 outline-none">
+                                    {comprehensionBrief?.status === 'completed' ? (
+                                        <ComprehensionBriefSection content={comprehensionBrief.content} />
+                                    ) : (
+                                        <OutputCard output={comprehensionBrief} placeholder={t("tasks.summaryPlaceholder")} />
+                                    )}
                                 </TabsContent>
 
                                 <TabsContent value="mindmap" className="mt-4 md:mt-6 space-y-4">
@@ -651,7 +683,7 @@ function SummarySection({
                         </div>
 
                         {!hasAnyAnchors && (
-                            <div className="mb-4 px-2 text-sm text-yellow-500/80 bg-yellow-500/10 p-2 rounded border border-yellow-500/20">
+                            <div className="mb-4 px-2 text-sm text-yellow-400 bg-yellow-500/10 p-2 rounded border border-yellow-500/20">
                                 Note: Timeline anchors are currently unavailable for this summary.
                             </div>
                         )}
@@ -737,7 +769,7 @@ function SummaryKeypointItem({
                 ) : null}
 
                 {kp.evidence ? (
-                    <div className="mt-1 flex items-start gap-2 text-[11px] text-muted-foreground/60 group-hover:text-muted-foreground/80 transition-colors">
+                    <div className="mt-1 flex items-start gap-2 text-[11px] text-muted-foreground/80 group-hover:text-muted-foreground transition-colors">
                         <Quote className="w-3 h-3 shrink-0 opacity-50 relative top-0.5" />
                         <span className="italic leading-relaxed">{kp.evidence}</span>
                     </div>
@@ -759,6 +791,177 @@ function SummaryKeypointItem({
     }
 
     return <div className={containerClasses}>{innerContent}</div>
+}
+
+function ComprehensionBriefSection({ content }: { content: string }) {
+    const { t } = useI18n()
+    const data = useMemo<ComprehensionBriefResponse | null>(() => {
+        try {
+            return JSON.parse(content)
+        } catch (e) {
+            console.error("Failed to parse Comprehension Brief", e)
+            return null
+        }
+    }, [content])
+
+    if (!data) return null
+
+    return (
+        <div className="space-y-12 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
+            {/* 1. Bento Grid Header */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-fr">
+                {/* Core Intent - Driver */}
+                <div className="md:col-span-1 p-6 rounded-3xl bg-gradient-to-br from-emerald-950/80 to-black border border-emerald-500/20 shadow-2xl relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                        <Zap className="w-32 h-32 text-emerald-500" />
+                    </div>
+                    <div className="relative z-10 flex flex-col h-full justify-between gap-4">
+                        <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                            <Target className="w-4 h-4" />
+                            {t("tasks.comprehensionBrief.coreIntent")}
+                        </h3>
+                        <p className="text-xl md:text-2xl font-semibold text-white leading-relaxed whitespace-pre-wrap">
+                            {data.core_intent}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Core Position - Stance */}
+                <div className="md:col-span-1 p-6 rounded-3xl bg-white/[0.03] border border-white/10 relative overflow-hidden group hover:bg-white/[0.05] transition-colors">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                        <ArrowRight className="w-32 h-32 text-amber-500" />
+                    </div>
+                    <div className="relative z-10 flex flex-col h-full justify-between gap-4">
+                        <h3 className="text-xs font-bold text-amber-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                            <Sparkles className="w-4 h-4" />
+                            {t("tasks.comprehensionBrief.corePosition")}
+                        </h3>
+                        <p className="text-lg md:text-xl font-medium text-white/90 leading-relaxed whitespace-pre-wrap">
+                            {data.core_position}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* 2. Smart Filters (Audience & Ignore) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Who it's for */}
+                    <div className="p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
+                        <h3 className="text-xs font-bold text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <UserCheck className="w-4 h-4" />
+                            {t("tasks.comprehensionBrief.whoBenefits")}
+                        </h3>
+                        <ul className="space-y-3">
+                            {data.target_audience.who_benefits.map((item, idx) => (
+                                <li key={idx} className="flex items-start gap-3 text-sm text-emerald-100">
+                                    <Check className="w-4 h-4 shrink-0 text-emerald-500 mt-0.5" />
+                                    <span>{item}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                    {/* Who it's NOT for */}
+                    <div className="p-5 rounded-2xl bg-red-500/5 border border-red-500/10">
+                        <h3 className="text-xs font-bold text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <UserMinus className="w-4 h-4" />
+                            {t("tasks.comprehensionBrief.whoWont")}
+                        </h3>
+                        <ul className="space-y-3">
+                            {data.target_audience.who_wont.map((item, idx) => (
+                                <li key={idx} className="flex items-start gap-3 text-sm text-red-200">
+                                    <X className="w-4 h-4 shrink-0 text-red-400/50 mt-0.5" />
+                                    <span>{item}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+
+                {/* Ignore List */}
+                {data.what_to_ignore && data.what_to_ignore.length > 0 && (
+                    <div className="lg:col-span-1 p-5 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col justify-center">
+                        <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-amber-500/80" />
+                            {t("tasks.comprehensionBrief.whatToIgnore")}
+                        </h3>
+                        <ul className="space-y-2">
+                            {data.what_to_ignore.map((item, idx) => (
+                                <li key={idx} className="text-xs text-muted-foreground/80 leading-relaxed pl-2 border-l border-white/10">
+                                    {item}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+            </div>
+
+            {/* 3. Insight Flow */}
+            <div className="relative pl-4 md:pl-0">
+                <div className="absolute left-0 md:left-8 top-0 bottom-0 w-px bg-gradient-to-b from-emerald-500/50 via-emerald-500/10 to-transparent hidden md:block" />
+
+                <div className="space-y-8 md:space-y-12">
+                    {data.key_insights.map((insight, idx) => (
+                        <div key={idx} className="relative md:pl-20 group">
+                            {/* Marker */}
+                            <div className="absolute left-0 md:left-6 top-1.5 -translate-x-1/2 w-4 h-4 rounded-full bg-[#0A0A0A] border-2 border-emerald-500/50 group-hover:border-emerald-500 group-hover:shadow-[0_0_10px_rgb(16,185,129)] transition-all hidden md:block" />
+
+                            <div className="space-y-3">
+                                <div className="flex items-baseline gap-3">
+                                    <span className="text-emerald-500/70 font-mono text-sm md:hidden">#{idx + 1}</span>
+                                    <h4 className="text-xl md:text-2xl font-bold text-white group-hover:text-emerald-400 transition-colors leading-snug">
+                                        {insight.title}
+                                    </h4>
+                                </div>
+
+                                <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-white/5 border border-white/5 text-xs text-muted-foreground">
+                                    <Sparkles className="w-3 h-3" />
+                                    <span className="whitespace-pre-wrap max-w-prose">{insight.why_it_matters}</span>
+                                </div>
+
+                                <p className="text-base md:text-lg text-muted-foreground leading-relaxed whitespace-pre-wrap border-l-2 border-white/5 pl-4 md:border-none md:pl-0">
+                                    {insight.new_perspective}
+                                </p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* 4. Crown Jewel (Reusable Takeaway) */}
+            <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500 rounded-3xl opacity-20 blur transition duration-1000 group-hover:opacity-40 group-hover:duration-200"></div>
+                <div className="relative p-8 md:p-10 rounded-[22px] bg-[#0A0A0A] border border-white/10 overflow-hidden">
+                    {/* Deco Background */}
+                    <div className="absolute top-0 right-0 p-8 opacity-5">
+                        <Quote className="w-40 h-40 text-white transform rotate-12" />
+                    </div>
+
+                    <div className="relative z-10 space-y-6">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                            <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-widest">
+                                {t("tasks.comprehensionBrief.reusableTakeaway")}
+                            </h3>
+                            <div className="flex gap-1.5">
+                                {[1, 2, 3].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-emerald-500/30" />)}
+                            </div>
+                        </div>
+
+                        <div className="text-xl md:text-3xl font-bold leading-tight text-white/90 whitespace-pre-wrap">
+                            <Markdown components={{
+                                p: ({ node, ...props }) => <p {...props} className="mb-4 last:mb-0" />,
+                                strong: ({ node, ...props }) => <span className="text-emerald-400" {...props} />,
+                                ul: ({ node, ...props }) => <ul className="list-disc list-inside space-y-2 my-4" {...props} />,
+                                li: ({ node, ...props }) => <li className="text-lg text-white/80" {...props} />
+                            }}>
+                                {data.reusable_takeaway}
+                            </Markdown>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
 }
 
 function FullScriptSection({
@@ -900,13 +1103,13 @@ function OutputCard({ output, placeholder, isScript = false }: { output?: Output
             </div>
             <CardContent className="p-4 pt-12 md:p-8 md:pt-10">
                 <div className="prose prose-invert prose-base md:prose-lg max-w-none prose-headings:text-primary prose-a:text-primary prose-strong:text-white prose-strong:font-bold">
-                    <ReactMarkdown
+                    <Markdown
                         components={{
                             strong: ({ ...props }) => <strong className="text-primary font-mono bg-primary/10 px-1 rounded" {...props} />
                         }}
                     >
                         {cleanedContent}
-                    </ReactMarkdown>
+                    </Markdown>
                 </div>
             </CardContent>
         </Card>

@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
+import Image from "next/image"
 
 import { YouTubePlayer } from "@/components/tasks/YouTubePlayer"
 
@@ -149,11 +150,12 @@ function BilibiliPlayer({
         onClick={() => setIsPlaying(true)}
       >
         <div className="aspect-video w-full relative">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={coverUrl}
             alt={title || "Video thumbnail"}
-            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+            fill
+            className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+            unoptimized={false}
           />
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20 group-hover:scale-110 transition-transform">

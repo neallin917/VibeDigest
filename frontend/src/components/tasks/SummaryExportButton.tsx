@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect, RefObject } from "react"
 import { createPortal } from "react-dom"
 import { Share2, Camera, Copy, Check, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { toPng } from "html-to-image"
+// import { toPng } from "html-to-image" // Lazy loaded
 
 interface SummaryShareButtonProps {
     containerRef: RefObject<HTMLElement | null>
@@ -202,7 +202,9 @@ export function SummaryShareButton({ containerRef, title, coverUrl, onCopyMarkdo
             // Wait for all converted images to be painted
             await new Promise(resolve => setTimeout(resolve, 100))
 
-            // 7. Capture
+            // 7. Capture (Lazy load html-to-image)
+            const { toPng } = await import('html-to-image')
+
             const dataUrl = await toPng(clonedElement, {
                 backgroundColor: '#0A0A0A',
                 pixelRatio: 2,
@@ -369,6 +371,7 @@ export function SummaryShareButton({ containerRef, title, coverUrl, onCopyMarkdo
                 className="h-8 gap-1.5 bg-black/50 hover:bg-black/70 text-muted-foreground hover:text-white border border-white/10 transition-colors"
                 onClick={() => setIsOpen(!isOpen)}
                 disabled={isExporting}
+                aria-label={t("tasks.share")}
             >
                 {isExporting ? (
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />

@@ -32,6 +32,11 @@ export async function middleware(request: NextRequest) {
         // Redirect if there is no locale
         const locale = getLocale(request);
         request.nextUrl.pathname = `/${locale}${pathname}`;
+
+        // Use rewrite for default locale to avoid redirect latency
+        if (locale === defaultLocale) {
+            return NextResponse.rewrite(request.nextUrl);
+        }
         return NextResponse.redirect(request.nextUrl);
     }
 
