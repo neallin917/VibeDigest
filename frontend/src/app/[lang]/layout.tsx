@@ -8,7 +8,7 @@ import "../globals.css";
 import { cn } from "@/lib/utils";
 import { Providers } from "@/components/providers";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], display: 'swap' });
 
 const gaId = process.env.NEXT_PUBLIC_GA_ID || "";
 
