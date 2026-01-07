@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { TaskForm } from './TaskForm'
 import { ApiClient } from '@/lib/api'
 import { useRouter } from 'next/navigation'
-import { vi } from 'vitest'
+import { vi, describe, it, expect, beforeEach } from 'vitest'
 
 // 1. Mock Next.js Router
 const pushMock = vi.fn()
@@ -102,6 +102,70 @@ describe('TaskForm', () => {
         fireEvent.click(button)
 
         // Should not call API
+        expect(ApiClient.processVideo).not.toHaveBeenCalled()
+    })
+
+    // ============================================
+    // Journey 1.3: 配额耗尽处理 (P0)
+    // ============================================
+
+    it('shows quota exceeded dialog when API returns 403', async () => {
+        // Mock API to throw quota exceeded error
+        vi.mocked(ApiClient.processVideo).mockRejectedValue(
+            new Error('Quota exceeded: You have reached your limit')
+        )
+
+        render(<TaskForm />)
+
+        // Type valid URL and submit
+        const input = screen.getByPlaceholderText('Enter video URL')
+        fireEvent.change(input, { target: { value: 'https://youtube.com/watch?v=test' } })
+        fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
+
+        // Wait for dialog to appear
+        await waitFor(() => {
+            expect(screen.getByText('taskForm.quotaExceeded.title')).toBeInTheDocument()
+        })
+
+        // Verify upgrade button exists
+        expect(screen.getByText('taskForm.quotaExceeded.confirm')).toBeInTheDocument()
+    })
+
+    it('navigates to pricing page when upgrade button clicked', async () => {
+        vi.mocked(ApiClient.processVideo).mockRejectedValue(
+            new Error('insufficient credits')
+        )
+
+        render(<TaskForm />)
+
+        const input = screen.getByPlaceholderText('Enter video URL')
+        fireEvent.change(input, { target: { value: 'https://youtube.com/watch?v=test' } })
+        fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
+
+        await waitFor(() => {
+            expect(screen.getByText('taskForm.quotaExceeded.title')).toBeInTheDocument()
+        })
+
+        // Click upgrade button
+        fireEvent.click(screen.getByText('taskForm.quotaExceeded.confirm'))
+
+        await waitFor(() => {
+            expect(pushMock).toHaveBeenCalledWith('/en/settings/pricing')
+        })
+    })
+
+    it('shows URL help dialog for invalid URL format', async () => {
+        render(<TaskForm />)
+
+        // Type invalid URL
+        const input = screen.getByPlaceholderText('Enter video URL')
+        fireEvent.change(input, { target: { value: 'not-a-valid-url' } })
+        fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
+
+        // Should show URL help dialog, not make API call
+        await waitFor(() => {
+            expect(screen.getByText('taskForm.urlHelp.title')).toBeInTheDocument()
+        })
         expect(ApiClient.processVideo).not.toHaveBeenCalled()
     })
 })

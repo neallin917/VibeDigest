@@ -13,6 +13,7 @@ from db_client import DBClient
 from notifier import Notifier
 from supadata_client import SupadataClient
 from summarizer import Summarizer
+from comprehension import ComprehensionAgent
 from transcriber import Transcriber, format_markdown_from_raw_segments
 from video_processor import VideoProcessor
 from utils.url import normalize_video_url
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 video_processor = VideoProcessor()
 transcriber = Transcriber()
 summarizer = Summarizer()
+comprehension_agent = ComprehensionAgent()
 db_client = DBClient()
 supadata_client = SupadataClient()
 
@@ -56,6 +58,7 @@ class VideoProcessingState(TypedDict):
     classification_result: Optional[Dict]
     source_summary_json: Optional[str]
     final_summary_json: Optional[str]
+    comprehension_brief_json: Optional[str]
 
     # Processing Control
     cache_hit: bool
@@ -502,11 +505,29 @@ async def summarize(state: VideoProcessingState) -> Dict:
             
              updates["final_summary_json"] = final_json
              db_client.update_output_status(summary_out['id'], status="completed", progress=100, content=final_json)
+
+        # 3. Comprehension Brief (Learning Tab)
+        brief_out = next((o for o in outputs if o['kind'] == 'comprehension_brief'), None)
+        if brief_out and brief_out.get("status") != "completed":
+            db_client.update_output_status(brief_out['id'], status="processing", progress=10)
+            
+            brief_trace = base_trace_meta.copy()
+            brief_trace["metadata"]["kind"] = "comprehension_brief"
+            
+            brief_json = await comprehension_agent.generate_comprehension_brief(
+                state['transcript_text'],
+                target_language=state['summary_lang'] or "zh",
+                trace_config=brief_trace
+            )
+            updates["comprehension_brief_json"] = brief_json
+            db_client.update_output_status(brief_out['id'], status="completed", progress=100, content=brief_json)
              
     except Exception as e:
-        logger.error(f"Summarize failed: {e}")
-        if summary_out: db_client.update_output_status(summary_out['id'], status="error", error=str(e))
-        if summary_source_out: db_client.update_output_status(summary_source_out['id'], status="error", error=str(e))
+        logger.error(f"Summarization / Brief failed: {e}")
+        # Mark pending outputs as error if they aren't done
+        for o in outputs:
+            if o['kind'] in ('summary', 'summary_source', 'comprehension_brief') and o.get('status') != 'completed':
+                db_client.update_output_status(o['id'], status="error", error=str(e))
         updates["errors"] = [str(e)]
         
     return updates

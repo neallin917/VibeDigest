@@ -40,6 +40,7 @@ from prompts import (
     CONTENT_CLASSIFIER_SYSTEM, CONTENT_CLASSIFIER_USER,
     STRUCTURE_TEMPLATES, GOAL_TEMPLATES, FORM_SUPPLEMENTS,
     SUMMARY_V2_SYSTEM_TEMPLATE, SUMMARY_V2_USER_TEMPLATE,
+    COMPREHENSION_BRIEF_SYSTEM, COMPREHENSION_BRIEF_USER,
 )
 
 logger = logging.getLogger(__name__)
@@ -719,32 +720,23 @@ class Summarizer:
                     
                     # Convert to dict
                     obj = summary_obj.dict()
-                    if "content_type" not in obj or not obj["content_type"]: 
-                        obj["content_type"] = classification
-                    
-                    # Ensure JSON structure matches what frontend expects (camelCase vs snake_case might be an issue?)
-                    # Pydantic exports snake_case by default.
-                    # Current frontend likely expects snake_case for KeyPoint keys?
-                    # Previous Logic:
-                    # "keypoints": [{"title":..., "detail":..., "evidence":...}]
-                    # Pydantic: same.
+                    if "content_type" in obj:
+                         obj["content_type"] = classification
                     
                     return json.dumps(obj, ensure_ascii=False)
-                    
                 except Exception as e:
-                    logger.warning(f"Model {model} failed structured summary: {e}")
                     last_exception = e
+                    logger.warning(f"Summarize V2 with model {model} failed: {e}")
                     continue
             
-            raise last_exception or Exception("All summary models failed")
-            
+            raise last_exception or Exception("All models failed for Summarize V2")
         except Exception as e:
-            logger.warning(f"V2 summary failed: {e}")
-            if self.enable_json_repair:
-                # Try repair on whatever raw we had? (Not applicable here as we failed LLM call or parsing)
-                # Fallback to legacy
-                pass
+            logger.error(f"Summarize V2 failed: {e}")
+            # Try repair on whatever raw we had? (Not applicable here as we failed LLM call or parsing)
+            # Fallback to legacy
+            pass
             return self._fallback_summary_json_v1(transcript, target_language)
+
 
     def _normalize_lang_code(self, lang: Optional[str]) -> str:
         if not lang: return "unknown"

@@ -162,6 +162,7 @@ async def process_video(
         # This ensures UI has something to show immediately and satisfies integration tests.
         db_client.create_task_output(task_id, user_id, kind="script")
         db_client.create_task_output(task_id, user_id, kind="summary", locale=summary_language)
+        db_client.create_task_output(task_id, user_id, kind="comprehension_brief", locale=summary_language)
 
         logger.info(f"Created task {task_id} for user {user_id}. Queuing background pipeline...")
         

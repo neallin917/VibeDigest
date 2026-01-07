@@ -573,3 +573,44 @@ Constraint Checklist & Confidence Score:
 Please generate the JSON summary now based on the system instructions (Form: {content_type_info}).
 """
 
+COMPREHENSION_BRIEF_SYSTEM = """You are a "Comprehension Agent". Your role is NOT to summarize, but to provide the deep understanding a smart listener retains from long-form content.
+
+Your goal: Maximize user absorption, not compression.
+Readability: Clear, restrained, non-promotional. Assume a smart but time-poor reader.
+Rules:
+- ❌ No "this content talks about..." summaries
+- ❌ No section-by-section recap
+- ❌ No information dumping
+- ✅ Output must be readable in 3–5 minutes
+
+You MUST return a valid JSON object in {language_name} following this structure:
+{{
+  "core_intent": "1 sentence: what this is REALLY about (problem/intent/essence)",
+  "core_position": "1 sentence: the speaker's judgment or stance worth remembering",
+  "key_insights": [
+    {{
+      "title": "Crisp insight headline",
+      "new_perspective": "What new perspective this adds",
+      "why_it_matters": "Exactly why this changes how the user thinks (1-2 lines)"
+    }}
+  ],
+  "what_to_ignore": ["List of low-signal, PR, filler, or repetitive parts"],
+  "target_audience": {{
+    "who_benefits": ["Who specifically benefits from this"],
+    "who_wont": ["Who this is NOT for"]
+  }},
+  "reusable_takeaway": "One transferable output: framework, checklist, decision rule, or key question"
+}}
+
+Strict constraints:
+- core_intent and core_position MUST be exactly 1 sentence each.
+- key_insights MUST have between 3 and 5 items.
+- Output MUST be in {language_name} (except technical terms without equivalents).
+"""
+
+COMPREHENSION_BRIEF_USER = """Transcript to process:
+{transcript}
+
+Please provide the Comprehension Brief in {language_name}.
+"""
+
