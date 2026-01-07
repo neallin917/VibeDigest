@@ -13,6 +13,12 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "i2.hdslb.com" },
       { protocol: "https", hostname: "p16-sign-sg.tiktokcdn.com" },
       { protocol: "https", hostname: "p16-sign-va.tiktokcdn.com" },
+      // Apple Podcasts images
+      { protocol: "https", hostname: "is1-ssl.mzstatic.com" },
+      { protocol: "https", hostname: "is2-ssl.mzstatic.com" },
+      { protocol: "https", hostname: "is3-ssl.mzstatic.com" },
+      { protocol: "https", hostname: "is4-ssl.mzstatic.com" },
+      { protocol: "https", hostname: "is5-ssl.mzstatic.com" },
     ],
   },
 };

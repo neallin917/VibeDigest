@@ -52,6 +52,9 @@ class Settings:
         "gpt-4.1",
     ]
     
+    # Deep Comprehension Models (Learning Tab / Thinking prioritized)
+    OPENAI_COMPREHENSION_MODELS: list[str] = os.getenv("COMPREHENSION_MODELS", "gpt-5.2,gpt-5-mini,gpt-5,gpt-4.1").split(",")
+    
     # Helper Models (for simpler tasks like JSON repair, formatting)
     OPENAI_HELPER_MODEL: str = os.getenv("OPENAI_HELPER_MODEL", "gpt-5-mini")
     

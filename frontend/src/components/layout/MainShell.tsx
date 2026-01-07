@@ -89,8 +89,8 @@ export function MainShell({ children }: { children: React.ReactNode }) {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session && !isPublicPath) {
-        // Redirect to landing page if not authenticated and not on public path
-        router.replace(`/${locale}`)
+        // Redirect to login page if not authenticated and not on public path
+        router.replace(`/${locale}/login`)
         return
       }
       setIsAuthenticated(!!session)
@@ -102,7 +102,7 @@ export function MainShell({ children }: { children: React.ReactNode }) {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session && !isPublicPath) {
-        router.replace(`/${locale}`)
+        router.replace(`/${locale}/login`)
       } else {
         setIsAuthenticated(!!session)
         setIsLoading(false)
