@@ -123,12 +123,12 @@ export function LandingNav() {
                 {/* Center: Navigation Capsule */}
                 <div className="absolute left-1/2 -translate-x-1/2 hidden md:block">
                     <div className={`
-                        flex items-center gap-1 px-2 py-1.5 rounded-full 
-                        bg-black/20 backdrop-blur-md 
-                        border border-white/10 
-                        shadow-[0_0_0_1px_rgba(255,255,255,0.05)]
+                        flex items-center gap-1 px-1.5 py-1.5 rounded-full 
+                        bg-zinc-900/40 backdrop-blur-xl 
+                        border border-white/5 
+                        shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_4px_20px_-2px_rgba(0,0,0,0.2)]
                         transition-all duration-300
-                        ${isScrolled ? "shadow-lg shadow-black/20 bg-black/40" : ""}
+                        ${isScrolled ? "bg-zinc-900/80 shadow-lg border-white/10" : ""}
                     `}>
                         {navItems.slice(1).map((item) => (
                             item.href ? (
@@ -136,8 +136,8 @@ export function LandingNav() {
                                     key={item.id}
                                     href={`/${locale}${item.href}`}
                                     className={`
-                                        px-5 py-2 rounded-full text-[13px] font-medium tracking-wide transition-all duration-300
-                                        text-white/70 hover:text-white hover:bg-white/10
+                                        px-4 py-2 rounded-full text-[13px] font-medium tracking-wide transition-all duration-300
+                                        text-zinc-400 hover:text-white hover:bg-white/5
                                     `}
                                 >
                                     {labels[item.key]}
@@ -147,10 +147,10 @@ export function LandingNav() {
                                     key={item.id}
                                     onClick={() => scrollToSection(item.id)}
                                     className={`
-                                        px-5 py-2 rounded-full text-[13px] font-medium tracking-wide transition-all duration-300
+                                        px-4 py-2 rounded-full text-[13px] font-medium tracking-wide transition-all duration-300
                                         ${activeSection === item.id
-                                            ? "bg-white text-black shadow-md"
-                                            : "text-white/70 hover:text-white hover:bg-white/10"
+                                            ? "bg-white/10 text-white shadow-inner font-semibold"
+                                            : "text-zinc-400 hover:text-white hover:bg-white/5"
                                         }
                                     `}
                                 >

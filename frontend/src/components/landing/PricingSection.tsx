@@ -3,9 +3,10 @@
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { Heading, Text } from "@/components/ui/typography"
 import { Button } from "@/components/ui/button"
-import { CheckCircle2 } from "lucide-react"
+import { CheckCircle2, Zap } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase"
+import { motion } from "framer-motion"
 
 export function PricingSection() {
     const { t, locale } = useI18n()
@@ -30,6 +31,7 @@ export function PricingSection() {
     const proFeatureKeys = [
         "pricing.pro.features.f1",
         "pricing.pro.features.f2",
+        "pricing.pro.features.f3", // Added f3 directly here if available, or just map what we have
     ] as const
 
     const topupFeatureKeys = [
@@ -69,71 +71,85 @@ export function PricingSection() {
     ]
 
     return (
-        <section id="pricing" className="py-16 px-4 relative scroll-mt-24"> {/* Reduced py-24 -> py-16, px-6 -> px-4 */}
-            <div className="text-center mb-12"> {/* Reduced mb-20 -> mb-12 */}
-                <Heading as="h2" className="text-2xl md:text-3xl font-bold mb-3 font-heading"> {/* Reduced text-3xl/5xl -> 2xl/3xl */}
-                    {t("landing.simplePricing")}
-                </Heading>
-                <Text className="text-muted-foreground text-base"> {/* Reduced text-lg -> text-base */}
-                    {t("landing.simplePricingSubtitle")}
-                </Text>
-            </div>
-
-            <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6"> {/* Reduced max-w-7xl, gap-8 -> gap-6 */}
-                {plans.map((plan, index) => (
-                    <div
-                        key={index}
-                        className={`
-                relative p-6 rounded-2xl flex flex-col {/* Reduced p-10 -> p-6, rounded-3xl -> 2xl */}
-                ${plan.highlight
-                                ? 'bg-[#0F1C18] border-2 border-primary shadow-[0_0_40px_rgba(52,211,153,0.1)] transform md:scale-105 z-10'
-                                : 'bg-card border border-white/10 hover:border-white/20 transition-colors' // Use theme vars
-                            }
-              `}
+        <section id="pricing" className="py-24 px-6 relative scroll-mt-24">
+            <div className="max-w-7xl mx-auto">
+                <div className="text-center mb-16">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6 }}
                     >
-                        {plan.highlight && (
-                            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-black text-[10px] font-bold px-3 py-1 rounded-full tracking-wide uppercase"> {/* Smaller badge */}
-                                MOST POPULAR
-                            </div>
-                        )}
-
-                        <Heading as="h3" className={`text-lg font-bold mb-2 ${plan.highlight ? 'text-primary' : 'text-foreground'}`}> {/* Reduced text-2xl -> text-lg */}
-                            {plan.title}
+                        <Heading as="h2" className="text-3xl md:text-5xl font-bold mb-6 font-display">
+                            {t("landing.simplePricing")}
                         </Heading>
-
-                        <div className="text-3xl font-bold mb-4 text-foreground font-heading"> {/* Reduced text-4xl -> text-3xl */}
-                            {plan.price}
-                            {plan.key === 'pro' && <span className="text-xs font-normal text-muted-foreground ml-1">{t("pricing.pro.unit")}</span>}
-                        </div>
-
-                        <Text className="text-muted-foreground mb-6 leading-relaxed text-sm"> {/* Reduced text-gray-500 -> muted-foreground, added text-sm */}
-                            {plan.desc}
+                        <Text className="text-zinc-400 text-lg">
+                            {t("landing.simplePricingSubtitle")}
                         </Text>
+                    </motion.div>
+                </div>
 
-                        <ul className="space-y-3 mb-8 flex-1"> {/* Reduced space-y-5 -> 3, mb-10 -> 8 */}
-                            {plan.features.map((feature, i) => (
-                                <li key={i} className="flex items-center gap-3 text-sm text-foreground/80"> {/* Reduced text-base -> text-sm, gap-4 -> 3 */}
-                                    <CheckCircle2 className={`w-4 h-4 ${plan.highlight ? 'text-primary' : 'text-primary/70'}`} /> {/* Reduced w-5 h-5 -> w-4 h-4 */}
-                                    <span>{feature}</span>
-                                </li>
-                            ))}
-                        </ul>
-
-                        <Button
-                            variant={plan.highlight ? "default" : "outline"}
-                            onClick={handlePlanClick}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {plans.map((plan, index) => (
+                        <motion.div
+                            key={index}
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.5, delay: index * 0.1 }}
                             className={`
-                  w-full h-10 text-sm rounded-xl font-semibold transition-all {/* Replaced py-6 text-lg -> h-10 text-sm */}
-                  ${plan.highlight
-                                    ? 'bg-primary hover:bg-primary/90 text-black shadow-lg shadow-primary/10'
-                                    : 'border-white/10 hover:bg-white/5 text-foreground hover:text-foreground'
+                                relative p-8 rounded-3xl flex flex-col
+                                ${plan.highlight
+                                    ? 'bg-zinc-900/80 border border-emerald-500/30 shadow-[0_0_40px_-10px_rgba(16,185,129,0.2)] md:-mt-4 md:mb-4 z-10'
+                                    : 'bg-zinc-900/40 border border-white/5 hover:border-white/10 transition-colors'
                                 }
-                `}
+                            `}
                         >
-                            {plan.cta}
-                        </Button>
-                    </div>
-                ))}
+                            {plan.highlight && (
+                                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-emerald-500 to-teal-500 text-black text-[11px] font-bold px-4 py-1.5 rounded-full tracking-wider uppercase shadow-lg flex items-center gap-1.5">
+                                    <Zap className="w-3 h-3 fill-black" />
+                                    MOST POPULAR
+                                </div>
+                            )}
+
+                            <Heading as="h3" className={`text-xl font-bold mb-2 ${plan.highlight ? 'text-emerald-400' : 'text-zinc-100'}`}>
+                                {plan.title}
+                            </Heading>
+
+                            <div className="flex items-baseline gap-1 mb-6">
+                                <span className="text-4xl font-bold text-white font-display tracking-tight">{plan.price}</span>
+                                {plan.key === 'pro' && <span className="text-sm text-zinc-500">{t("pricing.pro.unit")}</span>}
+                            </div>
+
+                            <Text className="text-zinc-400 mb-8 leading-relaxed text-sm min-h-[40px]">
+                                {plan.desc}
+                            </Text>
+
+                            <ul className="space-y-4 mb-8 flex-1">
+                                {plan.features.map((feature, i) => (
+                                    <li key={i} className="flex items-start gap-3 text-sm text-zinc-300">
+                                        <CheckCircle2 className={`w-5 h-5 shrink-0 ${plan.highlight ? 'text-emerald-500' : 'text-zinc-600'}`} />
+                                        <span className="leading-snug">{feature}</span>
+                                    </li>
+                                ))}
+                            </ul>
+
+                            <Button
+                                variant={plan.highlight ? "default" : "outline"}
+                                onClick={handlePlanClick}
+                                className={`
+                                    w-full h-12 rounded-xl font-semibold transition-all duration-300
+                                    ${plan.highlight
+                                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black shadow-lg shadow-emerald-500/20 border-0'
+                                        : 'bg-white/5 border-white/10 hover:bg-white/10 text-white hover:text-white hover:border-white/20'
+                                    }
+                                `}
+                            >
+                                {plan.cta}
+                            </Button>
+                        </motion.div>
+                    ))}
+                </div>
             </div>
         </section>
     )
