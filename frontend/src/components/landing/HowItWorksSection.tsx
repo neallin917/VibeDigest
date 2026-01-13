@@ -3,6 +3,7 @@
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { Heading, Text } from "@/components/ui/typography"
 import { Link2, Bot, FileText } from "lucide-react"
+import { motion } from "framer-motion"
 
 export function HowItWorksSection() {
     const { t } = useI18n()
@@ -29,36 +30,57 @@ export function HowItWorksSection() {
     ]
 
     return (
+        <section id="how-it-works" className="py-24 px-6 relative overflow-hidden scroll-mt-24">
+            {/* Background elements */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-900/10 rounded-full blur-[120px] pointer-events-none" />
 
-        <section id="how-it-works" className="py-16 px-4 relative overflow-hidden scroll-mt-24">
-            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-900/10 rounded-full blur-[100px] pointer-events-none" />
-
-            <div className="text-center mb-12 relative z-10">
-                <Heading as="h2" className="text-2xl md:text-3xl font-bold mb-3 font-heading">
-                    {t("landing.howItWorks")}
-                </Heading>
-                <Text className="text-muted-foreground text-base">
-                    {t("landing.howItWorksSubtitle")}
-                </Text>
-            </div>
-
-            <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
-                {steps.map((step, index) => (
-                    <div key={index} className="flex flex-col items-center text-center group">
-                        <div className="w-16 h-16 rounded-2xl bg-card border border-white/10 flex items-center justify-center mb-6 relative group-hover:border-primary/50 transition-colors duration-300 shadow-xl shadow-black/20">
-                            <div className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-primary text-black font-bold flex items-center justify-center text-xs shadow-lg shadow-primary/20">
-                                {step.step}
-                            </div>
-                            <step.icon className="w-7 h-7 text-primary group-hover:scale-110 transition-transform duration-300" />
-                        </div>
-                        <Heading as="h3" className="text-lg font-bold mb-2 text-foreground">
-                            {step.title}
+            <div className="max-w-7xl mx-auto relative z-10">
+                <div className="text-center mb-20">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6 }}
+                    >
+                        <Heading as="h2" className="text-3xl md:text-5xl font-display font-bold mb-6">
+                            {t("landing.howItWorks")}
                         </Heading>
-                        <Text className="text-muted-foreground leading-relaxed max-w-xs text-sm">
-                            {step.desc}
+                        <Text className="text-zinc-400 text-lg max-w-2xl mx-auto">
+                            {t("landing.howItWorksSubtitle")}
                         </Text>
-                    </div>
-                ))}
+                    </motion.div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
+                    {/* Connecting Line (Desktop) */}
+                    <div className="hidden md:block absolute top-[2.5rem] left-[16%] right-[16%] h-px bg-gradient-to-r from-transparent via-zinc-800 to-transparent z-0" />
+
+                    {steps.map((step, index) => (
+                        <motion.div
+                            key={index}
+                            className="flex flex-col items-center text-center group relative z-10"
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.5, delay: index * 0.2 }}
+                        >
+                            <div className="w-20 h-20 rounded-2xl bg-zinc-900/80 backdrop-blur-xl border border-white/10 flex items-center justify-center mb-8 relative group-hover:border-emerald-500/50 group-hover:shadow-[0_0_30px_-5px_rgba(16,185,129,0.3)] transition-all duration-500">
+                                <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-emerald-500 text-black font-bold flex items-center justify-center text-sm shadow-lg shadow-emerald-500/20">
+                                    {step.step}
+                                </div>
+                                <step.icon className="w-8 h-8 text-emerald-400 group-hover:scale-110 transition-transform duration-500" />
+                            </div>
+
+                            <Heading as="h3" className="text-xl font-bold mb-3 text-zinc-100 px-4">
+                                {step.title}
+                            </Heading>
+
+                            <Text className="text-zinc-400 leading-relaxed max-w-xs text-base">
+                                {step.desc}
+                            </Text>
+                        </motion.div>
+                    ))}
+                </div>
             </div>
         </section>
     )
