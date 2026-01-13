@@ -343,6 +343,7 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
                                 type="submit"
                                 size="lg"
                                 disabled={loading}
+                                aria-label={loading ? t("taskForm.processing") : t("taskForm.generate")}
                                 className="h-12 md:h-14 px-6 md:px-8 rounded-xl md:rounded-[1.5rem] bg-primary text-black font-bold text-base hover:bg-emerald-400 shadow-[0_0_20px_rgba(62,207,142,0.2)] hover:shadow-[0_0_30px_rgba(62,207,142,0.4)] transition-all duration-300 hover:scale-105"
                             >
                                 {loading ? (

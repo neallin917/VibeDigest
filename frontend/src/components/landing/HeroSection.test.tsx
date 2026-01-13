@@ -28,7 +28,7 @@ describe("HeroSection", () => {
         render(<HeroSection />)
         // Should have "with power" in bold
         const bold = screen.getByText("with power")
-        expect(bold.tagName).toBe("STRONG")
+        expect(bold.tagName).toBe("SPAN")
     })
 
     it("renders TaskForm in simple mode", () => {
