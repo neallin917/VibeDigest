@@ -6,6 +6,7 @@ import Image from "next/image"
 import { PlayCircle, Sparkles, Loader2 } from "lucide-react"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { createClient } from "@/lib/supabase"
+import { motion, AnimatePresence } from "framer-motion"
 
 // Demo tasks are managed via is_demo field in the database
 // No hardcoded IDs needed - just set is_demo = true in Supabase
@@ -53,15 +54,21 @@ const getPlatformFromUrl = (url: string) => {
     }
 }
 
+// Vibrant Neon Styles for Categories
 const CATEGORY_STYLES: Record<string, string> = {
-    tutorial: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-    interview: "bg-violet-500/10 text-violet-500 border-violet-500/20",
-    monologue: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-    news: "bg-red-500/10 text-red-500 border-red-500/20",
-    review: "bg-orange-500/10 text-orange-500 border-orange-500/20",
-    finance: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-    narrative: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
-    casual: "bg-slate-500/10 text-slate-500 border-slate-500/20",
+    tutorial: "bg-blue-500/10 text-blue-400 border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.15)]",
+    interview: "bg-violet-500/10 text-violet-400 border-violet-500/30 shadow-[0_0_10px_rgba(139,92,246,0.15)]",
+    monologue: "bg-amber-500/10 text-amber-400 border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.15)]",
+    news: "bg-rose-500/10 text-rose-400 border-rose-500/30 shadow-[0_0_10px_rgba(244,63,94,0.15)]",
+    review: "bg-orange-500/10 text-orange-400 border-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.15)]",
+    finance: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.15)]",
+    narrative: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.15)]",
+    casual: "bg-pink-500/10 text-pink-400 border-pink-500/30 shadow-[0_0_10px_rgba(236,72,153,0.15)]",
+}
+
+const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" as any } }
 }
 
 function TemplateCard({ task }: { task: Task }) {
@@ -96,92 +103,98 @@ function TemplateCard({ task }: { task: Task }) {
 
     const badgeStyle = (categoryKey && CATEGORY_STYLES[categoryKey])
         ? CATEGORY_STYLES[categoryKey]
-        : "bg-primary/10 text-primary border-primary/20"
+        : "bg-white/5 text-white/70 border-white/10"
 
     return (
-        <div
+        <motion.div
+            variants={itemVariants}
             onClick={() => {
                 const slug = encodeURIComponent((task.video_title || "video").trim().replace(/\s+/g, '-'));
                 router.push(`/${locale}/tasks/${task.id}/${slug}`)
             }}
-            className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.03] to-transparent backdrop-blur-sm cursor-pointer transition-all duration-300 hover:border-white/20 hover:shadow-[0_8px_32px_rgba(62,207,142,0.15)] hover:scale-[1.02] h-full"
+            className="group relative flex flex-col overflow-hidden rounded-3xl bg-black/40 border border-white/5 cursor-pointer backdrop-blur-sm"
         >
-            {/* Thumbnail Area */}
-            <div className="relative aspect-video w-full overflow-hidden bg-black/40 shrink-0">
+            {/* Thumbnail Area with Portal Effect */}
+            <div className="relative aspect-video w-full overflow-hidden">
+                <div className="absolute inset-0 bg-neutral-900/50 z-0" />
                 {task.thumbnail_url ? (
                     <Image
                         src={task.thumbnail_url}
                         alt={task.video_title || "Video thumbnail"}
                         fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        className="object-cover transition-all duration-700 group-hover:scale-110 group-hover:contrast-[1.1]"
                         referrerPolicy="no-referrer"
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
                     />
                 ) : (
-                    <div className="flex h-full items-center justify-center">
-                        <PlayCircle className="h-12 w-12 text-muted-foreground/50" />
+                    <div className="absolute inset-0 flex items-center justify-center z-10">
+                        <PlayCircle className="h-12 w-12 text-white/20 group-hover:text-primary transition-colors duration-300" />
                     </div>
                 )}
 
-                {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                {/* Gradient Overlay - Cinematic Fade */}
+                <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10" />
 
-                {/* Platform Badge */}
-                <div className="absolute top-3 left-3 flex items-center gap-2">
-                    <span className="rounded-full bg-black/60 backdrop-blur-md px-2.5 py-1 text-[10px] font-medium text-white/80 border border-white/10">
+                {/* Platform Badge - Floating */}
+                <div className="absolute top-3 left-3 z-20">
+                    <span className="flex items-center justify-center rounded-full bg-black/60 backdrop-blur-md border border-white/10 px-3 py-1 text-[10px] font-bold text-white/90 shadow-lg tracking-wide uppercase">
                         {platform}
                     </span>
                 </div>
             </div>
 
             {/* Content Area */}
-            <div className="flex flex-1 flex-col p-4">
-                <h3 className="font-semibold text-foreground line-clamp-2 text-sm leading-snug group-hover:text-white transition-colors mb-2">
+            <div className="relative flex flex-1 flex-col p-4 pt-3 pb-5 z-20 -mt-2">
+                <h3 className="font-bold text-white leading-tight line-clamp-2 mb-3 group-hover:text-primary transition-colors duration-300">
                     {task.video_title || task.video_url}
                 </h3>
 
                 {/* Author Info & Category */}
-                <div className="mt-auto flex items-center gap-2 min-h-[20px]">
+                <div className="mt-auto flex items-center justify-between gap-3">
                     {showAuthor ? (
-                        <>
+                        <div className="flex items-center gap-2 min-w-0">
                             {task.author_image_url ? (
-                                <div className="relative h-5 w-5 shrink-0 rounded-full overflow-hidden border border-white/10">
+                                <div className="relative h-6 w-6 shrink-0 rounded-full overflow-hidden border border-white/20">
                                     <Image
                                         src={task.author_image_url}
                                         alt={task.author || "Author"}
                                         fill
                                         className="object-cover"
                                         referrerPolicy="no-referrer"
-                                        sizes="20px"
+                                        sizes="24px"
                                     />
                                 </div>
                             ) : (
-                                <div className="h-5 w-5 rounded-full bg-white/10 flex items-center justify-center border border-white/10 shrink-0">
+                                <div className="h-6 w-6 rounded-full bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center border border-white/10 shrink-0">
                                     <span className="text-[10px] text-white/70 font-bold leading-none">
                                         {(task.author || "U").charAt(0).toUpperCase()}
                                     </span>
                                 </div>
                             )}
-                            <span className="text-xs font-medium text-muted-foreground truncate leading-tight">
+                            <span className="text-xs font-medium text-white/60 truncate">
                                 {task.author}
                             </span>
-                        </>
+                        </div>
                     ) : (
                         /* Maintain height schema if no author, but still might want category */
-                        <div className="h-5" />
+                        <div className="h-6" />
                     )}
 
-                    {/* Category Badge (Bottom Right of Content) */}
+                    {/* Neon Category Badge */}
                     {categoryLabel && (
-                        <div className="ml-auto flex shrink-0">
-                            <span className={`rounded-md px-2 py-0.5 text-[10px] font-medium border whitespace-nowrap shadow-sm ${badgeStyle}`}>
+                        <div className="shrink-0">
+                            <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold border uppercase tracking-wider ${badgeStyle}`}>
                                 {categoryLabel}
                             </span>
                         </div>
                     )}
                 </div>
             </div>
-        </div>
+
+            {/* Hover Glow Border */}
+            <div className="absolute inset-0 border border-white/10 rounded-3xl pointer-events-none group-hover:border-primary/30 transition-colors duration-500" />
+            <div className="absolute -inset-px bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500 -z-10 rounded-3xl" />
+        </motion.div>
     )
 }
 
@@ -203,19 +216,19 @@ export function CommunityTemplates({ limit, showHeader = true, initialTasks = []
             let query = supabase
                 .from('tasks')
                 .select(`
-                    id, 
-                    video_url, 
-                    video_title, 
-                    thumbnail_url, 
-                    status, 
-                    created_at, 
-                    author, 
-                    author_image_url,
-                    task_outputs (
-                        kind,
-                        content
-                    )
-                `)
+                     id, 
+                     video_url, 
+                     video_title, 
+                     thumbnail_url, 
+                     status, 
+                     created_at, 
+                     author, 
+                     author_image_url,
+                     task_outputs (
+                         kind,
+                         content
+                     )
+                 `)
                 .eq('is_demo', true)
                 .eq('status', 'completed')
                 .order('created_at', { ascending: false })
@@ -242,11 +255,21 @@ export function CommunityTemplates({ limit, showHeader = true, initialTasks = []
         fetchDemoTasks()
     }, [limit])
 
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.1
+            }
+        }
+    }
+
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-8 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                <span className="text-sm">Loading examples...</span>
+            <div className="flex items-center justify-center py-12 text-muted-foreground/50">
+                <Loader2 className="h-6 w-6 animate-spin mr-3 text-primary" />
+                <span className="text-sm font-medium tracking-wide">INITIALIZING DATABASE...</span>
             </div>
         )
     }
@@ -256,24 +279,31 @@ export function CommunityTemplates({ limit, showHeader = true, initialTasks = []
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-6">
             {showHeader && (
-                <div className="flex items-center gap-3">
-                    <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                        <Sparkles className="h-5 w-5 text-primary" />
-                        {t("dashboard.communityExamples") || "Community"}
-                    </h2>
-                    <span className="text-xs text-muted-foreground">
-                        {t("dashboard.communityExamplesHint") || "Try these ready-made examples"}
-                    </span>
+                <div className="flex items-end justify-between px-1">
+                    <div className="flex flex-col gap-1">
+                        <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                            <Sparkles className="h-5 w-5 text-primary" />
+                            {t("dashboard.communityExamples") || "Community"}
+                        </h2>
+                        <span className="text-sm text-white/40 font-medium tracking-wide">
+                            {t("dashboard.communityExamplesHint") || "Explore what others are creating"}
+                        </span>
+                    </div>
                 </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <motion.div
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+            >
                 {tasks.map((task) => (
                     <TemplateCard key={task.id} task={task} />
                 ))}
-            </div>
+            </motion.div>
         </div>
     )
 }
