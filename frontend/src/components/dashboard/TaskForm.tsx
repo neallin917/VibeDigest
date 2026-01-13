@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
@@ -299,65 +298,78 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
         )
     }
 
+    // Dashboard View (Non-simple)
     return (
-        <Card className={cn("w-full glass", className)}>
-            <CardHeader className="pb-2">
-                <CardDescription className="text-base">
-                    {t("taskForm.subtitle")}
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="space-y-3">
-                        <div className="relative">
-                            <Video className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+        <div className={/* cn("w-full max-w-4xl mx-auto", className) */ className}>
+            <div className="relative group">
+                {/* Aurora Glow Effect - Activates on focus/hover */}
+                <div className="absolute -inset-1 rounded-[2rem] bg-gradient-to-r from-teal-500/20 via-emerald-500/10 to-teal-500/20 blur-xl opacity-30 group-hover:opacity-60 transition-all duration-700" />
+                <div className="absolute -inset-0.5 rounded-[1.8rem] bg-gradient-to-br from-teal-500/10 to-emerald-600/10 blur-md opacity-50" />
+
+                <div className="relative rounded-2xl md:rounded-[2rem] bg-black/40 border border-white/10 p-2 md:p-3 backdrop-blur-xl shadow-2xl">
+                    <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-2">
+                        <div className="relative flex-1 group/input">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 group-focus-within/input:text-primary transition-colors duration-300">
+                                <Video className="h-5 w-5" />
+                            </div>
                             <Input
+                                autoFocus
                                 placeholder={t("taskForm.urlPlaceholder")}
-                                className="pl-9 h-11 bg-black/20"
+                                className="pl-12 h-12 md:h-14 bg-white/5 border-transparent hover:bg-white/10 focus-visible:bg-white/10 text-base md:text-lg text-white placeholder:text-white/30 rounded-xl md:rounded-[1.5rem] shadow-none focus-visible:ring-0 transition-all duration-300"
                                 value={url}
                                 onChange={(e) => setUrl(e.target.value)}
                                 disabled={loading}
                             />
                         </div>
 
-                        <div className="flex items-end gap-3">
+                        <div className="flex items-center gap-2">
+                            {/* Language Selector */}
+                            {mounted && (
+                                <Select value={language} onValueChange={setLanguage}>
+                                    <SelectTrigger className="w-[100px] md:w-[140px] h-12 md:h-14 bg-white/5 border-transparent hover:bg-white/10 rounded-xl md:rounded-[1.5rem] focus:ring-0 text-white/80 transition-all">
+                                        <SelectValue placeholder={t("taskForm.summaryLanguage")} />
+                                    </SelectTrigger>
+                                    <SelectContent align="end" className="glass border-white/10">
+                                        {SUPPORTED_LOCALES.map((localeKey) => (
+                                            <SelectItem key={localeKey} value={localeKey}>
+                                                {LOCALE_LABEL[localeKey]}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+
                             <Button
                                 type="submit"
                                 size="lg"
                                 disabled={loading}
-                                className="flex-1 bg-primary text-black font-semibold hover:bg-primary/90 shadow-[0_0_15px_rgba(62,207,142,0.4)] transition-all"
+                                className="h-12 md:h-14 px-6 md:px-8 rounded-xl md:rounded-[1.5rem] bg-primary text-black font-bold text-base hover:bg-emerald-400 shadow-[0_0_20px_rgba(62,207,142,0.2)] hover:shadow-[0_0_30px_rgba(62,207,142,0.4)] transition-all duration-300 hover:scale-105"
                             >
-                                {loading ? t("taskForm.processing") : t("taskForm.generate")}
-                            </Button>
-
-                            <div className="w-[150px] sm:w-[220px] space-y-1">
-                                <div className="text-xs font-medium text-muted-foreground/80 uppercase tracking-wider">
-                                    {t("taskForm.summaryLanguage")}
-                                </div>
-                                {mounted ? (
-                                    <Select value={language} onValueChange={setLanguage}>
-                                        <SelectTrigger
-                                            className="w-full h-11 bg-black/20 border-white/10 hover:bg-black/25"
-                                            size="default"
-                                        >
-                                            <SelectValue placeholder={t("taskForm.summaryLanguage")} />
-                                        </SelectTrigger>
-                                        <SelectContent align="start">
-                                            {SUPPORTED_LOCALES.map((localeKey) => (
-                                                <SelectItem key={localeKey} value={localeKey}>
-                                                    {LOCALE_LABEL[localeKey]}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                {loading ? (
+                                    <Sparkles className="animate-spin h-5 w-5" />
                                 ) : (
-                                    <div className="w-full h-11 bg-black/20 border border-white/10 rounded-md" />
+                                    <ArrowRight className="h-5 w-5 md:h-6 md:w-6" />
                                 )}
-                            </div>
+                            </Button>
                         </div>
-                    </div>
-                </form>
-            </CardContent>
+                    </form>
+                </div>
+            </div>
+
+            {/* Helper Text */}
+            <div className="mt-4 text-center">
+                <p className="text-sm text-muted-foreground/60 flex items-center justify-center gap-6">
+                    <span className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500/60" /> YouTube
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-pink-500/60" /> Bilibili
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-purple-500/60" /> Podcast
+                    </span>
+                </p>
+            </div>
 
             <Dialog open={showQuotaDialog} onOpenChange={setShowQuotaDialog}>
                 <DialogContent>
@@ -380,6 +392,7 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
 
             {/* URL Help Dialog */}
             <Dialog open={showUrlHelpDialog} onOpenChange={setShowUrlHelpDialog}>
+                {/* ... existing Help Dialog content ... */}
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <div className="flex items-center gap-2 text-amber-500">
@@ -412,7 +425,6 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
                             ))}
                         </div>
                     </div>
-
                     <DialogFooter>
                         <Button onClick={() => setShowUrlHelpDialog(false)} className="w-full">
                             {t("taskForm.urlHelp.gotIt")}
@@ -420,6 +432,6 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </Card >
+        </div>
     )
 }
