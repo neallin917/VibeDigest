@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Syne, Manrope } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GoogleAnalytics } from '@next/third-parties/google';
@@ -8,7 +8,17 @@ import "../globals.css";
 import { cn } from "@/lib/utils";
 import { Providers } from "@/components/providers";
 
-const inter = Inter({ subsets: ["latin"], display: 'swap' });
+const syne = Syne({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-syne",
+});
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-manrope",
+});
 
 const gaId = process.env.NEXT_PUBLIC_GA_ID || "";
 
@@ -121,7 +131,7 @@ export default async function RootLayout({
   const { lang } = await params;
   return (
     <html lang={lang} className="dark" suppressHydrationWarning>
-      <body className={cn(inter.className, "bg-background text-foreground antialiased")} suppressHydrationWarning>
+      <body className={cn(manrope.className, syne.variable, "bg-background text-foreground antialiased font-sans")} suppressHydrationWarning>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

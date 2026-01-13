@@ -15,19 +15,23 @@ import { Suspense } from "react"
 export default async function LandingPage({ params }: { params: Promise<{ lang: string }> }) {
   const { lang } = await params;
   return (
-    <div className="flex flex-col min-h-screen bg-[#0A0A0A] text-[#F5F5F5] relative overflow-hidden font-sans">
-      {/* Google One Tap Login */}
-      <GoogleOneTap />
+    <div className="flex flex-col min-h-screen bg-zinc-950 text-zinc-100 relative overflow-hidden font-sans selection:bg-primary/20 selection:text-primary">
+      {/* Texture Overlay */}
+      <div className="fixed inset-0 z-0 pointer-events-none bg-noise opacity-50 mix-blend-overlay" />
 
-      {/* Floating Navigation */}
+      {/* Login & Nav */}
+      <GoogleOneTap />
       <LandingNav />
 
       {/* Global Background Elements */}
-      <div className="fixed inset-0 z-0 pointer-events-none bg-grid opacity-30" />
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-15%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[150px]" />
-        <div className="absolute top-[-15%] right-[-10%] w-[45%] h-[45%] bg-emerald-600/5 rounded-full blur-[140px]" />
-        <div className="absolute bottom-[-20%] left-[15%] w-[50%] h-[50%] bg-emerald-500/5 rounded-full blur-[150px]" />
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        {/* Deep Space Gradients */}
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-indigo-900/20 rounded-full blur-[120px] animate-float-slow" />
+        <div className="absolute top-[10%] right-[-10%] w-[50%] h-[50%] bg-emerald-900/10 rounded-full blur-[100px] animate-pulse-glow" style={{ animationDelay: '2s' }} />
+        <div className="absolute bottom-[-10%] left-[20%] w-[40%] h-[40%] bg-teal-900/10 rounded-full blur-[150px] animate-float-slow" style={{ animationDelay: '4s' }} />
+
+        {/* Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px] [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black_70%)]" />
       </div>
 
 
