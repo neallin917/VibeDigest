@@ -1,0 +1,9 @@
+FROM langchain/langgraph-api:3.11
+
+# Install dependencies
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+WORKDIR /deps/backend
+COPY langgraph.json .
+COPY langgraph.json /langgraph.json
