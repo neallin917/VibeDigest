@@ -1,9 +1,8 @@
 services:
   backend-prod:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: transcriber-backend-prod
+    # build section REMOVED for prod
+    image: transcriber-backend:prod
+    # container_name REMOVED for project referencing
     restart: always
     # ---------------------------------------------------------
     # PRODUCTION MODE - For online users via Cloudflare Tunnel
@@ -22,6 +21,11 @@ services:
       - ./backend/.env
     environment:
       - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-base}
+      # FORCE PROD SETTINGS (Override .env)
+      - MOCK_MODE=false
+      - CHAT_MOCK_MODE=false
+      - LOG_LEVEL=INFO
+      - RELOAD=false
     networks:
       - traefik
 
