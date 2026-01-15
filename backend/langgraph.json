@@ -1,7 +1,0 @@
-{
-    "graphs": {
-        "agent": "./agent/chat_graph.py:graph",
-        "dummy": "./dummy_graph.py:graph"
-    },
-    "env": ".env"
-}

@@ -40,9 +40,6 @@ class Settings:
     SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
 
     # Models
-    # Chat Agent Model
-    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o")
-    
     # OpenAI Models
     # Summary & Analysis Chain (Preferred -> Fallback)
     OPENAI_SUMMARY_MODELS: list[str] = [
