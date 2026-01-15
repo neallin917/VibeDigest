@@ -32,6 +32,7 @@ install-frontend:
 	cd frontend && npm install
 
 # --- Execution ---
+# --- Execution ---
 start-backend:
 	@echo "Starting backend..."
 	cd backend && uvicorn main:app --reload --port 8000
@@ -40,30 +41,43 @@ start-frontend:
 	@echo "Starting frontend..."
 	cd frontend && npm run dev
 
+# --- Docker Environment (Isolated) ---
+# Dev: Builds from source, Hot Reloads
+PROJ_DEV=vibedigest-dev
 start-dev:
-	@echo "Starting Docker (Dev Mode)..."
-	docker-compose up --build
+	@echo "Starting Docker (Dev Mode)... [Project: $(PROJ_DEV)]"
+	COMPOSE_PROJECT_NAME=$(PROJ_DEV) docker-compose -f docker-compose.yml up --build -d
 
+# Prod: Runs Immutable Image, No Build
+PROJ_PROD=vibedigest-prod
 start-prod:
-	@echo "Starting Production Build..."
-	docker-compose -f docker-compose.prod.yml up --build -d
+	@echo "Starting Docker (Prod Mode)... [Project: $(PROJ_PROD)]"
+	@echo "ℹ️  Using image: transcriber-backend:prod"
+	COMPOSE_PROJECT_NAME=$(PROJ_PROD) docker-compose -f docker-compose.prod.yml up -d
 
-deploy: start-prod
+# Release: Explicitly builds the production image
+release-prod:
+	@echo "Building Production Image..."
+	docker build -t transcriber-backend:prod ./backend
+	@echo "✅ New production image built: transcriber-backend:prod"
+	@echo "Run 'make start-prod' to deploy."
+
+deploy: release-prod start-prod
 
 stop:
 	@echo "Stopping all containers..."
-	docker-compose down
-	docker-compose -f docker-compose.prod.yml down
+	COMPOSE_PROJECT_NAME=$(PROJ_DEV) docker-compose down
+	COMPOSE_PROJECT_NAME=$(PROJ_PROD) docker-compose -f docker-compose.prod.yml down
 
 restart-dev:
 	@echo "Restarting Docker (Dev Mode)..."
-	docker-compose down
-	docker-compose up --build
+	COMPOSE_PROJECT_NAME=$(PROJ_DEV) docker-compose down
+	COMPOSE_PROJECT_NAME=$(PROJ_DEV) docker-compose up --build -d
 
 restart-prod:
 	@echo "Restarting Docker (Prod Mode)..."
-	docker-compose -f docker-compose.prod.yml down
-	docker-compose -f docker-compose.prod.yml up --build -d
+	COMPOSE_PROJECT_NAME=$(PROJ_PROD) docker-compose -f docker-compose.prod.yml down
+	COMPOSE_PROJECT_NAME=$(PROJ_PROD) docker-compose -f docker-compose.prod.yml up -d
 
 # --- Testing ---
 test: test-backend test-frontend

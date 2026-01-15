@@ -3,7 +3,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: transcriber-backend-dev
+    image: transcriber-backend:dev
     restart: unless-stopped
     # ---------------------------------------------------------
     # DEV MODE - For local Vibe Coding only
@@ -24,3 +24,51 @@ services:
     environment:
       - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-base}
     # No Traefik labels - Dev is NOT exposed to internet
+
+  langgraph-server:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.langgraph
+    # container_name removed
+    restart: unless-stopped
+    ports:
+      - "${LANGGRAPH_PORT}:8000"
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend:/deps/backend
+    environment:
+      - LANGGRAPH_CONTAINER_PORT=8000
+      - LANGGRAPH_API_URL=http://localhost:${LANGGRAPH_PORT}
+      - BACKEND_API_URL=http://localhost:16081
+      - POSTGRES_URI=postgresql://postgres:password@postgres:5432/langgraph
+      - REDIS_URI=redis://redis:6379
+      - PYTHONPATH=/deps/backend
+      - LANGSERVE_GRAPHS={"agent":"agent.chat_graph:graph","dummy":"dummy_graph:graph"}
+    env_file:
+      - .env
+      - ./backend/.env
+
+  postgres:
+    image: postgres:16
+    # container_name removed
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: langgraph
+    ports:
+      - "15432:5432"
+    volumes:
+      - langgraph_postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    # container_name removed
+    ports:
+      - "16379:6379"
+    restart: unless-stopped
+
+volumes:
+  langgraph_postgres_data:
