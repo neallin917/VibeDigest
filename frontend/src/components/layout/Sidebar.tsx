@@ -19,6 +19,7 @@ import { FeedbackDialog } from "./FeedbackDialog"
 import { NAV_ITEMS } from "@/components/layout/navItems"
 
 import { BrandLogo } from "./BrandLogo"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 
 export function Sidebar({ onHide }: { onHide?: () => void }) {
     const pathname = usePathname()
@@ -33,7 +34,7 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
     }, [supabase])
 
     return (
-        <div className="hidden md:flex h-dvh w-64 flex-col border-r border-white/5 bg-black/60 backdrop-blur-2xl relative z-10 bg-grid-dense">
+        <div className="hidden md:flex h-dvh w-64 flex-col border-r border-sidebar-border bg-sidebar/80 backdrop-blur-2xl relative z-10 bg-grid-dense shadow-xl shadow-black/5 dark:shadow-none">
             <div className="p-6">
                 <div className="flex items-center justify-between gap-3">
                     <Link href="/" className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
@@ -102,42 +103,46 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
             </div>
 
             {/* 用户卡片区 - 下拉菜单设计 */}
-            <div className="p-4 border-t border-white/5">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <button className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all">
-                            {/* 用户头像 */}
-                            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-sm font-medium">
-                                {userEmail?.charAt(0).toUpperCase() || "U"}
+            <div className="p-4 border-t border-sidebar-border flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button className="w-full flex items-center gap-3 p-3 rounded-full bg-sidebar-accent/50 border border-sidebar-border hover:bg-sidebar-accent hover:border-sidebar-accent-foreground/10 transition-all">
+                                {/* 用户头像 */}
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
+                                    {userEmail?.charAt(0).toUpperCase() || "U"}
+                                </div>
+                                {/* 用户邮箱 */}
+                                <p className="flex-1 text-left text-xs text-sidebar-foreground truncate">
+                                    {userEmail || "Guest"}
+                                </p>
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" side="top" className="w-56 glass border-sidebar-border">
+                            <div className="px-3 py-2 border-b border-sidebar-border">
+                                <p className="text-sm font-medium text-foreground truncate">
+                                    {userEmail?.split('@')[0] || "User"}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
                             </div>
-                            {/* 用户邮箱 */}
-                            <p className="flex-1 text-left text-xs text-muted-foreground truncate">
-                                {userEmail || "Guest"}
-                            </p>
-                        </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" side="top" className="w-56 glass border-white/10">
-                        <div className="px-3 py-2 border-b border-white/10">
-                            <p className="text-sm font-medium text-foreground truncate">
-                                {userEmail?.split('@')[0] || "User"}
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
-                        </div>
-                        <DropdownMenuItem
-                            onClick={async () => {
-                                if (typeof window !== 'undefined' && window.google?.accounts?.id) {
-                                    window.google.accounts.id.disableAutoSelect()
-                                }
-                                await supabase.auth.signOut()
-                                window.location.href = '/'
-                            }}
-                            className="text-red-400 focus:text-red-400 cursor-pointer"
-                        >
-                            <LogOut className="mr-2 h-4 w-4" />
-                            {t("auth.logout")}
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                            <DropdownMenuItem
+                                onClick={async () => {
+                                    if (typeof window !== 'undefined' && window.google?.accounts?.id) {
+                                        window.google.accounts.id.disableAutoSelect()
+                                    }
+                                    await supabase.auth.signOut()
+                                    window.location.href = '/'
+                                }}
+                                className="text-red-400 focus:text-red-400 cursor-pointer"
+                            >
+                                <LogOut className="mr-2 h-4 w-4" />
+                                {t("auth.logout")}
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+
+                <ThemeToggle className="text-sidebar-foreground hover:bg-sidebar-accent rounded-full h-10 w-10 flex-shrink-0 border border-sidebar-border" />
             </div>
         </div>
     )

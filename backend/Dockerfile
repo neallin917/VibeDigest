@@ -12,6 +12,11 @@ WORKDIR /app
 RUN pip install --upgrade pip
 
 # Install Dependencies
+# Layer 1: Heavy Core Dependencies (Cached)
+COPY requirements.core.txt .
+RUN pip install --no-cache-dir -r requirements.core.txt
+
+# Layer 2: Frequent Updates
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

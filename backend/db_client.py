@@ -39,7 +39,7 @@ class DBClient:
             try:
                 self.engine = create_engine(self.db_url, pool_pre_ping=True, pool_size=10, max_overflow=20)
                 self.Session = scoped_session(sessionmaker(bind=self.engine))
-                logger.info("SQLAlchemy engine initialized.")
+                logger.info(f"SQLAlchemy engine initialized for: {self.db_url}")
             except Exception as e:
                 logger.error(f"Failed to initialize SQLAlchemy engine: {e}")
                 self.engine = None
@@ -174,6 +174,7 @@ class DBClient:
         """Fetch a task by ID."""
         query = "SELECT * FROM tasks WHERE id = :task_id"
         rows = self._execute_query(query, {"task_id": task_id})
+        logger.info(f"Task fetch result: {rows}")
         return rows[0] if rows else None
 
     def get_output(self, output_id: str) -> Optional[Dict[str, Any]]:
@@ -405,3 +406,71 @@ class DBClient:
         query = "SELECT * FROM payment_orders WHERE provider_payment_id = :pid"
         rows = self._execute_query(query, {"pid": provider_payment_id})
         return rows[0] if rows else None
+    # -------------------------------------------------------------------------
+    # Chat Module Methods
+    # -------------------------------------------------------------------------
+
+    def create_chat_thread(self, user_id: str, task_id: str, title: str) -> Dict[str, Any]:
+        """Create a new chat thread."""
+        query = """
+            INSERT INTO chat_threads (user_id, task_id, title)
+            VALUES (:uid, :tid, :title)
+            RETURNING *;
+        """
+        rows = self._execute_query(query, {"uid": user_id, "tid": task_id, "title": title})
+        return rows[0] if rows else None
+
+    def list_chat_threads(self, user_id: str, task_id: str, status_filter: str = "!=deleted", limit: int = 20) -> List[Dict[str, Any]]:
+        """List threads with flexible status filtering."""
+        base_query = """
+            SELECT * FROM chat_threads 
+            WHERE user_id = :uid AND task_id = :tid 
+        """
+        params = {"uid": user_id, "tid": task_id, "limit": limit}
+
+        if status_filter == "!=deleted":
+            base_query += " AND status != 'deleted'"
+        elif status_filter == "active":
+            base_query += " AND status = 'active'"
+        elif status_filter == "archived":
+             base_query += " AND status = 'archived'"
+        elif status_filter == "deleted":
+             base_query += " AND status = 'deleted'"
+        
+        # Sort by updated_at desc (Sidebar order)
+        base_query += " ORDER BY updated_at DESC LIMIT :limit"
+
+        return self._execute_query(base_query, params)
+
+    def get_chat_thread(self, thread_id: str) -> Optional[Dict[str, Any]]:
+        """Get a single thread."""
+        query = "SELECT * FROM chat_threads WHERE id = :tid"
+        rows = self._execute_query(query, {"tid": thread_id})
+        return rows[0] if rows else None
+
+    def update_chat_thread(self, thread_id: str, title: str = None, status: str = None, metadata: dict = None) -> Optional[Dict[str, Any]]:
+        """Update a thread's title, status, or metadata."""
+        fields = []
+        params = {"tid": thread_id}
+        
+        if title:
+            fields.append("title = :title")
+            params["title"] = title
+        if status:
+            fields.append("status = :status")
+            params["status"] = status
+        if metadata:
+            fields.append("metadata = metadata || :meta")
+            params["meta"] = json.dumps(metadata)
+            
+        if not fields: return self.get_chat_thread(thread_id)
+        
+        fields.append("updated_at = now()")
+        query = f"UPDATE chat_threads SET {', '.join(fields)} WHERE id = :tid RETURNING *"
+        rows = self._execute_query(query, params)
+        return rows[0] if rows else None
+
+    def soft_delete_chat_thread(self, thread_id: str):
+        """Soft delete a thread."""
+        query = "UPDATE chat_threads SET status = 'deleted', updated_at = now() WHERE id = :tid"
+        self._execute_query(query, {"tid": thread_id})

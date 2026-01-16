@@ -7,6 +7,7 @@ import "../globals.css";
 
 import { cn } from "@/lib/utils";
 import { Providers } from "@/components/providers";
+import { Vignette } from "@/components/ui/vignette";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -130,8 +131,9 @@ export default async function RootLayout({
 }>) {
   const { lang } = await params;
   return (
-    <html lang={lang} className="dark" suppressHydrationWarning>
-      <body className={cn(manrope.className, syne.variable, "bg-background text-foreground antialiased font-sans")} suppressHydrationWarning>
+    <html lang={lang} suppressHydrationWarning>
+      <body className={cn(manrope.className, syne.variable, "bg-background text-foreground antialiased font-sans tracking-tight")} suppressHydrationWarning>
+        <Vignette />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

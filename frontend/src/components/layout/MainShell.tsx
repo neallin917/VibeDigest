@@ -117,7 +117,7 @@ export function MainShell({ children }: { children: React.ReactNode }) {
   // Show loading spinner while checking auth (but allow public paths through)
   if (isLoading && !isPublicPath) {
     return (
-      <div className="flex h-dvh items-center justify-center bg-[#0A0A0A]">
+      <div className="flex h-dvh items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
       </div>
     )
@@ -126,21 +126,21 @@ export function MainShell({ children }: { children: React.ReactNode }) {
   // For protected paths, wait for authentication
   if (!isPublicPath && !isAuthenticated && !isLoading) {
     return (
-      <div className="flex h-dvh items-center justify-center bg-[#0A0A0A]">
+      <div className="flex h-dvh items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
       </div>
     )
   }
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-[#0A0A0A]">
+    <div className="flex h-dvh overflow-hidden bg-background">
       <TaskNotificationListener />
 
       {/* Grid background for entire app */}
       <div className="fixed inset-0 bg-grid opacity-30 pointer-events-none z-0" />
 
-      {/* Background glow for glass effect - Green theme */}
-      <div className="fixed top-0 left-0 w-[700px] h-[700px] bg-primary/8 blur-[150px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2 z-0" />
+      {/* Background glow for glass effect - Adapted for both modes */}
+      <div className="fixed top-0 left-0 w-[700px] h-[700px] bg-primary/5 blur-[150px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2 z-0 mix-blend-multiply dark:mix-blend-normal" />
       <div className="fixed bottom-0 right-0 w-[500px] h-[500px] bg-emerald-600/6 blur-[120px] rounded-full pointer-events-none translate-x-1/2 translate-y-1/2 z-0" />
 
       {sidebarHidden ? null : <Sidebar onHide={toggleSidebar} />}

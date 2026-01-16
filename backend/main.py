@@ -37,6 +37,7 @@ from translator import Translator
 from video_processor import VideoProcessor
 from utils.url import normalize_video_url
 from workflow import app as workflow_app
+from routers import threads
 
 # Langfuse V3 setup moved to Background Workers section below
 
@@ -53,6 +54,14 @@ if settings.SENTRY_DSN:
     )
 
 app = FastAPI(title="VibeDigest API (v2)", version="2.0.0")
+
+# Include Routers
+app.include_router(threads.router)
+
+@app.on_event("startup")
+async def startup_event():
+    from agent.chat_graph import ensure_graph_schema
+    await ensure_graph_schema()
 
 @app.on_event("shutdown")
 def shutdown_event():
