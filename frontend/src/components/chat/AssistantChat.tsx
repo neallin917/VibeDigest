@@ -3,7 +3,6 @@
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { Client } from "@langchain/langgraph-sdk";
-import { v4 as uuidv4 } from "uuid";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -16,10 +15,12 @@ import { createClient } from "@/lib/supabase";
 
 import { useSupabaseCloud } from "@/hooks/useSupabaseCloud";
 
-// ... inside component ...
+interface AssistantChatProps {
+    taskId?: string;
+}
 
-export function AssistantChat() {
-    const supabaseCloud = useSupabaseCloud();
+export function AssistantChat({ taskId }: AssistantChatProps) {
+    const supabaseCloud = useSupabaseCloud(taskId);
     const runtime = useLangGraphRuntime(useMemo(() => {
         const getClient = () => {
             const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -34,8 +35,10 @@ export function AssistantChat() {
                 return { externalId: thread.thread_id };
             },
             async stream(messages, { initialize }) {
+                console.log("[stream] Starting stream with messages:", messages.length);
                 const client = getClient();
                 let { externalId: threadId } = await initialize();
+                console.log("[stream] Initialized with threadId:", threadId);
 
                 if (!threadId) {
                     // This should technically not happen if cloud adapter works correctly
@@ -44,8 +47,10 @@ export function AssistantChat() {
                     // which returns { externalId }.
                     // The cloud adapter should catch that and store it.
                     // So threadId SHOULD be defined.
+                    console.warn("[stream] No threadId from initialize, creating new thread");
                     const thread = await client.threads.create();
                     threadId = thread.thread_id;
+                    console.log("[stream] Created new thread:", threadId);
                 }
 
                 // Get Auth Token
@@ -53,6 +58,7 @@ export function AssistantChat() {
                 const { data: { session } } = await supabase.auth.getSession();
                 const token = session?.access_token;
 
+                console.log("[stream] Calling client.runs.stream for thread:", threadId);
                 return client.runs.stream(
                     threadId!,
                     "agent",
@@ -68,6 +74,9 @@ export function AssistantChat() {
                         metadata: token ? { "authorization": `Bearer ${token}` } : {}
                     }
                 );
+            },
+            onError(error: unknown) {
+                console.error("[runtime] Error occurred:", error);
             },
             async load(threadId) {
                 console.log("Loading thread:", threadId);

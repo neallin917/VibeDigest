@@ -46,8 +46,8 @@ const ProcessTaskTool = makeAssistantToolUI<ProgressTaskArgs, ProgressTaskResult
 import { useThread } from "@assistant-ui/react"; // Add this
 
 export const Thread: FC = () => {
-  const thread = useThread();
-  console.log("Thread Component Rendering. Current Thread State:", thread);
+  // Removed useThread() call - it throws "Thread is not yet initialized" before runtime is ready
+  // The ThreadPrimitive components handle their own state internally
 
   return (
     <ThreadPrimitive.Root

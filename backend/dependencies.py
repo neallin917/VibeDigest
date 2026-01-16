@@ -9,11 +9,11 @@ db_client = DBClient()
 async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
     """Validate Bearer token and return user_id."""
     if settings.MOCK_MODE:
-        return "mock-user"
+        return "00000000-0000-0000-0000-000000000001"
 
     if not authorization:
-        # For Dev/Testing ease: allow anonymous if no header
-        return "dev-user"
+        # For Dev/Testing ease: allow anonymous if no header (Mock UUID)
+        return "00000000-0000-0000-0000-000000000001"
         # raise HTTPException(status_code=401, detail="Missing Authorization Header")
     
     user_id = db_client.validate_token(authorization)

@@ -21,6 +21,15 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "is5-ssl.mzstatic.com" },
     ],
   },
+  // Proxy /lg/* requests to LangGraph server for chat functionality
+  async rewrites() {
+    return [
+      {
+        source: "/lg/:path*",
+        destination: "http://localhost:8123/:path*",
+      },
+    ];
+  },
 };
 
 export default withSentryConfig(nextConfig, {

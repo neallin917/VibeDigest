@@ -78,10 +78,14 @@ system_prompt = (
     "If a processing task is active or completed, use the context provided to answer questions."
 )
 
-# Create Persistent Graph
+# Create the Graph
+# NOTE: The LangGraph Server automatically manages persistence (checkpointing)
+# via the POSTGRES_URI environment variable. We do NOT need to manually create
+# AsyncConnectionPool or AsyncPostgresSaver here - that would cause 
+# "AsyncConnectionPool open with no running loop" errors at module import time.
+
 graph = create_react_agent(
     llm, 
     tools=tools, 
-    prompt=system_prompt
+    prompt=system_prompt,
 )
-

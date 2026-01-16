@@ -121,6 +121,6 @@ export const config = {
         // Skip all API routes (api)
         // Skip all static files (images, favicon, etc in public folder or with extension)
         // We only want to handle page routes
-        '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\..*).*)',
+        '/((?!api|lg|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\..*).*)',
     ],
 };
