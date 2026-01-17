@@ -101,13 +101,13 @@ function TemplateCard({ task }: { task: Task }) {
     return (
         <div
             onClick={() => {
-                const slug = encodeURIComponent((task.video_title || "video").trim().replace(/\s+/g, '-'));
-                router.push(`/${locale}/tasks/${task.id}/${slug}`)
+                // Navigate to new Chat UI directly
+                router.push(`/${locale}/chat?task=${task.id}`)
             }}
-            className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.03] to-transparent backdrop-blur-sm cursor-pointer transition-all duration-300 hover:border-white/20 hover:shadow-[0_8px_32px_rgba(62,207,142,0.15)] hover:scale-[1.02] h-full"
+            className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-gradient-to-br dark:from-white/[0.03] dark:to-transparent backdrop-blur-sm cursor-pointer transition-all duration-300 hover:border-slate-300 dark:hover:border-white/20 hover:shadow-lg dark:hover:shadow-[0_8px_32px_rgba(62,207,142,0.15)] hover:scale-[1.02] h-full"
         >
             {/* Thumbnail Area */}
-            <div className="relative aspect-video w-full overflow-hidden bg-black/40 shrink-0">
+            <div className="relative aspect-video w-full overflow-hidden bg-slate-100 dark:bg-black/40 shrink-0">
                 {task.thumbnail_url ? (
                     <Image
                         src={task.thumbnail_url}
@@ -128,7 +128,7 @@ function TemplateCard({ task }: { task: Task }) {
 
                 {/* Platform Badge */}
                 <div className="absolute top-3 left-3 flex items-center gap-2">
-                    <span className="rounded-full bg-black/60 backdrop-blur-md px-2.5 py-1 text-[10px] font-medium text-white/80 border border-white/10">
+                    <span className="rounded-full bg-white/80 dark:bg-black/60 backdrop-blur-md px-2.5 py-1 text-[10px] font-medium text-slate-700 dark:text-white/80 border border-slate-200 dark:border-white/10">
                         {platform}
                     </span>
                 </div>
@@ -136,7 +136,7 @@ function TemplateCard({ task }: { task: Task }) {
 
             {/* Content Area */}
             <div className="flex flex-1 flex-col p-4">
-                <h3 className="font-semibold text-foreground line-clamp-2 text-sm leading-snug group-hover:text-white transition-colors mb-2">
+                <h3 className="font-semibold text-foreground line-clamp-2 text-sm leading-snug group-hover:text-slate-900 dark:group-hover:text-white transition-colors mb-2">
                     {task.video_title || task.video_url}
                 </h3>
 
@@ -145,7 +145,7 @@ function TemplateCard({ task }: { task: Task }) {
                     {showAuthor ? (
                         <>
                             {task.author_image_url ? (
-                                <div className="relative h-5 w-5 shrink-0 rounded-full overflow-hidden border border-white/10">
+                                <div className="relative h-5 w-5 shrink-0 rounded-full overflow-hidden border border-slate-200 dark:border-white/10">
                                     <Image
                                         src={task.author_image_url}
                                         alt={task.author || "Author"}
@@ -156,8 +156,8 @@ function TemplateCard({ task }: { task: Task }) {
                                     />
                                 </div>
                             ) : (
-                                <div className="h-5 w-5 rounded-full bg-white/10 flex items-center justify-center border border-white/10 shrink-0">
-                                    <span className="text-[10px] text-white/70 font-bold leading-none">
+<div className="h-5 w-5 rounded-full bg-slate-200 dark:bg-white/10 flex items-center justify-center border border-slate-300 dark:border-white/10 shrink-0">
+                                                    <span className="text-[10px] text-slate-600 dark:text-white/70 font-bold leading-none">
                                         {(task.author || "U").charAt(0).toUpperCase()}
                                     </span>
                                 </div>

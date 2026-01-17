@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Syne, Manrope } from "next/font/google";
+import { Syne, Manrope, Plus_Jakarta_Sans } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GoogleAnalytics } from '@next/third-parties/google';
@@ -19,6 +19,12 @@ const manrope = Manrope({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-manrope",
+});
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-jakarta",
 });
 
 const gaId = process.env.NEXT_PUBLIC_GA_ID || "";
@@ -132,7 +138,7 @@ export default async function RootLayout({
   const { lang } = await params;
   return (
     <html lang={lang} suppressHydrationWarning>
-      <body className={cn(manrope.className, syne.variable, "bg-background text-foreground antialiased font-sans tracking-tight")} suppressHydrationWarning>
+      <body className={cn(manrope.className, syne.variable, jakarta.variable, "bg-background text-foreground antialiased font-sans tracking-tight")} suppressHydrationWarning>
         <Vignette />
         <script
           type="application/ld+json"

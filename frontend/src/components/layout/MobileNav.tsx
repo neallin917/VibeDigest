@@ -33,7 +33,7 @@ export function MobileHeader() {
   }, [supabase])
 
   return (
-    <div className="md:hidden sticky top-0 z-40 border-b border-white/10 bg-black/40 backdrop-blur-md">
+    <div className="md:hidden sticky top-0 z-40 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-black/40 backdrop-blur-md">
       <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-4">
         <Link href={`/${locale}`} className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
           <BrandLogo />
@@ -45,13 +45,13 @@ export function MobileHeader() {
               <Menu className="h-5 w-5" />
             </Button>
           </DialogTrigger>
-          <DialogContent className="glass border-white/10 p-4">
+          <DialogContent className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border-slate-200 dark:border-white/10 p-4">
             <DialogHeader className="text-left">
               <DialogTitle className="text-base">{t("nav.menu")}</DialogTitle>
             </DialogHeader>
 
             {userEmail ? (
-              <div className="-mt-1 pb-3 text-xs text-muted-foreground truncate border-b border-white/10">
+              <div className="-mt-1 pb-3 text-xs text-muted-foreground truncate border-b border-slate-200 dark:border-white/10">
                 {userEmail}
               </div>
             ) : null}
@@ -63,7 +63,7 @@ export function MobileHeader() {
                   <DialogClose asChild key={item.href}>
                     <Link
                       href={href}
-                      className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                      className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/5 hover:text-foreground"
                     >
                       <item.icon className="h-4 w-4" />
                       {t(item.key)}
@@ -73,7 +73,7 @@ export function MobileHeader() {
               })}
             </div>
 
-            <div className="pt-2 border-t border-white/10 space-y-2">
+            <div className="pt-2 border-t border-slate-200 dark:border-white/10 space-y-2">
               <FeedbackDialog />
               <DialogClose asChild>
                 <Button
@@ -86,7 +86,7 @@ export function MobileHeader() {
                     await supabase.auth.signOut()
                     window.location.href = `/${locale}`
                   }}
-                  className="w-full justify-start gap-2 text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                  className="w-full justify-start gap-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
                 >
                   <LogOut className="h-4 w-4" />
                   {t("auth.logout")}
@@ -105,7 +105,7 @@ export function MobileBottomNav() {
   const { t, locale } = useI18n()
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-black/60 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 dark:border-white/10 bg-white/80 dark:bg-black/60 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
       <div className="grid grid-cols-4 w-full">
         {NAV_ITEMS.map((item) => {
           const fullHref = `/${locale}${item.href}`

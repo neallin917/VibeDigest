@@ -157,7 +157,7 @@ export function MainShell({ children }: { children: React.ReactNode }) {
                 aria-label={showLabel}
                 title={showLabel}
                 onClick={toggleSidebar}
-                className="h-8 w-8 rounded-full text-muted-foreground/70 hover:text-foreground hover:bg-white/5 opacity-70 hover:opacity-100"
+                className="h-8 w-8 rounded-full text-muted-foreground/70 hover:text-foreground hover:bg-slate-200 dark:hover:bg-white/5 opacity-70 hover:opacity-100"
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>

@@ -280,6 +280,32 @@ Demo tasks are featured content visible to all users (including anonymous visito
 *   **Development**: `localhost` or Preview URL (Dev DB).
 *   **Rule**: "Prod is Sacred". Never test against Prod DB.
 
+### 7.4 Port Configuration (Single Source of Truth)
+
+All port configurations are defined in the **root `.env`** file. Other `.env` files should reference these values.
+
+| Service | Dev Port | Prod Port | Config Key |
+|---------|----------|-----------|------------|
+| **Frontend** | 3000 | N/A (Vercel) | `FRONTEND_PORT` |
+| **Backend API** | 16081 | 16080 | `BACKEND_PORT` |
+| **LangGraph Server** | 8123 | 8123 | `LANGGRAPH_PORT` |
+| **PostgreSQL** | 15432 | N/A (Supabase) | `DB_PORT` |
+| **Redis** | 16379 | N/A | `REDIS_PORT` |
+
+**Configuration Files:**
+```
+.env                    # Master config (ports, project name)
+├── frontend/.env.local # Frontend-specific (API URLs, Supabase keys)
+└── backend/.env        # Backend-specific (API keys, secrets)
+```
+
+**Development Workflow:**
+1. Start backend first: `cd backend && uv run uvicorn main:app --port 16081 --reload`
+2. Start frontend with check: `cd frontend && npm run dev:check` (auto-checks backend health)
+3. Or skip check: `cd frontend && npm run dev`
+
+**Health Check Script:** `scripts/check-backend.sh` verifies backend is running before frontend starts.
+
 ---
 
 ## 8. Identity & Secrets Management

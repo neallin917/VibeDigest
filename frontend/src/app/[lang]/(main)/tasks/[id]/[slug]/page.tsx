@@ -1,6 +1,5 @@
 
 import { createClient } from "@/lib/supabase-server"
-import TaskDetailClient from "./TaskDetailClient"
 import type { Metadata, ResolvingMetadata } from "next"
 import { redirect } from "next/navigation"
 
@@ -83,7 +82,7 @@ export async function generateMetadata(
 export default async function TaskDetailPage(props: Props) {
     const params = await props.params;
     const { id, lang, slug } = params
-    const { task, outputs } = await getTaskAndOutputs(id)
+    const { task } = await getTaskAndOutputs(id)
 
     if (!task) {
         return <div className="p-10 text-center">Task not found</div>
@@ -95,48 +94,6 @@ export default async function TaskDetailPage(props: Props) {
         redirect(`/${lang}/tasks/${id}/${correctSlug}`);
     }
 
-    // JSON-LD
-    const videoObject = {
-        "@context": "https://schema.org",
-        "@type": "VideoObject",
-        "name": task.video_title,
-        "description": `AI summary for ${task.video_title}`,
-        "thumbnailUrl": [task.thumbnail_url || ""],
-        "uploadDate": task.created_at,
-        "contentUrl": task.video_url,
-        "duration": task.duration ? `PT${Math.floor(task.duration)}S` : undefined
-    }
-
-    const breadcrumbList = {
-        "@context": "https://schema.org",
-        "@type": "BreadcrumbList",
-        "itemListElement": [
-            {
-                "@type": "ListItem",
-                "position": 1,
-                "name": "Home",
-                "item": `https://vibedigest.neallin.xyz/${lang}`
-            },
-            {
-                "@type": "ListItem",
-                "position": 2,
-                "name": task.video_title,
-                "item": `https://vibedigest.neallin.xyz/${lang}/tasks/${id}/${correctSlug}`
-            }
-        ]
-    }
-
-    return (
-        <>
-            <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify([videoObject, breadcrumbList]) }}
-            />
-            <TaskDetailClient
-                id={id}
-                initialTask={task}
-                initialOutputs={outputs}
-            />
-        </>
-    )
+    // REDIRECT TO NEW CHAT UI
+    redirect(`/${lang}/chat?task=${id}`)
 }

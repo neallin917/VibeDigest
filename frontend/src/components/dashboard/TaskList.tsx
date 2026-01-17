@@ -239,7 +239,7 @@ export function TaskList({ showHeader = true, excludeDemo = false }: { showHeade
                 <CardHeader className="px-0 flex flex-row items-center justify-between space-y-0">
                     <CardTitle className="flex items-center gap-2">
                         {t("tasks.recentTasks")}
-                        <Badge variant="secondary" className="ml-2 bg-white/10 text-xs font-normal">
+                        <Badge variant="secondary" className="ml-2 bg-slate-200 dark:bg-white/10 text-xs font-normal">
                             {totalTasks}
                         </Badge>
                     </CardTitle>
@@ -253,10 +253,10 @@ export function TaskList({ showHeader = true, excludeDemo = false }: { showHeade
                             const slug = encodeURIComponent((task.video_title || "video").trim().replace(/\s+/g, '-'));
                             router.push(`/${locale}/tasks/${task.id}/${slug}`)
                         }}
-                        className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-white/5 bg-black/20 backdrop-blur-sm hover:bg-black/40 hover:border-white/20 transition-all cursor-pointer group"
+                        className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-white/5 bg-white/80 dark:bg-black/20 backdrop-blur-sm hover:bg-slate-50 dark:hover:bg-black/40 hover:border-slate-300 dark:hover:border-white/20 transition-all cursor-pointer group"
                     >
                         {/* Thumbnail Placeholder */}
-                        <div className="h-14 w-24 sm:h-16 sm:w-28 bg-black/40 rounded-lg flex items-center justify-center text-muted-foreground group-hover:text-white transition-colors overflow-hidden relative">
+                        <div className="h-14 w-24 sm:h-16 sm:w-28 bg-slate-100 dark:bg-black/40 rounded-lg flex items-center justify-center text-muted-foreground group-hover:text-slate-900 dark:group-hover:text-white transition-colors overflow-hidden relative">
                             {task.thumbnail_url ? (
                                 <img
                                     src={task.thumbnail_url}
@@ -324,10 +324,10 @@ export function TaskList({ showHeader = true, excludeDemo = false }: { showHeade
                                 </>
                             )}
                             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                <Badge variant="outline" className="text-[10px] h-5 px-1.5 py-0 font-normal border-white/10 bg-white/5">
+                                <Badge variant="outline" className="text-[10px] h-5 px-1.5 py-0 font-normal border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5">
                                     {getPlatformFromUrl(task.video_url)}
                                 </Badge>
-                                <span className="w-px h-3 bg-white/10 mx-1" />
+                                <span className="w-px h-3 bg-slate-200 dark:bg-white/10 mx-1" />
                                 <Clock className="h-3 w-3" />
                                 {new Date(task.created_at).toLocaleString(LOCALE_DATE_TAG[locale], {
                                     year: 'numeric',
@@ -384,7 +384,7 @@ export function TaskList({ showHeader = true, excludeDemo = false }: { showHeade
             {/* Pagination Controls */}
             {Math.ceil(totalTasks / TASKS_PER_PAGE) > 1 && (
                 <div className="flex items-center justify-center pt-8 pb-4">
-                    <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-full p-1 pl-1 pr-1 backdrop-blur-md shadow-2xl">
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-full p-1 pl-1 pr-1 backdrop-blur-md shadow-2xl">
                         <Button
                             variant="ghost"
                             size="icon"
@@ -396,7 +396,7 @@ export function TaskList({ showHeader = true, excludeDemo = false }: { showHeade
                                 }
                             }}
                             disabled={currentPage <= 1 || loading}
-                            className="h-8 w-8 rounded-full hover:bg-white/10 text-muted-foreground hover:text-white transition-colors disabled:opacity-30"
+                            className="h-8 w-8 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 text-muted-foreground hover:text-slate-900 dark:hover:text-white transition-colors disabled:opacity-30"
                         >
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
@@ -419,7 +419,7 @@ export function TaskList({ showHeader = true, excludeDemo = false }: { showHeade
                                 }
                             }}
                             disabled={currentPage >= Math.ceil(totalTasks / TASKS_PER_PAGE) || loading}
-                            className="h-8 w-8 rounded-full hover:bg-white/10 text-muted-foreground hover:text-white transition-colors disabled:opacity-30"
+                            className="h-8 w-8 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 text-muted-foreground hover:text-slate-900 dark:hover:text-white transition-colors disabled:opacity-30"
                         >
                             <ChevronRight className="h-4 w-4" />
                         </Button>

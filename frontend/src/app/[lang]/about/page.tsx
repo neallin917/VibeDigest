@@ -1,7 +1,5 @@
 import type { Metadata } from "next"
 import { LandingNav } from "@/components/landing/LandingNav"
-import { LandingUserButton } from "@/components/auth/LandingUserButton"
-import { LanguageInlineSelect } from "@/components/i18n/LanguageInlineSelect"
 
 type Props = {
     params: Promise<{
@@ -41,7 +39,7 @@ const CONTENT = {
     zh: {
         title: "VibeDigest",
         subtitle: "什么是 VibeDigest?",
-        positioning: "VibeDigest 是一个 AI 驱动的内容转化平台，旨在帮助您从任何视频或音频源中掌握知识。我们相信，在信息爆炸的时代，从长内容中快速提取精华的能力是一种“超能力”。",
+        positioning: "VibeDigest 是一个 AI 驱动的内容转化平台，旨在帮助您从任何视频或音频源中掌握知识。我们相信，在信息爆炸的时代，从长内容中快速提取精华的能力是一种「超能力」。",
         useCases: [
             {
                 title: "学术与研究",
@@ -63,7 +61,7 @@ const CONTENT = {
         founder: {
             name: "Neal Lin",
             role: "VibeDigest 创始人",
-            bio: "一名热爱开发和内容的开发者，热衷于构建能够弥合信息与洞察之间鸿沟的工具。VibeDigest 诞生于“在更短时间内吸收更多知识”的个人需求。"
+            bio: "一名热爱开发和内容的开发者，热衷于构建能够弥合信息与洞察之间鸿沟的工具。VibeDigest 诞生于「在更短时间内吸收更多知识」的个人需求。"
         }
     }
 }
@@ -111,38 +109,33 @@ export default async function AboutPage(props: Props) {
     }
 
     return (
-        <div className="min-h-screen bg-[#0A0A0A] text-[#F5F5F5] font-sans selection:bg-primary/30">
-            {/* Grid Background */}
-            <div className="fixed inset-0 bg-grid opacity-20 pointer-events-none" />
+        <div className="min-h-screen bg-transparent text-slate-800 dark:text-[#F5F5F5] font-sans selection:bg-primary/30">
+            {/* Background Blobs (Light Mode) */}
+            <div className="fixed inset-0 overflow-hidden pointer-events-none dark:hidden -z-10">
+                <div className="blob blob-1"></div>
+                <div className="blob blob-2"></div>
+                <div className="blob blob-3"></div>
+            </div>
 
-            <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-[#0A0A0A]/80 backdrop-blur-md">
-                <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-                    <a href={`/${lang}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-black font-bold text-xl">
-                            V
-                        </div>
-                        <span className="font-bold text-lg tracking-tight">VibeDigest</span>
-                    </a>
+            {/* Dark Mode Background */}
+            <div className="fixed inset-0 hidden dark:block pointer-events-none -z-10 bg-[#0A0A0A]">
+                <div className="absolute inset-0 bg-grid opacity-20" />
+            </div>
 
-                    <div className="flex items-center gap-4">
-                        <LanguageInlineSelect />
-                        <LandingUserButton />
-                    </div>
-                </div>
-            </nav>
+            <LandingNav />
 
-            <main className="relative pt-32 pb-20 px-6">
+            <main className="relative pt-32 pb-20 px-6 z-10">
                 <div className="max-w-4xl mx-auto">
                     {/* Hero Section */}
                     <div className="text-center mb-24">
-                        <h1 className="text-6xl md:text-7xl font-extrabold bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60 mb-8">
+                        <h1 className="text-5xl md:text-6xl font-extrabold bg-clip-text text-transparent bg-gradient-to-b from-slate-900 to-slate-600 dark:from-white dark:to-white/60 mb-8">
                             {content.title}
                         </h1>
-                        <h2 className="text-2xl md:text-3xl font-medium text-primary mb-12">
+                        <h2 className="text-xl md:text-2xl font-medium text-indigo-600 dark:text-primary mb-12">
                             {content.subtitle}
                         </h2>
                         <div className="max-w-3xl mx-auto">
-                            <p className="text-xl text-muted-foreground leading-relaxed">
+                            <p className="text-lg text-slate-600 dark:text-muted-foreground leading-relaxed">
                                 {content.positioning}
                             </p>
                         </div>
@@ -153,12 +146,12 @@ export default async function AboutPage(props: Props) {
                         {content.useCases.map((useCase, index) => (
                             <div
                                 key={index}
-                                className="p-8 rounded-3xl bg-white/[0.03] border border-white/5 backdrop-blur-sm hover:bg-white/[0.05] hover:border-white/10 transition-all duration-300 group"
+                                className="p-8 rounded-2xl bg-white/60 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-white/[0.05] hover:border-slate-300 dark:hover:border-white/10 transition-all duration-300 group shadow-lg dark:shadow-none"
                             >
-                                <h3 className="text-xl font-bold mb-4 text-white/90 group-hover:text-primary transition-colors">
+                                <h3 className="text-lg font-bold mb-4 text-slate-800 dark:text-white/90 group-hover:text-indigo-600 dark:group-hover:text-primary transition-colors">
                                     {useCase.title}
                                 </h3>
-                                <p className="text-muted-foreground leading-relaxed">
+                                <p className="text-slate-600 dark:text-muted-foreground leading-relaxed text-sm">
                                     {useCase.description}
                                 </p>
                             </div>
@@ -166,31 +159,30 @@ export default async function AboutPage(props: Props) {
                     </div>
 
                     {/* Founder Section */}
-                    <div className="relative p-10 rounded-[2.5rem] bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent border border-white/10 overflow-hidden">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 blur-[100px] -z-10" />
+                    <div className="relative p-10 rounded-[2rem] bg-gradient-to-br from-indigo-500/10 dark:from-emerald-500/10 via-transparent to-transparent border border-slate-200 dark:border-white/10 overflow-hidden">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 dark:bg-emerald-500/10 blur-[100px] -z-10" />
 
                         <div className="flex flex-col md:flex-row gap-10 items-center md:items-start text-center md:text-left">
-                            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-gray-200 to-gray-500 border-4 border-white/10 flex-shrink-0 flex items-center justify-center text-black overflow-hidden">
-                                {/* Placeholder for founder image if available */}
+                            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-gray-200 to-gray-400 dark:from-gray-200 dark:to-gray-500 border-4 border-white/20 dark:border-white/10 flex-shrink-0 flex items-center justify-center text-slate-700 dark:text-black overflow-hidden">
                                 <span className="text-4xl font-bold">NL</span>
                             </div>
                             <div>
-                                <h3 className="text-2xl font-bold mb-2">{content.founder.name}</h3>
-                                <p className="text-primary font-medium mb-6">{content.founder.role}</p>
-                                <p className="text-lg text-muted-foreground leading-relaxed italic">
-                                    "{content.founder.bio}"
+                                <h3 className="text-2xl font-bold mb-2 text-slate-900 dark:text-white">{content.founder.name}</h3>
+                                <p className="text-indigo-600 dark:text-primary font-medium mb-6">{content.founder.role}</p>
+                                <p className="text-base text-slate-600 dark:text-muted-foreground leading-relaxed italic">
+                                    &ldquo;{content.founder.bio}&rdquo;
                                 </p>
                             </div>
                         </div>
                     </div>
 
                     <div className="mt-24 text-center">
-                        <p className="text-muted-foreground mb-8">
+                        <p className="text-slate-600 dark:text-muted-foreground mb-8">
                             {isZh ? "准备好提升您的效率了吗？" : "Ready to boost your efficiency?"}
                         </p>
                         <a
                             href={`/${lang}/login`}
-                            className="inline-flex items-center justify-center px-10 py-4 rounded-full bg-primary text-primary-foreground font-bold text-lg hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20"
+                            className="inline-flex items-center justify-center px-10 py-4 rounded-full bg-indigo-600 dark:bg-primary text-white dark:text-primary-foreground font-bold text-lg hover:scale-105 active:scale-95 transition-all shadow-lg shadow-indigo-500/20 dark:shadow-primary/20"
                         >
                             {isZh ? "立即开始使用" : "Get Started Now"}
                         </a>

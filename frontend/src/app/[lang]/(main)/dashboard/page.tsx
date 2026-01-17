@@ -14,7 +14,7 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                <div className="pt-4 border-t border-white/10">
+                <div className="pt-4 border-t border-slate-200 dark:border-white/10">
                     <CommunityTemplates />
                 </div>
             </div>
