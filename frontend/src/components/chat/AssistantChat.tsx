@@ -38,6 +38,8 @@ export function AssistantChat({ taskId: propTaskId }: AssistantChatProps) {
     const messagesRef = useRef<UIMessage[]>([]);
     // Ref to track current threadId for sendMessage calls (to avoid stale closure)
     const threadIdRef = useRef<string | null>(null);
+    // Ref to track if we are currently creating a thread (to skip initial fetch)
+    const isCreatingThreadRef = useRef(false);
 
     // Keep ref in sync with state
     useEffect(() => {
@@ -114,6 +116,12 @@ export function AssistantChat({ taskId: propTaskId }: AssistantChatProps) {
             return;
         }
 
+        // Skip fetch if we just created this thread (state is already handled by useChat)
+        if (isCreatingThreadRef.current) {
+            isCreatingThreadRef.current = false;
+            return;
+        }
+
         messagesRef.current = [];
         setMessages([]);
 
@@ -169,10 +177,12 @@ export function AssistantChat({ taskId: propTaskId }: AssistantChatProps) {
                     });
                     if (res.ok) {
                         const newThread = await res.json();
+                        // Prevent useEffect from clearing messages
+                        isCreatingThreadRef.current = true;
                         setThreads((prev) => [newThread, ...prev]);
                         setCurrentThreadId(newThread.id);
                         messagesRef.current = [];
-                        setMessages([]);
+                        setMessages([]); // Ensure we start fresh for useChat
                         threadIdRef.current = newThread.id; // Update ref immediately
                         // Send message with the new threadId
                         sendMessage(
