@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import Image from "next/image"
 import { PlayCircle, Sparkles, Loader2 } from "lucide-react"
 import { useI18n } from "@/components/i18n/I18nProvider"
@@ -99,11 +100,8 @@ function TemplateCard({ task }: { task: Task }) {
         : "bg-primary/10 text-primary border-primary/20"
 
     return (
-        <div
-            onClick={() => {
-                // Navigate to new Chat UI directly
-                router.push(`/${locale}/chat?task=${task.id}`)
-            }}
+        <Link
+            href={`/${locale}/chat?task=${task.id}`}
             className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-gradient-to-br dark:from-white/[0.03] dark:to-transparent backdrop-blur-sm cursor-pointer transition-all duration-300 hover:border-slate-300 dark:hover:border-white/20 hover:shadow-lg dark:hover:shadow-[0_8px_32px_rgba(62,207,142,0.15)] hover:scale-[1.02] h-full"
         >
             {/* Thumbnail Area */}
@@ -156,8 +154,8 @@ function TemplateCard({ task }: { task: Task }) {
                                     />
                                 </div>
                             ) : (
-<div className="h-5 w-5 rounded-full bg-slate-200 dark:bg-white/10 flex items-center justify-center border border-slate-300 dark:border-white/10 shrink-0">
-                                                    <span className="text-[10px] text-slate-600 dark:text-white/70 font-bold leading-none">
+                                <div className="h-5 w-5 rounded-full bg-slate-200 dark:bg-white/10 flex items-center justify-center border border-slate-300 dark:border-white/10 shrink-0">
+                                    <span className="text-[10px] text-slate-600 dark:text-white/70 font-bold leading-none">
                                         {(task.author || "U").charAt(0).toUpperCase()}
                                     </span>
                                 </div>
@@ -181,7 +179,7 @@ function TemplateCard({ task }: { task: Task }) {
                     )}
                 </div>
             </div>
-        </div>
+        </Link>
     )
 }
 

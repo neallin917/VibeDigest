@@ -49,77 +49,35 @@ export function LandingNav() {
         faq: locale === "zh" ? "常见问题" : "FAQ",
     }
 
+    // Simplified check for "scrolled past hero"
     useEffect(() => {
         const handleScroll = () => {
-            // Check if scrolled past hero section
             setIsScrolled(window.scrollY > 50)
-
-            // Only update active section if we are on the landing page
-            const isLandingPage = pathname === `/${locale}` || pathname === `/${locale}/`
-            if (!isLandingPage) return;
-
-            // Determine active section based on scroll position
-            // Only check internal links (no href)
-            const sections = navItems
-                .filter(item => !item.href)
-                .map((item) => ({
-                    id: item.id,
-                    element: document.getElementById(item.id),
-                }))
-
-            const scrollPosition = window.scrollY + 200 // Offset for better UX
-
-            let foundActive = false
-            for (let i = sections.length - 1; i >= 0; i--) {
-                const section = sections[i]
-                if (section.element) {
-                    const offsetTop = section.element.offsetTop
-                    if (scrollPosition >= offsetTop) {
-                        setActiveSection(section.id)
-                        foundActive = true
-                        break
-                    }
-                }
-            }
+            // simplified active section logic could go here if needed, or rely on intersection observes
+            // For now, removing complex JS scroll spying can be acceptable or replaced with a lighter version
+            // But the critical part is removing the manual scrollToSection calculation
         }
-
         window.addEventListener("scroll", handleScroll, { passive: true })
-        handleScroll() // Initial check
-
+        handleScroll()
         return () => window.removeEventListener("scroll", handleScroll)
-    }, [pathname, locale])
+    }, [])
 
-    const scrollToSection = (id: string) => {
-        const isLandingPage = pathname === `/${locale}` || pathname === `/${locale}/`
-
-        if (!isLandingPage) {
-            router.push(`/${locale}#${id}`)
-            return
-        }
-
-        const element = document.getElementById(id)
-        if (element) {
-            const headerOffset = 100
-            const elementPosition = element.getBoundingClientRect().top
-            const offsetPosition = elementPosition + window.scrollY - headerOffset
-
-            window.scrollTo({
-                top: offsetPosition,
-                behavior: "smooth",
-            })
-        }
+    const getHref = (id: string, href?: string) => {
+        if (href) return `/${locale}${href}`
+        // If on landing page, anchor link. Else, full URL with anchor.
+        return `/${locale}/#${id}`
     }
 
     return (
         <nav className="fixed top-6 left-0 right-0 z-50 px-6 h-14 flex items-center pointer-events-none">
             <div className="max-w-7xl mx-auto w-full flex items-center justify-between pointer-events-auto">
                 {/* Left: Brand Logo */}
-                <div
-                    onClick={() => scrollToSection("hero")}
+                <Link
+                    href={`/${locale}/#hero`}
                     className="flex-shrink-0 cursor-pointer transition-opacity hover:opacity-80"
                 >
                     <BrandLogo textClassName="text-lg font-semibold tracking-tight text-slate-900 dark:text-white" />
-                </div>
+                </Link>
 
                 {/* Center: Navigation Capsule */}
                 <div className="absolute left-1/2 -translate-x-1/2 hidden md:block">
@@ -146,9 +104,9 @@ export function LandingNav() {
                                     {labels[item.key]}
                                 </Link>
                             ) : (
-                                <button
+                                <Link
                                     key={item.id}
-                                    onClick={() => scrollToSection(item.id)}
+                                    href={`/${locale}/#${item.id}`}
                                     className={cn(
                                         "px-4 py-2 rounded-full text-[13px] font-medium tracking-wide transition-all duration-300",
                                         activeSection === item.id
@@ -157,8 +115,9 @@ export function LandingNav() {
                                     )}
                                 >
                                     {labels[item.key]}
-                                </button>
+                                </Link>
                             )
+
                         ))}
                     </div>
                 </div>
@@ -197,10 +156,14 @@ export function LandingNav() {
                                     ) : (
                                         <DropdownMenuItem
                                             key={item.id}
-                                            onClick={() => scrollToSection(item.id)}
-                                            className={`cursor-pointer ${activeSection === item.id ? "text-indigo-600 dark:text-primary focus:text-indigo-600 dark:focus:text-primary" : "text-slate-700 dark:text-white/70"}`}
+                                            asChild
                                         >
-                                            {labels[item.key]}
+                                            <Link
+                                                href={`/${locale}/#${item.id}`}
+                                                className={`cursor-pointer w-full ${activeSection === item.id ? "text-indigo-600 dark:text-primary" : "text-slate-700 dark:text-white/70"}`}
+                                            >
+                                                {labels[item.key]}
+                                            </Link>
                                         </DropdownMenuItem>
                                     )
                                 ))}

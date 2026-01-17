@@ -15,12 +15,13 @@ export function useTaskNotification() {
     const [subbedTaskIds, setSubbedTaskIds] = useState<Set<string>>(new Set())
 
     useEffect(() => {
-        if (typeof window === "undefined" || !("Notification" in window)) {
+        // Handle initial permission state
+        if (typeof window !== "undefined" && "Notification" in window) {
+            setPermission(window.Notification.permission as NotificationPermissionStatus)
+        } else {
             setPermission("unsupported")
             return
         }
-        // Map Notification.permission to our status type
-        setPermission(window.Notification.permission as NotificationPermissionStatus)
 
         // Load from localStorage
         const loadFromStorage = () => {

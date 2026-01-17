@@ -176,6 +176,7 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
                                         <Video className="h-4 w-4 md:h-5 md:w-5 text-indigo-500/70 dark:text-primary/70 shrink-0" />
                                         <Input
                                             placeholder={t("taskForm.urlPlaceholder")}
+                                            aria-label={t("taskForm.urlPlaceholder")}
                                             className="border-0 bg-transparent h-9 md:h-12 text-sm md:text-lg text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/30 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 shadow-none min-w-0 truncate"
                                             value={url}
                                             onChange={(e) => setUrl(e.target.value)}
@@ -211,7 +212,7 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
                                     <div className="flex-1 flex justify-end min-w-0 overflow-hidden">
                                         {mounted ? (
                                             <Select value={language} onValueChange={setLanguage}>
-                                                <SelectTrigger className="h-10 md:h-12 px-2 md:px-4 bg-slate-100/80 dark:bg-black/50 border-slate-200 dark:border-white/10 hover:bg-slate-200/80 dark:hover:bg-black/70 hover:border-slate-300 dark:hover:border-white/20 rounded-xl focus:ring-0 focus:ring-offset-0 gap-1 md:gap-2 text-slate-700 dark:text-white/80 transition-all text-[10px] md:text-sm max-w-full overflow-hidden shrink min-w-0">
+                                                <SelectTrigger aria-label={t("taskForm.summaryLanguage")} className="h-10 md:h-12 px-2 md:px-4 bg-slate-100/80 dark:bg-black/50 border-slate-200 dark:border-white/10 hover:bg-slate-200/80 dark:hover:bg-black/70 hover:border-slate-300 dark:hover:border-white/20 rounded-xl focus:ring-0 focus:ring-offset-0 gap-1 md:gap-2 text-slate-700 dark:text-white/80 transition-all text-[10px] md:text-sm max-w-full overflow-hidden shrink min-w-0">
                                                     <span className="hidden lg:inline text-[10px] uppercase font-semibold text-slate-400 dark:text-white/40 shrink-0">Output</span>
                                                     <div className="truncate min-w-0">
                                                         <SelectValue />
@@ -314,6 +315,7 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
                             <Video className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
                                 placeholder={t("taskForm.urlPlaceholder")}
+                                aria-label={t("taskForm.urlPlaceholder")}
                                 className="pl-9 h-11 bg-slate-100/50 dark:bg-black/20"
                                 value={url}
                                 onChange={(e) => setUrl(e.target.value)}
@@ -338,6 +340,7 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
                                 {mounted ? (
                                     <Select value={language} onValueChange={setLanguage}>
                                         <SelectTrigger
+                                            aria-label={t("taskForm.summaryLanguage")}
                                             className="w-full h-11 bg-slate-100/50 dark:bg-black/20 border-slate-200 dark:border-white/10 hover:bg-slate-200/50 dark:hover:bg-black/25"
                                             size="default"
                                         >
