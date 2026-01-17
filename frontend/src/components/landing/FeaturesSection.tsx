@@ -19,13 +19,14 @@ interface FeatureCardProps {
     icon: LucideIcon
     title: string
     desc: string
-    color: string
+    gradient: string
+    iconColor: string
     delay: number
     comingSoon?: boolean
     className?: string
 }
 
-function FeatureCard({ icon: Icon, title, desc, color, delay, comingSoon, className = "" }: FeatureCardProps) {
+function FeatureCard({ icon: Icon, title, desc, gradient, iconColor, delay, comingSoon, className = "" }: FeatureCardProps) {
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -41,7 +42,7 @@ function FeatureCard({ icon: Icon, title, desc, color, delay, comingSoon, classN
                 className
             )}
         >
-            <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${color} opacity-[0.08] dark:opacity-[0.03] group-hover:opacity-[0.15] dark:group-hover:opacity-[0.08] blur-2xl rounded-full transition-opacity duration-500`} />
+            <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${gradient} opacity-[0.08] dark:opacity-[0.03] group-hover:opacity-[0.15] dark:group-hover:opacity-[0.08] blur-2xl rounded-full transition-opacity duration-500`} />
 
             <div className="relative z-10">
                 <div className={cn(
@@ -49,7 +50,7 @@ function FeatureCard({ icon: Icon, title, desc, color, delay, comingSoon, classN
                     "bg-slate-100 border-slate-200",
                     "dark:bg-white/5 dark:border-white/5"
                 )}>
-                    <Icon className={`w-5 h-5 ${color.replace('from-', 'text-').replace('to-', '')}`} />
+                    <Icon className={cn("w-5 h-5", iconColor)} />
                 </div>
 
                 <div className="flex items-center gap-2 mb-2">
@@ -79,40 +80,46 @@ export function FeaturesSection() {
             icon: FileText,
             title: t("landing.smartSummarization"),
             desc: t("landing.smartSummarizationDesc"),
-            color: "from-emerald-400 to-teal-500",
+            gradient: "from-emerald-400 to-teal-500",
+            iconColor: "text-emerald-400",
             className: "md:col-span-2 lg:col-span-2" // Large card
         },
         {
             icon: AlignLeft,
             title: t("landing.interactiveTranscript"),
             desc: t("landing.interactiveTranscriptDesc"),
-            color: "from-blue-400 to-indigo-500",
+            gradient: "from-blue-400 to-indigo-500",
+            iconColor: "text-blue-400",
         },
         {
             icon: Languages,
             title: t("landing.crossLanguageAI"),
             desc: t("landing.crossLanguageAIDesc"),
-            color: "from-orange-400 to-amber-500",
+            gradient: "from-orange-400 to-amber-500",
+            iconColor: "text-orange-400",
         },
         {
             icon: Share2,
             title: t("landing.visualMindMaps"),
             desc: t("landing.visualMindMapsDesc"),
-            color: "from-purple-400 to-pink-500",
+            gradient: "from-purple-400 to-pink-500",
+            iconColor: "text-purple-400",
             className: "md:col-span-2 lg:col-span-2" // Large card
         },
         {
             icon: MessageSquare,
             title: t("landing.chatWithVideo"),
             desc: t("landing.chatWithVideoDesc"),
-            color: "from-pink-400 to-rose-500",
+            gradient: "from-pink-400 to-rose-500",
+            iconColor: "text-pink-400",
             comingSoon: true
         },
         {
             icon: Download,
             title: t("landing.seamlessExport"),
             desc: t("landing.seamlessExportDesc"),
-            color: "from-indigo-400 to-cyan-500",
+            gradient: "from-indigo-400 to-cyan-500",
+            iconColor: "text-indigo-400",
             comingSoon: true
         }
     ]

@@ -29,6 +29,17 @@ const jakarta = Plus_Jakarta_Sans({
 
 const gaId = process.env.NEXT_PUBLIC_GA_ID || "";
 
+import { Viewport } from 'next'
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: 'white' },
+    { media: '(prefers-color-scheme: dark)', color: 'black' },
+  ],
+  width: 'device-width',
+  initialScale: 1,
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -56,6 +67,14 @@ export async function generateMetadata({
   return {
     applicationName: "VibeDigest",
     metadataBase: new URL(baseUrl),
+    formatDetection: {
+      telephone: false,
+    },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "default",
+      title: "VibeDigest",
+    },
     alternates: {
       canonical: "./",
       languages: {
@@ -126,6 +145,8 @@ export async function generateMetadata({
   };
 }
 
+import { Toaster } from "sonner";
+
 export default async function RootLayout({
   children,
   auth,
@@ -181,6 +202,7 @@ export default async function RootLayout({
           {auth}
           {children}
         </Providers>
+        <Toaster />
         <Analytics />
         <SpeedInsights />
         {gaId && <GoogleAnalytics gaId={gaId} />}

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase"
+import { toast } from "sonner"
 
 declare global {
     interface Window {
@@ -106,15 +107,18 @@ export function GoogleOneTap() {
 
                 if (error) {
                     console.error("One Tap sign-in error:", error.message)
+                    toast.error("Sign in failed. Please try again.")
                     return
                 }
 
                 if (data.session) {
                     // Successfully signed in - auth state listener will update the UI
                     console.log("One Tap sign-in successful")
+                    toast.success("Signed in successfully!")
                 }
             } catch (err) {
                 console.error("One Tap error:", err)
+                toast.error("An unexpected error occurred.")
             }
         }
 

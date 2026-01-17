@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useMemo, useRef, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState, useId } from "react"
 import Image from "next/image"
 
 type OnReady = (ctrl: { seek: (seconds: number) => void }) => void
@@ -65,7 +65,8 @@ export function YouTubePlayer({
   coverUrl?: string
   onReady?: OnReady
 }) {
-  const containerId = useMemo(() => `yt-${videoId}-${Math.random().toString(16).slice(2)}`, [videoId])
+  const id = useId()
+  const containerId = useMemo(() => `yt-${videoId}-${id}`, [videoId, id])
   const playerRef = useRef<any>(null)
   const [isReady, setIsReady] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -74,6 +75,7 @@ export function YouTubePlayer({
 
   // Auto-play if no coverUrl is provided (backward compatibility / legacy behavior)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!coverUrl) setIsPlaying(true)
   }, [coverUrl])
 
