@@ -25,7 +25,6 @@
 -   **新建**:
     -   点击 "New Chat" 清空当前视图，发送消息时创建新 Thread 记录。
 
-### 4.2. 会话存储与归档 (Thread Storage & Archiving)
 ### 4.2. 会话存储与删除 (Thread Storage & Deletion)
 -   **状态**: `active` (默认), `deleted` (软删除)。**不使用 `archived` 状态**。
 -   **列表逻辑**: API 默认返回所有 `status != 'deleted'` 的会话，按 `updated_at desc` 排序。

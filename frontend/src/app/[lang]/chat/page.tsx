@@ -4,7 +4,7 @@ import { AssistantChat } from "@/components/chat/AssistantChat";
 
 export default function ChatPage() {
     return (
-        <div className="h-full w-full">
+        <div className="h-screen w-full">
             <AssistantChat />
         </div>
     );
