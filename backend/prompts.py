@@ -543,6 +543,18 @@ You must output this exact schema:
       "detail": string,
       "evidence": string
     }}
+  ],
+  "action_items": [
+    {{
+      "content": string,
+      "priority": "high" | "medium" | "low"
+    }}
+  ],
+  "risks": [
+    {{
+      "content": string,
+      "severity": "high" | "medium" | "low"
+    }}
   ]
 }}
 
@@ -553,6 +565,8 @@ Content requirements:
   - title: a crisp insight headline (short; no filler).
   - detail: ONE concise paragraph (2–5 sentences). Do NOT use bullet lists.
   - evidence: MUST be an EXACT QUOTE from the transcript in the ORIGINAL SOURCE LANGUAGE (do not translate). Used for timestamp alignment.
+- action_items: Extract clear next steps, recommendations, or things the viewer should do. If none, leave empty [].
+- risks: Extract warnings, potential pitfalls, downsides, or things to avoid. If none, leave empty [].
 - Coverage: ensure keypoints cover early/middle/late parts.
 - Order: The keypoints MUST be listed in strict chronological order as they appear in the transcript.
 - Faithfulness: do not invent facts.
@@ -613,4 +627,3 @@ COMPREHENSION_BRIEF_USER = """Transcript to process:
 
 Please provide the Comprehension Brief in {language_name}.
 """
-

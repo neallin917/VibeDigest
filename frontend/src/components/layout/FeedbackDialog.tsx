@@ -108,7 +108,7 @@ export function FeedbackDialog({ children, defaultCategory = "bug" }: FeedbackDi
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] bg-black/40 backdrop-blur-md text-foreground border-white/10 shadow-2xl">
+            <DialogContent className="sm:max-w-[425px] bg-white/90 dark:bg-black/40 backdrop-blur-md text-foreground border-slate-200 dark:border-white/10 shadow-2xl">
                 <DialogHeader>
                     <DialogTitle>{t("feedback.title")}</DialogTitle>
                     <DialogDescription>
@@ -119,10 +119,10 @@ export function FeedbackDialog({ children, defaultCategory = "bug" }: FeedbackDi
                     <div className="grid gap-2">
                         <Label htmlFor="category">{t("feedback.category")}</Label>
                         <Select value={category} onValueChange={setCategory}>
-                            <SelectTrigger id="category" className="bg-muted border-white/5">
+                            <SelectTrigger id="category" className="bg-slate-100 dark:bg-muted border-slate-200 dark:border-white/5">
                                 <SelectValue placeholder={t("feedback.category")} />
                             </SelectTrigger>
-                            <SelectContent className="bg-black/80 backdrop-blur-xl border-white/10 text-foreground">
+                            <SelectContent className="bg-white/95 dark:bg-black/80 backdrop-blur-xl border-slate-200 dark:border-white/10 text-foreground">
                                 <SelectItem value="support">{t("feedback.types.support")}</SelectItem>
                                 <SelectItem value="bug">{t("feedback.types.bug")}</SelectItem>
                                 <SelectItem value="feature">{t("feedback.types.feature")}</SelectItem>
@@ -138,7 +138,7 @@ export function FeedbackDialog({ children, defaultCategory = "bug" }: FeedbackDi
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             placeholder={t("feedback.message")}
-                            className="bg-muted border-white/5 min-h-[100px]"
+                            className="bg-slate-100 dark:bg-muted border-slate-200 dark:border-white/5 min-h-[100px]"
                             required
                         />
                     </div>
@@ -150,7 +150,7 @@ export function FeedbackDialog({ children, defaultCategory = "bug" }: FeedbackDi
                             value={contactEmail}
                             onChange={(e) => setContactEmail(e.target.value)}
                             placeholder={t("feedback.contactEmailPlaceholder")}
-                            className="bg-muted border-white/5"
+                            className="bg-slate-100 dark:bg-muted border-slate-200 dark:border-white/5"
                         />
                     </div>
                     <DialogFooter>

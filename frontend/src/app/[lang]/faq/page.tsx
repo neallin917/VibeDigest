@@ -1,8 +1,5 @@
 import type { Metadata } from "next"
-import { Heading, Text } from "@/components/ui/typography"
 import { LandingNav } from "@/components/landing/LandingNav"
-import { LandingUserButton } from "@/components/auth/LandingUserButton"
-import { LanguageInlineSelect } from "@/components/i18n/LanguageInlineSelect"
 
 type Props = {
     params: Promise<{
@@ -105,68 +102,62 @@ export default async function FAQPage(props: Props) {
     }
 
     return (
-        <div className="min-h-screen bg-[#0A0A0A] text-[#F5F5F5] font-sans selection:bg-primary/30">
-            {/* Reuse LandingNav but we might need to adjust it to support non-hash links if we want reusable nav */}
-            {/* For now, we will just put a simple back link or header */}
-            <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-[#0A0A0A]/80 backdrop-blur-md">
-                <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-                    <a href={`/${lang}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-black font-bold text-xl">
-                            V
-                        </div>
-                        <span className="font-bold text-lg tracking-tight">VibeDigest</span>
-                    </a>
+        <div className="min-h-screen bg-transparent text-slate-800 dark:text-[#F5F5F5] font-sans selection:bg-primary/30">
+            {/* Background Blobs (Light Mode) */}
+            <div className="fixed inset-0 overflow-hidden pointer-events-none dark:hidden -z-10">
+                <div className="blob blob-1"></div>
+                <div className="blob blob-2"></div>
+                <div className="blob blob-3"></div>
+            </div>
 
-                    <div className="flex items-center gap-4">
-                        <LanguageInlineSelect />
-                        <LandingUserButton />
-                    </div>
-                </div>
-            </nav>
+            {/* Dark Mode Background */}
+            <div className="fixed inset-0 hidden dark:block pointer-events-none -z-10 bg-[#0A0A0A]" />
 
-            <main className="pt-32 pb-20 px-6">
+            <LandingNav />
+
+            <main className="pt-32 pb-20 px-6 relative z-10">
                 <div className="max-w-3xl mx-auto">
                     <div className="text-center mb-16">
-                        <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60 mb-6">
+                        <h1 className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-slate-900 to-slate-600 dark:from-white dark:to-white/60 mb-6">
                             {isZh ? "常见问题" : "Frequently Asked Questions"}
                         </h1>
-                        <p className="text-lg text-muted-foreground">
+                        <p className="text-base text-slate-600 dark:text-muted-foreground">
                             {isZh ? "关于 VibeDigest 您需要了解的一切" : "Everything you need to know about VibeDigest"}
                         </p>
                     </div>
 
-                    <div className="space-y-8">
+                    <div className="space-y-6">
                         {content.map((item, index) => (
                             <div
                                 key={index}
-                                className="group p-6 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 hover:bg-white/[0.07] transition-all duration-300"
+                                className="group p-6 rounded-2xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 hover:bg-white/80 dark:hover:bg-white/[0.07] transition-all duration-300 shadow-lg dark:shadow-none"
                             >
-                                <h3 className="text-xl font-semibold mb-3 text-white/90 group-hover:text-primary transition-colors">
+                                <h3 className="text-lg font-semibold mb-3 text-slate-800 dark:text-white/90 group-hover:text-indigo-600 dark:group-hover:text-primary transition-colors">
                                     {item.question}
                                 </h3>
-                                <p className="text-muted-foreground leading-relaxed">
+                                <p className="text-slate-600 dark:text-muted-foreground leading-relaxed text-sm">
                                     {item.answer}
                                 </p>
                             </div>
                         ))}
                     </div>
 
-                    <div className="mt-20 text-center p-8 rounded-3xl bg-gradient-to-b from-emerald-900/10 to-transparent border border-white/5">
-                        <h2 className="text-2xl font-bold mb-4">
+                    <div className="mt-20 text-center p-8 rounded-2xl bg-gradient-to-b from-indigo-500/10 dark:from-emerald-900/10 to-transparent border border-slate-200 dark:border-white/5">
+                        <h2 className="text-xl font-bold mb-4 text-slate-900 dark:text-white">
                             {isZh ? "还有其他问题？" : "Still have questions?"}
                         </h2>
-                        <p className="text-muted-foreground mb-8">
+                        <p className="text-slate-600 dark:text-muted-foreground mb-8 text-sm">
                             {isZh ? "我们随时为您提供帮助。发送邮件给我们。" : "We're here to help. Send us an email."}
                         </p>
                         <a
                             href={`/${lang}/about`}
-                            className="inline-flex items-center justify-center px-6 py-3 rounded-full bg-white/10 text-white font-medium hover:bg-white/20 transition-colors mr-4"
+                            className="inline-flex items-center justify-center px-6 py-3 rounded-full bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white font-medium hover:bg-slate-200 dark:hover:bg-white/20 transition-colors mr-4"
                         >
                             {isZh ? "关于我们" : "About Us"}
                         </a>
                         <a
                             href="mailto:support@vibedigest.neallin.xyz"
-                            className="inline-flex items-center justify-center px-6 py-3 rounded-full bg-white text-black font-medium hover:bg-gray-200 transition-colors"
+                            className="inline-flex items-center justify-center px-6 py-3 rounded-full bg-indigo-600 dark:bg-white text-white dark:text-black font-medium hover:bg-indigo-700 dark:hover:bg-gray-200 transition-colors"
                         >
                             {isZh ? "联系支持" : "Contact Support"}
                         </a>
