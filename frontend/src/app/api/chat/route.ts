@@ -1,5 +1,5 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { streamText, UIMessage, convertToModelMessages } from 'ai';
+import { streamText, UIMessage, convertToModelMessages, generateText } from 'ai';
 import { createClient } from '@/lib/supabase/server';
 
 // Create OpenAI-compatible provider with custom baseURL (for local LLM)
@@ -83,23 +83,23 @@ ${context ? `## Video Context\n${context}` : '(No video context available yet.)'
     };
 
     // 7. Save user message to DB (async, don't block stream) - only if threadId provided
+    // 7. Save user message to DB (async, don't block stream) - only if threadId provided
     if (threadId && latestUserMessage) {
         const userContent = getTextContent(latestUserMessage);
         if (userContent) {
-            supabase
+            // FIX: await to ensure persistence
+            await supabase
                 .from('chat_messages')
                 .insert({
                     thread_id: threadId,
                     role: 'user',
                     content: userContent,
-                })
-                .then(() => {
-                    supabase
-                        .from('chat_threads')
-                        .update({ updated_at: new Date().toISOString() })
-                        .eq('id', threadId)
-                        .then(() => { });
                 });
+
+            await supabase
+                .from('chat_threads')
+                .update({ updated_at: new Date().toISOString() })
+                .eq('id', threadId);
         }
     }
 
@@ -123,6 +123,26 @@ ${context ? `## Video Context\n${context}` : '(No video context available yet.)'
                     .from('chat_threads')
                     .update({ updated_at: new Date().toISOString() })
                     .eq('id', threadId);
+
+                // Generate Title for new conversations (first message)
+                if (messages.length === 1 && latestUserMessage) {
+                    try {
+                        const { text: title } = await generateText({
+                            model: openai.chat(MODEL_NAME),
+                            system: 'Generate a very concise title (3-6 words) for this chat conversation based on the first message. Do not use quotes.',
+                            prompt: `User message: ${getTextContent(latestUserMessage)}\nAssistant response: ${text}`,
+                        });
+
+                        if (title) {
+                            await supabase
+                                .from('chat_threads')
+                                .update({ title: title.trim() })
+                                .eq('id', threadId);
+                        }
+                    } catch (error) {
+                        console.error('[API /chat] Failed to generate title:', error);
+                    }
+                }
             }
         },
     });

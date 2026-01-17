@@ -21,6 +21,7 @@ interface ChatThread {
     title: string;
     status: string;
     updated_at: string;
+    created_at: string;
 }
 
 export function AssistantChat({ taskId: propTaskId }: AssistantChatProps) {
@@ -144,25 +145,13 @@ export function AssistantChat({ taskId: propTaskId }: AssistantChatProps) {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    // Create new thread
-    const handleNewChat = useCallback(async () => {
-        try {
-            const res = await fetch("/api/threads", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ taskId }),
-            });
-            if (res.ok) {
-                const newThread = await res.json();
-                setThreads((prev) => [newThread, ...prev]);
-                setCurrentThreadId(newThread.id);
-                messagesRef.current = [];
-                setMessages([]);
-            }
-        } catch (error) {
-            console.error("[AssistantChat] Failed to create thread:", error);
-        }
-    }, [taskId]);
+    // Create new thread - simplified to just reset state (don't create in DB until message sent)
+    const handleNewChat = useCallback(() => {
+        setCurrentThreadId(null);
+        messagesRef.current = [];
+        setMessages([]);
+        setInputValue("");
+    }, [setMessages]);
 
     // Handle form submit - create thread if none exists
     const onSubmit = useCallback(
@@ -221,17 +210,31 @@ export function AssistantChat({ taskId: propTaskId }: AssistantChatProps) {
     };
 
     // Thread list item component
-    const ThreadItem = ({ thread }: { thread: ChatThread }) => (
-        <button
-            onClick={() => setCurrentThreadId(thread.id)}
-            className={cn(
-                "w-full text-left px-3 py-2 rounded-md text-sm truncate hover:bg-muted/50 transition-colors",
-                currentThreadId === thread.id && "bg-muted font-medium"
-            )}
-        >
-            {thread.title || "New Chat"}
-        </button>
-    );
+    const ThreadItem = ({ thread }: { thread: ChatThread }) => {
+        // Format date for display if title is generic
+        const dateStr = new Date(thread.updated_at || thread.created_at || Date.now()).toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+
+        const displayName = thread.title === "New Chat"
+            ? `New Chat (${dateStr})`
+            : thread.title;
+
+        return (
+            <button
+                onClick={() => setCurrentThreadId(thread.id)}
+                className={cn(
+                    "w-full text-left px-3 py-2 rounded-md text-sm truncate hover:bg-muted/50 transition-colors flex flex-col gap-0.5",
+                    currentThreadId === thread.id && "bg-muted font-medium"
+                )}
+            >
+                <span className="truncate w-full">{displayName}</span>
+            </button>
+        );
+    };
 
     // Sidebar content
     const SidebarContent = () => (
