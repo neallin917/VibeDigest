@@ -1,3 +1,10 @@
+/**
+ * @deprecated This page is deprecated and will be removed in future versions.
+ * Users are now redirected to /chat?library=open via middleware.
+ * See: middleware.ts for redirect logic.
+ * 
+ * Migration: v3.4 (Chat-First Architecture)
+ */
 "use client"
 
 import { TaskList } from "@/components/dashboard/TaskList"
