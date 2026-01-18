@@ -7,14 +7,16 @@ import { IconSidebar } from "./IconSidebar"
 import { ChatContainer } from "./ChatContainer"
 import { VideoDetailPanel } from "./VideoDetailPanel"
 import { LibrarySidebar } from "./LibrarySidebar"
+import { MobileMenuDrawer } from "./MobileMenuDrawer"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 
 export function ChatWorkspace() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const taskId = searchParams.get("task")
+  const libraryParam = searchParams.get("library")
 
-  const [isLibraryOpen, setIsLibraryOpen] = useState(false)
+  const [isLibraryOpen, setIsLibraryOpen] = useState(libraryParam === "open")
   const [activeTaskId, setActiveTaskId] = useState<string | null>(taskId)
   const [isMobile, setIsMobile] = useState(false)
   const [resetKey, setResetKey] = useState(0)
@@ -53,7 +55,13 @@ export function ChatWorkspace() {
         <div className="blob blob-3"></div>
       </div>
 
-      {/* 1. Icon Sidebar (Left) */}
+      {/* Mobile Menu (Hamburger + Drawer) */}
+      <MobileMenuDrawer 
+        onNewChat={handleNewChat}
+        onOpenLibrary={() => setIsLibraryOpen(true)}
+      />
+
+      {/* 1. Icon Sidebar (Left) - Desktop only */}
       <IconSidebar 
         onOpenLibrary={() => setIsLibraryOpen(true)} 
         onNewChat={handleNewChat}
@@ -69,6 +77,7 @@ export function ChatWorkspace() {
           key={resetKey}
           onTaskCreated={handleTaskSelect} 
           onOpenPanel={(id: string) => setActiveTaskId(id)}
+          onSelectExample={handleTaskSelect}
         />
       </main>
 
