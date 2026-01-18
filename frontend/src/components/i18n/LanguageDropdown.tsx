@@ -45,8 +45,8 @@ export function LanguageDropdown({ className, align = "left", size = "md" }: Pro
         className={cn(
           "w-full rounded-md border text-left text-sm transition-all duration-200",
           "bg-white/50 backdrop-blur-md border-white/20 shadow-sm", // Light mode glass
-          "dark:bg-black/20 dark:border-white/10", // Dark mode glass
-          "hover:bg-white/80 dark:hover:bg-white/10", // Hover states
+          "dark:bg-white/10 dark:border-white/10", // Dark mode glass
+          "hover:bg-white/80 dark:hover:bg-white/20", // Hover states
           "focus:outline-none focus:ring-2 focus:ring-primary/20",
           "flex items-center justify-between gap-2",
           size === "sm" ? "h-9 px-3" : "h-11 px-4"

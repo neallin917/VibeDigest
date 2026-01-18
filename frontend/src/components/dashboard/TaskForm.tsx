@@ -157,27 +157,27 @@ export function TaskForm({ simple = false, className }: { simple?: boolean, clas
                     <div className="absolute -inset-0.5 rounded-[1.8rem] md:rounded-[2.3rem] bg-gradient-to-br from-indigo-400/15 to-purple-400/15 dark:from-teal-700/15 dark:to-emerald-800/15 blur-md" />
 
                     {/* Main Card */}
-                    <div className="relative rounded-2xl md:rounded-[2rem] bg-white/80 dark:bg-gradient-to-b dark:from-white/[0.06] dark:to-white/[0.02] border border-slate-200/60 dark:border-white/10 p-6 md:p-8 backdrop-blur-2xl shadow-xl dark:shadow-2xl shadow-slate-200/50 dark:shadow-black/20">
+                    <div className="relative rounded-2xl md:rounded-[2rem] bg-white/80 dark:bg-zinc-900/80 dark:bg-gradient-to-b dark:from-white/[0.08] dark:to-white/[0.02] border border-slate-200/60 dark:border-white/10 p-6 md:p-8 backdrop-blur-2xl shadow-xl dark:shadow-2xl shadow-slate-200/50 dark:shadow-black/50">
                         {/* Inner gradient overlay */}
-                        <div className="absolute inset-0 rounded-2xl md:rounded-[2rem] bg-gradient-to-br from-indigo-100/20 via-transparent to-purple-100/20 dark:from-teal-900/10 dark:via-transparent dark:to-emerald-900/10 pointer-events-none" />
+                        <div className="absolute inset-0 rounded-2xl md:rounded-[2rem] bg-gradient-to-br from-indigo-100/20 via-transparent to-purple-100/20 dark:from-teal-900/20 dark:via-transparent dark:to-emerald-900/20 pointer-events-none" />
 
                         {/* Content */}
                         <div className="relative space-y-5">
                             {/* Greeting inside card */}
-                            <p className="text-base md:text-lg text-slate-600 dark:text-white/70 text-center font-medium">
+                            <p className="text-base md:text-lg text-slate-600 dark:text-zinc-300 text-center font-medium">
                                 {t("landing.greeting") || "Drop a podcast or video. We'll handle the rest."}
                             </p>
 
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 {/* Input Container */}
-                                <div className="relative rounded-xl md:rounded-2xl bg-slate-100/80 dark:bg-black/60 border border-slate-200 dark:border-white/10 p-3 md:p-4 shadow-inner transition-all duration-300 focus-within:border-indigo-400/40 dark:focus-within:border-primary/40 focus-within:bg-white dark:focus-within:bg-black/70">
+                                <div className="relative rounded-xl md:rounded-2xl bg-slate-100/80 dark:bg-black/40 border border-slate-200 dark:border-white/10 p-3 md:p-4 shadow-inner transition-all duration-300 focus-within:border-indigo-400/40 dark:focus-within:border-emerald-500/40 focus-within:bg-white dark:focus-within:bg-black/60">
                                     {/* URL Input Row */}
                                     <div className="flex items-center gap-2 md:gap-3 min-w-0">
-                                        <Video className="h-4 w-4 md:h-5 md:w-5 text-indigo-500/70 dark:text-primary/70 shrink-0" />
+                                        <Video className="h-4 w-4 md:h-5 md:w-5 text-indigo-500/70 dark:text-emerald-500/70 shrink-0" />
                                         <Input
                                             placeholder={t("taskForm.urlPlaceholder")}
                                             aria-label={t("taskForm.urlPlaceholder")}
-                                            className="border-0 bg-transparent h-9 md:h-12 text-sm md:text-lg text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/30 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 shadow-none min-w-0 truncate"
+                                            className="border-0 bg-transparent h-9 md:h-12 text-sm md:text-lg text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 shadow-none min-w-0 truncate"
                                             value={url}
                                             onChange={(e) => setUrl(e.target.value)}
                                             disabled={loading}

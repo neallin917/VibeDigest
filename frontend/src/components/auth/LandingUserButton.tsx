@@ -94,7 +94,7 @@ export function LandingUserButton() {
                             <img
                                 src={avatarUrl}
                                 alt={displayName}
-                                className="w-8 h-8 rounded-full border border-white/20"
+                                className="w-8 h-8 rounded-full border border-black/10 dark:border-white/20"
                             />
                         ) : (
                             <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-sm font-medium">
@@ -103,12 +103,12 @@ export function LandingUserButton() {
                         )}
                     </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 glass border-white/10">
-                    <div className="px-3 py-2 border-b border-white/10">
+                <DropdownMenuContent align="end" className="w-56">
+                    <div className="px-3 py-2 border-b border-slate-200 dark:border-white/10">
                         <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
                         <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                     </div>
-                    <DropdownMenuItem onClick={handleLogout} className="text-red-400 focus:text-red-400 cursor-pointer">
+                    <DropdownMenuItem onClick={handleLogout} className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 cursor-pointer">
                         <LogOut className="mr-2 h-4 w-4" />
                         {t("auth.logout")}
                     </DropdownMenuItem>

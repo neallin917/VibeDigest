@@ -34,37 +34,42 @@ function FeatureCard({ icon: Icon, title, desc, gradient, iconColor, delay, comi
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: 0.5, delay, ease: "easeOut" }}
             className={cn(
-                "group relative p-6 rounded-2xl overflow-hidden transition-all duration-500",
-                // Light mode
-                "bg-white/60 backdrop-blur-xl border border-white/50 shadow-lg hover:shadow-xl hover:bg-white/80",
-                // Dark mode
-                "dark:bg-zinc-900/50 dark:border-white/5 dark:hover:border-white/10 dark:hover:bg-zinc-900/80 dark:shadow-none",
+                "group relative p-6 rounded-3xl overflow-hidden transition-all duration-500",
+                // Light mode - cleaner glass
+                "bg-white/40 backdrop-blur-xl border border-white/60 shadow-lg hover:shadow-xl hover:bg-white/60",
+                // Dark mode - deep glass with glow
+                "dark:bg-card/40 dark:backdrop-blur-xl dark:border-white/5 dark:hover:border-white/10 dark:hover:bg-card/60 dark:shadow-none",
                 className
             )}
         >
-            <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${gradient} opacity-[0.08] dark:opacity-[0.03] group-hover:opacity-[0.15] dark:group-hover:opacity-[0.08] blur-2xl rounded-full transition-opacity duration-500`} />
+            {/* Hover Gradient Spotlight */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-[0.05] dark:group-hover:opacity-[0.1] transition-opacity duration-500`} />
+            
+            {/* Ambient Corner Blob */}
+            <div className={`absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br ${gradient} opacity-[0.1] dark:opacity-[0.15] blur-3xl rounded-full group-hover:scale-150 transition-transform duration-700 ease-out`} />
 
-            <div className="relative z-10">
-                <div className={cn(
-                    "w-10 h-10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-500 border",
-                    "bg-slate-100 border-slate-200",
-                    "dark:bg-white/5 dark:border-white/5"
-                )}>
-                    <Icon className={cn("w-5 h-5", iconColor)} />
-                </div>
-
-                <div className="flex items-center gap-2 mb-2">
-                    <Heading as="h3" className="text-base font-bold text-slate-800 dark:text-zinc-100 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                        {title}
-                    </Heading>
+            <div className="relative z-10 flex flex-col h-full">
+                <div className="flex items-start justify-between mb-4">
+                    <div className={cn(
+                        "w-12 h-12 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-500 shadow-sm",
+                        "bg-white border border-white/50",
+                        "dark:bg-white/5 dark:border-white/10"
+                    )}>
+                        <Icon className={cn("w-6 h-6", iconColor)} />
+                    </div>
+                    
                     {comingSoon && (
-                        <Badge variant="secondary" className="text-[9px] h-4 px-1.5 font-medium border-indigo-500/20 bg-indigo-500/10 text-indigo-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400">
+                        <Badge variant="secondary" className="text-[10px] h-5 px-2 font-semibold border-indigo-500/20 bg-indigo-500/10 text-indigo-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400">
                             Soon
                         </Badge>
                     )}
                 </div>
 
-                <Text className="text-slate-600 dark:text-zinc-400 leading-relaxed text-xs font-medium">
+                <Heading as="h3" className="text-lg font-bold text-slate-900 dark:text-white mb-2 group-hover:translate-x-1 transition-transform duration-300">
+                    {title}
+                </Heading>
+                
+                <Text className="text-slate-600 dark:text-zinc-400 leading-relaxed text-sm font-medium">
                     {desc}
                 </Text>
             </div>

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { VideoPlayer } from '@/components/tasks/shared/VideoPlayer'
 import { Button } from '@/components/ui/button'
 import { X, Lightbulb, StickyNote, PlayCircle } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { formatSeconds } from '@/components/tasks/transcript'
 
@@ -101,7 +102,7 @@ export function VideoDetailPanel({
       <div className="flex items-center justify-between px-2 shrink-0">
         <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
           <span className="p-1.5 bg-white/50 dark:bg-white/10 rounded-lg shadow-sm ring-1 ring-white dark:ring-white/20 backdrop-blur-md">
-            <StickyNote className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+            <StickyNote className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
           </span>
           Context Panel
         </h3>
@@ -123,18 +124,33 @@ export function VideoDetailPanel({
           onMediaReady={setMediaController}
         />
 
-        {/* Divider */}
+        {/* Summary Overview (Reordered to top) */}
+        {summary?.overview && (
+          <div className="px-4 py-2">
+            <div className="flex items-center gap-2 mb-2">
+               <span className="text-[11px] font-bold text-emerald-400 dark:text-emerald-300/80 uppercase tracking-widest">
+                 Summary
+               </span>
+               <div className="h-px flex-1 bg-gradient-to-r from-emerald-200 to-transparent dark:from-emerald-500/30" />
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+              {summary.overview}
+            </p>
+          </div>
+        )}
+
+        {/* Divider for Key Insights */}
         <div className="flex items-center gap-3 px-2">
-          <span className="text-[11px] font-bold text-indigo-400 dark:text-indigo-300/80 uppercase tracking-widest">
+          <span className="text-[11px] font-bold text-emerald-400 dark:text-emerald-300/80 uppercase tracking-widest">
             Key Insights
           </span>
-          <div className="h-px flex-1 bg-gradient-to-r from-indigo-200 to-transparent dark:from-indigo-500/30" />
+          <div className="h-px flex-1 bg-gradient-to-r from-emerald-200 to-transparent dark:from-emerald-500/30" />
         </div>
 
         {/* Loading State */}
         {!summary && task.status === 'processing' && (
           <div className="p-8 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 dark:border-indigo-400 mb-2"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 dark:border-emerald-400 mb-2"></div>
             <p className="text-xs text-slate-400">Analyzing video...</p>
           </div>
         )}
@@ -148,19 +164,23 @@ export function VideoDetailPanel({
 
         {/* Insights Cards */}
         {summary?.keypoints?.map((kp, idx) => (
-          <div
+          <motion.div
             key={idx}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: idx * 0.1 }}
             onClick={() => kp.startSeconds && mediaController?.seek(kp.startSeconds)}
+            whileHover={{ y: -4, scale: 1.02 }}
             className={cn(
               "rounded-[28px] p-5 cursor-pointer group relative overflow-hidden transition-all duration-300 backdrop-blur-xl border",
               // Light: Active Glass Gradient
-              "bg-gradient-to-br from-white/90 to-white/60 shadow-glass border-white/80 hover:shadow-lg hover:-translate-y-0.5",
+              "bg-gradient-to-br from-white/90 to-white/60 shadow-glass border-white/80 hover:shadow-xl",
               // Dark: Dark Glass
               "dark:bg-none dark:bg-zinc-900/50 dark:border-white/5 dark:shadow-none dark:hover:bg-zinc-800/50"
             )}
           >
             <div className="flex justify-between items-start mb-3">
-              <span className="bg-indigo-100/90 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 text-[10px] font-bold px-2.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-500/30 uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
+              <span className="bg-emerald-100/90 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-500/30 uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
                 <Lightbulb className="w-3.5 h-3.5" />
                 Insight {idx + 1}
               </span>
@@ -177,18 +197,8 @@ export function VideoDetailPanel({
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-4">
               {kp.detail}
             </p>
-          </div>
+          </motion.div>
         ))}
-
-        {/* Overview (Optional, at bottom) */}
-        {summary?.overview && (
-          <div className="px-4 py-2">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Summary Overview</h4>
-            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-              {summary.overview}
-            </p>
-          </div>
-        )}
 
       </div>
     </div>

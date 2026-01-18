@@ -8,7 +8,8 @@ import { cn } from '@/lib/utils'
 import { useRef, useEffect, useState, useMemo } from 'react'
 import { detectVideoURLs } from '@/lib/url-utils'
 import { createClient } from '@/lib/supabase'
-import { Bot, User, Loader2 } from 'lucide-react'
+import { User, Loader2, Sparkles } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface ChatContainerProps {
   activeTaskId?: string | null
@@ -17,7 +18,7 @@ interface ChatContainerProps {
   onSelectExample?: (taskId: string) => void
 }
 
-export function ChatContainer({ activeTaskId: _activeTaskId, onTaskCreated, onOpenPanel, onSelectExample }: ChatContainerProps) {
+export function ChatContainer({ onTaskCreated, onOpenPanel, onSelectExample }: ChatContainerProps) {
   const { messages, append, isLoading } = useChat({
     api: '/api/chat',
   })
@@ -31,6 +32,19 @@ export function ChatContainer({ activeTaskId: _activeTaskId, onTaskCreated, onOp
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
   }, [messages])
+
+  // Check for pending message from landing page
+  useEffect(() => {
+    const pendingMessage = localStorage.getItem('vibedigest_pending_message')
+    if (pendingMessage) {
+      localStorage.removeItem('vibedigest_pending_message')
+      // Small delay to ensure initialization
+      setTimeout(() => {
+        handleSubmit(pendingMessage)
+      }, 500)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleSubmit = async (content: string) => {
     // 1. Check for URLs
@@ -96,9 +110,9 @@ export function ChatContainer({ activeTaskId: _activeTaskId, onTaskCreated, onOp
       <div 
         ref={scrollRef}
         className={cn(
-          "flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar",
+          "flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar scroll-smooth",
           // Only add bottom padding for floating input when there are messages
-          messages.length > 0 ? "pb-36 space-y-10" : ""
+          messages.length > 0 ? "pb-36 space-y-8" : ""
         )}
       >
         {messages.length === 0 && (
@@ -109,71 +123,82 @@ export function ChatContainer({ activeTaskId: _activeTaskId, onTaskCreated, onOp
           />
         )}
 
-        {messages.map(m => (
-          <div 
-            key={m.id} 
-            className={cn(
-              "flex gap-4 max-w-4xl group",
-              m.role === 'user' ? "ml-auto flex-row-reverse" : ""
-            )}
-          >
-            {/* Avatar */}
-            <div className={cn(
-              "h-10 w-10 rounded-full shrink-0 shadow-sm ring-2 ring-white dark:ring-white/10 flex items-center justify-center",
-              m.role === 'user' 
-                ? "bg-indigo-100 dark:bg-emerald-900" 
-                : "bg-gradient-to-tr from-violet-500 to-fuchsia-500"
-            )}>
-              {m.role === 'user' ? <User className="w-5 h-5 text-indigo-600 dark:text-emerald-400" /> : <Bot className="w-5 h-5 text-white" />}
-            </div>
-
-            <div className={cn(
-              "flex flex-col gap-1",
-              m.role === 'user' ? "items-end" : "w-full"
-            )}>
-              <span className="text-xs font-bold text-slate-600 dark:text-slate-400 mx-4 mb-1">
-                {m.role === 'user' ? 'Me' : 'Assistant'}
-              </span>
-              
+        <AnimatePresence initial={false}>
+          {messages.map((m) => (
+            <motion.div 
+              key={m.id} 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className={cn(
+                "flex gap-4 max-w-4xl group",
+                m.role === 'user' ? "ml-auto flex-row-reverse" : ""
+              )}
+            >
+              {/* Avatar */}
               <div className={cn(
-                "p-6 rounded-[24px] shadow-sm text-[15px] leading-relaxed relative overflow-hidden max-w-full",
-                // User Bubble
-                m.role === 'user' && "bg-indigo-600 text-white rounded-br-sm shadow-indigo-500/20 dark:bg-emerald-600/20 dark:text-emerald-100 dark:border dark:border-emerald-500/20",
-                // Assistant Bubble
-                m.role === 'assistant' && "bg-white/80 backdrop-blur-md border border-white/60 rounded-bl-sm text-slate-700 dark:bg-[#1A1A1A] dark:border-white/5 dark:text-gray-300"
+                "h-8 w-8 rounded-xl shrink-0 flex items-center justify-center shadow-sm ring-1 transition-all",
+                m.role === 'user' 
+                  ? "bg-emerald-100 ring-emerald-200 dark:bg-emerald-900/30 dark:ring-emerald-500/30" 
+                  : "bg-white ring-slate-200 dark:bg-white/10 dark:ring-white/20"
               )}>
-                <div className="whitespace-pre-wrap">{m.content}</div>
-                
-                {/* Render Task Card if this message contains a tracked video URL */}
-                {Object.values(tasks).map(task => (
-                   task && m.content.includes(task.video_url) ? (
-                     <div key={task.id} className="mt-4">
-                       <VideoCardMessage
-                         taskId={task.id}
-                         videoUrl={task.video_url}
-                         title={task.video_title}
-                         thumbnailUrl={task.thumbnail_url}
-                         status={task.status}
-                         progress={task.progress}
-                         onViewClick={onOpenPanel}
-                       />
-                     </div>
-                   ) : null
-                ))}
+                {m.role === 'user' ? (
+                  <User className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <Sparkles className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+                )}
               </div>
-            </div>
-          </div>
-        ))}
+
+              <div className={cn(
+                "flex flex-col gap-1 max-w-[85%]",
+                m.role === 'user' ? "items-end" : "items-start w-full"
+              )}>
+                
+                <div className={cn(
+                  "p-4 md:p-5 text-[15px] leading-7 relative overflow-hidden shadow-sm backdrop-blur-sm",
+                  // User Bubble
+                  m.role === 'user' && "rounded-2xl rounded-tr-sm bg-emerald-600 text-white shadow-emerald-500/20 dark:bg-emerald-600 dark:text-white dark:shadow-none",
+                  // Assistant Bubble
+                  m.role === 'assistant' && "rounded-2xl rounded-tl-sm bg-white/60 border border-white/60 text-slate-700 dark:bg-white/5 dark:border-white/10 dark:text-slate-300"
+                )}>
+                  <div className="whitespace-pre-wrap">{m.content}</div>
+                  
+                  {/* Render Task Card if this message contains a tracked video URL */}
+                  {Object.values(tasks).map(task => (
+                     task && m.content.includes(task.video_url) ? (
+                       <div key={task.id} className="mt-4 -mx-2 mb-[-8px]">
+                         <VideoCardMessage
+                           taskId={task.id}
+                           videoUrl={task.video_url}
+                           title={task.video_title}
+                           thumbnailUrl={task.thumbnail_url}
+                           status={task.status}
+                           progress={task.progress}
+                           onViewClick={onOpenPanel}
+                         />
+                       </div>
+                     ) : null
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
 
         {isLoading && (
-          <div className="flex gap-4 max-w-4xl">
-             <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-violet-500 to-fuchsia-500 flex items-center justify-center shrink-0">
-               <Loader2 className="w-5 h-5 animate-spin text-white" />
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex gap-4 max-w-4xl"
+          >
+             <div className="h-8 w-8 rounded-xl bg-white ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/20 flex items-center justify-center shrink-0">
+               <Sparkles className="w-4 h-4 text-emerald-500 dark:text-emerald-400 animate-pulse" />
              </div>
-             <div className="bg-white/80 dark:bg-[#1A1A1A] px-6 py-4 rounded-[24px] rounded-bl-sm border border-white/60 dark:border-white/5">
-                <span className="text-sm text-slate-500 dark:text-slate-400 animate-pulse">Thinking...</span>
+             <div className="bg-white/40 dark:bg-white/5 px-5 py-3 rounded-2xl rounded-tl-sm border border-white/40 dark:border-white/5 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Thinking...</span>
              </div>
-          </div>
+          </motion.div>
         )}
       </div>
 
