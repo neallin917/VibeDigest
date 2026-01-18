@@ -180,7 +180,9 @@ const messages: Record<Locale, Messages> = {
         extra: "Extra"
       },
       communityExamples: "Community",
-      communityExamplesHint: "Try these ready-made examples"
+      communityExamplesHint: "Try these ready-made examples",
+      credits: "credits",
+      upgrade: "Upgrade"
     },
     history: {
       title: "Transcription History",
@@ -607,6 +609,8 @@ const messages: Record<Locale, Messages> = {
       },
       communityExamples: "社区",
       communityExamplesHint: "试试这些精选的示例内容",
+      credits: "额度",
+      upgrade: "升级"
     },
     history: {
       title: "历史记录",

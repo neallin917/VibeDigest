@@ -72,7 +72,7 @@ export function PricingSection() {
     ]
 
     return (
-        <section id="pricing" className="py-20 px-6 relative scroll-mt-24">
+        <section id="pricing" className="bg-noise py-20 px-6 relative scroll-mt-24">
             <div className="max-w-5xl mx-auto">
                 <div className="text-center mb-12">
                     <motion.div
@@ -96,6 +96,7 @@ export function PricingSection() {
                             key={index}
                             initial={{ opacity: 0, y: 20 }}
                             whileInView={{ opacity: 1, y: 0 }}
+                            whileHover={{ y: -4, scale: 1.02 }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.5, delay: index * 0.1 }}
                             className={cn(

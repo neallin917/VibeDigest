@@ -1,7 +1,6 @@
 'use client'
 
 import { useChat } from '@ai-sdk/react'
-import { ChatHeader } from './ChatHeader'
 import { ChatInput } from './ChatInput'
 import { VideoCardMessage } from './messages/VideoCardMessage'
 import { WelcomeScreen } from './WelcomeScreen'
@@ -12,12 +11,13 @@ import { createClient } from '@/lib/supabase'
 import { Bot, User, Loader2 } from 'lucide-react'
 
 interface ChatContainerProps {
+  activeTaskId?: string | null
   onTaskCreated?: (taskId: string) => void
   onOpenPanel?: (taskId: string) => void
   onSelectExample?: (taskId: string) => void
 }
 
-export function ChatContainer({ onTaskCreated, onOpenPanel, onSelectExample }: ChatContainerProps) {
+export function ChatContainer({ activeTaskId: _activeTaskId, onTaskCreated, onOpenPanel, onSelectExample }: ChatContainerProps) {
   const { messages, append, isLoading } = useChat({
     api: '/api/chat',
   })
@@ -92,13 +92,11 @@ export function ChatContainer({ onTaskCreated, onOpenPanel, onSelectExample }: C
 
   return (
     <div className="flex flex-col h-full relative">
-      <ChatHeader />
-      
       {/* Messages List */}
       <div 
         ref={scrollRef}
         className={cn(
-          "flex-1 overflow-y-auto px-4 md:px-8 py-8 custom-scrollbar",
+          "flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar",
           // Only add bottom padding for floating input when there are messages
           messages.length > 0 ? "pb-36 space-y-10" : ""
         )}

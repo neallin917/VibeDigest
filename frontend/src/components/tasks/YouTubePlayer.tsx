@@ -204,11 +204,15 @@ export function YouTubePlayer({
     <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
       <div className="aspect-video w-full relative">
         <div id={containerId} className="h-full w-full" aria-label={title || "YouTube player"} />
-        {!isReady ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+        {!isReady && (
+          <div className="absolute inset-0 bg-zinc-900/80 flex flex-col items-center justify-center gap-3">
+            <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center animate-pulse">
+              <div className="w-0 h-0 border-t-8 border-t-transparent border-l-12 border-l-white/40 border-b-8 border-b-transparent ml-1" />
+            </div>
+            <div className="w-32 h-3 rounded bg-white/10 animate-pulse" />
+            <div className="w-20 h-2 rounded bg-white/5 animate-pulse" />
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   )

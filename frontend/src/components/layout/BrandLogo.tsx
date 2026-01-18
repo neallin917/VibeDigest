@@ -14,7 +14,7 @@ export function BrandLogo({ className, showText = true, textClassName }: BrandLo
                 <Sparkles className="w-3.5 h-3.5 text-black fill-black/20" />
             </div>
             {showText && (
-                <span className={cn("font-semibold text-white/90", textClassName)}>
+                <span className={cn("font-semibold text-slate-800 dark:text-white/90", textClassName)}>
                     VibeDigest
                 </span>
             )}
