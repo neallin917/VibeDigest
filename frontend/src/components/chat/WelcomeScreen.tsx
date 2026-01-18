@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { Sparkles, Loader2, ChevronDown } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/components/i18n/I18nProvider'
 import { createClient } from '@/lib/supabase'
@@ -64,42 +65,69 @@ export function WelcomeScreen({ onSelectExample, onSubmit, isLoading }: WelcomeS
     setLoadingMore(false)
   }, [supabase, examples.length])
 
+  const observerTarget = useRef<HTMLDivElement>(null)
+
+  const handleLoadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      fetchExamples(examples.length, true)
+    }
+  }, [loadingMore, hasMore, fetchExamples, examples.length])
+
   useEffect(() => {
     fetchExamples(0, false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleLoadMore = () => {
-    if (!loadingMore && hasMore) {
-      fetchExamples(examples.length, true)
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          handleLoadMore()
+        }
+      },
+      { threshold: 0.5 }
+    )
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current)
     }
-  }
+
+    return () => observer.disconnect()
+  }, [hasMore, loadingMore, loading, handleLoadMore])
 
   return (
     <div className="flex flex-col items-center justify-start min-h-full px-6 py-8 md:py-12">
       {/* Hero Section */}
       <div className="text-center max-w-lg mb-8">
-        {/* Brand Icon */}
-        <div className={cn(
-          "mx-auto mb-6 h-16 w-16 rounded-2xl flex items-center justify-center shadow-lg",
-          "bg-gradient-to-br from-indigo-500 to-purple-600 dark:from-emerald-500 dark:to-teal-600"
-        )}>
-          <Sparkles className="h-8 w-8 text-white" />
-        </div>
-
+        
         {/* Title */}
-        <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white mb-3">
+        <motion.h1 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white mb-3"
+        >
           {t('chat.welcome.title')}
-        </h1>
+        </motion.h1>
 
         {/* Subtitle */}
-        <p className="text-sm md:text-base text-slate-500 dark:text-slate-400 leading-relaxed">
+        <motion.p 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="text-sm md:text-base text-slate-500 dark:text-slate-400 leading-relaxed"
+        >
           {t('chat.welcome.subtitle')}
-        </p>
+        </motion.p>
       </div>
 
       {/* Inline Chat Input - Centered, part of the content flow */}
-      <div className="w-full max-w-2xl mb-10">
+      <motion.div 
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.3 }}
+        className="w-full max-w-2xl mb-10"
+      >
         <ChatInput 
           variant="inline"
           onSubmit={onSubmit}
@@ -107,7 +135,7 @@ export function WelcomeScreen({ onSelectExample, onSubmit, isLoading }: WelcomeS
           showTypewriter={true}
           hideDisclaimer={true}
         />
-      </div>
+      </motion.div>
 
       {/* Examples Section */}
       {loading ? (
@@ -129,41 +157,33 @@ export function WelcomeScreen({ onSelectExample, onSubmit, isLoading }: WelcomeS
           </div>
 
           {/* Grid Layout */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-            {examples.map((task) => (
-              <QuickTemplateCard
+          <motion.div 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4"
+          >
+            {examples.map((task, idx) => (
+              <motion.div
                 key={task.id}
-                task={task}
-                onSelect={onSelectExample}
-              />
-            ))}
-          </div>
-
-          {/* Load More Button */}
-          {hasMore && (
-            <div className="flex justify-center mt-6">
-              <button
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
-                  "bg-white/60 hover:bg-white/80 text-slate-600 border border-white/60 shadow-sm",
-                  "dark:bg-white/5 dark:hover:bg-white/10 dark:text-slate-300 dark:border-white/10",
-                  "disabled:opacity-50 disabled:cursor-not-allowed"
-                )}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, delay: 0.5 + idx * 0.05 }}
+                whileHover={{ scale: 1.05, y: -2 }}
               >
-                {loadingMore ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>{t('chat.loadingMore') || 'Loading...'}</span>
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-4 w-4" />
-                    <span>{t('chat.loadMore') || 'Load More'}</span>
-                  </>
-                )}
-              </button>
+                <QuickTemplateCard
+                  task={task}
+                  onSelect={onSelectExample}
+                />
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {/* Load More Trigger */}
+          {hasMore && (
+            <div ref={observerTarget} className="flex justify-center mt-8 py-4 opacity-0">
+               {/* Invisible trigger for infinite scroll */}
+               <div className="h-4 w-4" />
             </div>
           )}
         </div>

@@ -15,6 +15,7 @@ import {
   X,
   Clock,
   Menu,
+  Sparkles,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
@@ -137,8 +138,8 @@ export function AppSidebar({ onNewChat, onSelectTask, className }: AppSidebarPro
     >
       {/* Hamburger Button - Always at top-left */}
       <div className={cn(
-        "flex items-center mb-4",
-        isCollapsed ? "justify-center" : "justify-start px-1"
+        "flex items-center mb-4 gap-3",
+        isCollapsed ? "justify-center" : "justify-start px-2"
       )}>
         <button
           onClick={toggleSidebar}
@@ -151,6 +152,16 @@ export function AppSidebar({ onNewChat, onSelectTask, className }: AppSidebarPro
         >
           <Menu className="w-5 h-5" />
         </button>
+
+        {/* Brand Logo - Only visible when expanded or we can show icon when collapsed */}
+        {!isCollapsed && (
+             <div className="flex items-center gap-2">
+                 <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 via-purple-500 to-emerald-500 flex items-center justify-center shadow-sm">
+                    <Sparkles className="w-4 h-4 text-white" />
+                 </div>
+                 <span className="font-bold text-slate-800 dark:text-white tracking-tight">VibeDigest</span>
+             </div>
+        )}
       </div>
 
       {isCollapsed ? (

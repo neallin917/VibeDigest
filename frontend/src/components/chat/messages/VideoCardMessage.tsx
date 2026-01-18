@@ -33,7 +33,7 @@ export function VideoCardMessage({
     <Card className={cn(
       "w-full max-w-sm overflow-hidden mt-2 border transition-all",
       "bg-white/50 border-white/40 shadow-sm", // Light
-      "dark:bg-[#1A1A1A] dark:border-white/10" // Dark
+      "dark:bg-card dark:border-white/10" // Dark
     )}>
       {/* Thumbnail Section */}
       <div className="relative aspect-video bg-black/50">
