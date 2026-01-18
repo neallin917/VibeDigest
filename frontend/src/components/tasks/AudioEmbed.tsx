@@ -19,35 +19,15 @@ export function AudioEmbed({
   sourceUrl?: string
   onReady?: (ctrl: { seek: (seconds: number) => void }) => void
 }) {
-  if (!audioUrl) return null
-
-  // Determine if it looks like an Apple Podcast (square-ish large image)
-  // Or simply always use the "card" layout if there's a cover.
-  // The user screenshot shows a card layout with image on left/top and metadata.
-
-  // Actually, for better adaptation, let's look at the implementation.
-  // We want to avoid the "video" aspect ratio wrapper if it's a square image.
-
-  const isXiaoyuzhou = sourceUrl?.includes("xiaoyuzhoufm.com")
-  const isApple = sourceUrl?.includes("apple.com")
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
-    if (!onReady) return
+    if (!audioUrl || !onReady) return
     onReady({
       seek: (seconds: number) => {
         const audio = audioRef.current
         if (!audio) return
         const s = Math.max(0, Number.isFinite(seconds) ? seconds : 0)
-
-        // IMPORTANT:
-        // - Browsers often block `play()` unless it's called synchronously inside a user gesture.
-        // - Timeline click is a user gesture, but our seek might wait for `loadedmetadata`,
-        //   which would lose the gesture context and cause play to be ignored.
-        // Strategy:
-        // 1) Try `play()` immediately (gesture context) to "unlock" playback.
-        // 2) Ensure network starts by calling `load()` (preload is none).
-        // 3) Once metadata is ready, set `currentTime` and keep playing.
 
         try {
           const p = audio.play()
@@ -70,14 +50,12 @@ export function AudioEmbed({
           }
         }
 
-        // If metadata isn't loaded yet, wait once.
         if (audio.readyState >= 1) {
           apply()
           return
         }
 
         try {
-          // With preload="none", this is needed to start fetching metadata.
           audio.load()
         } catch {
           // ignore
@@ -85,7 +63,12 @@ export function AudioEmbed({
         audio.addEventListener("loadedmetadata", apply, { once: true })
       },
     })
-  }, [onReady])
+  }, [audioUrl, onReady])
+
+  if (!audioUrl) return null
+
+  const isXiaoyuzhou = sourceUrl?.includes("xiaoyuzhoufm.com")
+  const isApple = sourceUrl?.includes("apple.com")
 
   return (
     <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20">

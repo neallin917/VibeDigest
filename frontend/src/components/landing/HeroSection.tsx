@@ -3,6 +3,7 @@
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { TaskForm } from "@/components/dashboard/TaskForm"
 import { motion } from "framer-motion"
+import { ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export function HeroSection() {
@@ -19,7 +20,7 @@ export function HeroSection() {
     }
 
     return (
-        <section id="hero" className="flex flex-col items-center justify-center px-6 pt-28 pb-16 md:pt-40 md:pb-24 text-center relative z-10 min-h-[85vh]">
+        <section id="hero" className="bg-noise flex flex-col items-center justify-center px-6 pt-28 pb-16 md:pt-40 md:pb-24 text-center relative z-10 min-h-[85vh]">
             <div className="space-y-6 max-w-4xl relative">
 
                 {/* Badge/Pill */}
@@ -68,7 +69,7 @@ export function HeroSection() {
                 <div className="relative group">
                     {/* Glow Effect */}
                     <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 dark:from-emerald-500/20 dark:via-cyan-500/20 dark:to-teal-500/20 rounded-2xl blur-xl opacity-50 group-hover:opacity-100 transition duration-1000" />
-                    
+
                     {/* Input Container */}
                     <div className={cn(
                         "relative backdrop-blur-xl rounded-2xl p-2 ring-1 transition-all",
@@ -84,6 +85,19 @@ export function HeroSection() {
                 <p className="mt-5 text-xs text-slate-500 dark:text-zinc-500">
                     Trusted by 10,000+ happy learners
                 </p>
+            </motion.div>
+
+            {/* Scroll Indicator */}
+            <motion.div
+                className="absolute bottom-8 left-1/2 -translate-x-1/2"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1, y: [0, 8, 0] }}
+                transition={{
+                    opacity: { delay: 1, duration: 0.5 },
+                    y: { repeat: Infinity, duration: 1.5, ease: "easeInOut" }
+                }}
+            >
+                <ChevronDown className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
             </motion.div>
         </section>
     )
