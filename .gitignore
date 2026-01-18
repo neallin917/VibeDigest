@@ -77,3 +77,4 @@ yarn-error.log
 # Next.js
 .next/
 out/
+.workspace.json
