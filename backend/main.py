@@ -48,7 +48,7 @@ from translator import Translator
 from video_processor import VideoProcessor
 from utils.url import normalize_video_url
 from workflow import app as workflow_app
-from routers import threads
+
 
 # Langfuse V3 setup moved to Background Workers section below
 
@@ -66,15 +66,8 @@ if settings.SENTRY_DSN:
 
 app = FastAPI(title="VibeDigest API (v2)", version="2.0.0")
 
-# Include Routers
-app.include_router(threads.router)
 
-
-@app.on_event("startup")
-async def startup_event():
-    from agent.chat_graph import ensure_graph_schema
-
-    await ensure_graph_schema()
+# No LangGraph schema needed - using AI SDK approach
 
 
 @app.on_event("shutdown")
@@ -153,6 +146,40 @@ async def read_root():
 async def health_check():
     """Health check endpoint for monitoring and dev scripts."""
     return {"status": "healthy", "service": "vibedigest-backend"}
+
+
+@app.post("/api/preview-video")
+async def preview_video(
+    url: str = Form(...),
+    user_id: str = Depends(get_current_user),
+):
+    """
+    Get video metadata without full processing.
+    Used by chat tools to preview video before creating tasks.
+    """
+    try:
+        # Normalize URL
+        normalized_url = normalize_video_url(url)
+
+        # Extract metadata only (no download)
+        info = await video_processor.extract_info_only(normalized_url)
+
+        return {
+            "title": info.get("title", "Unknown"),
+            "thumbnail": info.get("thumbnail", ""),
+            "duration": info.get("duration", 0),
+            "author": info.get("author", "Unknown"),
+            "url": normalized_url,
+            "description": info.get("description", ""),
+            "upload_date": info.get("upload_date"),
+            "view_count": info.get("view_count"),
+        }
+
+    except Exception as e:
+        logger.error(f"Preview video failed: {e}")
+        raise HTTPException(
+            status_code=400, detail=f"Failed to preview video: {str(e)}"
+        )
 
 
 @app.get("/api/config")

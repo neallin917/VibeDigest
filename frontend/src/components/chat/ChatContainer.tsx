@@ -6,7 +6,7 @@ import { VideoCardMessage } from './messages/VideoCardMessage'
 import { WelcomeScreen } from './WelcomeScreen'
 import { cn } from '@/lib/utils'
 import { useRef, useEffect, useState, useMemo } from 'react'
-import { detectVideoURLs } from '@/lib/url-utils'
+
 import { createClient } from '@/lib/supabase'
 import { Bot, User, Loader2 } from 'lucide-react'
 
@@ -17,9 +17,18 @@ interface ChatContainerProps {
   onSelectExample?: (taskId: string) => void
 }
 
-export function ChatContainer({ activeTaskId: _activeTaskId, onTaskCreated, onOpenPanel, onSelectExample }: ChatContainerProps) {
+export function ChatContainer({ activeTaskId, onTaskCreated, onOpenPanel, onSelectExample }: ChatContainerProps) {
+  console.log('[ChatContainer] render with activeTaskId:', activeTaskId)
+  
+  // FORCE RELOAD CHECK - REMOVE AFTER TESTING
+  if (typeof window !== 'undefined' && activeTaskId && !window.__chatContainerLoaded) {
+    window.__chatContainerLoaded = true
+    alert(`ChatContainer loaded! taskId: ${activeTaskId}`)
+  }
+  
   const { messages, append, isLoading } = useChat({
-    api: '/api/chat',
+    api: activeTaskId ? `/api/chat?taskId=${activeTaskId}` : '/api/chat',
+    id: activeTaskId || 'default',
   })
   const scrollRef = useRef<HTMLDivElement>(null)
   const supabase = useMemo(() => createClient(), [])
@@ -33,49 +42,7 @@ export function ChatContainer({ activeTaskId: _activeTaskId, onTaskCreated, onOp
   }, [messages])
 
   const handleSubmit = async (content: string) => {
-    // 1. Check for URLs
-    const urls = detectVideoURLs(content)
-    
-    // 2. If URL found, create task
-    if (urls.length > 0) {
-      // Logic for multi-URL warning
-      if (urls.length > 1) {
-        await append({
-          role: 'assistant',
-          content: "I noticed multiple video URLs. Please send them one at a time for the best analysis."
-        })
-        return
-      }
-
-      const url = urls[0]
-      let taskId = null
-      
-      try {
-        const response = await fetch('/api/process-video', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ video_url: url })
-        })
-        const data = await response.json()
-        
-        if (data.taskId) {
-          console.log('[ChatContainer] Task started:', data.taskId)
-          taskId = data.taskId
-          if (onTaskCreated) onTaskCreated(data.taskId)
-          trackTask(data.taskId)
-        } else {
-          console.warn('[ChatContainer] No taskId returned from API', data)
-        }
-      } catch (e) {
-        console.error('Failed to start processing', e)
-      }
-
-      // 3. Send to AI with taskId if available
-      await append({ role: 'user', content }, { body: { taskId } })
-      return
-    }
-
-    // 3. Send to AI (Normal chat)
+    console.log('[ChatContainer] handleSubmit', { activeTaskId, content })
     await append({ role: 'user', content })
   }
 
@@ -89,6 +56,12 @@ export function ChatContainer({ activeTaskId: _activeTaskId, onTaskCreated, onOp
     supabase.from('tasks').select('*').eq('id', taskId).single()
       .then(({ data }) => { if (data) setTasks(prev => ({ ...prev, [taskId]: data })) })
   }
+
+  useEffect(() => {
+    if (activeTaskId) {
+      trackTask(activeTaskId)
+    }
+  }, [activeTaskId])
 
   return (
     <div className="flex flex-col h-full relative">

@@ -76,7 +76,7 @@ export function ChatWorkspace() {
         {/* Chat Area (flex-1) */}
         <div className="flex-1 flex flex-col min-w-0 relative">
           <ChatContainer
-            key={resetKey}
+            key={`${resetKey}-${activeTaskId || 'default'}`}
             activeTaskId={activeTaskId}
             onTaskCreated={handleTaskSelect}
             onOpenPanel={(id: string) => setActiveTaskId(id)}
