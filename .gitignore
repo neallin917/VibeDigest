@@ -69,6 +69,9 @@ backend/.env
 models/
 .cache/
 
+# Backend generated outputs
+backend/generations/
+
 # Node.js
 node_modules/
 npm-debug.log
