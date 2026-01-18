@@ -46,6 +46,7 @@ const messages: Record<Locale, Messages> = {
     },
     nav: {
       newTask: "New Task",
+      chat: "Chat",
       history: "History",
       settings: "Settings",
       pricing: "Pricing",
@@ -371,6 +372,18 @@ const messages: Record<Locale, Messages> = {
       ar: "Arabic",
       hi: "Hindi",
     },
+    chat: {
+      newChat: "New Chat",
+      library: "My Library",
+      inputPlaceholder: "Paste a video URL or ask anything...",
+      loadMore: "Load More",
+      loadingMore: "Loading...",
+      welcome: {
+        title: "What would you like to digest today?",
+        subtitle: "Paste a video or podcast URL to get AI-powered insights",
+        tryExamples: "Or try these examples",
+      },
+    },
     feedback: {
       title: "Send Feedback",
       subtitle: "Help us improve {appName}",
@@ -444,6 +457,7 @@ const messages: Record<Locale, Messages> = {
     },
     nav: {
       newTask: "新任务",
+      chat: "对话",
       history: "历史记录",
       settings: "设置",
       pricing: "方案",
@@ -797,6 +811,18 @@ const messages: Record<Locale, Messages> = {
       ru: "俄语",
       ar: "阿拉伯语",
       hi: "印地语",
+    },
+    chat: {
+      newChat: "新对话",
+      library: "我的内容库",
+      inputPlaceholder: "粘贴视频链接或提问...",
+      loadMore: "加载更多",
+      loadingMore: "加载中...",
+      welcome: {
+        title: "今天想总结什么内容？",
+        subtitle: "粘贴视频或播客链接，获取 AI 洞察",
+        tryExamples: "或者试试这些示例",
+      },
     },
     feedback: {
       title: "发送反馈",
