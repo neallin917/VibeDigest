@@ -4,8 +4,9 @@ import { useChat } from '@ai-sdk/react'
 import { ChatHeader } from './ChatHeader'
 import { ChatInput } from './ChatInput'
 import { VideoCardMessage } from './messages/VideoCardMessage'
+import { WelcomeScreen } from './WelcomeScreen'
 import { cn } from '@/lib/utils'
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useMemo } from 'react'
 import { detectVideoURLs } from '@/lib/url-utils'
 import { createClient } from '@/lib/supabase'
 import { Bot, User, Loader2 } from 'lucide-react'
@@ -13,15 +14,16 @@ import { Bot, User, Loader2 } from 'lucide-react'
 interface ChatContainerProps {
   onTaskCreated?: (taskId: string) => void
   onOpenPanel?: (taskId: string) => void
+  onSelectExample?: (taskId: string) => void
 }
 
-export function ChatContainer({ onTaskCreated, onOpenPanel }: ChatContainerProps) {
+export function ChatContainer({ onTaskCreated, onOpenPanel, onSelectExample }: ChatContainerProps) {
   const { messages, append, isLoading } = useChat({
     api: '/api/chat',
   })
   const scrollRef = useRef<HTMLDivElement>(null)
-  const supabase = createClient()
-  const [tasks, setTasks] = useState<Record<string, any>>({})
+  const supabase = useMemo(() => createClient(), [])
+  const [tasks, setTasks] = useState<Record<string, { id: string; video_url: string; video_title?: string; thumbnail_url?: string; status: 'processing' | 'completed' | 'pending' | 'failed'; progress?: number }>>({})
 
   // Auto-scroll
   useEffect(() => {
@@ -78,9 +80,9 @@ export function ChatContainer({ onTaskCreated, onOpenPanel }: ChatContainerProps
   }
 
   const trackTask = (taskId: string) => {
-    const channel = supabase.channel(`chat_task_${taskId}`)
+    supabase.channel(`chat_task_${taskId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `id=eq.${taskId}` }, 
-        (payload: any) => setTasks(prev => ({ ...prev, [taskId]: payload.new }))
+        (payload) => setTasks(prev => ({ ...prev, [taskId]: payload.new as typeof prev[string] }))
       )
       .subscribe()
     
@@ -95,16 +97,18 @@ export function ChatContainer({ onTaskCreated, onOpenPanel }: ChatContainerProps
       {/* Messages List */}
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-8 py-8 space-y-10 pb-36 custom-scrollbar"
+        className={cn(
+          "flex-1 overflow-y-auto px-4 md:px-8 py-8 custom-scrollbar",
+          // Only add bottom padding for floating input when there are messages
+          messages.length > 0 ? "pb-36 space-y-10" : ""
+        )}
       >
         {messages.length === 0 && (
-          <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
-            <Bot className="w-12 h-12 mb-4 text-indigo-500 dark:text-emerald-500" />
-            <h3 className="text-lg font-medium">VibeDigest AI</h3>
-            <p className="text-sm max-w-xs mt-2 text-slate-500 dark:text-slate-400">
-              Paste a YouTube URL to get started. I can summarize videos and extract insights.
-            </p>
-          </div>
+          <WelcomeScreen 
+            onSelectExample={onSelectExample || (() => {})} 
+            onSubmit={handleSubmit}
+            isLoading={isLoading}
+          />
         )}
 
         {messages.map(m => (
@@ -175,7 +179,14 @@ export function ChatContainer({ onTaskCreated, onOpenPanel }: ChatContainerProps
         )}
       </div>
 
-      <ChatInput onSubmit={handleSubmit} isLoading={isLoading} />
+      {/* Floating ChatInput - Only show when there are messages */}
+      {messages.length > 0 && (
+        <ChatInput 
+          variant="floating"
+          onSubmit={handleSubmit} 
+          isLoading={isLoading} 
+        />
+      )}
     </div>
   )
 }
