@@ -98,17 +98,34 @@ export async function middleware(request: NextRequest) {
     // 3. Protected Route Guards
     // Check logic using currentLocale to correct redirects
 
-    // Guard: /dashboard
+    // Redirect: /dashboard → /chat (gradual migration)
     if (pathname.includes('/dashboard')) {
+        if (!user) {
+            return NextResponse.redirect(new URL(`/${currentLocale}/login`, request.url))
+        }
+        // Redirect logged-in users from /dashboard to /chat
+        return NextResponse.redirect(new URL(`/${currentLocale}/chat`, request.url))
+    }
+
+    // Redirect: /history → /chat?library=open (gradual migration)
+    if (pathname.includes('/history')) {
+        if (!user) {
+            return NextResponse.redirect(new URL(`/${currentLocale}/login`, request.url))
+        }
+        return NextResponse.redirect(new URL(`/${currentLocale}/chat?library=open`, request.url))
+    }
+
+    // Guard: /chat (protected route)
+    if (pathname.includes('/chat')) {
         if (!user) {
             return NextResponse.redirect(new URL(`/${currentLocale}/login`, request.url))
         }
     }
 
-    // Guard: /login (Redirect to dashboard if already logged in)
+    // Guard: /login (Redirect to /chat if already logged in)
     if (pathname === `/${currentLocale}/login`) {
         if (user) {
-            return NextResponse.redirect(new URL(`/${currentLocale}/dashboard`, request.url))
+            return NextResponse.redirect(new URL(`/${currentLocale}/chat`, request.url))
         }
     }
 

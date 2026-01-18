@@ -1,12 +1,22 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
-import { Search, Clock, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { Search, Clock, CheckCircle, AlertCircle, Loader2, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
+import { useI18n } from '@/components/i18n/I18nProvider'
+
+interface Task {
+  id: string
+  video_url: string
+  video_title?: string
+  thumbnail_url?: string
+  status: string
+  created_at: string
+}
 
 interface LibrarySidebarProps {
   isOpen: boolean
@@ -19,10 +29,12 @@ export function LibrarySidebar({
   onClose, 
   onSelectTask 
 }: LibrarySidebarProps) {
-  const [tasks, setTasks] = useState<any[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(false)
-  const supabase = createClient()
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const supabase = useMemo(() => createClient(), [])
+  const { t } = useI18n()
 
   const fetchTasks = useCallback(async () => {
     setLoading(true)
@@ -31,7 +43,7 @@ export function LibrarySidebar({
 
     let query = supabase
       .from('tasks')
-      .select('*')
+      .select('id, video_url, video_title, thumbnail_url, status, created_at')
       .eq('user_id', user.id)
       .eq('is_deleted', false)
       .order('created_at', { ascending: false })
@@ -50,6 +62,21 @@ export function LibrarySidebar({
     if (isOpen) fetchTasks()
   }, [isOpen, fetchTasks])
 
+  const handleDelete = async (e: React.MouseEvent, taskId: string) => {
+    e.stopPropagation()
+    setDeletingId(taskId)
+    
+    const { error } = await supabase
+      .from('tasks')
+      .update({ is_deleted: true })
+      .eq('id', taskId)
+    
+    if (!error) {
+      setTasks(prev => prev.filter(t => t.id !== taskId))
+    }
+    setDeletingId(null)
+  }
+
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="left" className={cn(
@@ -58,7 +85,9 @@ export function LibrarySidebar({
         "dark:bg-black/80 dark:border-white/10" // Dark
       )}>
         <SheetHeader className="p-4 border-b border-slate-200 dark:border-white/10 shrink-0">
-          <SheetTitle className="text-slate-800 dark:text-white">Library</SheetTitle>
+          <SheetTitle className="text-slate-800 dark:text-white">
+            {t('chat.library') || 'Library'}
+          </SheetTitle>
         </SheetHeader>
 
         {/* Search */}
@@ -66,7 +95,7 @@ export function LibrarySidebar({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
-              placeholder="Search history..."
+              placeholder={t('history.searchPlaceholder') || 'Search history...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={cn(
@@ -90,17 +119,23 @@ export function LibrarySidebar({
             </div>
           ) : (
             tasks.map(task => (
-              <button
+              <div
                 key={task.id}
-                onClick={() => { onSelectTask(task.id); onClose() }}
                 className={cn(
-                  "group w-full text-left p-3 rounded-xl transition-all flex items-start gap-3 border border-transparent",
+                  "group w-full text-left p-3 rounded-xl transition-all flex items-start gap-3 border border-transparent relative",
                   "hover:bg-white/60 hover:shadow-sm hover:border-white/50", // Light Hover
                   "dark:hover:bg-white/5 dark:hover:border-white/5" // Dark Hover
                 )}
               >
+                {/* Clickable area */}
+                <button
+                  onClick={() => { onSelectTask(task.id); onClose() }}
+                  className="absolute inset-0 z-0"
+                  aria-label={task.video_title || 'Select task'}
+                />
+
                 {/* Thumbnail */}
-                <div className="w-12 h-12 shrink-0 bg-slate-200 dark:bg-white/5 rounded-lg overflow-hidden relative border border-black/5 dark:border-white/10">
+                <div className="w-12 h-12 shrink-0 bg-slate-200 dark:bg-white/5 rounded-lg overflow-hidden relative border border-black/5 dark:border-white/10 z-10 pointer-events-none">
                   {task.thumbnail_url ? (
                     <img src={task.thumbnail_url} className="w-full h-full object-cover" alt="" />
                   ) : (
@@ -111,7 +146,7 @@ export function LibrarySidebar({
                 </div>
 
                 {/* Info */}
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 z-10 pointer-events-none">
                   <h4 className="font-medium text-sm text-slate-700 dark:text-slate-200 truncate leading-tight mb-1">
                     {task.video_title || task.video_url}
                   </h4>
@@ -122,7 +157,24 @@ export function LibrarySidebar({
                     </span>
                   </div>
                 </div>
-              </button>
+
+                {/* Delete Button */}
+                <button
+                  onClick={(e) => handleDelete(e, task.id)}
+                  className={cn(
+                    "z-20 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all shrink-0",
+                    "hover:bg-red-100 dark:hover:bg-red-500/20 text-slate-400 hover:text-red-500",
+                    deletingId === task.id && "opacity-100"
+                  )}
+                  aria-label="Delete"
+                >
+                  {deletingId === task.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
             ))
           )}
         </div>
