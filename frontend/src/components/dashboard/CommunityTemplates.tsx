@@ -102,7 +102,7 @@ function TemplateCard({ task }: { task: Task }) {
     return (
         <Link
             href={`/${locale}/chat?task=${task.id}`}
-            className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-gradient-to-br dark:from-white/[0.03] dark:to-transparent backdrop-blur-sm cursor-pointer transition-all duration-300 hover:border-slate-300 dark:hover:border-white/20 hover:shadow-lg dark:hover:shadow-[0_8px_32px_rgba(62,207,142,0.15)] hover:scale-[1.02] h-full"
+            className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-zinc-900/60 dark:bg-gradient-to-br dark:from-white/[0.05] dark:to-transparent backdrop-blur-sm cursor-pointer transition-all duration-300 hover:border-slate-300 dark:hover:border-white/20 hover:shadow-lg dark:hover:shadow-[0_8px_32px_rgba(62,207,142,0.15)] hover:scale-[1.02] h-full"
         >
             {/* Thumbnail Area */}
             <div className="relative aspect-video w-full overflow-hidden bg-slate-100 dark:bg-black/40 shrink-0">

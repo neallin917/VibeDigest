@@ -27,7 +27,7 @@ export function IconSidebar({ onOpenLibrary, onNewChat }: IconSidebarProps) {
             onClick={onNewChat}
             className={cn(
               "p-2.5 rounded-xl text-white shadow-lg cursor-pointer transition-all hover:scale-105 active:scale-95",
-              "bg-indigo-600 shadow-indigo-200 hover:bg-indigo-700",
+              "bg-emerald-600 shadow-emerald-200 hover:bg-emerald-700",
               "dark:bg-emerald-600 dark:shadow-emerald-900/20 dark:hover:bg-emerald-700"
             )}
           >
@@ -67,7 +67,7 @@ const NavButton = forwardRef<HTMLButtonElement, NavButtonProps>(
             {...props}
             className={cn(
               "w-10 h-10 flex items-center justify-center rounded-xl transition-all",
-              "text-slate-400 hover:bg-white/60 hover:text-indigo-600",
+              "text-slate-400 hover:bg-white/60 hover:text-emerald-600",
               "dark:hover:bg-white/10 dark:hover:text-emerald-500"
             )}
           >

@@ -95,7 +95,7 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
     }
 
     return (
-        <Card className={`w-full max-w-md border-white/10 relative overflow-hidden transition-all duration-300 ${className} ${isModal ? 'bg-transparent shadow-none border-0' : 'glass'}`}>
+        <Card className={`dark w-full max-w-md border-white/10 relative overflow-hidden transition-all duration-300 ${className} ${isModal ? 'bg-transparent shadow-none border-0' : 'glass'}`}>
             {!isModal && (
                 <div className="absolute top-4 right-4 z-10">
                     <LanguageInlineSelect />
@@ -119,7 +119,7 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
                     variant="outline"
                     onClick={handleGoogleLogin}
                     disabled={loading}
-                    className="w-full h-11 bg-white hover:bg-white/90 text-black hover:text-black border-0 font-medium transition-transform hover:scale-[1.02] duration-200"
+                    className="w-full h-11 bg-white hover:bg-white/90 text-black hover:text-black border-0 font-medium transition-transform hover:scale-[1.02] duration-200 dark:bg-white dark:text-black dark:hover:bg-white/90"
                 >
                     <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
                         <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
@@ -138,7 +138,7 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
                         <span className="w-full border-t border-white/10" />
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-transparent px-2 text-muted-foreground backdrop-blur-sm rounded-full">
+                        <span className="bg-transparent px-2 text-muted-foreground dark:text-white/50 backdrop-blur-sm rounded-full">
                             {isSignUp ? (t("auth.orWithEmail") || "Or with Email") : (isPasswordLogin ? t("auth.orWithEmail") : t("auth.orWithEmail"))}
                         </span>
                     </div>
@@ -153,7 +153,7 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
                             value={email}
                             onChange={e => setEmail(e.target.value)}
                             required
-                            className="bg-black/20 border-white/10 h-11 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
+                            className="bg-white/5 border-white/10 h-11 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50 dark:bg-white/5 dark:text-white"
                         />
                         {(isPasswordLogin || isSignUp) && (
                             <Input
@@ -162,7 +162,7 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
                                 required
-                                className="bg-black/20 border-white/10 h-11 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
+                                className="bg-white/5 border-white/10 h-11 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50 dark:bg-white/5 dark:text-white"
                             />
                         )}
                     </div>
