@@ -394,7 +394,7 @@ export function SummaryShareButton({ containerRef, title, coverUrl, onCopyMarkdo
             {isOpen && typeof document !== 'undefined' && createPortal(
                 <div
                     ref={menuRef}
-                    className="fixed z-[9999] min-w-[180px] rounded-lg border border-white/10 bg-[#1A1A1A] shadow-xl overflow-hidden"
+                    className="fixed z-[9999] min-w-[180px] rounded-lg border border-white/10 bg-card shadow-xl overflow-hidden"
                     style={{ top: 0, right: 0 }}
                 >
                     <button

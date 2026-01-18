@@ -2,7 +2,6 @@
 
 import { Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { BrandLogo } from '@/components/layout/BrandLogo'
 import { PlanBadge } from './PlanBadge'
 import { UserAvatarDropdown } from './UserAvatarDropdown'
 
@@ -20,7 +19,7 @@ export function TopHeader({ onMobileMenuClick, className }: TopHeaderProps) {
       "border-b border-slate-200/60 dark:border-white/10",
       className
     )}>
-      {/* Left: Mobile Hamburger (only on mobile) + Logo */}
+      {/* Left: Mobile Hamburger (only on mobile) */}
       <div className="flex items-center gap-2">
         {/* Mobile-only Hamburger Button */}
         <button
@@ -34,8 +33,6 @@ export function TopHeader({ onMobileMenuClick, className }: TopHeaderProps) {
         >
           <Menu className="w-5 h-5" />
         </button>
-        
-        <BrandLogo showText textClassName="text-base font-semibold" />
       </div>
 
       {/* Right: PlanBadge + Avatar */}

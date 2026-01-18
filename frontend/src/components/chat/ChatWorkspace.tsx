@@ -24,7 +24,7 @@ export function ChatWorkspace() {
 
   // Detect mobile (XL breakpoint)
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 1280)
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024) // Reduced from 1280 to 1024 (LG tablet)
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
@@ -71,7 +71,7 @@ export function ChatWorkspace() {
       <main className={cn(
         "flex-1 flex m-3 lg:m-4 rounded-[2rem] shadow-glass overflow-hidden ring-1 backdrop-blur-xl",
         "bg-white/65 ring-white/60",
-        "dark:bg-[#1A1A1A]/50 dark:ring-white/5 dark:shadow-none"
+        "dark:bg-card/50 dark:ring-white/5 dark:shadow-none"
       )}>
         {/* Chat Area (flex-1) */}
         <div className="flex-1 flex flex-col min-w-0 relative">

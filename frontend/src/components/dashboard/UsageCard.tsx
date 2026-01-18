@@ -76,7 +76,7 @@ export function UsageCard({ className }: { className?: string }) {
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 pt-1">
-                        <div className="p-3 rounded-lg bg-black/20 space-y-1">
+                        <div className="p-3 rounded-lg border border-white/10 bg-white/5 space-y-1">
                             <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-wider">
                                 <Database className="h-3 w-3" />
                                 {t("dashboard.usage.plan") || "Plan"}
@@ -85,7 +85,7 @@ export function UsageCard({ className }: { className?: string }) {
                                 {profile.tier}
                             </div>
                         </div>
-                        <div className="p-3 rounded-lg bg-black/20 space-y-1">
+                        <div className="p-3 rounded-lg border border-white/10 bg-white/5 space-y-1">
                             <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-wider">
                                 <Zap className="h-3 w-3 text-blue-400" />
                                 {t("dashboard.usage.extra") || "Extra"}

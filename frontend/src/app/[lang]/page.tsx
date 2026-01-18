@@ -17,20 +17,24 @@ export default async function LandingPage({ params }: { params: Promise<{ lang: 
     <div className="flex flex-col min-h-screen bg-transparent text-slate-800 dark:text-zinc-100 relative overflow-hidden font-sans selection:bg-primary/20 selection:text-primary">
       
       {/* Background Blobs (Light Mode) */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none dark:hidden -z-10">
-        <div className="blob blob-1"></div>
-        <div className="blob blob-2"></div>
-        <div className="blob blob-3"></div>
+      <div className="fixed inset-0 overflow-hidden pointer-events-none dark:hidden -z-10 bg-[#FAFAFA]">
+        <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-indigo-200/30 rounded-full blur-[100px] mix-blend-multiply animate-float-slow" />
+        <div className="absolute top-[20%] left-[-10%] w-[35%] h-[35%] bg-purple-200/30 rounded-full blur-[100px] mix-blend-multiply animate-float-slow" style={{ animationDelay: '2s' }} />
+        <div className="absolute bottom-[-10%] left-[20%] w-[45%] h-[45%] bg-teal-200/30 rounded-full blur-[100px] mix-blend-multiply animate-float-slow" style={{ animationDelay: '4s' }} />
+        <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-[0.03] mix-blend-overlay"></div>
       </div>
 
-      {/* Dark Mode Background */}
-      <div className="fixed inset-0 hidden dark:block pointer-events-none -z-10">
-        {/* Deep Space Gradients */}
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-indigo-900/20 rounded-full blur-[120px] animate-float-slow" />
-        <div className="absolute top-[10%] right-[-10%] w-[50%] h-[50%] bg-emerald-900/10 rounded-full blur-[100px] animate-pulse-glow" style={{ animationDelay: '2s' }} />
-        <div className="absolute bottom-[-10%] left-[20%] w-[40%] h-[40%] bg-teal-900/10 rounded-full blur-[150px] animate-float-slow" style={{ animationDelay: '4s' }} />
-        {/* Grid Overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px] [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black_70%)]" />
+      {/* Dark Mode Background - refined deep space */}
+      <div className="fixed inset-0 hidden dark:block pointer-events-none -z-10 bg-[#050505]">
+        {/* Subtle top glow */}
+        <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[80%] h-[60%] bg-emerald-900/10 rounded-[100%] blur-[120px]" />
+        
+        {/* Moving aurora elements */}
+        <div className="absolute top-[10%] right-[-10%] w-[40%] h-[40%] bg-indigo-900/20 rounded-full blur-[120px] animate-pulse-glow" style={{ animationDuration: '8s' }} />
+        <div className="absolute bottom-[-10%] left-[-5%] w-[40%] h-[40%] bg-teal-900/10 rounded-full blur-[100px] animate-float-slow" style={{ animationDuration: '10s' }} />
+        
+        {/* Grid Overlay with fade out */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_100%)]" />
       </div>
 
       {/* Login & Nav */}

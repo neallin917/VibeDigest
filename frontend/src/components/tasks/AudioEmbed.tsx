@@ -87,13 +87,13 @@ export function AudioEmbed({
         <div className="flex-1 flex flex-col justify-between p-4 md:p-6 gap-4">
           <div>
             {isXiaoyuzhou && (
-              <div className="flex items-center gap-2 text-xs font-semibold tracking-wider text-[#3D9DE1] uppercase mb-2">
-                <XiaoyuzhouIcon className="w-4 h-4 text-[#3D9DE1]" />
+              <div className="flex items-center gap-2 text-xs font-semibold tracking-wider text-xiaoyuzhou uppercase mb-2">
+                <XiaoyuzhouIcon className="w-4 h-4 text-xiaoyuzhou" />
                 Xiaoyuzhou
               </div>
             )}
             {isApple && (
-              <div className="flex items-center gap-2 text-xs font-semibold tracking-wider text-[#a855f7] uppercase mb-2">
+              <div className="flex items-center gap-2 text-xs font-semibold tracking-wider text-apple uppercase mb-2">
                 <ApplePodcastsIcon className="w-4 h-4" />
                 Apple Podcasts
               </div>
