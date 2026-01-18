@@ -5,7 +5,7 @@ import { ChatInput } from './ChatInput'
 import { VideoCardMessage } from './messages/VideoCardMessage'
 import { WelcomeScreen } from './WelcomeScreen'
 import { cn } from '@/lib/utils'
-import { useRef, useEffect, useState, useMemo } from 'react'
+import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
 
 import { createClient } from '@/lib/supabase'
 import { User, Loader2, Sparkles } from 'lucide-react'
@@ -13,14 +13,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 interface ChatContainerProps {
   activeTaskId?: string | null
-  onTaskCreated?: (taskId: string) => void
   onOpenPanel?: (taskId: string) => void
   onSelectExample?: (taskId: string) => void
 }
 
-export function ChatContainer({ activeTaskId, onTaskCreated, onOpenPanel, onSelectExample }: ChatContainerProps) {
-  console.log('[ChatContainer] render with activeTaskId:', activeTaskId)
-  
+export function ChatContainer({ activeTaskId, onOpenPanel, onSelectExample }: ChatContainerProps) {
   const { messages, append, isLoading } = useChat({
     api: activeTaskId ? `/api/chat?taskId=${activeTaskId}` : '/api/chat',
     id: activeTaskId || 'default',
@@ -29,32 +26,28 @@ export function ChatContainer({ activeTaskId, onTaskCreated, onOpenPanel, onSele
   const supabase = useMemo(() => createClient(), [])
   const [tasks, setTasks] = useState<Record<string, { id: string; video_url: string; video_title?: string; thumbnail_url?: string; status: 'processing' | 'completed' | 'pending' | 'failed'; progress?: number }>>({})
 
-  // Auto-scroll
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
   }, [messages])
 
-  // Check for pending message from landing page
+  // Handle pending message from landing page
   useEffect(() => {
     const pendingMessage = localStorage.getItem('vibedigest_pending_message')
     if (pendingMessage) {
       localStorage.removeItem('vibedigest_pending_message')
-      // Small delay to ensure initialization
-      setTimeout(() => {
-        handleSubmit(pendingMessage)
-      }, 500)
+      setTimeout(() => handleSubmit(pendingMessage), 500)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleSubmit = async (content: string) => {
-    console.log('[ChatContainer] handleSubmit', { activeTaskId, content })
     await append({ role: 'user', content })
   }
 
-  const trackTask = (taskId: string) => {
+  const trackTask = useCallback((taskId: string) => {
     supabase.channel(`chat_task_${taskId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `id=eq.${taskId}` }, 
         (payload) => setTasks(prev => ({ ...prev, [taskId]: payload.new as typeof prev[string] }))
@@ -63,13 +56,13 @@ export function ChatContainer({ activeTaskId, onTaskCreated, onOpenPanel, onSele
     
     supabase.from('tasks').select('*').eq('id', taskId).single()
       .then(({ data }) => { if (data) setTasks(prev => ({ ...prev, [taskId]: data })) })
-  }
+  }, [supabase])
 
   useEffect(() => {
     if (activeTaskId) {
       trackTask(activeTaskId)
     }
-  }, [activeTaskId])
+  }, [activeTaskId, trackTask])
 
   return (
     <div className="flex flex-col h-full relative">
