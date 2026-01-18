@@ -1,3 +1,10 @@
+/**
+ * @deprecated This page is deprecated and will be removed in future versions.
+ * Users are now redirected to /chat via middleware.
+ * See: middleware.ts for redirect logic.
+ * 
+ * Migration: v3.4 (Chat-First Architecture)
+ */
 "use client"
 
 import { TaskForm } from "@/components/dashboard/TaskForm"
