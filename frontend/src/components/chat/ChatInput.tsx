@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowUp } from 'lucide-react'
+import { ArrowUp, Square } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/components/i18n/I18nProvider'
@@ -9,6 +9,7 @@ import { TypewriterPlaceholder } from './TypewriterPlaceholder'
 
 interface ChatInputProps {
   onSubmit: (text: string) => void
+  onStop?: () => void
   isLoading?: boolean
   error?: string
   disabled?: boolean
@@ -26,6 +27,7 @@ interface ChatInputProps {
 
 export function ChatInput({ 
   onSubmit, 
+  onStop,
   isLoading, 
   disabled, 
   showTypewriter = false,
@@ -42,11 +44,17 @@ export function ChatInput({
     onSubmit(input)
     setInput('')
   }
+  
+  const handleStop = (e: React.MouseEvent) => {
+    e.preventDefault()
+    onStop?.()
+  }
 
   // Show typewriter only when: enabled, no input, and not focused
   const showTypewriterPlaceholder = showTypewriter && !input && !isFocused
 
   const isFloating = variant === "floating"
+  const isStopMode = isLoading && !!onStop
 
   return (
     <div className={cn(
@@ -88,29 +96,36 @@ export function ChatInput({
           </div>
 
           <motion.button
-            type="submit"
-            disabled={!input.trim() || isLoading || disabled}
+            type={isStopMode ? "button" : "submit"}
+            onClick={isStopMode ? handleStop : undefined}
+            disabled={(!input.trim() && !isStopMode) || (isLoading && !isStopMode) || (disabled && !isStopMode)}
             className={cn(
               "p-2 md:p-2.5 rounded-full shadow-lg transition-all duration-200 active:scale-90 shrink-0",
-              input.trim() && !isLoading && !disabled
-                ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200 dark:bg-emerald-600 dark:hover:bg-emerald-700 dark:shadow-none"
-                : "bg-slate-300 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 scale-95 cursor-not-allowed shadow-none"
+              isStopMode
+                ? "bg-slate-800 hover:bg-slate-900 text-white dark:bg-slate-700 dark:hover:bg-slate-600 dark:shadow-none"
+                : (input.trim() && !isLoading && !disabled
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200 dark:bg-emerald-600 dark:hover:bg-emerald-700 dark:shadow-none"
+                  : "bg-slate-300 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 scale-95 cursor-not-allowed shadow-none")
             )}
-            aria-label="Send message"
-            whileHover={{ scale: input.trim() && !isLoading && !disabled ? 1.05 : 1 }}
+            aria-label={isStopMode ? "Stop generation" : "Send message"}
+            whileHover={{ scale: (input.trim() || isStopMode) && (!isLoading || isStopMode) && !disabled ? 1.05 : 1 }}
             whileTap={{ scale: 0.95 }}
           >
             <motion.div
               animate={{ 
-                y: input.trim() && !isLoading && !disabled ? [0, -2, 0] : 0 
+                y: (input.trim() || isStopMode) && (!isLoading || isStopMode) && !disabled ? [0, -2, 0] : 0 
               }}
               transition={{ 
                 duration: 0.5, 
-                repeat: input.trim() && !isLoading && !disabled ? Infinity : 0,
+                repeat: (input.trim() || isStopMode) && (!isLoading || isStopMode) && !disabled ? Infinity : 0,
                 repeatType: "reverse"
               }}
             >
-              <ArrowUp className="w-4 h-4 md:w-5 md:h-5" />
+              {isStopMode ? (
+                <Square className="w-4 h-4 md:w-5 md:h-5 fill-current" />
+              ) : (
+                <ArrowUp className="w-4 h-4 md:w-5 md:h-5" />
+              )}
             </motion.div>
           </motion.button>
         </motion.form>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
-import { Sparkles, Loader2, ChevronDown } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/components/i18n/I18nProvider'
@@ -52,7 +52,11 @@ export function WelcomeScreen({ onSelectExample, onSubmit, isLoading }: WelcomeS
 
     if (data) {
       if (append) {
-        setExamples(prev => [...prev, ...data])
+        setExamples(prev => {
+          const existingIds = new Set(prev.map(t => t.id))
+          const newItems = data.filter(t => !existingIds.has(t.id))
+          return [...prev, ...newItems]
+        })
       } else {
         setExamples(data)
       }
@@ -60,7 +64,7 @@ export function WelcomeScreen({ onSelectExample, onSubmit, isLoading }: WelcomeS
       const totalLoaded = append ? examples.length + data.length : data.length
       setHasMore(count !== null && totalLoaded < count)
     }
-    
+
     setLoading(false)
     setLoadingMore(false)
   }, [supabase, examples.length])
@@ -99,9 +103,9 @@ export function WelcomeScreen({ onSelectExample, onSubmit, isLoading }: WelcomeS
     <div className="flex flex-col items-center justify-start min-h-full px-6 py-8 md:py-12">
       {/* Hero Section */}
       <div className="text-center max-w-lg mb-8">
-        
+
         {/* Title */}
-        <motion.h1 
+        <motion.h1
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.1 }}
@@ -111,7 +115,7 @@ export function WelcomeScreen({ onSelectExample, onSubmit, isLoading }: WelcomeS
         </motion.h1>
 
         {/* Subtitle */}
-        <motion.p 
+        <motion.p
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.2 }}
@@ -122,13 +126,13 @@ export function WelcomeScreen({ onSelectExample, onSubmit, isLoading }: WelcomeS
       </div>
 
       {/* Inline Chat Input - Centered, part of the content flow */}
-      <motion.div 
+      <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.3 }}
         className="w-full max-w-2xl mb-10"
       >
-        <ChatInput 
+        <ChatInput
           variant="inline"
           onSubmit={onSubmit}
           isLoading={isLoading}
@@ -157,7 +161,7 @@ export function WelcomeScreen({ onSelectExample, onSubmit, isLoading }: WelcomeS
           </div>
 
           {/* Grid Layout */}
-          <motion.div 
+          <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.4 }}
@@ -182,8 +186,8 @@ export function WelcomeScreen({ onSelectExample, onSubmit, isLoading }: WelcomeS
           {/* Load More Trigger */}
           {hasMore && (
             <div ref={observerTarget} className="flex justify-center mt-8 py-4 opacity-0">
-               {/* Invisible trigger for infinite scroll */}
-               <div className="h-4 w-4" />
+              {/* Invisible trigger for infinite scroll */}
+              <div className="h-4 w-4" />
             </div>
           )}
         </div>

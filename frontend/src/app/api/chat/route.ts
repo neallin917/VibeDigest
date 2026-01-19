@@ -1,5 +1,5 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { streamText, convertToCoreMessages, generateText, Message, tool } from 'ai';
+import { streamText, convertToModelMessages, generateText, UIMessage, tool, createIdGenerator, stepCountIs } from 'ai';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
@@ -14,88 +14,155 @@ const MODEL_NAME = process.env.OPENAI_MODEL || 'gemini-3-flash';
 
 export const maxDuration = 30;
 
+function getTextFromUIMessage(message: UIMessage): string {
+    if (Array.isArray(message.parts)) {
+        const text = message.parts
+            .filter((part) => part.type === 'text')
+            // @ts-ignore
+            .map((part) => part.text)
+            .join('');
+        if (text) return text;
+    }
+    return typeof message.content === 'string' ? message.content : '';
+}
+
 export async function POST(req: Request) {
-    // Parse request body
-    const body = await req.json();
-    const messages = (body?.messages || []) as Message[];
-    
-    // Extract taskId from URL query parameter
-    const url = new URL(req.url);
-    const taskId = url.searchParams.get('taskId');
-    const threadId = body?.threadId;
+    try {
+        // Parse request body - V6 DefaultChatTransport sends { message, threadId, taskId } in body
+        const jsonBody = await req.json();
+        console.log('[API/Chat] Request Body:', JSON.stringify(jsonBody, null, 2));
+        
+        const { message, threadId, taskId: bodyTaskId } = jsonBody;
+        
+        // Fallback for taskId if passed via URL (legacy support)
+        const url = new URL(req.url);
+        const queryTaskId = url.searchParams.get('taskId');
+        const taskId = bodyTaskId || queryTaskId;
 
-    // Validate messages
-    if (!messages || messages.length === 0) {
-        return new Response(JSON.stringify({ error: 'Missing required field: messages' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-        });
-    }
+        // Initialize Supabase client
+        const supabase = await createClient();
 
-    // Initialize Supabase client
-    const supabase = await createClient();
-
-    // Verify authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-            status: 401,
-            headers: { 'Content-Type': 'application/json' },
-        });
-    }
-
-    // Build context from task data (RAG)
-    let context = '';
-    
-    if (taskId && taskId !== '00000000-0000-0000-0000-000000000000') {
-        // Fetch task metadata
-        const { data: task } = await supabase
-            .from('tasks')
-            .select('video_title, video_url, status, progress')
-            .eq('id', taskId)
-            .single();
-
-        // Fetch completed outputs
-        const { data: outputs } = await supabase
-            .from('task_outputs')
-            .select('kind, content, status')
-            .eq('task_id', taskId)
-            .in('kind', ['script', 'summary', 'summary_source']);
-
-        const completedOutputs = outputs?.filter(o => o.status === 'completed') || [];
-
-        if (task) {
-            const contextParts: string[] = [];
-            
-            if (task.video_title) contextParts.push(`Video Title: ${task.video_title}`);
-            if (task.video_url) contextParts.push(`Video URL: ${task.video_url}`);
-            if (task.status) contextParts.push(`Task Status: ${task.status} (${task.progress || 0}%)`);
-
-            if (completedOutputs.length > 0) {
-                const summary = completedOutputs.find(o => o.kind === 'summary');
-                const summarySource = completedOutputs.find(o => o.kind === 'summary_source');
-                const script = completedOutputs.find(o => o.kind === 'script');
-                
-                const summaryContent = summary?.content || summarySource?.content || '';
-                const scriptContent = script?.content || '';
-                
-                if (summaryContent) {
-                    contextParts.push(`## Summary\n${summaryContent}`);
-                }
-                if (scriptContent) {
-                    const truncatedScript = scriptContent.length > 8000 
-                        ? scriptContent.slice(0, 8000) + '\n\n[Transcript truncated...]' 
-                        : scriptContent;
-                    contextParts.push(`## Transcript\n${truncatedScript}`);
-                }
-            }
-            
-            context = contextParts.join('\n\n');
+        // Verify authentication
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+            console.error('[API/Chat] Auth Error:', authError);
+            return new Response(JSON.stringify({ error: 'Unauthorized', details: authError?.message }), {
+                status: 401,
+                headers: { 'Content-Type': 'application/json' },
+            });
         }
-    }
 
-    // Build system prompt
-    let systemPrompt = `You are VibeDigest Assistant, an AI helper for video content analysis.
+        // 1. Load Conversation History
+        let messages: UIMessage[] = [];
+        if (threadId) {
+            // Ensure thread exists or create it
+            const { data: thread, error: threadError } = await supabase
+                .from('chat_threads')
+                .select('id')
+                .eq('id', threadId)
+                .single();
+            
+            if (threadError && threadError.code !== 'PGRST116') { // PGRST116 is "not found"
+                 console.error('[API/Chat] Thread lookup error:', threadError);
+            }
+
+            if (!thread) {
+                console.log('[API/Chat] Creating new thread:', threadId);
+                // Auto-create thread if missing (Client-side ID generation case)
+                const { error: createError } = await supabase.from('chat_threads').insert({
+                    id: threadId,
+                    user_id: user.id,
+                    title: 'New Chat',
+                });
+                if (createError) console.error('[API/Chat] Thread creation failed:', createError);
+            }
+
+            const { data: dbMessages, error: msgError } = await supabase
+                .from('chat_messages')
+                .select('*')
+                .eq('thread_id', threadId)
+                .order('created_at', { ascending: true });
+                
+            if (msgError) console.error('[API/Chat] Message fetch failed:', msgError);
+            
+            if (dbMessages && dbMessages.length > 0) {
+                 messages = dbMessages.map((msg: any) => {
+                     // Construct UIMessage from DB
+                     // DB 'content' is JSONB (array of parts)
+                     return {
+                         id: msg.id,
+                         role: msg.role,
+                         content: '', // V6 prefers parts
+                         parts: Array.isArray(msg.content) ? msg.content : [{ type: 'text', text: JSON.stringify(msg.content) }],
+                         createdAt: new Date(msg.created_at)
+                     } as UIMessage;
+                 });
+            }
+        }
+
+        // Append the new incoming message
+        if (message) {
+            // Fix: Ensure message has 'parts' for convertToModelMessages compatibility
+            // The error "Cannot read properties of undefined (reading 'map')" suggests it expects parts.
+            if (!message.parts && typeof message.content === 'string') {
+                message.parts = [{ type: 'text', text: message.content }];
+            }
+            messages.push(message);
+        } else {
+            console.warn('[API/Chat] No new message received in request body');
+        }
+
+        console.log(`[API/Chat] Processing ${messages.length} messages for thread ${threadId}`);
+
+        // 2. Build Context (RAG)
+        let context = '';
+
+        if (taskId && taskId !== '00000000-0000-0000-0000-000000000000') {
+            // ... (RAG Logic remains same, omitting detailed logs for brevity unless needed) ...
+            const { data: task } = await supabase
+                .from('tasks')
+                .select('video_title, video_url, status, progress')
+                .eq('id', taskId)
+                .single();
+
+            const { data: outputs } = await supabase
+                .from('task_outputs')
+                .select('kind, content, status')
+                .eq('task_id', taskId)
+                .in('kind', ['script', 'summary', 'summary_source']);
+
+            const completedOutputs = outputs?.filter(o => o.status === 'completed') || [];
+
+            if (task) {
+                const contextParts: string[] = [];
+                if (task.video_title) contextParts.push(`Video Title: ${task.video_title}`);
+                if (task.video_url) contextParts.push(`Video URL: ${task.video_url}`);
+                if (task.status) contextParts.push(`Task Status: ${task.status} (${task.progress || 0}%)`);
+
+                if (completedOutputs.length > 0) {
+                    const summary = completedOutputs.find(o => o.kind === 'summary');
+                    const summarySource = completedOutputs.find(o => o.kind === 'summary_source');
+                    const script = completedOutputs.find(o => o.kind === 'script');
+
+                    const summaryContent = summary?.content || summarySource?.content || '';
+                    const scriptContent = script?.content || '';
+
+                    if (summaryContent) {
+                        contextParts.push(`## Summary\n${summaryContent}`);
+                    }
+                    if (scriptContent) {
+                        const truncatedScript = scriptContent.length > 8000
+                            ? scriptContent.slice(0, 8000) + '\n\n[Transcript truncated...]'
+                            : scriptContent;
+                        contextParts.push(`## Transcript\n${truncatedScript}`);
+                    }
+                }
+                context = contextParts.join('\n\n');
+            }
+        }
+
+        // 3. Build System Prompt
+        let systemPrompt = `You are VibeDigest Assistant, an AI helper for video content analysis.
 
 IMPORTANT: You MUST use tools proactively to provide accurate, up-to-date information. 
 
@@ -112,246 +179,256 @@ Your available tools:
 - get_task_status: Check current processing status and progress
 - get_task_outputs: Retrieve transcripts, summaries, and other processed content
 - create_task: Start processing a new video URL
-- preview_video: Get video metadata without full processing
+- preview_video: Get video metadata (title, thumbnail, duration) without full processing
 
 Never make up information about video content. Always use tools to get real data before answering.`;
-    
-    if (context) {
-        systemPrompt += `\n\nCURRENT VIDEO CONTEXT:\n${context}\n\nYou can use the above context to answer questions, but also use tools to get the latest status if needed.`;
-    } else if (taskId && taskId !== '00000000-0000-0000-0000-000000000000') {
-        systemPrompt += `\n\nCURRENT TASK: ${taskId}\nThe user is asking about a specific task. Use get_task_status to check progress, then get_task_outputs if completed.`;
-    } else {
-        systemPrompt += `\n\nNo specific task context. Use tools when users mention videos or ask about processing status.`;
-    }
 
-    // Save user message to database
-    const latestUserMessage = messages.filter(m => m.role === 'user').pop();
-    
-    if (threadId && latestUserMessage?.content) {
-        await supabase.from('chat_messages').insert({
-            thread_id: threadId,
-            role: 'user',
-            content: latestUserMessage.content,
+        if (context) {
+            systemPrompt += `\n\nCURRENT VIDEO CONTEXT:\n${context}\n\nYou can use the above context to answer questions, but also use tools to get the latest status if needed.`;
+        } else if (taskId && taskId !== '00000000-0000-0000-0000-000000000000') {
+            systemPrompt += `\n\nCURRENT TASK: ${taskId}\nThe user is asking about a specific task. Use get_task_status to check progress, then get_task_outputs if completed.`;
+        } else {
+            systemPrompt += `\n\nNo specific task context. Use tools when users mention videos or ask about processing status.`;
+        }
+
+        // 4. Generate Response
+        console.log('[API/Chat] Converting to model messages...');
+        const coreMessages = await convertToModelMessages(messages);
+        console.log('[API/Chat] Core messages count:', coreMessages.length);
+
+        console.log('[API/Chat] Starting streamText...');
+        const result = streamText({
+            model: openai.chat(MODEL_NAME),
+            system: systemPrompt,
+            messages: coreMessages,
+            stopWhen: stepCountIs(5), // V6 helper
+            toolChoice: 'auto',
+            tools: {
+                // ... (Tools remain same) ...
+                get_task_status: tool({
+                    description: "Get the current processing status and progress of a video task",
+                    parameters: z.object({
+                        taskId: z.string().describe("The ID of the task to check"),
+                    }),
+                    execute: async ({ taskId }: { taskId: string }) => {
+                        const { data, error } = await supabase
+                            .from('tasks')
+                            .select('*')
+                            .eq('id', taskId)
+                            .single();
+
+                        if (error || !data) {
+                            return { error: 'Task not found', taskId };
+                        }
+                        if (data.user_id !== user?.id && !data.is_demo) {
+                            return { error: 'Access denied', taskId };
+                        }
+                        return {
+                            taskId: data.id,
+                            status: data.status,
+                            progress: data.progress,
+                            video_title: data.video_title,
+                            thumbnail_url: data.thumbnail_url,
+                            video_url: data.video_url,
+                            error_message: data.error_message,
+                            created_at: data.created_at,
+                            updated_at: data.updated_at
+                        };
+                    },
+                }),
+                get_task_outputs: tool({
+                    description: "Get the processed content (transcript, summary) for a specific task",
+                    parameters: z.object({
+                        taskId: z.string().describe("The ID of the task"),
+                        kinds: z.array(z.enum(['script', 'summary', 'summary_source', 'audio'])).optional()
+                            .describe("Specific output kinds to retrieve. If not provided, returns all completed outputs."),
+                    }),
+                    execute: async ({ taskId, kinds }: { taskId: string, kinds?: ('script' | 'summary' | 'summary_source' | 'audio')[] }) => {
+                        const { data: task, error: taskError } = await supabase
+                            .from('tasks')
+                            .select('user_id, is_demo')
+                            .eq('id', taskId)
+                            .single();
+
+                        if (taskError || !task) {
+                            return { error: 'Task not found', taskId };
+                        }
+                        if (task.user_id !== user?.id && !task.is_demo) {
+                            return { error: 'Access denied', taskId };
+                        }
+
+                        let query = supabase
+                            .from('task_outputs')
+                            .select('*')
+                            .eq('task_id', taskId)
+                            .eq('status', 'completed');
+
+                        if (kinds && kinds.length > 0) {
+                            query = query.in('kind', kinds);
+                        }
+
+                        const { data, error } = await query;
+                        if (error) {
+                            return { error: 'Failed to fetch outputs', taskId, details: error.message };
+                        }
+                        return {
+                            taskId,
+                            outputs: data || [],
+                            count: data?.length || 0,
+                        };
+                    },
+                }),
+                create_task: tool({
+                    description: "Start processing a new video URL (transcribe and summarize)",
+                    parameters: z.object({
+                        videoUrl: z.string().url().describe("The video URL to process"),
+                        summaryLanguage: z.string().default('zh').describe("Target language for summary (default: zh)"),
+                    }),
+                    execute: async ({ videoUrl, summaryLanguage }: { videoUrl: string, summaryLanguage: string }) => {
+                        if (!user?.id) {
+                            return { error: 'Authentication required' };
+                        }
+                        try {
+                            const authHeader = req.headers.get('authorization');
+                            const response = await fetch(`${process.env.BACKEND_URL}/api/process-video`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    ...(authHeader && { 'Authorization': authHeader }),
+                                },
+                                body: JSON.stringify({
+                                    video_url: videoUrl,
+                                    summary_language: summaryLanguage,
+                                }),
+                            });
+                            const data = await response.json();
+                            if (!response.ok) {
+                                return { error: 'Failed to create task', details: data.detail || 'Unknown error', status: response.status };
+                            }
+                            return {
+                                taskId: data.task_id,
+                                status: 'started',
+                                message: data.message || 'Task created successfully',
+                                videoUrl,
+                                summaryLanguage,
+                            };
+                        } catch (error) {
+                            return { error: 'Failed to create task', details: error instanceof Error ? error.message : 'Unknown error' };
+                        }
+                    },
+                }),
+                preview_video: tool({
+                    description: "Get video metadata (title, thumbnail, duration) without processing the video",
+                    parameters: z.object({
+                        url: z.string().url().describe("The video URL to preview"),
+                    }),
+                    execute: async ({ url }: { url: string }) => {
+                        try {
+                            const authHeader = req.headers.get('authorization');
+                            const response = await fetch(`${process.env.BACKEND_URL}/api/preview-video`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded',
+                                    ...(authHeader && { 'Authorization': authHeader }),
+                                },
+                                body: new URLSearchParams({ url }),
+                            });
+                            const data = await response.json();
+                            if (!response.ok) {
+                                return { error: 'Failed to preview video', details: data.detail || 'Unknown error', status: response.status };
+                            }
+                            return data;
+                        } catch (error) {
+                            return { error: 'Failed to preview video', details: error instanceof Error ? error.message : 'Unknown error' };
+                        }
+                    },
+                }),
+            },
         });
 
-        await supabase.from('chat_threads')
-            .update({ updated_at: new Date().toISOString() })
-            .eq('id', threadId);
-    }
+        // 5. Consume stream to ensure saving even if client disconnects
+        result.consumeStream();
 
-    // Stream AI response with tools
-    const coreMessages = convertToCoreMessages(messages);
-    
-    const result = streamText({
-        model: openai.chat(MODEL_NAME),
-        system: systemPrompt,
-        messages: coreMessages,
-        toolChoice: 'auto', // Let AI decide when to use tools
-        experimental_toolCallTagging: true,
-        tools: {
-            get_task_status: tool({
-                description: "Get the current processing status and progress of a video task",
-                parameters: z.object({
-                    taskId: z.string().describe("The ID of the task to check"),
-                }),
-                execute: async ({ taskId }) => {
-                    const { data, error } = await supabase
-                        .from('tasks')
-                        .select('*')
-                        .eq('id', taskId)
-                        .single();
-                    
-                    if (error || !data) {
-                        return { error: 'Task not found', taskId };
+        // 6. Return response with persistence hook
+        return result.toUIMessageStreamResponse({
+            // V6 Persistence: Pass original messages so onFinish has full context
+            originalMessages: messages,
+            // V6 Persistence: Generate consistent IDs on server
+            generateMessageId: createIdGenerator({ prefix: 'msg', size: 16 }),
+            
+            onFinish: async ({ messages: finalMessages }) => {
+                try {
+                    console.log(`[API/Chat] onFinish called. Final messages count: ${finalMessages.length}`);
+                    if (!threadId) {
+                        console.warn('[API/Chat] No threadId in onFinish, skipping persistence.');
+                        return;
                     }
+
+                    // Robust Persistence: Upsert messages that don't exist
+                    let savedCount = 0;
                     
-                    if (data.user_id !== user?.id && !data.is_demo) {
-                        return { error: 'Access denied', taskId };
-                    }
-                    
-                    return {
-                        taskId: data.id,
-                        status: data.status,
-                        progress: data.progress,
-                        video_title: data.video_title,
-                        thumbnail_url: data.thumbnail_url,
-                        video_url: data.video_url,
-                        error_message: data.error_message,
-                        created_at: data.created_at,
-                        updated_at: data.updated_at,
-                    };
-                },
-            }),
-            get_task_outputs: tool({
-                description: "Get the processed content (transcript, summary) for a specific task",
-                parameters: z.object({
-                    taskId: z.string().describe("The ID of the task"),
-                    kinds: z.array(z.enum(['script', 'summary', 'summary_source', 'audio'])).optional()
-                        .describe("Specific output kinds to retrieve. If not provided, returns all completed outputs."),
-                }),
-                execute: async ({ taskId, kinds }) => {
-                    const { data: task, error: taskError } = await supabase
-                        .from('tasks')
-                        .select('user_id, is_demo')
-                        .eq('id', taskId)
-                        .single();
-                    
-                    if (taskError || !task) {
-                        return { error: 'Task not found', taskId };
-                    }
-                    
-                    if (task.user_id !== user?.id && !task.is_demo) {
-                        return { error: 'Access denied', taskId };
-                    }
-                    
-                    let query = supabase
-                        .from('task_outputs')
-                        .select('*')
-                        .eq('task_id', taskId)
-                        .eq('status', 'completed');
-                    
-                    if (kinds && kinds.length > 0) {
-                        query = query.in('kind', kinds);
-                    }
-                    
-                    const { data, error } = await query;
-                    
-                    if (error) {
-                        return { error: 'Failed to fetch outputs', taskId, details: error.message };
-                    }
-                    
-                    return {
-                        taskId,
-                        outputs: data || [],
-                        count: data?.length || 0,
-                    };
-                },
-            }),
-            create_task: tool({
-                description: "Start processing a new video URL (transcribe and summarize)",
-                parameters: z.object({
-                    videoUrl: z.string().url().describe("The video URL to process"),
-                    summaryLanguage: z.string().default('zh').describe("Target language for summary (default: zh)"),
-                }),
-                execute: async ({ videoUrl, summaryLanguage }) => {
-                    if (!user?.id) {
-                        return { error: 'Authentication required' };
-                    }
-                    
-                    try {
-                        const authHeader = req.headers.get('authorization');
+                    for (const msg of finalMessages) {
+                        const { data: exists } = await supabase.from('chat_messages').select('id').eq('id', msg.id).single();
+                        if (exists) continue;
                         
-                        const response = await fetch(`${process.env.BACKEND_URL}/api/process-video`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                ...(authHeader && { 'Authorization': authHeader }),
-                            },
-                            body: JSON.stringify({
-                                video_url: videoUrl,
-                                summary_language: summaryLanguage,
-                            }),
+                        const { error: insertError } = await supabase.from('chat_messages').insert({
+                            id: msg.id,
+                            thread_id: threadId,
+                            role: msg.role,
+                            content: msg.parts || [{ type: 'text', text: msg.content }], 
+                            created_at: msg.createdAt?.toISOString() || new Date().toISOString()
                         });
                         
-                        if (!response.ok) {
-                            const errorData = await response.json().catch(() => ({}));
-                            return { 
-                                error: 'Failed to create task', 
-                                details: errorData.detail || 'Unknown error',
-                                status: response.status 
-                            };
+                        if (insertError) {
+                            console.error('[API/Chat] Failed to save message:', msg.id, insertError);
+                        } else {
+                            savedCount++;
                         }
-                        
-                        const data = await response.json();
-                        
-                        return {
-                            taskId: data.task_id,
-                            status: 'started',
-                            message: data.message || 'Task created successfully',
-                            videoUrl,
-                            summaryLanguage,
-                        };
-                    } catch (error) {
-                        return { 
-                            error: 'Failed to create task', 
-                            details: error instanceof Error ? error.message : 'Unknown error'
-                        };
                     }
-                },
-            }),
-            preview_video: tool({
-                description: "Get video metadata (title, thumbnail, duration) without processing the video",
-                parameters: z.object({
-                    url: z.string().url().describe("The video URL to preview"),
-                }),
-                execute: async ({ url }) => {
-                    try {
-                        const authHeader = req.headers.get('authorization');
-                        
-                        const response = await fetch(`${process.env.BACKEND_URL}/api/preview-video`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded',
-                                ...(authHeader && { 'Authorization': authHeader }),
-                            },
-                            body: new URLSearchParams({ url }),
-                        });
-                        
-                        if (!response.ok) {
-                            const errorData = await response.json().catch(() => ({}));
-                            return { 
-                                error: 'Failed to preview video', 
-                                details: errorData.detail || 'Unknown error',
-                                status: response.status 
-                            };
-                        }
-                        
-                        return await response.json();
-                    } catch (error) {
-                        return { 
-                            error: 'Failed to preview video', 
-                            details: error instanceof Error ? error.message : 'Unknown error'
-                        };
-                    }
-                },
-            }),
-        },
-        onFinish: async ({ text }) => {
-            // Save assistant message to DB - only if threadId provided
-            if (threadId && text) {
-                await supabase.from('chat_messages').insert({
-                    thread_id: threadId,
-                    role: 'assistant',
-                    content: text,
-                });
-                await supabase
-                    .from('chat_threads')
-                    .update({ updated_at: new Date().toISOString() })
-                    .eq('id', threadId);
+                    console.log(`[API/Chat] Saved ${savedCount} new messages to thread ${threadId}`);
 
-                // Generate Title for new conversations (first message)
-                if (messages.length === 1 && latestUserMessage) {
-                    try {
-                        const { text: title } = await generateText({
-                            model: openai.chat(MODEL_NAME),
-                            system: 'Generate a very concise title (3-6 words) for this chat conversation based on the first message. Do not use quotes.',
-                            prompt: `User message: ${latestUserMessage.content}\nAssistant response: ${text}`,
-                        });
+                    await supabase.from('chat_threads')
+                        .update({ updated_at: new Date().toISOString() })
+                        .eq('id', threadId);
 
-                        if (title) {
-                            await supabase
-                                .from('chat_threads')
-                                .update({ title: title.trim() })
-                                .eq('id', threadId);
+                    // Title Gen logic
+                    if (messages.length <= 1 && message) {
+                        const assistantMsg = finalMessages.find(m => m.role === 'assistant');
+                        const assistantText = assistantMsg ? getTextFromUIMessage(assistantMsg) : '';
+                        
+                        if (assistantText) {
+                            try {
+                                const { text: title } = await generateText({
+                                    model: openai.chat(MODEL_NAME),
+                                    system: 'Generate a very concise title (3-6 words) for this chat conversation based on the first message. Do not use quotes.',
+                                    prompt: `User message: ${getTextFromUIMessage(message)}\nAssistant response: ${assistantText}`,
+                                });
+
+                                if (title) {
+                                    await supabase
+                                        .from('chat_threads')
+                                        .update({ title: title.trim() })
+                                        .eq('id', threadId);
+                                }
+                            } catch (e) {
+                                console.error('[API/Chat] Failed to generate title:', e);
+                            }
                         }
-                    } catch (error) {
-                        console.error('[API /chat] Failed to generate title:', error);
                     }
+                } catch (persistError) {
+                    console.error('[API/Chat] Persistence Error in onFinish:', persistError);
                 }
-            }
-        },
-    });
-
-    // 9. Return AI SDK UI message stream response
-    return result.toDataStreamResponse();
+            },
+        });
+    } catch (error: any) {
+        console.error('[API/Chat] Fatal Error:', error);
+        return new Response(JSON.stringify({ 
+            error: 'Internal Server Error', 
+            details: error?.message || String(error),
+            stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
 }
