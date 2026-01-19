@@ -111,14 +111,14 @@ export function LandingNav() {
                                     className={cn(
                                         "relative px-4 py-2 rounded-full text-[13px] font-medium tracking-wide transition-colors duration-200",
                                         activeSection === item.id
-                                            ? "text-indigo-700 font-semibold dark:text-white"
+                                            ? "text-emerald-800 font-semibold dark:text-white"
                                             : "text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white"
                                     )}
                                 >
                                     {activeSection === item.id && (
                                         <motion.div
                                             layoutId="nav-pill"
-                                            className="absolute inset-0 bg-indigo-100 dark:bg-white/10 rounded-full -z-10"
+                                            className="absolute inset-0 bg-emerald-50/80 dark:bg-white/10 rounded-full -z-10"
                                             transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                         />
                                     )}
@@ -168,7 +168,7 @@ export function LandingNav() {
                                         >
                                             <Link
                                                 href={`/${locale}/#${item.id}`}
-                                                className={`cursor-pointer w-full ${activeSection === item.id ? "text-indigo-600 dark:text-primary" : "text-slate-700 dark:text-white/70"}`}
+                                                className={`cursor-pointer w-full ${activeSection === item.id ? "text-emerald-700 dark:text-primary" : "text-slate-700 dark:text-white/70"}`}
                                             >
                                                 {labels[item.key]}
                                             </Link>

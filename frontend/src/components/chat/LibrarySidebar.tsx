@@ -256,7 +256,7 @@ function TaskItem({ task, onSelect, onDelete, isDeleting }: TaskItemProps) {
 function StatusIcon({ status }: { status: string }) {
   switch (status) {
     case 'completed': return <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
-    case 'processing': return <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin" />
+    case 'processing': return <Loader2 className="w-3.5 h-3.5 text-emerald-600 animate-spin" />
     case 'failed': return <AlertCircle className="w-3.5 h-3.5 text-red-500" />
     default: return <Clock className="w-3.5 h-3.5 text-slate-400" />
   }

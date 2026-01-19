@@ -25,7 +25,7 @@ export function IconSidebar({ onOpenLibrary, onNewChat }: IconSidebarProps) {
             onClick={onNewChat}
             className={cn(
               "p-3 rounded-[18px] text-white shadow-lg cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 group",
-              "bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-200/50",
+              "bg-gradient-to-br from-emerald-600 to-emerald-700 shadow-emerald-900/20",
               "dark:from-emerald-600 dark:to-emerald-700 dark:shadow-emerald-900/30"
             )}
           >

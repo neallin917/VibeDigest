@@ -22,7 +22,7 @@ export function HeroSection() {
         const parts = text.split(/(\*\*.*?\*\*)/g)
         return parts.map((part, index) => {
             if (part.startsWith("**") && part.endsWith("**")) {
-                return <span key={index} className="text-indigo-600 dark:text-emerald-400 font-semibold drop-shadow-sm">{part.slice(2, -2)}</span>
+                return <span key={index} className="text-emerald-700 dark:text-emerald-400 font-semibold drop-shadow-sm">{part.slice(2, -2)}</span>
             }
             return part
         })
@@ -44,10 +44,10 @@ export function HeroSection() {
                     )}
                 >
                     <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 dark:bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500 dark:bg-emerald-500"></span>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
                     </span>
-                    <span className="text-xs font-semibold text-indigo-700 dark:text-emerald-300 tracking-wide uppercase">AI-Powered Video Companion</span>
+                    <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 tracking-wide uppercase">AI-Powered Video Companion</span>
                 </motion.div>
 
                 <motion.h1
@@ -57,7 +57,7 @@ export function HeroSection() {
                     className="font-display text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 dark:text-white leading-[1.1] md:leading-[1.1]"
                 >
                     {t("landing.titlePrefix")}{" "}
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-500 dark:from-emerald-400 dark:via-teal-300 dark:to-cyan-300 animate-pulse-glow">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-700 via-teal-600 to-emerald-600 dark:from-emerald-400 dark:via-teal-300 dark:to-cyan-300 animate-pulse-glow">
                         {t("landing.titleEmphasis")}
                     </span>
                 </motion.h1>
@@ -80,7 +80,7 @@ export function HeroSection() {
             >
                 <div className="relative group perspective-1000">
                     {/* Glow Effect */}
-                    <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/30 via-purple-500/30 to-pink-500/30 dark:from-emerald-500/20 dark:via-teal-500/20 dark:to-cyan-500/20 rounded-full blur-xl opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
+                    <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600/20 via-teal-600/20 to-emerald-600/20 dark:from-emerald-500/20 dark:via-teal-500/20 dark:to-cyan-500/20 rounded-full blur-xl opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
 
                     {/* Input Container */}
                     <div className="relative">

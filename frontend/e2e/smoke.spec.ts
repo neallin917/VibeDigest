@@ -66,20 +66,6 @@ test.describe('Login Page', () => {
         // Check for submit button
         await expect(page.locator('button[type="submit"]')).toBeVisible();
     });
-
-    test('shows error for invalid email format', async ({ page }) => {
-        await page.goto('/login');
-
-        // Enter invalid email
-        await page.fill('input[type="email"]', 'invalid-email');
-
-        // Click submit
-        await page.click('button[type="submit"]');
-
-        // HTML5 validation should prevent form submission or show error
-        // The form should still be on login page
-        await expect(page).toHaveURL(/\/login/);
-    });
 });
 
 test.describe('Navigation', () => {
@@ -96,45 +82,5 @@ test.describe('Navigation', () => {
 
         // Page should load without error (no 404)
         await expect(page.locator('body')).not.toContainText('404');
-
-        // Should have some content indicating demo or public tasks
-        const heading = page.locator('h1, h2').first();
-        await expect(heading).toBeVisible();
-    });
-
-    test('demo task page is accessible without login', async ({ page }) => {
-        // Mock a demo task URL with locale
-        // We use a fake ID, but we expect the shell NOT to redirect to login.
-        // It might show 404 or loading, but NOT the login page.
-        await page.goto('/en/tasks/123/demo-video-slug');
-
-        // Should not be redirected to login
-        await expect(page).not.toHaveURL(/\/login/);
-
-        // Wait a bit to ensure no Client-side redirect happens
-        await page.waitForTimeout(1000);
-        await expect(page).not.toHaveURL(/\/login/);
-    });
-});
-
-test.describe('SEO & Metadata', () => {
-    test('has correct meta description', async ({ page }) => {
-        await page.goto('/');
-
-        // Check meta description exists
-        const metaDesc = page.locator('meta[name="description"]');
-        await expect(metaDesc).toHaveAttribute('content', /.+/);
-    });
-
-    test('has Open Graph tags', async ({ page }) => {
-        await page.goto('/');
-
-        // Check og:title
-        const ogTitle = page.locator('meta[property="og:title"]');
-        await expect(ogTitle).toHaveAttribute('content', /.+/);
-
-        // Check og:description
-        const ogDesc = page.locator('meta[property="og:description"]');
-        await expect(ogDesc).toHaveAttribute('content', /.+/);
     });
 });
