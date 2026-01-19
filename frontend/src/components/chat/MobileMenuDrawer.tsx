@@ -7,19 +7,37 @@ import {
   Settings,
   CreditCard,
   Sparkles,
+  MessageSquare
 } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/components/i18n/I18nProvider'
+
+interface Thread {
+  id: string
+  title: string
+  updated_at: string
+}
 
 interface MobileMenuDrawerProps {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
   onNewChat: () => void
   onOpenLibrary: () => void
+  threads?: Thread[]
+  activeThreadId?: string | null
+  onSelectThread?: (threadId: string) => void
 }
 
-export function MobileMenuDrawer({ isOpen, onOpenChange, onNewChat, onOpenLibrary }: MobileMenuDrawerProps) {
+export function MobileMenuDrawer({ 
+  isOpen, 
+  onOpenChange, 
+  onNewChat, 
+  onOpenLibrary,
+  threads = [],
+  activeThreadId,
+  onSelectThread
+}: MobileMenuDrawerProps) {
   const { t, locale } = useI18n()
 
   const handleNewChat = () => {
@@ -53,7 +71,7 @@ export function MobileMenuDrawer({ isOpen, onOpenChange, onNewChat, onOpenLibrar
         </SheetHeader>
 
         {/* Menu Items */}
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto custom-scrollbar">
           {/* New Chat */}
           <MenuButton
             icon={MessageSquarePlus}
@@ -68,6 +86,38 @@ export function MobileMenuDrawer({ isOpen, onOpenChange, onNewChat, onOpenLibrar
             label={t('chat.library') || 'My Library'}
             onClick={handleOpenLibrary}
           />
+
+          <div className="h-px bg-slate-200/60 dark:bg-white/10 my-3" />
+
+          {/* Chats Section */}
+          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 px-3 py-2 uppercase tracking-wider">
+            Chats
+          </div>
+          
+          <div className="space-y-0.5">
+            {threads.length === 0 ? (
+               <div className="px-3 py-2 text-xs text-slate-400">No chats yet</div>
+            ) : (
+              threads.map(thread => (
+                <button
+                  key={thread.id}
+                  onClick={() => onSelectThread?.(thread.id)}
+                  className={cn(
+                    "w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center gap-3",
+                    activeThreadId === thread.id
+                      ? "bg-emerald-50/50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5"
+                  )}
+                >
+                  <MessageSquare className={cn(
+                    "w-4 h-4 shrink-0", 
+                    activeThreadId === thread.id ? "text-emerald-500" : "text-slate-400"
+                  )} />
+                  <span className="text-sm font-medium truncate">{thread.title || 'New Chat'}</span>
+                </button>
+              ))
+            )}
+          </div>
 
           <div className="h-px bg-slate-200/60 dark:bg-white/10 my-3" />
 

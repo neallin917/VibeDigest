@@ -233,5 +233,5 @@ it("click badge → onSeek(120)", () => {
 ## 🔗 相关文档
 
 - [TEST_COVERAGE.md](./TEST_COVERAGE.md) - 覆盖率追踪
-- [e2e/navigation-auth.spec.ts](../frontend/e2e/navigation-auth.spec.ts) - 导航 E2E
-- [e2e/smoke.spec.ts](../frontend/e2e/smoke.spec.ts) - 冒烟测试
+- [e2e/navigation-auth.spec.ts](../../frontend/e2e/navigation-auth.spec.ts) - 导航 E2E
+- [e2e/smoke.spec.ts](../../frontend/e2e/smoke.spec.ts) - 冒烟测试

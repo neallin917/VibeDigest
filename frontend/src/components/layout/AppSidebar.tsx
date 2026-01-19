@@ -5,24 +5,23 @@ import { useRouter } from "next/navigation"
 import {
   Plus,
   Library,
-  Search,
   CheckCircle,
   AlertCircle,
   Loader2,
   Trash2,
   ChevronDown,
   ChevronRight,
-  X,
   Clock,
   Menu,
   Sparkles,
+  MessageSquare
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
-import { Input } from "@/components/ui/input"
 import { useAppSidebar } from "./AppSidebarContext"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { createClient } from "@/lib/supabase"
+import { formatDistanceToNow } from "date-fns"
 
 
 // Types
@@ -35,24 +34,39 @@ interface Task {
   created_at: string
 }
 
+interface Thread {
+  id: string
+  title: string
+  updated_at: string
+}
+
 interface AppSidebarProps {
   onNewChat?: () => void
   onSelectTask?: (taskId: string) => void
   className?: string
+  threads?: Thread[]
+  activeThreadId?: string | null
+  onSelectThread?: (threadId: string) => void
 }
 
-export function AppSidebar({ onNewChat, onSelectTask, className }: AppSidebarProps) {
+export function AppSidebar({ 
+  onNewChat, 
+  onSelectTask, 
+  className,
+  threads = [],
+  activeThreadId,
+  onSelectThread
+}: AppSidebarProps) {
   const { isCollapsed, setCollapsed, toggleSidebar } = useAppSidebar()
   const router = useRouter()
   const { t, locale } = useI18n()
 
   // States
   const [tasks, setTasks] = useState<Task[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [isRecentsOpen, setIsRecentsOpen] = useState(true)
+  const [isChatsOpen, setIsChatsOpen] = useState(true)
   const supabase = useMemo(() => createClient(), [])
 
   // Fetch tasks
@@ -69,14 +83,10 @@ export function AppSidebar({ onNewChat, onSelectTask, className }: AppSidebarPro
       .order('created_at', { ascending: false })
       .limit(30)
 
-    if (searchQuery) {
-      query = query.ilike('video_title', `%${searchQuery}%`)
-    }
-
     const { data } = await query
     setTasks(data || [])
     setLoading(false)
-  }, [supabase, searchQuery])
+  }, [supabase])
 
   // Fetch when expanded
   useEffect(() => {
@@ -174,41 +184,6 @@ export function AppSidebar({ onNewChat, onSelectTask, className }: AppSidebarPro
       ) : (
         // ========== EXPANDED VIEW ==========
         <>
-          {/* Header: Search Toggle (Logo is now in TopHeader) */}
-          <div className="flex items-center justify-end mb-4 px-1">
-            <button
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className={cn(
-                "p-2 rounded-xl transition-all",
-                "text-slate-400 hover:text-slate-600 hover:bg-slate-100",
-                "dark:hover:text-white dark:hover:bg-white/10",
-                isSearchOpen && "bg-slate-100 dark:bg-white/10"
-              )}
-            >
-              {isSearchOpen ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
-            </button>
-          </div>
-
-          {/* Search Input (Collapsible) */}
-          {isSearchOpen && (
-            <div className="px-1 mb-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
-                  placeholder={t('history.searchPlaceholder') || 'Search...'}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  autoFocus
-                  className={cn(
-                    "pl-9 h-9 border-none focus-visible:ring-1 transition-all rounded-xl text-sm",
-                    "bg-black/5 placeholder:text-slate-400 focus-visible:bg-white",
-                    "dark:bg-white/5 dark:placeholder:text-slate-500 dark:focus-visible:bg-white/10"
-                  )}
-                />
-              </div>
-            </div>
-          )}
-
           {/* New Task Button */}
           <button
             onClick={handleNewChat}
@@ -237,6 +212,57 @@ export function AppSidebar({ onNewChat, onSelectTask, className }: AppSidebarPro
 
           {/* Divider */}
           <div className="h-px mx-3 mb-3 bg-slate-200/60 dark:bg-white/10" />
+
+          {/* Chats Section */}
+          <div className="flex-none flex flex-col mb-2">
+            <button
+              onClick={() => setIsChatsOpen(!isChatsOpen)}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-xl mx-1",
+                "text-slate-500 hover:text-slate-700 hover:bg-slate-50",
+                "dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-white/5"
+              )}
+            >
+              {isChatsOpen ? (
+                <ChevronDown className="w-4 h-4" />
+              ) : (
+                <ChevronRight className="w-4 h-4" />
+              )}
+              <span>Chats</span>
+            </button>
+            
+            {isChatsOpen && (
+              <div className="overflow-y-auto max-h-[30vh] custom-scrollbar mt-1 px-1 space-y-0.5">
+                {threads.length === 0 ? (
+                   <div className="text-center py-4 px-4">
+                     <p className="text-xs text-slate-400">No chats yet</p>
+                   </div>
+                ) : (
+                  threads.map(thread => (
+                    <button
+                      key={thread.id}
+                      onClick={() => onSelectThread?.(thread.id)}
+                      className={cn(
+                        "w-full text-left px-3 py-2 rounded-xl transition-all flex items-center gap-3 cursor-pointer group",
+                        "hover:bg-slate-100 dark:hover:bg-white/5",
+                        activeThreadId === thread.id && "bg-emerald-50/50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                      )}
+                    >
+                      <MessageSquare className={cn(
+                        "w-4 h-4 shrink-0",
+                        activeThreadId === thread.id ? "text-emerald-500" : "text-slate-400"
+                      )} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm truncate">
+                            {thread.title || 'New Chat'}
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Recents Section */}
           <div className="flex-1 overflow-hidden flex flex-col">
@@ -267,7 +293,7 @@ export function AppSidebar({ onNewChat, onSelectTask, className }: AppSidebarPro
                 ) : tasks.length === 0 ? (
                   <div className="text-center py-6 px-4">
                     <p className="text-sm text-slate-400">
-                      {searchQuery ? 'No results found' : 'No recent tasks'}
+                      No recent tasks
                     </p>
                   </div>
                 ) : (
