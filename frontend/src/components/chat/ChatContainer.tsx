@@ -5,90 +5,64 @@ import { DefaultChatTransport, UIMessage } from 'ai'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ChatInput } from './ChatInput'
-import { VideoCardMessage } from './messages/VideoCardMessage'
 import { WelcomeScreen } from './WelcomeScreen'
 import { cn } from '@/lib/utils'
-import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 
-import { createClient } from '@/lib/supabase'
-import { User, Loader2, Sparkles, CheckCircle, XCircle, ChevronDown, ChevronRight } from 'lucide-react'
+// AI SDK v6: Import typed Tool UI components
+import { 
+  GetTaskStatusTool, 
+  CreateTaskTool, 
+  PreviewVideoTool, 
+  GetTaskOutputsTool,
+  UnknownTool 
+} from './tools'
+
+import { User, Loader2, Sparkles, XCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface ChatContainerProps {
   activeTaskId?: string | null
   threadId?: string | null
-  initialMessages?: UIMessage[] // Use UIMessage for better type safety, though loose parsing helps
+  initialMessages?: UIMessage[]
   onOpenPanel?: (taskId: string) => void
   onSelectExample?: (taskId: string) => void
 }
 
-// --- Tool UI Components ---
+// Helper function to render tool parts based on AI SDK v6 typed part.type
+function renderToolPart(part: any, index: number, onOpenPanel?: (taskId: string) => void) {
+  const baseProps = {
+    key: index,
+    toolCallId: part.toolCallId,
+    state: part.state,
+    input: part.input,
+    output: part.output,
+    errorText: part.errorText,
+  }
 
-function ToolPart({ part }: { part: any }) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  
-  // Extract clean tool name
-  // V6 parts: toolName is usually top-level on the part object for 'tool-invocation' parts
-  // or encoded in the type for some adapters. AI SDK v6 standardizes on 'tool-invocation' type usually,
-  // but let's handle the specific shape coming from our backend (which might use tool-NAME types if not fully standardized yet).
-  // Actually, standard v6 `streamText` + `toUIMessageStreamResponse` produces `tool-invocation` parts with `toolName`.
-  const toolName = part.toolName || (part.type.startsWith('tool-') ? part.type.replace('tool-', '') : 'unknown-tool')
-  
-  // Format tool name for display
-  const displayName = toolName.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-
-  const toggleExpand = () => setIsExpanded(!isExpanded)
-
-  switch (part.state) {
-    case 'input-streaming':
-    case 'input-available': // V6 state
-    case 'call': // V5/V6 compat
-      return (
-        <div className="flex flex-col gap-1 my-2">
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-white/5 px-3 py-2 rounded-md border border-slate-100 dark:border-white/5 w-fit">
-            <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
-            <span className="font-medium">Running: {displayName}...</span>
-          </div>
-        </div>
-      )
+  // AI SDK v6 Best Practice: Use typed part.type for specific tool rendering
+  switch (part.type) {
+    case 'tool-get_task_status':
+      return <GetTaskStatusTool {...baseProps} onViewClick={onOpenPanel} />
     
-    case 'output-available': // V6 state
-    case 'result': // V5/V6 compat
-      return (
-        <div className="flex flex-col gap-1 my-2 group">
-          <button 
-            onClick={toggleExpand}
-            className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-500/10 px-3 py-2 rounded-md border border-emerald-100/50 dark:border-emerald-500/20 w-fit hover:bg-emerald-100/50 dark:hover:bg-emerald-500/20 transition-colors"
-          >
-            <CheckCircle className="w-3 h-3" />
-            <span className="font-medium">Completed: {displayName}</span>
-            {isExpanded ? <ChevronDown className="w-3 h-3 opacity-50" /> : <ChevronRight className="w-3 h-3 opacity-50" />}
-          </button>
-          
-          {isExpanded && (
-            <div className="mt-1 ml-1 pl-3 border-l-2 border-slate-100 dark:border-white/10 text-xs text-slate-500 dark:text-slate-400 font-mono overflow-x-auto">
-               <pre>{JSON.stringify(part.output || part.result, null, 2)}</pre>
-            </div>
-          )}
-        </div>
-      )
+    case 'tool-create_task':
+      return <CreateTaskTool {...baseProps} onViewClick={onOpenPanel} />
     
-    case 'output-error': // V6 state
-    case 'error': // V5/V6 compat
-      return (
-        <div className="flex flex-col gap-1 my-2">
-          <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10 px-3 py-2 rounded-md border border-red-100 dark:border-red-900/20 w-fit">
-            <XCircle className="w-3 h-3" />
-            <span className="font-medium">Failed: {displayName}</span>
-          </div>
-          <div className="text-xs text-red-500 pl-8">
-            {part.errorText || part.error || 'Unknown error'}
-          </div>
-        </div>
-      )
+    case 'tool-preview_video':
+      return <PreviewVideoTool {...baseProps} />
     
+    case 'tool-get_task_outputs':
+      return <GetTaskOutputsTool {...baseProps} />
+    
+    // Fallback for dynamic tools or unknown tools
+    case 'dynamic-tool':
     default:
+      // Handle tool-* pattern for any tools we haven't explicitly defined
+      if (part.type?.startsWith('tool-')) {
+        const toolName = part.type.replace('tool-', '')
+        return <UnknownTool {...baseProps} toolName={toolName} />
+      }
       return null
   }
 }
@@ -163,20 +137,6 @@ export function ChatContainer({
   const isLoading = status === 'streaming' || status === 'submitted'
 
   const scrollRef = useRef<HTMLDivElement>(null)
-  const supabase = useMemo(() => createClient(), [])
-  const [tasks, setTasks] = useState<
-    Record<
-      string,
-      {
-        id: string
-        video_url: string
-        video_title?: string;
-        thumbnail_url?: string;
-        status: 'processing' | 'completed' | 'pending' | 'failed';
-        progress?: number
-      }
-    >
-  >({})
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -208,39 +168,6 @@ export function ChatContainer({
   const handleSubmit = (text: string) => {
     handleSendMessage(text);
   }
-
-  const trackTask = useCallback(
-    (taskId: string) => {
-      supabase
-        .channel(`chat_task_${taskId}`)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'tasks', filter: `id=eq.${taskId}` },
-          (payload) =>
-            setTasks((prev) => ({
-              ...prev,
-              [taskId]: payload.new as (typeof prev)[string],
-            })),
-        )
-        .subscribe()
-
-      supabase
-        .from('tasks')
-        .select('*')
-        .eq('id', taskId)
-        .single()
-        .then(({ data }) => {
-          if (data) setTasks((prev) => ({ ...prev, [taskId]: data }))
-        })
-    },
-    [supabase],
-  )
-
-  useEffect(() => {
-    if (activeTaskId) {
-      trackTask(activeTaskId)
-    }
-  }, [activeTaskId, trackTask])
 
   return (
     <div className="flex flex-col h-full relative">
@@ -366,10 +293,9 @@ export function ChatContainer({
                               </div>
                             )
                           }
-                          // Render Tools
-                          const toolPart = part as { toolName?: string; type: string }
-                          if (part.type.startsWith('tool-') || toolPart.toolName) {
-                             return <ToolPart key={index} part={part} />
+                          // AI SDK v6: Render typed Tool UI components
+                          if (part.type.startsWith('tool-') || part.type === 'dynamic-tool') {
+                             return renderToolPart(part, index, onOpenPanel)
                           }
                           return null
                         })
@@ -384,27 +310,6 @@ export function ChatContainer({
                         </div>
                       )}
                     </div>
-
-                    {/* Logic to scan content for URLs and show cards */}
-                    {Object.values(tasks).map((task) => {
-                       const textContent = m.parts 
-                         ? m.parts.filter(p => p.type === 'text').map(p => p.text).join('') 
-                         : m.content;
-                       
-                       return task && textContent?.includes(task.video_url) ? (
-                        <div key={task.id} className="mt-4 -mx-2 mb-[-8px]">
-                          <VideoCardMessage
-                            taskId={task.id}
-                            videoUrl={task.video_url}
-                            title={task.video_title}
-                            thumbnailUrl={task.thumbnail_url}
-                            status={task.status}
-                            progress={task.progress}
-                            onViewClick={onOpenPanel}
-                          />
-                        </div>
-                      ) : null
-                    })}
                   </div>
                 </div>
               </motion.div>
