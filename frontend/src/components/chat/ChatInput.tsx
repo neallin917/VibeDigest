@@ -67,10 +67,13 @@ export function ChatInput({
         <motion.form
           onSubmit={handleSubmit}
           className={cn(
-            "relative rounded-full p-1.5 md:p-2 pl-3 md:pl-5 flex items-center gap-2 md:gap-3 shadow-2xl ring-1 transition-all",
-            "bg-white/85 backdrop-blur-xl ring-white/90 shadow-emerald-500/10", // Light - Enhanced
-            "dark:bg-card/80 dark:ring-white/10 dark:shadow-none", // Dark
-            isFocused && "ring-emerald-400/50 shadow-emerald-500/20" // Focus glow
+            "relative rounded-[2rem] p-2 pl-6 flex items-center gap-3 ring-1 transition-all duration-300",
+            // Premium Glassmorphism
+            "bg-white/60 backdrop-blur-2xl ring-white/50 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.1)]", 
+            "dark:bg-zinc-900/60 dark:ring-white/10 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.3)]",
+            
+            // Focus State - Soft Glow
+            isFocused && "ring-emerald-500/30 shadow-[0_0_0_4px_rgba(16,185,129,0.1)] dark:ring-emerald-500/20 dark:shadow-[0_0_0_4px_rgba(16,185,129,0.05)]"
           )}
         >
           {/* Input container with typewriter overlay */}
@@ -85,12 +88,12 @@ export function ChatInput({
               onBlur={() => setIsFocused(false)}
               aria-label="Chat input"
               className={cn(
-                "w-full bg-transparent border-none focus:ring-0 focus:outline-none text-slate-800 dark:text-white",
-                "py-2.5 md:py-3 text-sm md:text-[15px] font-medium",
+                "w-full bg-transparent border-none focus:ring-0 focus:outline-none text-slate-800 dark:text-zinc-100",
+                "py-3.5 text-[15px] font-medium tracking-wide",
                 // Hide native placeholder when typewriter is active
-                showTypewriterPlaceholder ? "placeholder-transparent" : "placeholder-slate-400"
+                showTypewriterPlaceholder ? "placeholder-transparent" : "placeholder-slate-400/80 dark:placeholder-zinc-500"
               )}
-              placeholder={showTypewriter ? "" : (t('chat.inputPlaceholder') || "Paste a video URL or ask anything...")}
+              placeholder={showTypewriter ? "" : (t('chat.inputPlaceholder') || "Ask anything or paste a URL...")}
               disabled={disabled}
             />
           </div>
@@ -100,12 +103,12 @@ export function ChatInput({
             onClick={isStopMode ? handleStop : undefined}
             disabled={(!input.trim() && !isStopMode) || (isLoading && !isStopMode) || (disabled && !isStopMode)}
             className={cn(
-              "p-2 md:p-2.5 rounded-full shadow-lg transition-all duration-200 active:scale-90 shrink-0",
+              "p-2.5 rounded-[1.2rem] shadow-sm transition-all duration-300 active:scale-95 shrink-0 mr-1",
               isStopMode
-                ? "bg-slate-800 hover:bg-slate-900 text-white dark:bg-slate-700 dark:hover:bg-slate-600 dark:shadow-none"
+                ? "bg-slate-800 hover:bg-slate-900 text-white dark:bg-slate-700 dark:hover:bg-slate-600"
                 : (input.trim() && !isLoading && !disabled
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200 dark:bg-emerald-600 dark:hover:bg-emerald-700 dark:shadow-none"
-                  : "bg-slate-300 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 scale-95 cursor-not-allowed shadow-none")
+                  ? "bg-gradient-to-tr from-emerald-600 to-emerald-500 hover:to-emerald-400 text-white shadow-emerald-200/50 dark:shadow-none"
+                  : "bg-slate-200/50 dark:bg-zinc-800/50 text-slate-400 dark:text-zinc-600 cursor-not-allowed shadow-none")
             )}
             aria-label={isStopMode ? "Stop generation" : "Send message"}
             whileHover={{ scale: (input.trim() || isStopMode) && (!isLoading || isStopMode) && !disabled ? 1.05 : 1 }}
@@ -122,9 +125,9 @@ export function ChatInput({
               }}
             >
               {isStopMode ? (
-                <Square className="w-4 h-4 md:w-5 md:h-5 fill-current" />
+                <Square className="w-5 h-5 fill-current" />
               ) : (
-                <ArrowUp className="w-4 h-4 md:w-5 md:h-5" />
+                <ArrowUp className="w-5 h-5" strokeWidth={2.5} />
               )}
             </motion.div>
           </motion.button>
@@ -133,7 +136,7 @@ export function ChatInput({
         {/* Disclaimer - hidden on mobile for more space */}
         {!hideDisclaimer && (
           <div className="hidden md:block text-center mt-3">
-            <p className="text-[10px] text-slate-400 font-medium">
+            <p className="text-[11px] text-slate-400/80 dark:text-zinc-500 font-medium tracking-wide">
               AI can make mistakes. Please verify important information.
             </p>
           </div>

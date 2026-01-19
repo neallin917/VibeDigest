@@ -103,7 +103,7 @@ export function ChatWorkspace({
 
         {/* Chat Area */}
         <div className={cn(
-          "flex-1 flex flex-col rounded-[2rem] shadow-glass ring-1 backdrop-blur-xl bg-white/65 ring-white/60 dark:bg-card/50 dark:ring-white/5 dark:shadow-none overflow-hidden relative",
+          "flex-1 flex flex-col glass-panel relative z-10",
         )}>
           <div className="flex-1 flex flex-col min-w-0 relative h-full">
             <ChatContainer
@@ -112,10 +112,6 @@ export function ChatWorkspace({
               threadId={activeThreadId}
               initialMessages={initialMessages}
               activeTaskId={activeTaskId}
-              onTaskCreated={(id) => {
-                  setTaskParam(id)
-                  onThreadCreated?.()
-              }}
               onOpenPanel={(id) => setTaskParam(id)}
               onSelectExample={(id) => setTaskParam(id)} // Might want to link this to task creation too
             />
@@ -124,10 +120,10 @@ export function ChatWorkspace({
 
         {/* Video Context Panel (Desktop) */}
         <aside className={cn(
-          "hidden xl:flex flex-col transition-all duration-500 ease-in-out rounded-[2rem] overflow-hidden shadow-glass ring-1 backdrop-blur-xl bg-white/80 ring-white/60 dark:bg-card/80 dark:ring-white/5",
+          "hidden xl:flex flex-col transition-all duration-700 cubic-bezier(0.19, 1, 0.22, 1) glass-panel",
           activeTaskId
-            ? "w-[400px] opacity-100 ml-0"
-            : "w-0 opacity-0 ml-0 border-none"
+            ? "w-[420px] opacity-100 ml-0 translate-x-0"
+            : "w-0 opacity-0 ml-0 border-none translate-x-10"
         )}>
           {activeTaskId && (
             <VideoDetailPanel
