@@ -19,7 +19,6 @@ interface ChatContainerProps {
   initialMessages?: UIMessage[] // Use UIMessage for better type safety, though loose parsing helps
   onOpenPanel?: (taskId: string) => void
   onSelectExample?: (taskId: string) => void
-  onTaskCreated?: (taskId: string) => void
 }
 
 // --- Tool UI Components ---
@@ -98,7 +97,6 @@ export function ChatContainer({
   initialMessages = [],
   onOpenPanel,
   onSelectExample,
-  onTaskCreated,
 }: ChatContainerProps) {
 
   // Ensure we always have a valid UUID for the thread ID to satisfy DB requirements
@@ -248,42 +246,42 @@ export function ChatContainer({
         ref={scrollRef}
         className={cn(
           'flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar scroll-smooth',
-          messages.length > 0 ? 'pb-36 space-y-8' : '',
+          messages.length > 0 ? 'pb-36' : '',
         )}
       >
-        {messages.length === 0 && (
+        {messages.length === 0 ? (
           <WelcomeScreen
             onSelectExample={onSelectExample || (() => { })}
             onSubmit={handleSubmit}
             isLoading={isLoading}
           />
-        )}
+        ) : (
+          <div className="max-w-3xl mx-auto w-full space-y-8">
+            <AnimatePresence initial={false}>
+              {messages.map((m) => {
+                if (m.role === 'system') return null;
 
-        <AnimatePresence initial={false}>
-          {messages.map((m) => {
-            if (m.role === 'system') return null;
-
-            return (
-              <motion.div
-                key={m.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
-                className={cn('flex gap-4 max-w-4xl group', m.role === 'user' ? 'ml-auto flex-row-reverse' : '')}
-              >
+                return (
+                  <motion.div
+                    key={m.id}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, ease: 'easeOut' }}
+                    className={cn('flex gap-5 w-full group', m.role === 'user' ? 'ml-auto flex-row-reverse' : '')}
+                  >
                 {/* Avatar */}
                 <div
                   className={cn(
-                    'h-8 w-8 rounded-xl shrink-0 flex items-center justify-center shadow-sm ring-1 transition-all',
+                    'h-9 w-9 rounded-[14px] shrink-0 flex items-center justify-center shadow-sm transition-all duration-300',
                     m.role === 'user'
-                      ? 'bg-emerald-100 ring-emerald-200 dark:bg-emerald-900/30 dark:ring-emerald-500/30'
-                      : 'bg-white ring-slate-200 dark:bg-white/10 dark:ring-white/20',
+                      ? 'bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-900/40 dark:to-emerald-900/10 dark:ring-1 dark:ring-emerald-500/20'
+                      : 'bg-white/80 dark:bg-white/5 ring-1 ring-black/5 dark:ring-white/10',
                   )}
                 >
                   {m.role === 'user' ? (
-                    <User className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <User className="w-5 h-5 text-emerald-700 dark:text-emerald-400" strokeWidth={2} />
                   ) : (
-                    <Sparkles className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+                    <Sparkles className="w-5 h-5 text-emerald-500 dark:text-emerald-400" strokeWidth={2} />
                   )}
                 </div>
 
@@ -291,10 +289,10 @@ export function ChatContainer({
                 <div className={cn('flex flex-col gap-1 max-w-[85%]', m.role === 'user' ? 'items-end' : 'items-start w-full')}>
                   <div
                     className={cn(
-                      'p-4 md:p-5 text-[15px] leading-7 relative overflow-hidden shadow-sm backdrop-blur-sm',
+                      'px-6 py-5 text-[15.5px] leading-7 relative overflow-hidden backdrop-blur-md',
                       m.role === 'user'
-                        ? 'rounded-2xl rounded-tr-sm bg-emerald-600 text-white shadow-emerald-500/20 dark:bg-emerald-600 dark:text-white dark:shadow-none'
-                        : 'rounded-2xl rounded-tl-sm bg-white/60 border border-white/60 text-slate-700 dark:bg-white/5 dark:border-white/10 dark:text-slate-300',
+                        ? 'rounded-[20px] rounded-tr-sm bg-gradient-to-br from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-500/10'
+                        : 'rounded-[20px] rounded-tl-sm bg-white/40 dark:bg-white/5 border border-white/40 dark:border-white/5 text-slate-800 dark:text-zinc-200 shadow-sm',
                     )}
                   >
                     <div className="whitespace-pre-wrap">
@@ -305,7 +303,8 @@ export function ChatContainer({
                             return <span key={index}>{part.text}</span>
                           }
                           // Render Tools
-                          if (part.type.startsWith('tool-') || (part as any).toolName) {
+                          const toolPart = part as { toolName?: string; type: string }
+                          if (part.type.startsWith('tool-') || toolPart.toolName) {
                              return <ToolPart key={index} part={part} />
                           }
                           return null
@@ -345,7 +344,7 @@ export function ChatContainer({
 
         {/* Loading Indicator - Only show when submitted but not yet streaming (waiting for first chunk) */}
         {status === 'submitted' && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-4 max-w-4xl">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-4 w-full">
             <div className="h-8 w-8 rounded-xl bg-white ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/20 flex items-center justify-center shrink-0">
               <Sparkles className="w-4 h-4 text-emerald-500 dark:text-emerald-400 animate-pulse" />
             </div>
@@ -363,7 +362,7 @@ export function ChatContainer({
         
         {/* Error State */}
         {error && (
-           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-4 max-w-4xl">
+           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-4 w-full">
              <div className="w-8 shrink-0" />
              <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 px-4 py-3 rounded-xl flex items-center gap-3">
                <XCircle className="w-4 h-4 text-red-500" />
@@ -378,6 +377,8 @@ export function ChatContainer({
                </button>
              </div>
            </motion.div>
+        )}
+          </div>
         )}
       </div>
 

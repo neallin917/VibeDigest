@@ -89,16 +89,16 @@ export function TypewriterPlaceholder({
     <div 
       className={cn(
         "absolute inset-0 flex items-center pointer-events-none select-none",
-        "pl-4 md:pl-12", // Match input padding
+        "pl-0", // Aligned with input text
         className
       )}
       aria-hidden="true"
     >
-      <span className="text-slate-400 dark:text-slate-500 text-sm md:text-base truncate">
+      <span className="text-slate-400/80 dark:text-zinc-500 text-[15px] font-medium tracking-wide truncate">
         {displayText}
         <span 
           className={cn(
-            "inline-block w-0.5 h-4 md:h-5 ml-0.5 bg-slate-400 dark:bg-slate-500 align-middle",
+            "inline-block w-0.5 h-4 md:h-5 ml-0.5 bg-slate-400 dark:bg-zinc-500 align-middle",
             "animate-pulse"
           )}
         />

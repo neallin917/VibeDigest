@@ -13,12 +13,10 @@ interface IconSidebarProps {
 export function IconSidebar({ onOpenLibrary, onNewChat }: IconSidebarProps) {
   return (
     <aside className={cn(
-      "w-16 flex-none flex flex-col items-center py-4 gap-6 hidden md:flex",
-      "rounded-[2rem] border shadow-sm backdrop-blur-xl transition-all",
-      // Light Mode
-      "bg-white/65 border-white/40",
-      // Dark Mode
-      "dark:bg-black/40 dark:border-white/10"
+      "w-16 flex-none flex flex-col items-center py-5 gap-6 hidden md:flex",
+      "glass-panel rounded-[2rem]",
+      // Refined Overrides for Sidebar specifically if needed
+      "border-white/30 dark:border-white/5"
     )}>
       {/* Active Chat Tab / New Chat */}
       <Tooltip>
@@ -26,12 +24,12 @@ export function IconSidebar({ onOpenLibrary, onNewChat }: IconSidebarProps) {
           <button 
             onClick={onNewChat}
             className={cn(
-              "p-2.5 rounded-xl text-white shadow-lg cursor-pointer transition-all hover:scale-105 active:scale-95",
-              "bg-emerald-600 shadow-emerald-200 hover:bg-emerald-700",
-              "dark:bg-emerald-600 dark:shadow-emerald-900/20 dark:hover:bg-emerald-700"
+              "p-3 rounded-[18px] text-white shadow-lg cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 group",
+              "bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-200/50",
+              "dark:from-emerald-600 dark:to-emerald-700 dark:shadow-emerald-900/30"
             )}
           >
-            <MessageSquare className="w-6 h-6" />
+            <MessageSquare className="w-5 h-5 group-hover:rotate-3 transition-transform" strokeWidth={2.5} />
           </button>
         </TooltipTrigger>
         <TooltipContent side="right" sideOffset={12}>
@@ -39,10 +37,10 @@ export function IconSidebar({ onOpenLibrary, onNewChat }: IconSidebarProps) {
         </TooltipContent>
       </Tooltip>
 
-      <div className="w-8 h-px bg-slate-200/60 dark:bg-white/10" />
+      <div className="w-6 h-[1px] bg-slate-200/50 dark:bg-white/5" />
 
       {/* Nav Actions */}
-      <nav className="flex-1 flex flex-col gap-5 w-full items-center">
+      <nav className="flex-1 flex flex-col gap-4 w-full items-center">
         <NavButton icon={FolderOpen} label="Library" onClick={onOpenLibrary} />
         <NavButton icon={PieChart} label="Analytics" onClick={() => alert("Analytics coming soon!")} />
       </nav>
@@ -66,12 +64,12 @@ const NavButton = forwardRef<HTMLButtonElement, NavButtonProps>(
             onClick={onClick}
             {...props}
             className={cn(
-              "w-10 h-10 flex items-center justify-center rounded-xl transition-all",
-              "text-slate-400 hover:bg-white/60 hover:text-emerald-600",
-              "dark:hover:bg-white/10 dark:hover:text-emerald-500"
+              "w-10 h-10 flex items-center justify-center rounded-2xl transition-all duration-300",
+              "text-slate-400 hover:bg-black/5 hover:text-emerald-600",
+              "dark:text-slate-500 dark:hover:bg-white/10 dark:hover:text-emerald-400"
             )}
           >
-            <Icon className="w-6 h-6" />
+            <Icon className="w-5 h-5" strokeWidth={2} />
           </button>
         </TooltipTrigger>
         <TooltipContent side="right" sideOffset={12}>
