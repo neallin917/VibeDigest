@@ -2,6 +2,8 @@
 
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport, UIMessage } from 'ai'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { ChatInput } from './ChatInput'
 import { VideoCardMessage } from './messages/VideoCardMessage'
 import { WelcomeScreen } from './WelcomeScreen'
@@ -291,16 +293,78 @@ export function ChatContainer({
                     className={cn(
                       'px-6 py-5 text-[15.5px] leading-7 relative overflow-hidden backdrop-blur-md',
                       m.role === 'user'
-                        ? 'rounded-[20px] rounded-tr-sm bg-gradient-to-br from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-500/10'
+                        ? 'rounded-[20px] rounded-tr-sm bg-emerald-600/10 dark:bg-emerald-500/10 border border-emerald-600/10 dark:border-emerald-500/20 text-slate-800 dark:text-zinc-200'
                         : 'rounded-[20px] rounded-tl-sm bg-white/40 dark:bg-white/5 border border-white/40 dark:border-white/5 text-slate-800 dark:text-zinc-200 shadow-sm',
                     )}
                   >
-                    <div className="whitespace-pre-wrap">
+                    <div className="w-full min-w-0">
                       {/* v6 Best Practice: Render parts */}
                       {m.parts ? (
                         m.parts.map((part, index) => {
                           if (part.type === 'text') {
-                            return <span key={index}>{part.text}</span>
+                            return (
+                              <div 
+                                key={index} 
+                                className="prose prose-sm md:prose-base prose-slate dark:prose-invert max-w-none break-words prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent prose-pre:my-2"
+                              >
+                                <ReactMarkdown
+                                  remarkPlugins={[remarkGfm]}
+                                  components={{
+                                    pre: ({ node, ...props }) => (
+                                      <div className="overflow-hidden w-full my-3 bg-slate-950 dark:bg-black/40 rounded-lg border border-slate-200 dark:border-white/10 group relative">
+                                        <div className="flex items-center justify-between px-4 py-2 bg-slate-900/50 dark:bg-white/5 border-b border-slate-800 dark:border-white/5">
+                                          <div className="flex gap-1.5">
+                                            <div className="w-2.5 h-2.5 rounded-full bg-red-500/20" />
+                                            <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/20" />
+                                            <div className="w-2.5 h-2.5 rounded-full bg-green-500/20" />
+                                          </div>
+                                        </div>
+                                        <div className="p-4 overflow-x-auto custom-scrollbar">
+                                          <pre {...props} className="bg-transparent p-0 m-0 font-mono text-sm leading-relaxed" />
+                                        </div>
+                                      </div>
+                                    ),
+                                    code: ({ node, className, children, ...props }) => {
+                                      const match = /language-(\w+)/.exec(className || '')
+                                      const isInline = !match && !String(children).includes('\n')
+                                      
+                                      return (
+                                        <code 
+                                          className={cn(
+                                            isInline 
+                                              ? "bg-slate-100 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono text-[0.9em] before:content-[''] after:content-[''] text-emerald-700 dark:text-emerald-300" 
+                                              : "bg-transparent font-mono text-sm",
+                                            className
+                                          )} 
+                                          {...props}
+                                        >
+                                          {children}
+                                        </code>
+                                      )
+                                    },
+                                    a: ({ node, ...props }) => (
+                                      <a 
+                                        {...props} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300 hover:underline transition-colors font-medium" 
+                                      />
+                                    ),
+                                    ul: ({ node, ...props }) => (
+                                      <ul {...props} className="my-2 list-disc pl-4 space-y-1" />
+                                    ),
+                                    ol: ({ node, ...props }) => (
+                                      <ol {...props} className="my-2 list-decimal pl-4 space-y-1" />
+                                    ),
+                                    li: ({ node, ...props }) => (
+                                      <li {...props} className="pl-1" />
+                                    )
+                                  }}
+                                >
+                                  {part.text}
+                                </ReactMarkdown>
+                              </div>
+                            )
                           }
                           // Render Tools
                           const toolPart = part as { toolName?: string; type: string }
@@ -311,7 +375,13 @@ export function ChatContainer({
                         })
                       ) : (
                         // Fallback for simple messages
-                        m.content
+                        <div className="prose prose-sm md:prose-base prose-slate dark:prose-invert max-w-none break-words">
+                          <ReactMarkdown 
+                            remarkPlugins={[remarkGfm]}
+                          >
+                            {m.content}
+                          </ReactMarkdown>
+                        </div>
                       )}
                     </div>
 
