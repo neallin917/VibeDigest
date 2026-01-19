@@ -49,9 +49,9 @@ interface AppSidebarProps {
   onSelectThread?: (threadId: string) => void
 }
 
-export function AppSidebar({ 
-  onNewChat, 
-  onSelectTask, 
+export function AppSidebar({
+  onNewChat,
+  onSelectTask,
   className,
   threads = [],
   activeThreadId,
@@ -165,12 +165,12 @@ export function AppSidebar({
 
         {/* Brand Logo - Only visible when expanded or we can show icon when collapsed */}
         {!isCollapsed && (
-             <div className="flex items-center gap-2">
-                 <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 via-purple-500 to-emerald-500 flex items-center justify-center shadow-sm">
-                    <Sparkles className="w-4 h-4 text-white" />
-                 </div>
-                 <span className="font-bold text-slate-800 dark:text-white tracking-tight">VibeDigest</span>
-             </div>
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 via-purple-500 to-emerald-500 flex items-center justify-center shadow-sm">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-bold text-slate-800 dark:text-white tracking-tight">VibeDigest</span>
+          </div>
         )}
       </div>
 
@@ -197,7 +197,7 @@ export function AppSidebar({
             <span className="text-sm font-medium">{t("chat.newChat") || "New task"}</span>
           </button>
 
-          {/* Library Button */}
+          {/* Community Button */}
           <button
             onClick={handleLibraryClick}
             className={cn(
@@ -207,7 +207,7 @@ export function AppSidebar({
             )}
           >
             <Library className="w-5 h-5" />
-            <span className="text-sm font-medium">{t("chat.library") || "Library"}</span>
+            <span className="text-sm font-medium">{t("chat.community") || "Community"}</span>
           </button>
 
           {/* Divider */}
@@ -228,15 +228,15 @@ export function AppSidebar({
               ) : (
                 <ChevronRight className="w-4 h-4" />
               )}
-              <span>Chats</span>
+              <span>{t("chat.chats") || "Chats"}</span>
             </button>
-            
+
             {isChatsOpen && (
               <div className="overflow-y-auto max-h-[30vh] custom-scrollbar mt-1 px-1 space-y-0.5">
                 {threads.length === 0 ? (
-                   <div className="text-center py-4 px-4">
-                     <p className="text-xs text-slate-400">No chats yet</p>
-                   </div>
+                  <div className="text-center py-4 px-4">
+                    <p className="text-xs text-slate-400">No chats yet</p>
+                  </div>
                 ) : (
                   threads.map(thread => (
                     <button
@@ -254,7 +254,7 @@ export function AppSidebar({
                       )} />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm truncate">
-                            {thread.title || 'New Chat'}
+                          {thread.title || 'New Chat'}
                         </div>
                       </div>
                     </button>
@@ -280,7 +280,7 @@ export function AppSidebar({
               ) : (
                 <ChevronRight className="w-4 h-4" />
               )}
-              <span>Recents</span>
+              <span>{t("chat.tasks") || "Tasks"}</span>
             </button>
 
             {/* Recents List */}
@@ -349,7 +349,7 @@ function CollapsedView({ onNewChat, onLibraryClick, t }: CollapsedViewProps) {
           </TooltipContent>
         </Tooltip>
 
-        {/* Library */}
+        {/* Community */}
         <Tooltip delayDuration={300}>
           <TooltipTrigger asChild>
             <button
@@ -364,7 +364,7 @@ function CollapsedView({ onNewChat, onLibraryClick, t }: CollapsedViewProps) {
             </button>
           </TooltipTrigger>
           <TooltipContent side="right" sideOffset={12}>
-            {t("chat.library") || "Library"}
+            {t("chat.community") || "Community"}
           </TooltipContent>
         </Tooltip>
       </nav>
