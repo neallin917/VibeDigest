@@ -60,7 +60,7 @@ export function UserAvatarDropdown({
         <DropdownMenuTrigger asChild>
           <button 
             className={cn(
-              "rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 border-2 border-white dark:border-white/20 shadow-sm hover:scale-105 transition-transform flex items-center justify-center text-white font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:focus:ring-emerald-500/50",
+              "rounded-full bg-gradient-to-tr from-emerald-600 to-teal-600 border-2 border-white dark:border-white/20 shadow-sm hover:scale-105 transition-transform flex items-center justify-center text-white font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/50 dark:focus:ring-emerald-500/50",
               avatarSize,
               className
             )}

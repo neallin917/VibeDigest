@@ -18,9 +18,9 @@ export default async function LandingPage({ params }: { params: Promise<{ lang: 
       
       {/* Background Blobs (Light Mode) */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none dark:hidden -z-10 bg-[#FAFAFA]">
-        <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-indigo-200/30 rounded-full blur-[100px] mix-blend-multiply animate-float-slow" />
-        <div className="absolute top-[20%] left-[-10%] w-[35%] h-[35%] bg-purple-200/30 rounded-full blur-[100px] mix-blend-multiply animate-float-slow" style={{ animationDelay: '2s' }} />
-        <div className="absolute bottom-[-10%] left-[20%] w-[45%] h-[45%] bg-teal-200/30 rounded-full blur-[100px] mix-blend-multiply animate-float-slow" style={{ animationDelay: '4s' }} />
+        <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-emerald-100/40 rounded-full blur-[100px] mix-blend-multiply animate-float-slow" />
+        <div className="absolute top-[20%] left-[-10%] w-[35%] h-[35%] bg-teal-100/40 rounded-full blur-[100px] mix-blend-multiply animate-float-slow" style={{ animationDelay: '2s' }} />
+        <div className="absolute bottom-[-10%] left-[20%] w-[45%] h-[45%] bg-cyan-100/40 rounded-full blur-[100px] mix-blend-multiply animate-float-slow" style={{ animationDelay: '4s' }} />
         <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-[0.03] mix-blend-overlay"></div>
       </div>
 
@@ -47,7 +47,7 @@ export default async function LandingPage({ params }: { params: Promise<{ lang: 
         {/* Community Section */}
         <div id="demos" className="max-w-6xl mx-auto px-6 mb-20 scroll-mt-24">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-1 h-6 bg-indigo-600 dark:bg-primary rounded-full"></div>
+            <div className="w-1 h-6 bg-emerald-700 dark:bg-primary rounded-full"></div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">Community</h2>
             <span className="text-xs text-slate-500 dark:text-gray-500 hidden md:inline-block">Curated public demos. Your tasks are private.</span>
           </div>
@@ -59,7 +59,7 @@ export default async function LandingPage({ params }: { params: Promise<{ lang: 
           <div className="mt-8 flex justify-center">
             <Link
               href="/explore"
-              className="group flex items-center gap-2 px-6 py-2.5 rounded-full text-sm bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 hover:border-indigo-300 dark:hover:border-primary/50 text-slate-700 dark:text-white font-medium transition-all hover:shadow-lg dark:hover:shadow-[0_0_20px_rgba(34,197,94,0.15)]"
+              className="group flex items-center gap-2 px-6 py-2.5 rounded-full text-sm bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 hover:border-emerald-200 dark:hover:border-primary/50 text-slate-700 dark:text-white font-medium transition-all hover:shadow-lg dark:hover:shadow-[0_0_20px_rgba(34,197,94,0.15)]"
             >
               View All
               <span className="group-hover:translate-x-1 transition-transform">→</span>

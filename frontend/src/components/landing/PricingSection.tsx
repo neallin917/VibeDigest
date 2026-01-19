@@ -104,7 +104,7 @@ export function PricingSection() {
                                 plan.highlight
                                     ? cn(
                                         // Light mode highlight
-                                        "bg-white/90 border-2 border-indigo-300 shadow-2xl shadow-indigo-500/10 md:-mt-3 md:mb-3 z-10",
+                                        "bg-white/90 border-2 border-emerald-500/30 shadow-2xl shadow-emerald-900/5 md:-mt-3 md:mb-3 z-10",
                                         // Dark mode highlight
                                         "dark:bg-zinc-900/80 dark:border dark:border-emerald-500/30 dark:shadow-[0_0_40px_-10px_rgba(16,185,129,0.2)]"
                                     )
@@ -119,7 +119,7 @@ export function PricingSection() {
                             {plan.highlight && (
                                 <div className={cn(
                                     "absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-bold px-3 py-1 rounded-full tracking-wider uppercase shadow-lg flex items-center gap-1",
-                                    "bg-gradient-to-r from-indigo-600 to-purple-600 text-white",
+                                    "bg-gradient-to-r from-emerald-700 to-teal-700 text-white",
                                     "dark:from-emerald-500 dark:to-teal-500 dark:text-black"
                                 )}>
                                     <Zap className="w-2.5 h-2.5 fill-current" />
@@ -129,7 +129,7 @@ export function PricingSection() {
 
                             <Heading as="h3" className={cn(
                                 "text-base font-bold mb-1",
-                                plan.highlight ? "text-indigo-600 dark:text-emerald-400" : "text-slate-800 dark:text-zinc-100"
+                                plan.highlight ? "text-emerald-800 dark:text-emerald-400" : "text-slate-800 dark:text-zinc-100"
                             )}>
                                 {plan.title}
                             </Heading>
@@ -148,7 +148,7 @@ export function PricingSection() {
                                     <li key={i} className="flex items-start gap-2 text-xs text-slate-700 dark:text-zinc-300">
                                         <CheckCircle2 className={cn(
                                             "w-4 h-4 shrink-0 mt-0.5",
-                                            plan.highlight ? "text-indigo-500 dark:text-emerald-500" : "text-slate-400 dark:text-zinc-600"
+                                            plan.highlight ? "text-emerald-700 dark:text-emerald-500" : "text-slate-400 dark:text-zinc-600"
                                         )} />
                                         <span className="leading-snug">{feature}</span>
                                     </li>
@@ -162,7 +162,7 @@ export function PricingSection() {
                                     "w-full h-10 rounded-lg font-semibold text-sm transition-all duration-300",
                                     plan.highlight
                                         ? cn(
-                                            "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/20 border-0",
+                                            "bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-900/10 border-0",
                                             "dark:from-emerald-500 dark:to-teal-500 dark:hover:from-emerald-400 dark:hover:to-teal-400 dark:text-black dark:shadow-emerald-500/20"
                                         )
                                         : cn(

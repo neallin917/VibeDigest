@@ -59,7 +59,7 @@ function FeatureCard({ icon: Icon, title, desc, gradient, iconColor, delay, comi
                     </div>
                     
                     {comingSoon && (
-                        <Badge variant="secondary" className="text-[10px] h-5 px-2 font-semibold border-indigo-500/20 bg-indigo-500/10 text-indigo-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400">
+                        <Badge variant="secondary" className="text-[10px] h-5 px-2 font-semibold border-emerald-500/10 bg-emerald-500/5 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400">
                             Soon
                         </Badge>
                     )}
@@ -85,46 +85,46 @@ export function FeaturesSection() {
             icon: FileText,
             title: t("landing.smartSummarization"),
             desc: t("landing.smartSummarizationDesc"),
-            gradient: "from-emerald-400 to-teal-500",
-            iconColor: "text-emerald-400",
+            gradient: "from-emerald-500/20 to-teal-600/20",
+            iconColor: "text-emerald-700",
             className: "md:col-span-2 lg:col-span-2" // Large card
         },
         {
             icon: AlignLeft,
             title: t("landing.interactiveTranscript"),
             desc: t("landing.interactiveTranscriptDesc"),
-            gradient: "from-blue-400 to-indigo-500",
-            iconColor: "text-blue-400",
+            gradient: "from-sky-500/20 to-blue-600/20",
+            iconColor: "text-sky-700",
         },
         {
             icon: Languages,
             title: t("landing.crossLanguageAI"),
             desc: t("landing.crossLanguageAIDesc"),
-            gradient: "from-orange-400 to-amber-500",
-            iconColor: "text-orange-400",
+            gradient: "from-amber-500/20 to-orange-600/20",
+            iconColor: "text-amber-700",
         },
         {
             icon: Share2,
             title: t("landing.visualMindMaps"),
             desc: t("landing.visualMindMapsDesc"),
-            gradient: "from-purple-400 to-pink-500",
-            iconColor: "text-purple-400",
+            gradient: "from-teal-500/20 to-cyan-600/20",
+            iconColor: "text-teal-700",
             className: "md:col-span-2 lg:col-span-2" // Large card
         },
         {
             icon: MessageSquare,
             title: t("landing.chatWithVideo"),
             desc: t("landing.chatWithVideoDesc"),
-            gradient: "from-pink-400 to-rose-500",
-            iconColor: "text-pink-400",
+            gradient: "from-cyan-500/20 to-blue-600/20",
+            iconColor: "text-cyan-700",
             comingSoon: true
         },
         {
             icon: Download,
             title: t("landing.seamlessExport"),
             desc: t("landing.seamlessExportDesc"),
-            gradient: "from-indigo-400 to-cyan-500",
-            iconColor: "text-indigo-400",
+            gradient: "from-blue-500/20 to-sky-600/20",
+            iconColor: "text-blue-700",
             comingSoon: true
         }
     ]
@@ -140,7 +140,7 @@ export function FeaturesSection() {
                         transition={{ duration: 0.6 }}
                     >
                         <Heading as="h2" className="text-2xl md:text-4xl font-display font-bold mb-5 text-slate-900 dark:text-white">
-                            Everything you need to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-emerald-400 dark:to-teal-400">learn faster</span>
+                            Everything you need to <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-700 to-teal-700 dark:from-emerald-400 dark:to-teal-400">learn faster</span>
                         </Heading>
                         <Text className="max-w-xl mx-auto text-slate-600 dark:text-zinc-400 text-base">
                             Transform passive watching into active understanding with our suite of AI-powered tools.
