@@ -157,6 +157,9 @@ export function ChatWorkspace({
           onSelectThread(id)
           setIsMobileMenuOpen(false)
         }}
+        onSelectTask={(taskId) => {
+          setTaskParam(taskId)
+        }}
       />
 
       {/* Main Layout: Chat + Details */}

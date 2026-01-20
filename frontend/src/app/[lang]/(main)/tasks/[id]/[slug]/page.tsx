@@ -67,10 +67,10 @@ export async function generateMetadata(
             title: task.video_title,
             description: `AI-powered summary and insights for ${task.video_title}`,
             images: task.thumbnail_url ? [task.thumbnail_url, ...previousImages] : previousImages,
-            url: `/${lang}/tasks/${id}/${currentSlug}`,
+            url: `/tasks/${id}/${currentSlug}`,
         },
         alternates: {
-            canonical: `/${lang}/tasks/${id}/${currentSlug}`,
+            canonical: `/tasks/${id}/${currentSlug}`,
             languages: {
                 'en': `/en/tasks/${id}/${currentSlug}`,
                 'zh': `/zh/tasks/${id}/${currentSlug}`, // Add more as needed
@@ -91,9 +91,9 @@ export default async function TaskDetailPage(props: Props) {
     // SLUG ENFORCEMENT
     const correctSlug = generateSlug(task.video_title);
     if (slug !== correctSlug) {
-        redirect(`/${lang}/tasks/${id}/${correctSlug}`);
+        redirect(`/tasks/${id}/${correctSlug}`);
     }
 
     // REDIRECT TO NEW CHAT UI
-    redirect(`/${lang}/chat?task=${id}`)
+    redirect(`/chat?task=${id}`)
 }

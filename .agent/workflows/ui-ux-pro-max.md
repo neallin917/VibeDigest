@@ -1,6 +1,5 @@
 ---
 description: Plan and implement UI
-auto_execution_mode: 3
 ---
 
 # UI/UX Pro Max - Design Intelligence

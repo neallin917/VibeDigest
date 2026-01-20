@@ -1,17 +1,22 @@
 'use client'
 
+import { usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   MessageSquarePlus,
-  FolderOpen,
-  Settings,
-  CreditCard,
-  Sparkles,
-  MessageSquare
+  Library,
+  MessageSquare,
+  Loader2,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/components/i18n/I18nProvider'
+import { BrandLogo } from '@/components/layout/BrandLogo'
+import { useTasks } from '@/hooks/useTasks'
+import { TaskItem } from '@/components/layout/sidebar/TaskItem'
+import { useState } from 'react'
 
 interface Thread {
   id: string
@@ -27,6 +32,7 @@ interface MobileMenuDrawerProps {
   threads?: Thread[]
   activeThreadId?: string | null
   onSelectThread?: (threadId: string) => void
+  onSelectTask?: (taskId: string) => void
 }
 
 export function MobileMenuDrawer({ 
@@ -36,18 +42,43 @@ export function MobileMenuDrawer({
   onOpenLibrary,
   threads = [],
   activeThreadId,
-  onSelectThread
+  onSelectThread,
+  onSelectTask
 }: MobileMenuDrawerProps) {
   const { t, locale } = useI18n()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
+  // Tasks hook
+  const { tasks, loading, deleteTask } = useTasks(isOpen)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // Collapse state
+  const [isChatsOpen, setIsChatsOpen] = useState(true)
+  const [isTasksOpen, setIsTasksOpen] = useState(true)
+
+  const isNewChatActive = pathname?.endsWith('/chat') && !searchParams?.get('task') && !activeThreadId
+  
   const handleNewChat = () => {
     onOpenChange(false)
     onNewChat()
   }
 
-  const handleOpenLibrary = () => {
+  const handleCommunityClick = () => {
     onOpenChange(false)
-    onOpenLibrary()
+    onOpenLibrary() // This prop was named onOpenLibrary but effectively handles navigation/action
+  }
+
+  const handleTaskSelect = (taskId: string) => {
+    onOpenChange(false)
+    onSelectTask?.(taskId)
+  }
+
+  const handleDeleteTask = async (e: React.MouseEvent, taskId: string) => {
+    e.stopPropagation()
+    setDeletingId(taskId)
+    await deleteTask(taskId)
+    setDeletingId(null)
   }
 
   return (
@@ -56,17 +87,16 @@ export function MobileMenuDrawer({
         side="left"
         className={cn(
           "w-[280px] p-0 flex flex-col border-r shadow-2xl backdrop-blur-xl",
-          "bg-white/95 border-white/40",
-          "dark:bg-zinc-900/95 dark:border-white/10"
+          "bg-white/80 border-slate-200/60",
+          "dark:bg-black/60 dark:border-white/10"
         )}
       >
         {/* Header */}
         <SheetHeader className="p-5 border-b border-slate-200/60 dark:border-white/10">
-          <SheetTitle className="flex items-center gap-2.5 text-slate-800 dark:text-white">
-            <div className="p-1.5 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 dark:from-emerald-500 dark:to-teal-600">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-semibold tracking-tight">{t('brand.appName')}</span>
+          <SheetTitle asChild>
+             <div className="flex items-center gap-2.5">
+               <BrandLogo showText={true} />
+             </div>
           </SheetTitle>
         </SheetHeader>
 
@@ -77,65 +107,107 @@ export function MobileMenuDrawer({
             icon={MessageSquarePlus}
             label={t('chat.newChat') || 'New Chat'}
             onClick={handleNewChat}
-            primary
+            isActive={isNewChatActive}
           />
 
-          {/* Library */}
+          {/* Community (formerly Library) - Aligned with Desktop */}
           <MenuButton
-            icon={FolderOpen}
-            label={t('chat.library') || 'My Library'}
-            onClick={handleOpenLibrary}
+            icon={Library}
+            label={t('chat.community') || 'Community'}
+            onClick={handleCommunityClick}
+            isActive={false} 
           />
 
           <div className="h-px bg-slate-200/60 dark:bg-white/10 my-3" />
 
           {/* Chats Section */}
-          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 px-3 py-2 uppercase tracking-wider">
-            Chats
-          </div>
-          
-          <div className="space-y-0.5">
-            {threads.length === 0 ? (
-               <div className="px-3 py-2 text-xs text-slate-400">No chats yet</div>
-            ) : (
-              threads.map(thread => (
-                <button
-                  key={thread.id}
-                  onClick={() => onSelectThread?.(thread.id)}
-                  className={cn(
-                    "w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center gap-3",
-                    activeThreadId === thread.id
-                      ? "bg-emerald-50/50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5"
-                  )}
-                >
-                  <MessageSquare className={cn(
-                    "w-4 h-4 shrink-0", 
-                    activeThreadId === thread.id ? "text-emerald-500" : "text-slate-400"
-                  )} />
-                  <span className="text-sm font-medium truncate">{thread.title || 'New Chat'}</span>
-                </button>
-              ))
+          <div className="mb-2">
+            <button
+              onClick={() => setIsChatsOpen(!isChatsOpen)}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-xl w-full text-left",
+                "text-slate-500 hover:text-slate-700 hover:bg-slate-50",
+                "dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-white/5"
+              )}
+            >
+              {isChatsOpen ? (
+                <ChevronDown className="w-4 h-4" />
+              ) : (
+                <ChevronRight className="w-4 h-4" />
+              )}
+              <span className="uppercase tracking-wider text-xs">{t("chat.chats") || "Chats"}</span>
+            </button>
+            
+            {isChatsOpen && (
+              <div className="space-y-0.5 mt-1">
+                {threads.length === 0 ? (
+                   <div className="px-3 py-2 text-xs text-slate-400">No chats yet</div>
+                ) : (
+                  threads.map(thread => (
+                    <button
+                      key={thread.id}
+                      onClick={() => onSelectThread?.(thread.id)}
+                      className={cn(
+                        "w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center gap-3",
+                        activeThreadId === thread.id
+                          ? "bg-emerald-50/50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                          : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5"
+                      )}
+                    >
+                      <MessageSquare className={cn(
+                        "w-4 h-4 shrink-0", 
+                        activeThreadId === thread.id ? "text-emerald-500" : "text-slate-400"
+                      )} />
+                      <span className="text-sm font-medium truncate">{thread.title || 'New Chat'}</span>
+                    </button>
+                  ))
+                )}
+              </div>
             )}
           </div>
 
           <div className="h-px bg-slate-200/60 dark:bg-white/10 my-3" />
 
-          {/* Settings */}
-          <MenuLink
-            icon={Settings}
-            label={t('nav.settings')}
-            href={`/${locale}/settings`}
-            onClick={() => onOpenChange(false)}
-          />
+          {/* Tasks Section */}
+          <div className="mb-2">
+            <button
+              onClick={() => setIsTasksOpen(!isTasksOpen)}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-xl w-full text-left",
+                "text-slate-500 hover:text-slate-700 hover:bg-slate-50",
+                "dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-white/5"
+              )}
+            >
+              {isTasksOpen ? (
+                <ChevronDown className="w-4 h-4" />
+              ) : (
+                <ChevronRight className="w-4 h-4" />
+              )}
+              <span className="uppercase tracking-wider text-xs">{t("chat.tasks") || "Tasks"}</span>
+            </button>
 
-          {/* Pricing */}
-          <MenuLink
-            icon={CreditCard}
-            label={t('nav.pricing')}
-            href={`/${locale}/settings/pricing`}
-            onClick={() => onOpenChange(false)}
-          />
+            {isTasksOpen && (
+              <div className="space-y-0.5 mt-1">
+                {loading ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                  </div>
+                ) : tasks.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-slate-400">No recent tasks</div>
+                ) : (
+                  tasks.map(task => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      onSelect={() => handleTaskSelect(task.id)}
+                      onDelete={(e) => handleDeleteTask(e, task.id)}
+                      isDeleting={deletingId === task.id}
+                    />
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* Footer - Simplified hint */}
@@ -154,52 +226,26 @@ function MenuButton({
   icon: Icon,
   label,
   onClick,
-  primary = false,
+  isActive = false,
 }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
   onClick: () => void
-  primary?: boolean
+  isActive?: boolean
 }) {
   return (
     <button
       onClick={onClick}
       className={cn(
         "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left",
-        primary
-          ? "bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-emerald-600 dark:hover:bg-emerald-700"
-          : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5"
+        isActive
+          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/30 dark:text-emerald-400 font-semibold shadow-sm shadow-emerald-900/5"
+          : "text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-slate-300 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
       )}
     >
-      <Icon className="w-5 h-5" />
+      <Icon className={cn("w-5 h-5", isActive && "text-emerald-600 dark:text-emerald-400")} />
       <span className="text-sm font-medium">{label}</span>
     </button>
   )
 }
 
-// Menu Link (navigation)
-function MenuLink({
-  icon: Icon,
-  label,
-  href,
-  onClick,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  href: string
-  onClick: () => void
-}) {
-  return (
-    <Link
-      href={href}
-      onClick={onClick}
-      className={cn(
-        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all",
-        "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5"
-      )}
-    >
-      <Icon className="w-5 h-5" />
-      <span className="text-sm font-medium">{label}</span>
-    </Link>
-  )
-}

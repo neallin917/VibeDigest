@@ -31,7 +31,7 @@ setup('authenticate', async ({ page }) => {
     await page.getByRole('button', { name: 'Sign In', exact: true }).click();
 
     // 7. 等待登录成功 - 跳转到 dashboard 或首页
-    await expect(page).toHaveURL(/\/(dashboard|en\/?$)/, { timeout: 15000 });
+    await expect(page).toHaveURL(/\/(dashboard|chat|en\/?$)/, { timeout: 15000 });
 
     // 8. 保存登录状态到文件
     await page.context().storageState({ path: authFile });

@@ -16,11 +16,14 @@ class VideoProcessor:
     
     def __init__(self):
         # A conservative desktop UA helps with providers that block default agents.
-        self._default_user_agent = (
+        self._default_user_agent = os.getenv(
+            "YTDLP_USER_AGENT",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
+            "Chrome/120.0.0.0 Safari/537.36",
         )
+        self._cookie_file = os.getenv("YTDLP_COOKIE_FILE", "").strip()
+        self._proxy = os.getenv("YTDLP_PROXY", "").strip()
         self.ydl_opts = {
             'format': 'bestaudio/best',  # 优先下载最佳音频源
             'outtmpl': '%(title)s.%(ext)s',
@@ -37,6 +40,14 @@ class VideoProcessor:
             'no_warnings': True,
             'noplaylist': True,  # 强制只下载单个视频，不下载播放列表
         }
+
+    def _ydl_overrides(self) -> dict:
+        overrides = {}
+        if self._cookie_file:
+            overrides["cookiefile"] = self._cookie_file
+        if self._proxy:
+            overrides["proxy"] = self._proxy
+        return overrides
 
     def _build_http_headers(self, url: str) -> dict:
         """
@@ -374,6 +385,7 @@ class VideoProcessor:
             ydl_opts = self.ydl_opts.copy()
             ydl_opts['outtmpl'] = output_template
             ydl_opts["http_headers"] = self._build_http_headers(url)
+            ydl_opts.update(self._ydl_overrides())
             
             logger.info(f"开始下载视频: {url}")
             
@@ -617,7 +629,9 @@ class VideoProcessor:
             'outtmpl': output_template,
             'quiet': True,
             'no_warnings': True,
+            'http_headers': self._build_http_headers(url),
         }
+        opts.update(self._ydl_overrides())
         
         logger.info(f"Trying yt-dlp subtitle extraction for {url}")
         
@@ -714,6 +728,7 @@ class VideoProcessor:
             'extract_flat': False, # We need formats for direct audio url
             'http_headers': self._build_http_headers(url),
         }
+        opts.update(self._ydl_overrides())
         
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
@@ -749,5 +764,3 @@ class VideoProcessor:
         except Exception as e:
             logger.error(f"Metadata extraction failed: {e}")
             raise e
-
-
