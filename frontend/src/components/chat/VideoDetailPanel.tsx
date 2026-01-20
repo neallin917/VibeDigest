@@ -128,10 +128,10 @@ export function VideoDetailPanel({
         {summary?.overview && (
           <div className="px-4 py-2">
             <div className="flex items-center gap-2 mb-2">
-               <span className="text-[11px] font-bold text-emerald-400 dark:text-emerald-300/80 uppercase tracking-widest">
-                 Summary
-               </span>
-               <div className="h-px flex-1 bg-gradient-to-r from-emerald-200 to-transparent dark:from-emerald-500/30" />
+              <span className="text-[11px] font-bold text-emerald-400 dark:text-emerald-300/80 uppercase tracking-widest">
+                Summary
+              </span>
+              <div className="h-px flex-1 bg-gradient-to-r from-emerald-200 to-transparent dark:from-emerald-500/30" />
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
               {summary.overview}
@@ -141,7 +141,7 @@ export function VideoDetailPanel({
 
         {/* Divider for Key Insights */}
         <div className="flex items-center gap-3 px-2">
-          <span className="text-[11px] font-bold text-emerald-400 dark:text-emerald-300/80 uppercase tracking-widest">
+          <span data-testid="header-key-insights" className="text-[11px] font-bold text-emerald-400 dark:text-emerald-300/80 uppercase tracking-widest">
             Key Insights
           </span>
           <div className="h-px flex-1 bg-gradient-to-r from-emerald-200 to-transparent dark:from-emerald-500/30" />
