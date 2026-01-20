@@ -132,15 +132,55 @@ describe('VideoDetailPanel', () => {
     // Note: "Action Items" and "Risks" sections are not currently rendered in the component V1
     expect(screen.getByText('Key Insight 1')).toBeInTheDocument()
   })
-})
 
-it('handles empty summary gracefully', async () => {
-  mockSingle.mockResolvedValue({ data: { id: 'task-123', status: 'completed' } })
-  mockLimit.mockResolvedValue({ data: [] }) // No summary output found
+  it('handles non-JSON text summary (Markdown fallback)', async () => {
+    const markdownSummary = "# Video Summary\nThis is a markdown summary."
 
-  render(<VideoDetailPanel taskId="task-123" />)
+    mockLimit.mockResolvedValue({
+      data: [{
+        kind: 'summary',
+        status: 'completed',
+        content: markdownSummary
+      }]
+    })
 
-  await waitFor(() => {
-    expect(screen.getByText(/No summary available/i)).toBeInTheDocument()
+    render(<VideoDetailPanel taskId="task-123" />)
+
+    await waitFor(() => {
+      // Should render as overview
+      expect(screen.getByText(/This is a markdown summary/)).toBeInTheDocument()
+      // Should not show key insights cards
+      expect(screen.queryByText('Insight 1')).not.toBeInTheDocument()
+    })
+  })
+
+  it('handles malformed JSON by treating as text', async () => {
+    const malformedJson = "{ keypoints: [ ... incomplete"
+
+    mockLimit.mockResolvedValue({
+      data: [{
+        kind: 'summary',
+        status: 'completed',
+        content: malformedJson
+      }]
+    })
+
+    render(<VideoDetailPanel taskId="task-123" />)
+
+    await waitFor(() => {
+      // Should treat the malformed JSON string as the overview text
+      expect(screen.getByText(malformedJson)).toBeInTheDocument()
+    })
+  })
+
+  it('handles empty summary gracefully', async () => {
+    mockSingle.mockResolvedValue({ data: { id: 'task-123', status: 'completed' } })
+    mockLimit.mockResolvedValue({ data: [] }) // No summary output found
+
+    render(<VideoDetailPanel taskId="task-123" />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/No summary available/i)).toBeInTheDocument()
+    })
   })
 })
