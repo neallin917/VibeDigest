@@ -64,7 +64,7 @@ export function LandingUserButton() {
     // Not logged in - show Sign Up button
     if (!user) {
         return (
-            <Link href={`/${locale}/login`}>
+            <Link href="/login">
                 <Button variant="outline" size="sm" className="gap-2 bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20">
                     {t("auth.signUp")}
                 </Button>
@@ -80,7 +80,7 @@ export function LandingUserButton() {
     return (
         <div className="flex items-center gap-2">
             {/* Direct Dashboard Button */}
-            <Link href={`/${locale}/dashboard`}>
+            <Link href="/chat">
                 <Button variant="outline" size="sm" className="gap-2 bg-primary/10 border-primary/30 hover:bg-primary/20 hover:border-primary/40 text-primary">
                     {t("auth.goToDashboard")}
                 </Button>

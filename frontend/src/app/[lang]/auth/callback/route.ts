@@ -6,7 +6,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ lang
     const { searchParams, origin } = new URL(request.url)
     const code = searchParams.get('code')
     const { lang } = await params
-    const next = searchParams.get('next') ?? `/${lang}/dashboard`
+    const next = searchParams.get('next') ?? `/${lang}/chat`
 
     if (code) {
         const cookieStore = await cookies()
