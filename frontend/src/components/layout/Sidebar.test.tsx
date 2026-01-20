@@ -41,24 +41,32 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
     DropdownMenuItem: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
 }))
 
+// Mock Button to avoid Radix Slot issues
+vi.mock("@/components/ui/button", () => ({
+    Button: ({ asChild, children, ...props }: any) => asChild ? children : <button {...props}>{children}</button>
+}))
+
 describe("Sidebar", () => {
     beforeEach(() => {
         vi.clearAllMocks()
             // Default pathname
-            ; (usePathname as any).mockReturnValue("/en/dashboard")
+            ; (usePathname as any).mockReturnValue("/en/chat")
     })
 
     it("renders navigation items", () => {
         const { container } = render(<Sidebar />)
-        const link = container.querySelector('a[href="/en/dashboard"]')
+        // Sidebar items use href from NAV_ITEMS which are like "/chat", "/explore"
+        // The Link component might prefetch or just pass href through.
+        // Based on Sidebar.tsx: href={item.href} which is "/chat"
+        const link = container.querySelector('a[href="/chat"]')
         expect(link).toBeInTheDocument()
-        expect(link).toHaveTextContent("nav.newTask")
+        expect(link).toHaveTextContent("nav.chat")
     })
 
     it("highlights active link", () => {
-        ; (usePathname as any).mockReturnValue("/en/dashboard")
+        ; (usePathname as any).mockReturnValue("/chat")
         const { container } = render(<Sidebar />)
-        const link = container.querySelector('a[href="/en/dashboard"]')
+        const link = container.querySelector('a[href="/chat"]')
         expect(link).toHaveClass("bg-primary/15")
     })
 
@@ -102,7 +110,7 @@ describe("Sidebar", () => {
             value: { href: '' }
         })
         const { container } = render(<Sidebar />)
-        const link = container.querySelector('a[href="/en/dashboard"]')!
+        const link = container.querySelector('a[href="/chat"]')!
         fireEvent.click(link)
         expect(window.location.href).toContain("/login")
     })
