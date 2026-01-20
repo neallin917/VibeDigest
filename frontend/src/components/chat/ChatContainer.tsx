@@ -11,15 +11,15 @@ import { useRef, useEffect, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 
 // AI SDK v6: Import typed Tool UI components
-import { 
-  GetTaskStatusTool, 
-  CreateTaskTool, 
-  PreviewVideoTool, 
+import {
+  GetTaskStatusTool,
+  CreateTaskTool,
+  PreviewVideoTool,
   GetTaskOutputsTool,
-  UnknownTool 
+  UnknownTool
 } from './tools'
 
-import { User, Loader2, Sparkles, XCircle } from 'lucide-react'
+import { Loader2, XCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface ChatContainerProps {
@@ -28,42 +28,96 @@ interface ChatContainerProps {
   initialMessages?: UIMessage[]
   onOpenPanel?: (taskId: string) => void
   onSelectExample?: (taskId: string) => void
+  onChatStarted?: (threadId: string) => void
 }
 
-// Helper function to render tool parts based on AI SDK v6 typed part.type
+// Helper function to render tool invocations using AI SDK v6 standard ToolInvocation type
+// Helper function to render tool parts using AI SDK v6 standard UIMessage types
 function renderToolPart(part: any, index: number, onOpenPanel?: (taskId: string) => void) {
-  const baseProps = {
-    key: index,
-    toolCallId: part.toolCallId,
-    state: part.state,
-    input: part.input,
-    output: part.output,
-    errorText: part.errorText,
+  // We explicitly handle parts that are tool invocations.
+  if (!part.type.startsWith('tool-') && part.type !== 'dynamic-tool') {
+    return null;
   }
 
-  // AI SDK v6 Best Practice: Use typed part.type for specific tool rendering
-  switch (part.type) {
-    case 'tool-get_task_status':
-      return <GetTaskStatusTool {...baseProps} onViewClick={onOpenPanel} />
-    
-    case 'tool-create_task':
-      return <CreateTaskTool {...baseProps} onViewClick={onOpenPanel} />
-    
-    case 'tool-preview_video':
-      return <PreviewVideoTool {...baseProps} />
-    
-    case 'tool-get_task_outputs':
-      return <GetTaskOutputsTool {...baseProps} />
-    
-    // Fallback for dynamic tools or unknown tools
-    case 'dynamic-tool':
+  const toolCallId = part.toolCallId || part.id // Fallback ID if needed
+  const state = part.state
+  const args = part.input
+  const result = part.output
+  const errorText = part.errorText
+
+  // Map state to UI expectations if necessary, but standard UIMessage states overlap well.
+
+  // Extract proper tool name
+  let toolName = ''
+  if (part.type === 'dynamic-tool') {
+    toolName = part.toolName
+  } else {
+    toolName = part.type.replace('tool-', '')
+  }
+
+  switch (toolName) {
+    case 'get_task_status':
+      return (
+        <GetTaskStatusTool
+          key={toolCallId || index}
+          toolCallId={toolCallId}
+          state={state}
+          input={args}
+          output={result}
+          errorText={errorText}
+          onViewClick={onOpenPanel}
+        />
+      )
+
+    case 'create_task':
+      return (
+        <CreateTaskTool
+          key={toolCallId || index}
+          toolCallId={toolCallId}
+          state={state}
+          input={args}
+          output={result}
+          errorText={errorText}
+          onViewClick={onOpenPanel}
+        />
+      )
+
+    case 'preview_video':
+      return (
+        <PreviewVideoTool
+          key={toolCallId || index}
+          toolCallId={toolCallId}
+          state={state}
+          input={args}
+          output={result}
+          errorText={errorText}
+        />
+      )
+
+    case 'get_task_outputs':
+      return (
+        <GetTaskOutputsTool
+          key={toolCallId || index}
+          toolCallId={toolCallId}
+          state={state}
+          input={args}
+          output={result}
+          errorText={errorText}
+        />
+      )
+
     default:
-      // Handle tool-* pattern for any tools we haven't explicitly defined
-      if (part.type?.startsWith('tool-')) {
-        const toolName = part.type.replace('tool-', '')
-        return <UnknownTool {...baseProps} toolName={toolName} />
-      }
-      return null
+      return (
+        <UnknownTool
+          key={toolCallId || index}
+          toolName={toolName}
+          toolCallId={toolCallId}
+          state={state}
+          input={args}
+          output={result}
+          errorText={errorText}
+        />
+      )
   }
 }
 
@@ -73,6 +127,7 @@ export function ChatContainer({
   initialMessages = [],
   onOpenPanel,
   onSelectExample,
+  onChatStarted
 }: ChatContainerProps) {
 
   // Ensure we always have a valid UUID for the thread ID to satisfy DB requirements
@@ -89,7 +144,7 @@ export function ChatContainer({
       // The backend will load history from DB
       prepareSendMessagesRequest: ({ messages: currentMessages }) => {
         const lastMessage = currentMessages[currentMessages.length - 1]
-        
+
         return {
           body: {
             message: lastMessage,
@@ -104,32 +159,56 @@ export function ChatContainer({
     id: effectiveThreadId,
 
     // Initial state
-    initialMessages,
+    // Pass initial messages if provided
+    // Note: useChat in strict mode options might not have 'initialMessages', 
+    // but the hook signature usually accepts it. 
+    // If TSC complains, we rely on the useEffect below to set messages.
+    // However, to avoid flashing empty state, passing it here is better if accepted.
+    // Since TS complained about 'initialMessages' not existing in options, we try 'messages' (if ChatInit is mixed in).
+    messages: initialMessages,
 
     // Error handling
-    onError: (err) => {
+    onError: (err: any) => {
       console.error('Chat error:', err);
+    },
+
+    // Notify parent once a chat is persisted
+    onFinish: () => {
+      if (onChatStarted) {
+        onChatStarted(effectiveThreadId)
+      }
     }
   })
 
+  // Destructure with standard types (no casting needed)
   const {
     messages,
     setMessages,
-    sendMessage,
+    sendMessage: sendMessageToApi,
     status,
     error,
-    reload,
+    regenerate,
     stop
   } = chat
+
+  /* 
+   * wrapper for sending messages that matches the previous append signature if needed,
+   * but strictly we should use sendMessageToApi({ text }) 
+   */
+  const handleSendMessage = async (content: string) => {
+    const trimmed = content.trim()
+    if (!trimmed) return
+
+    // AI SDK v6: sendMessage expects { text: string }
+    sendMessageToApi({ text: trimmed })
+  }
 
   // Sync initialMessages when they change
   useEffect(() => {
     // If initialMessages are provided (and valid), update the chat state.
-    // This allows the parent component to update the thread history asynchronously.
     if (initialMessages && initialMessages.length > 0) {
       setMessages(initialMessages)
     } else if (initialMessages && initialMessages.length === 0) {
-      // Also handle clearing if explicitly empty (for new chats)
       setMessages([])
     }
   }, [initialMessages, setMessages])
@@ -156,15 +235,8 @@ export function ChatContainer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleSendMessage = async (content: string) => {
-    const trimmed = content.trim()
-    if (!trimmed) return
+  /* handleSendMessage is already defined above */
 
-    // AI SDK v6: sendMessage expects { text: string } for simple text messages
-    // The SDK converts this to the correct Message structure internally
-    sendMessage({ text: trimmed })
-  }
-  
   const handleSubmit = (text: string) => {
     handleSendMessage(text);
   }
@@ -196,175 +268,151 @@ export function ChatContainer({
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, ease: 'easeOut' }}
-                    className={cn('flex gap-5 w-full group', m.role === 'user' ? 'ml-auto flex-row-reverse' : '')}
+                    className={cn('flex w-full group', m.role === 'user' ? 'ml-auto flex-row-reverse' : '')}
                   >
-                {/* Avatar */}
-                <div
-                  className={cn(
-                    'h-9 w-9 rounded-[14px] shrink-0 flex items-center justify-center shadow-sm transition-all duration-300',
-                    m.role === 'user'
-                      ? 'bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-900/40 dark:to-emerald-900/10 dark:ring-1 dark:ring-emerald-500/20'
-                      : 'bg-white/80 dark:bg-white/5 ring-1 ring-black/5 dark:ring-white/10',
-                  )}
-                >
-                  {m.role === 'user' ? (
-                    <User className="w-5 h-5 text-emerald-700 dark:text-emerald-400" strokeWidth={2} />
-                  ) : (
-                    <Sparkles className="w-5 h-5 text-emerald-500 dark:text-emerald-400" strokeWidth={2} />
-                  )}
-                </div>
-
-                {/* Content Bubble */}
-                <div className={cn('flex flex-col gap-1 max-w-[85%]', m.role === 'user' ? 'items-end' : 'items-start w-full')}>
-                  <div
-                    className={cn(
-                      'px-6 py-5 text-[15.5px] leading-7 relative overflow-hidden backdrop-blur-md',
-                      m.role === 'user'
-                        ? 'rounded-[20px] rounded-tr-sm bg-emerald-600/10 dark:bg-emerald-500/10 border border-emerald-600/10 dark:border-emerald-500/20 text-slate-800 dark:text-zinc-200'
-                        : 'rounded-[20px] rounded-tl-sm bg-white/40 dark:bg-white/5 border border-white/40 dark:border-white/5 text-slate-800 dark:text-zinc-200 shadow-sm',
-                    )}
-                  >
-                    <div className="w-full min-w-0">
-                      {/* v6 Best Practice: Render parts */}
-                      {m.parts ? (
-                        m.parts.map((part, index) => {
-                          if (part.type === 'text') {
-                            return (
-                              <div 
-                                key={index} 
-                                className="prose prose-sm md:prose-base prose-slate dark:prose-invert max-w-none break-words prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent prose-pre:my-2"
-                              >
-                                <ReactMarkdown
-                                  remarkPlugins={[remarkGfm]}
-                                  components={{
-                                    pre: ({ node, ...props }) => (
-                                      <div className="overflow-hidden w-full my-3 bg-slate-950 dark:bg-black/40 rounded-lg border border-slate-200 dark:border-white/10 group relative">
-                                        <div className="flex items-center justify-between px-4 py-2 bg-slate-900/50 dark:bg-white/5 border-b border-slate-800 dark:border-white/5">
-                                          <div className="flex gap-1.5">
-                                            <div className="w-2.5 h-2.5 rounded-full bg-red-500/20" />
-                                            <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/20" />
-                                            <div className="w-2.5 h-2.5 rounded-full bg-green-500/20" />
+                    {/* Content Bubble */}
+                    <div className={cn('flex flex-col gap-1 max-w-[85%]', m.role === 'user' ? 'items-end' : 'items-start w-full')}>
+                      <div
+                        className={cn(
+                          'px-6 py-5 text-[15.5px] leading-7 relative overflow-hidden backdrop-blur-md',
+                          m.role === 'user'
+                            ? 'rounded-[20px] rounded-tr-sm bg-emerald-600/10 dark:bg-emerald-500/10 border border-emerald-600/10 dark:border-emerald-500/20 text-slate-800 dark:text-zinc-200'
+                            : 'rounded-[20px] rounded-tl-sm bg-white/40 dark:bg-white/5 border border-white/40 dark:border-white/5 text-slate-800 dark:text-zinc-200 shadow-sm',
+                        )}
+                      >
+                        <div className="w-full min-w-0">
+                          {/* Part 1: Render Parts (Text + Tools) */}
+                          {m.parts && m.parts.length > 0 ? (
+                            m.parts.map((part, index) => {
+                              // Handle Text parts
+                              if (part.type === 'text') {
+                                return (
+                                  <div key={index} className="prose prose-sm md:prose-base prose-slate dark:prose-invert max-w-none break-words">
+                                    <ReactMarkdown
+                                      remarkPlugins={[remarkGfm]}
+                                      components={{
+                                        pre: ({ node, ...props }) => (
+                                          <div className="overflow-hidden w-full my-3 bg-slate-950 dark:bg-black/40 rounded-lg border border-slate-200 dark:border-white/10 group relative">
+                                            <div className="flex items-center justify-between px-4 py-2 bg-slate-900/50 dark:bg-white/5 border-b border-slate-800 dark:border-white/5">
+                                              <div className="flex gap-1.5">
+                                                <div className="w-2.5 h-2.5 rounded-full bg-red-500/20" />
+                                                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/20" />
+                                                <div className="w-2.5 h-2.5 rounded-full bg-green-500/20" />
+                                              </div>
+                                            </div>
+                                            <div className="p-4 overflow-x-auto custom-scrollbar">
+                                              <pre {...props} className="bg-transparent p-0 m-0 font-mono text-sm leading-relaxed" />
+                                            </div>
                                           </div>
-                                        </div>
-                                        <div className="p-4 overflow-x-auto custom-scrollbar">
-                                          <pre {...props} className="bg-transparent p-0 m-0 font-mono text-sm leading-relaxed" />
-                                        </div>
-                                      </div>
-                                    ),
-                                    code: ({ node, className, children, ...props }) => {
-                                      const match = /language-(\w+)/.exec(className || '')
-                                      const isInline = !match && !String(children).includes('\n')
-                                      
-                                      return (
-                                        <code 
-                                          className={cn(
-                                            isInline 
-                                              ? "bg-slate-100 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono text-[0.9em] before:content-[''] after:content-[''] text-emerald-700 dark:text-emerald-300" 
-                                              : "bg-transparent font-mono text-sm",
-                                            className
-                                          )} 
-                                          {...props}
-                                        >
-                                          {children}
-                                        </code>
-                                      )
-                                    },
-                                    a: ({ node, ...props }) => (
-                                      <a 
-                                        {...props} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer" 
-                                        className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300 hover:underline transition-colors font-medium" 
-                                      />
-                                    ),
-                                    ul: ({ node, ...props }) => (
-                                      <ul {...props} className="my-2 list-disc pl-4 space-y-1" />
-                                    ),
-                                    ol: ({ node, ...props }) => (
-                                      <ol {...props} className="my-2 list-decimal pl-4 space-y-1" />
-                                    ),
-                                    li: ({ node, ...props }) => (
-                                      <li {...props} className="pl-1" />
-                                    )
-                                  }}
-                                >
-                                  {part.text}
-                                </ReactMarkdown>
-                              </div>
-                            )
-                          }
-                          // AI SDK v6: Render typed Tool UI components
-                          if (part.type.startsWith('tool-') || part.type === 'dynamic-tool') {
-                             return renderToolPart(part, index, onOpenPanel)
-                          }
-                          return null
-                        })
-                      ) : (
-                        // Fallback for simple messages
-                        <div className="prose prose-sm md:prose-base prose-slate dark:prose-invert max-w-none break-words">
-                          <ReactMarkdown 
-                            remarkPlugins={[remarkGfm]}
-                          >
-                            {m.content}
-                          </ReactMarkdown>
+                                        ),
+                                        code: ({ node, className, children, ...props }) => {
+                                          const match = /language-(\w+)/.exec(className || '')
+                                          const isInline = !match && !String(children).includes('\n')
+                                          return (
+                                            <code
+                                              className={cn(
+                                                isInline
+                                                  ? "bg-slate-100 dark:bg-white/10 px-1.5 py-0.5 rounded font-mono text-[0.9em] before:content-[''] after:content-[''] text-emerald-700 dark:text-emerald-300"
+                                                  : "bg-transparent font-mono text-sm",
+                                                className
+                                              )}
+                                              {...props}
+                                            >
+                                              {children}
+                                            </code>
+                                          )
+                                        },
+                                        a: ({ node, ...props }) => (
+                                          <a
+                                            {...props}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300 hover:underline transition-colors font-medium"
+                                          />
+                                        ),
+                                        ul: ({ node, ...props }) => (
+                                          <ul {...props} className="my-2 list-disc pl-4 space-y-1" />
+                                        ),
+                                        ol: ({ node, ...props }) => (
+                                          <ol {...props} className="my-2 list-decimal pl-4 space-y-1" />
+                                        ),
+                                        li: ({ node, ...props }) => (
+                                          <li {...props} className="pl-1" />
+                                        )
+                                      }}
+                                    >
+                                      {part.text}
+                                    </ReactMarkdown>
+                                  </div>
+                                )
+                              }
+
+                              // Handle Tool parts
+                              if (part.type.startsWith('tool-') || part.type === 'dynamic-tool') {
+                                return (
+                                  <div key={index}>
+                                    {renderToolPart(part, index, onOpenPanel)}
+                                  </div>
+                                )
+                              }
+
+                              return null
+                            })
+                          ) : null}
+
                         </div>
-                      )}
+                      </div>
                     </div>
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
+
+            {/* Loading Indicator - Only show when submitted but not yet streaming (waiting for first chunk) */}
+            {status === 'submitted' && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex w-full">
+                <div className="flex flex-col gap-2">
+                  <div className="bg-white/40 dark:bg-white/5 px-5 py-3 rounded-2xl rounded-tl-sm border border-white/40 dark:border-white/5 flex items-center gap-2 w-fit">
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                    <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                      Thinking...
+                    </span>
                   </div>
                 </div>
               </motion.div>
-            )
-          })}
-        </AnimatePresence>
+            )}
 
-        {/* Loading Indicator - Only show when submitted but not yet streaming (waiting for first chunk) */}
-        {status === 'submitted' && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-4 w-full">
-            <div className="h-8 w-8 rounded-xl bg-white ring-1 ring-slate-200 dark:bg-white/10 dark:ring-white/20 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4 text-emerald-500 dark:text-emerald-400 animate-pulse" />
-            </div>
-            
-            <div className="flex flex-col gap-2">
-              <div className="bg-white/40 dark:bg-white/5 px-5 py-3 rounded-2xl rounded-tl-sm border border-white/40 dark:border-white/5 flex items-center gap-2 w-fit">
-                <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
-                <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-                   Thinking...
-                </span>
-              </div>
-            </div>
-          </motion.div>
-        )}
-        
-        {/* Error State */}
-        {error && (
-           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-4 w-full">
-             <div className="w-8 shrink-0" />
-             <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 px-4 py-3 rounded-xl flex items-center gap-3">
-               <XCircle className="w-4 h-4 text-red-500" />
-               <div className="text-sm text-red-600 dark:text-red-400">
-                 Something went wrong.
-               </div>
-               <button 
-                 onClick={() => reload()}
-                 className="text-xs bg-white dark:bg-white/10 px-2 py-1 rounded border border-red-100 dark:border-red-500/20 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-               >
-                 Retry
-               </button>
-             </div>
-           </motion.div>
-        )}
+            {/* Error State */}
+            {error && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex w-full">
+                <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 px-4 py-3 rounded-xl flex items-center gap-3">
+                  <XCircle className="w-4 h-4 text-red-500" />
+                  <div className="text-sm text-red-600 dark:text-red-400">
+                    Something went wrong.
+                  </div>
+                  <button
+                    onClick={() => regenerate()}
+                    className="text-xs bg-white dark:bg-white/10 px-2 py-1 rounded border border-red-100 dark:border-red-500/20 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </motion.div>
+            )}
           </div>
         )}
       </div>
 
-      {messages.length > 0 && (
-        <ChatInput 
-          variant="floating" 
-          onSubmit={handleSubmit} 
-          isLoading={isLoading} 
-          onStop={status === 'streaming' ? stop : undefined}
-        />
-      )}
-    </div>
+      {
+        messages.length > 0 && (
+          <ChatInput
+            variant="floating"
+            onSubmit={handleSubmit}
+            isLoading={isLoading}
+            onStop={status === 'streaming' ? stop : undefined}
+          />
+        )
+      }
+    </div >
   )
 }

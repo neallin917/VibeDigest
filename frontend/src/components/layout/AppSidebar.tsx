@@ -1,44 +1,25 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import {
   Plus,
   Library,
-  CheckCircle,
-  AlertCircle,
-  Loader2,
-  Trash2,
   ChevronDown,
   ChevronRight,
-  Clock,
   Menu,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  Loader2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
+// import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip" // Removed unused import
 import { useAppSidebar } from "./AppSidebarContext"
 import { useI18n } from "@/components/i18n/I18nProvider"
-import { createClient } from "@/lib/supabase"
-import { formatDistanceToNow } from "date-fns"
-
-
-// Types
-interface Task {
-  id: string
-  video_url: string
-  video_title?: string
-  thumbnail_url?: string
-  status: string
-  created_at: string
-}
-
-interface Thread {
-  id: string
-  title: string
-  updated_at: string
-}
+import { Thread } from "@/types"
+import { TaskItem } from "./sidebar/TaskItem"
+import { CollapsedView } from "./sidebar/CollapsedView"
+import { useTasks } from "@/hooks/useTasks"
 
 interface AppSidebarProps {
   onNewChat?: () => void
@@ -59,41 +40,21 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const { isCollapsed, setCollapsed, toggleSidebar } = useAppSidebar()
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { t, locale } = useI18n()
 
-  // States
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [loading, setLoading] = useState(false)
+  const isNewChatActive = pathname?.endsWith('/chat') && !searchParams?.get('task') && !activeThreadId
+  const isCommunityActive = pathname?.includes('/explore')
+
+  // Hook for tasks
+  // Only fetch when sidebar is expanded
+  const { tasks, loading, deleteTask } = useTasks(!isCollapsed)
+
+  // Local UI States
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [isRecentsOpen, setIsRecentsOpen] = useState(true)
+  const [isTasksOpen, setIsTasksOpen] = useState(true)
   const [isChatsOpen, setIsChatsOpen] = useState(true)
-  const supabase = useMemo(() => createClient(), [])
-
-  // Fetch tasks
-  const fetchTasks = useCallback(async () => {
-    setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); return }
-
-    let query = supabase
-      .from('tasks')
-      .select('id, video_url, video_title, thumbnail_url, status, created_at')
-      .eq('user_id', user.id)
-      .eq('is_deleted', false)
-      .order('created_at', { ascending: false })
-      .limit(30)
-
-    const { data } = await query
-    setTasks(data || [])
-    setLoading(false)
-  }, [supabase])
-
-  // Fetch when expanded
-  useEffect(() => {
-    if (!isCollapsed) {
-      fetchTasks()
-    }
-  }, [isCollapsed, fetchTasks])
 
   // Handle task selection
   const handleTaskSelect = (taskId: string) => {
@@ -108,15 +69,7 @@ export function AppSidebar({
   const handleDelete = async (e: React.MouseEvent, taskId: string) => {
     e.stopPropagation()
     setDeletingId(taskId)
-
-    const { error } = await supabase
-      .from('tasks')
-      .update({ is_deleted: true })
-      .eq('id', taskId)
-
-    if (!error) {
-      setTasks(prev => prev.filter(t => t.id !== taskId))
-    }
+    await deleteTask(taskId)
     setDeletingId(null)
   }
 
@@ -129,10 +82,9 @@ export function AppSidebar({
     }
   }
 
-  // Handle library click
-  const handleLibraryClick = () => {
-    // For now, just toggle recents open
-    setIsRecentsOpen(true)
+  // Handle community click
+  const handleCommunityClick = () => {
+    router.push(`/${locale}/explore`)
   }
 
   return (
@@ -166,10 +118,10 @@ export function AppSidebar({
         {/* Brand Logo - Only visible when expanded or we can show icon when collapsed */}
         {!isCollapsed && (
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 via-purple-500 to-emerald-500 flex items-center justify-center shadow-sm">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center shadow-sm">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-slate-800 dark:text-white tracking-tight">VibeDigest</span>
+            <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-700 via-teal-600 to-emerald-600 dark:from-emerald-400 dark:via-teal-300 dark:to-cyan-300 tracking-tight">VibeDigest</span>
           </div>
         )}
       </div>
@@ -178,7 +130,7 @@ export function AppSidebar({
         // ========== COLLAPSED VIEW ==========
         <CollapsedView
           onNewChat={handleNewChat}
-          onLibraryClick={() => setCollapsed(false)}
+          onCommunityClick={handleCommunityClick}
           t={t}
         />
       ) : (
@@ -189,24 +141,26 @@ export function AppSidebar({
             onClick={handleNewChat}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all mb-1 mx-1",
-              "text-slate-600 hover:bg-slate-100",
-              "dark:text-slate-300 dark:hover:bg-white/5"
+              isNewChatActive
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/30 dark:text-emerald-400 font-semibold shadow-sm shadow-emerald-900/5"
+                : "text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-slate-300 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
             )}
           >
-            <Plus className="w-5 h-5" />
+            <Plus className={cn("w-5 h-5", isNewChatActive && "text-emerald-600 dark:text-emerald-400")} />
             <span className="text-sm font-medium">{t("chat.newChat") || "New task"}</span>
           </button>
 
           {/* Community Button */}
           <button
-            onClick={handleLibraryClick}
+            onClick={handleCommunityClick}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all mb-3 mx-1",
-              "text-slate-600 hover:bg-slate-100",
-              "dark:text-slate-300 dark:hover:bg-white/5"
+              isCommunityActive
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/30 dark:text-emerald-400 font-semibold shadow-sm shadow-emerald-900/5"
+                : "text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-slate-300 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
             )}
           >
-            <Library className="w-5 h-5" />
+            <Library className={cn("w-5 h-5", isCommunityActive && "text-emerald-600 dark:text-emerald-400")} />
             <span className="text-sm font-medium">{t("chat.community") || "Community"}</span>
           </button>
 
@@ -244,7 +198,7 @@ export function AppSidebar({
                       onClick={() => onSelectThread?.(thread.id)}
                       className={cn(
                         "w-full text-left px-3 py-2 rounded-xl transition-all flex items-center gap-3 cursor-pointer group",
-                        "hover:bg-slate-100 dark:hover:bg-white/5",
+                        "hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300",
                         activeThreadId === thread.id && "bg-emerald-50/50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                       )}
                     >
@@ -264,18 +218,18 @@ export function AppSidebar({
             )}
           </div>
 
-          {/* Recents Section */}
+          {/* Tasks Section */}
           <div className="flex-1 overflow-hidden flex flex-col">
-            {/* Recents Header */}
+            {/* Tasks Header */}
             <button
-              onClick={() => setIsRecentsOpen(!isRecentsOpen)}
+              onClick={() => setIsTasksOpen(!isTasksOpen)}
               className={cn(
                 "flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-xl mx-1",
                 "text-slate-500 hover:text-slate-700 hover:bg-slate-50",
                 "dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-white/5"
               )}
             >
-              {isRecentsOpen ? (
+              {isTasksOpen ? (
                 <ChevronDown className="w-4 h-4" />
               ) : (
                 <ChevronRight className="w-4 h-4" />
@@ -283,8 +237,8 @@ export function AppSidebar({
               <span>{t("chat.tasks") || "Tasks"}</span>
             </button>
 
-            {/* Recents List */}
-            {isRecentsOpen && (
+            {/* Tasks List */}
+            {isTasksOpen && (
               <div className="flex-1 overflow-y-auto custom-scrollbar mt-1">
                 {loading ? (
                   <div className="flex justify-center py-6">
@@ -316,117 +270,4 @@ export function AppSidebar({
       )}
     </aside>
   )
-}
-
-// ========== COLLAPSED VIEW COMPONENT ==========
-interface CollapsedViewProps {
-  onNewChat: () => void
-  onLibraryClick: () => void
-  t: (key: string) => string
-}
-
-function CollapsedView({ onNewChat, onLibraryClick, t }: CollapsedViewProps) {
-  return (
-    <>
-      {/* Nav Items */}
-      <nav className="flex-1 flex flex-col gap-1.5 pt-2">
-        {/* New Task */}
-        <Tooltip delayDuration={300}>
-          <TooltipTrigger asChild>
-            <button
-              onClick={onNewChat}
-              className={cn(
-                "p-3 rounded-xl flex items-center justify-center transition-all",
-                "text-slate-500 hover:text-slate-700 hover:bg-slate-100",
-                "dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/10"
-              )}
-            >
-              <Plus className="w-5 h-5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right" sideOffset={12}>
-            {t("chat.newChat") || "New task"}
-          </TooltipContent>
-        </Tooltip>
-
-        {/* Community */}
-        <Tooltip delayDuration={300}>
-          <TooltipTrigger asChild>
-            <button
-              onClick={onLibraryClick}
-              className={cn(
-                "p-3 rounded-xl flex items-center justify-center transition-all",
-                "text-slate-500 hover:text-slate-700 hover:bg-slate-100",
-                "dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/10"
-              )}
-            >
-              <Library className="w-5 h-5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right" sideOffset={12}>
-            {t("chat.community") || "Community"}
-          </TooltipContent>
-        </Tooltip>
-      </nav>
-    </>
-  )
-}
-
-// ========== TASK ITEM COMPONENT ==========
-interface TaskItemProps {
-  task: Task
-  onSelect: () => void
-  onDelete: (e: React.MouseEvent) => void
-  isDeleting: boolean
-}
-
-function TaskItem({ task, onSelect, onDelete, isDeleting }: TaskItemProps) {
-  return (
-    <div
-      onClick={onSelect}
-      className={cn(
-        "group w-full text-left px-3 py-2 rounded-xl transition-all flex items-center gap-3 cursor-pointer relative",
-        "hover:bg-slate-100 dark:hover:bg-white/5"
-      )}
-    >
-      {/* Status Icon */}
-      <StatusIcon status={task.status} />
-
-      {/* Title */}
-      <span className="flex-1 text-sm text-slate-700 dark:text-slate-200 truncate">
-        {task.video_title || 'Untitled'}
-      </span>
-
-      {/* Delete Button */}
-      <button
-        onClick={onDelete}
-        className={cn(
-          "p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-all shrink-0",
-          "hover:bg-red-100 dark:hover:bg-red-500/20 text-slate-400 hover:text-red-500",
-          isDeleting && "opacity-100"
-        )}
-        aria-label="Delete"
-      >
-        {isDeleting ? (
-          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        ) : (
-          <Trash2 className="w-3.5 h-3.5" />
-        )}
-      </button>
-    </div>
-  )
-}
-
-// Status Icon
-function StatusIcon({ status }: { status: string }) {
-  switch (status) {
-    case 'completed':
-      return <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-    case 'processing':
-      return <Loader2 className="w-4 h-4 text-blue-500 animate-spin shrink-0" />
-    case 'failed':
-      return <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-    default:
-      return <Clock className="w-4 h-4 text-slate-400 shrink-0" />
-  }
 }

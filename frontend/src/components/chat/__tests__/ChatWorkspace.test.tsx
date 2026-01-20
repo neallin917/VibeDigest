@@ -10,6 +10,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: vi.fn(),
   }),
+  usePathname: vi.fn(),
 }))
 
 // Mock next-themes
@@ -21,8 +22,8 @@ vi.mock('next-themes', () => ({
 }))
 
 // Mock child components to isolate the layout test
-vi.mock('../IconSidebar', () => ({
-  IconSidebar: () => <div data-testid="icon-sidebar">IconSidebar</div>
+vi.mock('../TopHeader', () => ({
+  TopHeader: () => <div data-testid="top-header">TopHeader</div>
 }))
 
 vi.mock('../ChatContainer', () => ({
@@ -37,14 +38,29 @@ vi.mock('../LibrarySidebar', () => ({
   LibrarySidebar: () => <div data-testid="library-sidebar">LibrarySidebar</div>
 }))
 
+// Mock I18n
+vi.mock('@/components/i18n/I18nProvider', () => ({
+  useI18n: () => ({
+    t: (key: string) => key,
+    locale: 'en'
+  })
+}))
+
 describe('ChatWorkspace', () => {
   it('renders the 3-column layout structure', () => {
-    render(<ChatWorkspace />)
-    
+    const mockProps = {
+      activeThreadId: null,
+      initialMessages: [],
+      onNewChat: vi.fn(),
+      onSelectThread: vi.fn(),
+      onChatStarted: vi.fn(),
+    }
+    render(<ChatWorkspace {...mockProps} />)
+
     // Check for main layout containers
-    expect(screen.getByTestId('icon-sidebar')).toBeInTheDocument()
+    expect(screen.getByTestId('top-header')).toBeInTheDocument()
     expect(screen.getByTestId('chat-container')).toBeInTheDocument()
-    
+
     // The panel might be hidden initially if no task is selected, but the container exists in DOM
     // Check if main wrapper exists
     const main = screen.getByTestId('chat-container').closest('main')

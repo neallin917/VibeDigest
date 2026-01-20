@@ -41,8 +41,8 @@ export function mapDBMessageToUIMessage(dbMsg: DBMessage): UIMessage {
 
         // Construct text content for backward compatibility / easy display
         content = dbMsg.content
-            .filter((p: ContentPart) => p.type === 'text') // Use ContentPart type
-            .map((p: TextContentPart) => p.text) // Use TextContentPart type
+            .filter((p): p is TextContentPart => p.type === 'text') // Type guard
+            .map((p) => p.text)
             .join('');
 
         // Extract tool invocations if any (though usually stored separately in some schemas,
@@ -64,12 +64,11 @@ export function mapDBMessageToUIMessage(dbMsg: DBMessage): UIMessage {
 
     return {
         id: dbMsg.id,
-        role: dbMsg.role,
+        role: dbMsg.role as any, // Allow DB roles (like 'tool' or 'data') even if UIMessage is strict
         content: content,
-        createdAt: new Date(dbMsg.created_at),
+        // createdAt removed as UIMessage does not have it
         // Attach parts if your UI component uses them directly.
-        // Note: official 'Message' type in 'ai' doesn't always strictly enforce 'parts' in all versions
-        // but v6 strongly encourages it. We'll attach it effectively.
-        parts: parts, // 'parts' is already typed as ContentPart[]
+        // We cast to any to avoid strict UIMessagePart structure checks against our simple ContentPart types
+        parts: parts as any,
     };
 }

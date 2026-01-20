@@ -229,7 +229,7 @@ body:not(.dark) {
   --color-sidebar-ring: var(--sidebar-ring);
 
   --color-xiaoyuzhou: #3D9DE1;
-  --color-apple: #a855f7;
+  --color-apple: #10b981;
 
   --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
 }
@@ -281,7 +281,7 @@ body:not(.dark) {
   }
 
   .text-gradient-primary {
-    @apply bg-clip-text text-transparent bg-gradient-to-br from-emerald-700 via-emerald-500 to-teal-400;
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-[#009873] via-[#10b981] to-teal-400;
     @apply dark:from-white dark:via-emerald-100 dark:to-emerald-400;
   }
 

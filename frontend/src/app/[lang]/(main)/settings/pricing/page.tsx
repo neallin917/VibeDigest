@@ -11,7 +11,7 @@ import { Check, Loader2, CreditCard, Database } from "lucide-react"
 import { createClient } from "@/lib/supabase"
 import { ApiClient } from "@/lib/api"
 import { cn } from "@/lib/utils"
-import { UsageCard } from "@/components/dashboard/UsageCard"
+import { UsageCard } from "@/components/settings/UsageCard"
 import { Heading, Text } from "@/components/ui/typography"
 import { PageContainer } from "@/components/layout/PageContainer"
 

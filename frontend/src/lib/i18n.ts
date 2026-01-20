@@ -5,6 +5,8 @@ export type Locale = typeof SUPPORTED_LOCALES[number]
 
 export const DEFAULT_LOCALE: Locale = "en"
 
+export const COOKIE_NAME = "vd_locale"
+
 export const LOCALE_LABEL: Record<Locale, string> = {
   en: "English",
   zh: "中文",

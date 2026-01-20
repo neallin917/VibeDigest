@@ -77,7 +77,7 @@ export function LandingNav() {
                     href={`/${locale}/#hero`}
                     className="flex-shrink-0 cursor-pointer transition-opacity hover:opacity-80"
                 >
-                    <BrandLogo textClassName="text-lg font-semibold tracking-tight text-slate-900 dark:text-white" />
+                    <BrandLogo textClassName="text-lg tracking-tight" />
                 </Link>
 
                 {/* Center: Navigation Capsule */}

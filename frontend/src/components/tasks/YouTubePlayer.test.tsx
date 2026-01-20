@@ -54,7 +54,9 @@ describe("YouTubePlayer", () => {
         render(<YouTubePlayer {...defaultProps} coverUrl="/test.jpg" />)
 
         const cover = screen.getByAltText("Test Video").closest('div')!.parentElement!
-        cover.click()
+        await waitFor(() => {
+            cover.click()
+        })
 
         // Wait for player container to appear (meaning state switched)
         await waitFor(() => {

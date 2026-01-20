@@ -34,7 +34,7 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
     }, [supabase])
 
     return (
-        <div className="hidden md:flex h-dvh w-64 flex-col border-r border-sidebar-border bg-sidebar/80 backdrop-blur-2xl relative z-10 bg-grid-dense shadow-xl shadow-black/5 dark:shadow-none">
+        <div className="hidden md:flex h-dvh w-64 flex-col border-r backdrop-blur-xl relative z-10 shadow-xl shadow-black/5 dark:shadow-none bg-white/70 border-slate-200/60 dark:bg-black/40 dark:border-white/10">
             <div className="p-6">
                 <div className="flex items-center justify-between gap-3">
                     <Link href="/" className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
@@ -58,22 +58,21 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
 
             <div className="flex-1 px-4 py-2 space-y-1">
                 {NAV_ITEMS.map((item) => {
-                    const href = `/${locale}${item.href}`
                     return (
                         <Link
                             key={item.href}
-                            href={href}
+                            href={item.href}
                             onClick={(e) => {
                                 if (!userEmail) {
                                     e.preventDefault()
                                     // Use router.push to navigate to login with next param
                                     // We need to import useRouter if not already available
-                                    window.location.href = `/${locale}/login`
+                                    window.location.href = '/login'
                                 }
                             }}
                             className={cn(
                                 "flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-                                pathname === href
+                                pathname === item.href
                                     ? "bg-primary/15 text-primary shadow-[0_0_15px_rgba(62,207,142,0.15)]"
                                     : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
                             )}

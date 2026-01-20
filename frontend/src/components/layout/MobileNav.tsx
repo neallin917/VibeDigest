@@ -35,7 +35,7 @@ export function MobileHeader() {
   return (
     <div className="md:hidden sticky top-0 z-40 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-black/40 backdrop-blur-md">
       <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-4">
-        <Link href={`/${locale}`} className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
+        <Link href="/" className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
           <BrandLogo />
         </Link>
 
@@ -45,7 +45,7 @@ export function MobileHeader() {
               <Menu className="h-5 w-5" />
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border-slate-200 dark:border-white/10 p-4">
+            <DialogContent className="bg-white/80 dark:bg-black/60 backdrop-blur-xl border-slate-200/60 dark:border-white/10 p-4">
             <DialogHeader className="text-left">
               <DialogTitle className="text-base">{t("nav.menu")}</DialogTitle>
             </DialogHeader>
@@ -58,11 +58,10 @@ export function MobileHeader() {
 
             <div className="space-y-2">
               {NAV_ITEMS.map((item) => {
-                const href = `/${locale}${item.href}`
                 return (
                   <DialogClose asChild key={item.href}>
                     <Link
-                      href={href}
+                      href={item.href}
                       className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/5 hover:text-foreground"
                     >
                       <item.icon className="h-4 w-4" />
@@ -84,7 +83,7 @@ export function MobileHeader() {
                       window.google.accounts.id.disableAutoSelect()
                     }
                     await supabase.auth.signOut()
-                    window.location.href = `/${locale}`
+                    window.location.href = '/'
                   }}
                   className="w-full justify-start gap-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
                 >
@@ -108,12 +107,11 @@ export function MobileBottomNav() {
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 dark:border-white/10 bg-white/80 dark:bg-black/60 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
       <div className="grid grid-cols-4 w-full">
         {NAV_ITEMS.map((item) => {
-          const fullHref = `/${locale}${item.href}`
-          const isActive = isActiveNav(pathname, fullHref)
+          const isActive = isActiveNav(pathname, item.href)
           return (
             <Link
               key={item.href}
-              href={fullHref}
+              href={item.href}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 py-2 text-[11px] font-medium transition-colors",
                 isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"

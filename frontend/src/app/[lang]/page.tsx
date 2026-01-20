@@ -6,8 +6,8 @@ import { HowItWorksSection } from "@/components/landing/HowItWorksSection"
 import { PricingSection } from "@/components/landing/PricingSection"
 import { TestimonialsSection } from "@/components/landing/TestimonialsSection"
 import { SupportCTA } from "@/components/landing/SupportCTA"
-import { ServerCommunityTemplates } from "@/components/dashboard/ServerCommunityTemplates"
-import { TemplatesSkeleton } from "@/components/dashboard/TemplatesSkeleton"
+import { ServerCommunityTemplates } from "@/components/templates/ServerCommunityTemplates"
+import { TemplatesSkeleton } from "@/components/templates/TemplatesSkeleton"
 import { Suspense } from "react"
 import Link from "next/link"
 
@@ -15,7 +15,7 @@ export default async function LandingPage({ params }: { params: Promise<{ lang: 
   const { lang } = await params;
   return (
     <div className="flex flex-col min-h-screen bg-transparent text-slate-800 dark:text-zinc-100 relative overflow-hidden font-sans selection:bg-primary/20 selection:text-primary">
-      
+
       {/* Background Blobs (Light Mode) */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none dark:hidden -z-10 bg-[#FAFAFA]">
         <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-emerald-100/40 rounded-full blur-[100px] mix-blend-multiply animate-float-slow" />
@@ -28,11 +28,11 @@ export default async function LandingPage({ params }: { params: Promise<{ lang: 
       <div className="fixed inset-0 hidden dark:block pointer-events-none -z-10 bg-[#050505]">
         {/* Subtle top glow */}
         <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[80%] h-[60%] bg-emerald-900/10 rounded-[100%] blur-[120px]" />
-        
+
         {/* Moving aurora elements */}
         <div className="absolute top-[10%] right-[-10%] w-[40%] h-[40%] bg-indigo-900/20 rounded-full blur-[120px] animate-pulse-glow" style={{ animationDuration: '8s' }} />
         <div className="absolute bottom-[-10%] left-[-5%] w-[40%] h-[40%] bg-teal-900/10 rounded-full blur-[100px] animate-float-slow" style={{ animationDuration: '10s' }} />
-        
+
         {/* Grid Overlay with fade out */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_100%)]" />
       </div>
@@ -77,10 +77,10 @@ export default async function LandingPage({ params }: { params: Promise<{ lang: 
       <footer className="py-8 text-center text-slate-500 dark:text-gray-600 text-xs border-t border-slate-200 dark:border-white/5 relative z-10 bg-white/50 dark:bg-[#0A0A0A] backdrop-blur-sm">
         <p>© 2024 VibeDigest. All rights reserved.</p>
         <div className="mt-3 flex justify-center gap-5">
-          <a href={`/${lang}/about`} className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '关于我们' : 'About'}</a>
-          <a href={`/${lang}/faq`} className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '常见问题' : 'FAQ'}</a>
-          <a href={`/${lang}/privacy`} className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '隐私政策' : 'Privacy Policy'}</a>
-          <a href={`/${lang}/terms`} className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '服务条款' : 'Terms of Service'}</a>
+          <a href="/about" className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '关于我们' : 'About'}</a>
+          <a href="/faq" className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '常见问题' : 'FAQ'}</a>
+          <a href="/privacy" className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '隐私政策' : 'Privacy Policy'}</a>
+          <a href="/terms" className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '服务条款' : 'Terms of Service'}</a>
         </div>
       </footer>
     </div>

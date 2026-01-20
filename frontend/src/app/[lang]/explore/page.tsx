@@ -1,9 +1,9 @@
 
 import { Metadata } from 'next'
-import { ServerCommunityTemplates } from "@/components/dashboard/ServerCommunityTemplates"
+import { ServerCommunityTemplates } from "@/components/templates/ServerCommunityTemplates"
 import { Suspense } from 'react'
 import { LandingNav } from "@/components/landing/LandingNav"
-import { TemplatesSkeleton } from "@/components/dashboard/TemplatesSkeleton"
+import { TemplatesSkeleton } from "@/components/templates/TemplatesSkeleton"
 import Link from "next/link"
 
 export const metadata: Metadata = {

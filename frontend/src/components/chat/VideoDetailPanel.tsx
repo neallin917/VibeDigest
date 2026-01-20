@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import { VideoPlayer } from '@/components/tasks/shared/VideoPlayer'
+import { supportsVideoEmbed } from '@/components/tasks/VideoEmbed'
 import { Button } from '@/components/ui/button'
 import { X, Lightbulb, StickyNote, PlayCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -44,6 +45,7 @@ export function VideoDetailPanel({
   const [task, setTask] = useState<Task | null>(null)
   const [summary, setSummary] = useState<StructuredSummaryV1 | null>(null)
   const [mediaController, setMediaController] = useState<MediaController | null>(null)
+  const [audioData, setAudioData] = useState<{ audioUrl: string, coverUrl?: string } | null>(null)
   const supabase = createClient()
 
   const parseSummaryContent = (content: any): StructuredSummaryV1 | null => {
@@ -70,29 +72,53 @@ export function VideoDetailPanel({
     }
   }
 
+  const parseAudioContent = (content: string): { audioUrl: string, coverUrl?: string } | null => {
+    try {
+      const parsed = JSON.parse(content)
+      return {
+        audioUrl: parsed.audioUrl,
+        coverUrl: parsed.coverUrl
+      }
+    } catch {
+      // If it's just a raw URL string
+      if (content.startsWith('http')) {
+        return { audioUrl: content }
+      }
+    }
+    return null
+  }
+
   useEffect(() => {
     if (!taskId) return
     setTask(null)
     setSummary(null)
+    setAudioData(null)
     const fetchData = async () => {
       // 1. Fetch Task
       const { data: t } = await supabase.from('tasks').select('*').eq('id', taskId).single()
       if (t) setTask(t)
 
-      // 2. Fetch Outputs (Summary)
+      // 2. Fetch Outputs (Summary & Audio)
       const { data: outputs } = await supabase
         .from('task_outputs')
         .select('*')
         .eq('task_id', taskId)
-        .eq('kind', 'summary')
-        .eq('status', 'completed')
-        .limit(1)
+        .in('kind', ['summary', 'audio'])
+        
+      if (outputs) {
+        const summaryOut = outputs.find(o => o.kind === 'summary' && o.status === 'completed')
+        if (summaryOut) {
+          const parsed = parseSummaryContent(summaryOut.content)
+          setSummary(parsed)
+        }
 
-      if (outputs && outputs.length > 0) {
-        const parsed = parseSummaryContent(outputs[0].content)
-        setSummary(parsed)
-      } else {
-        setSummary(null)
+        const audioOut = outputs.find(o => o.kind === 'audio')
+        if (audioOut) {
+          const parsed = parseAudioContent(audioOut.content)
+          if (parsed?.audioUrl) {
+            setAudioData(parsed)
+          }
+        }
       }
     }
     fetchData()
@@ -106,14 +132,45 @@ export function VideoDetailPanel({
         event: 'INSERT', schema: 'public', table: 'task_outputs', filter: `task_id=eq.${taskId}`
       }, async (payload) => {
         if (payload.new.kind === 'summary' && payload.new.status === 'completed') {
-          const parsed = parseSummaryContent(payload.new.content)
-          setSummary(parsed)
+            const parsed = parseSummaryContent(payload.new.content)
+            setSummary(parsed)
+        } else if (payload.new.kind === 'audio') {
+            // For audio, we accept any status as long as content parses to a URL
+            const parsed = parseAudioContent(payload.new.content)
+            if (parsed?.audioUrl) {
+                setAudioData(parsed)
+            }
+        }
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'task_outputs', filter: `task_id=eq.${taskId}`
+      }, async (payload) => {
+        if (payload.new.kind === 'summary' && payload.new.status === 'completed') {
+            const parsed = parseSummaryContent(payload.new.content)
+            setSummary(parsed)
+        } else if (payload.new.kind === 'audio') {
+            const parsed = parseAudioContent(payload.new.content)
+            if (parsed?.audioUrl) {
+                setAudioData(parsed)
+            }
         }
       })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
   }, [taskId, supabase])
+
+  // Determine media type based on task URL and available audio data
+  const mediaType: 'video' | 'audio' = useMemo(() => {
+    if (!task) return 'video'
+    if (supportsVideoEmbed(task.video_url)) {
+      return 'video'
+    }
+    if (audioData?.audioUrl) {
+      return 'audio'
+    }
+    return 'video' // Default fallback
+  }, [task, audioData])
 
   if (!task) return null
 
@@ -140,9 +197,13 @@ export function VideoDetailPanel({
 
         {/* Video Player Card */}
         <VideoPlayer
+          mediaType={mediaType}
           videoUrl={task.video_url}
           title={task.video_title}
           coverUrl={task.thumbnail_url}
+          audioUrl={audioData?.audioUrl}
+          audioCoverUrl={audioData?.coverUrl}
+          sourceUrl={task.video_url}
           onMediaReady={setMediaController}
         />
 

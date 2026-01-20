@@ -2,6 +2,12 @@ import { render, screen } from "@testing-library/react"
 import { vi, describe, it, expect } from "vitest"
 import { HeroSection } from "./HeroSection"
 
+// Mock next/navigation
+vi.mock("next/navigation", () => ({
+    useRouter: () => ({ push: vi.fn() }),
+    usePathname: vi.fn(),
+}))
+
 // Mock I18n
 vi.mock("@/components/i18n/I18nProvider", () => ({
     useI18n: () => ({
@@ -12,9 +18,9 @@ vi.mock("@/components/i18n/I18nProvider", () => ({
     })
 }))
 
-// Mock TaskForm
-vi.mock("@/components/dashboard/TaskForm", () => ({
-    TaskForm: ({ simple }: any) => <div data-testid="task-form" data-simple={simple}>TaskForm</div>
+// Mock ChatInput
+vi.mock("@/components/chat/ChatInput", () => ({
+    ChatInput: ({ variant }: any) => <div data-testid="chat-input" data-variant={variant}>ChatInput</div>
 }))
 
 describe("HeroSection", () => {
@@ -28,13 +34,14 @@ describe("HeroSection", () => {
         render(<HeroSection />)
         // Should have "with power" in bold
         const bold = screen.getByText("with power")
-        expect(bold.tagName).toBe("STRONG")
+        expect(bold.tagName).toBe("SPAN")
+        expect(bold.className).toContain("font-semibold")
     })
 
-    it("renders TaskForm in simple mode", () => {
+    it("renders ChatInput in inline mode", () => {
         render(<HeroSection />)
-        const form = screen.getByTestId("task-form")
-        expect(form).toBeInTheDocument()
-        expect(form).toHaveAttribute("data-simple", "true")
+        const input = screen.getByTestId("chat-input")
+        expect(input).toBeInTheDocument()
+        expect(input).toHaveAttribute("data-variant", "inline")
     })
 })

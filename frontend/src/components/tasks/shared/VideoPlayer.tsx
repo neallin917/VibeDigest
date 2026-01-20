@@ -5,21 +5,25 @@ import { AudioEmbed } from '@/components/tasks/AudioEmbed'
 import { cn } from '@/lib/utils'
 
 interface VideoPlayerProps {
+  mediaType: 'video' | 'audio'
   videoUrl: string
   title?: string
   coverUrl?: string
   audioUrl?: string | null
   audioCoverUrl?: string
+  sourceUrl?: string
   onMediaReady?: (ctrl: any) => void
   className?: string
 }
 
 export function VideoPlayer({
+  mediaType,
   videoUrl,
   title,
   coverUrl,
   audioUrl,
   audioCoverUrl,
+  sourceUrl,
   onMediaReady,
   className
 }: VideoPlayerProps) {
@@ -33,15 +37,19 @@ export function VideoPlayer({
       className
     )}>
       <div className="relative aspect-video rounded-[20px] overflow-hidden shadow-inner bg-black">
-        {audioUrl ? (
+        {mediaType === 'audio' && audioUrl ? (
           <AudioEmbed 
             audioUrl={audioUrl}
             coverUrl={audioCoverUrl || coverUrl}
+            sourceUrl={sourceUrl || videoUrl}
+            title={title}
             onReady={onMediaReady}
           />
         ) : (
           <VideoEmbed 
             videoUrl={videoUrl}
+            title={title}
+            coverUrl={coverUrl}
             onReady={onMediaReady}
           />
         )}

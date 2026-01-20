@@ -13,12 +13,12 @@
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { 
-  Loader2, 
-  CheckCircle, 
-  AlertCircle, 
-  Play, 
-  Video, 
+import {
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+  Play,
+  Video,
   FileText,
   Search,
   Sparkles,
@@ -33,11 +33,11 @@ import { cn } from '@/lib/utils'
 
 type ToolState = 'input-streaming' | 'input-available' | 'output-available' | 'output-error'
 
-interface BaseToolPartProps {
+interface BaseToolPartProps<I = unknown, O = unknown> {
   toolCallId: string
   state: ToolState
-  input?: Record<string, unknown>
-  output?: Record<string, unknown>
+  input?: I
+  output?: O
   errorText?: string
 }
 
@@ -60,19 +60,17 @@ interface TaskStatusOutput {
   error?: string
 }
 
-interface GetTaskStatusToolProps extends BaseToolPartProps {
-  input?: TaskStatusInput
-  output?: TaskStatusOutput
+interface GetTaskStatusToolProps extends BaseToolPartProps<TaskStatusInput, TaskStatusOutput> {
   onViewClick?: (taskId: string) => void
 }
 
-export function GetTaskStatusTool({ 
-  toolCallId, 
-  state, 
-  input, 
-  output, 
+export function GetTaskStatusTool({
+  toolCallId,
+  state,
+  input,
+  output,
   errorText,
-  onViewClick 
+  onViewClick
 }: GetTaskStatusToolProps) {
   switch (state) {
     case 'input-streaming':
@@ -106,9 +104,9 @@ export function GetTaskStatusTool({
           {/* Thumbnail */}
           <div className="relative aspect-video bg-black/50">
             {output?.thumbnail_url ? (
-              <img 
-                src={output.thumbnail_url} 
-                alt={output.video_title || "Video"} 
+              <img
+                src={output.thumbnail_url}
+                alt={output.video_title || "Video"}
                 className="w-full h-full object-cover opacity-80"
               />
             ) : (
@@ -116,7 +114,7 @@ export function GetTaskStatusTool({
                 <Video className="w-8 h-8 opacity-20" />
               </div>
             )}
-            
+
             {/* Status Overlay */}
             {status === 'processing' && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/40">
@@ -169,7 +167,7 @@ export function GetTaskStatusTool({
 
             {/* Action Button */}
             {status === 'completed' && onViewClick && output?.taskId && (
-              <Button 
+              <Button
                 onClick={() => onViewClick(output.taskId)}
                 className="w-full h-8 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white"
               >
@@ -208,7 +206,7 @@ interface CreateTaskOutput {
   message?: string
   videoUrl?: string
   error?: string
-  details?: string
+  details?: string | Record<string, unknown>
 }
 
 interface CreateTaskToolProps extends BaseToolPartProps {
@@ -217,13 +215,13 @@ interface CreateTaskToolProps extends BaseToolPartProps {
   onViewClick?: (taskId: string) => void
 }
 
-export function CreateTaskTool({ 
-  toolCallId, 
-  state, 
-  input, 
-  output, 
+export function CreateTaskTool({
+  toolCallId,
+  state,
+  input,
+  output,
   errorText,
-  onViewClick 
+  onViewClick
 }: CreateTaskToolProps) {
   switch (state) {
     case 'input-streaming':
@@ -244,14 +242,18 @@ export function CreateTaskTool({
 
     case 'output-available':
       if (output?.error) {
+        // Handle details that might be an object (e.g., Pydantic validation errors)
+        const detailsText = output.details
+          ? (typeof output.details === 'string' ? output.details : JSON.stringify(output.details))
+          : null;
         return (
           <div className="my-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20">
             <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
               <AlertCircle className="w-4 h-4" />
               <span className="font-medium">Failed to create task</span>
             </div>
-            {output.details && (
-              <p className="mt-1 text-xs text-red-500">{output.details}</p>
+            {detailsText && (
+              <p className="mt-1 text-xs text-red-500">{detailsText}</p>
             )}
           </div>
         )
@@ -269,7 +271,7 @@ export function CreateTaskTool({
             </p>
           )}
           {output?.taskId && onViewClick && (
-            <Button 
+            <Button
               onClick={() => onViewClick(output.taskId!)}
               variant="outline"
               size="sm"
@@ -309,7 +311,7 @@ interface PreviewVideoOutput {
   duration?: string
   channel?: string
   error?: string
-  details?: string
+  details?: string | Record<string, unknown>
 }
 
 interface PreviewVideoToolProps extends BaseToolPartProps {
@@ -317,12 +319,12 @@ interface PreviewVideoToolProps extends BaseToolPartProps {
   output?: PreviewVideoOutput
 }
 
-export function PreviewVideoTool({ 
-  toolCallId, 
-  state, 
-  input, 
-  output, 
-  errorText 
+export function PreviewVideoTool({
+  toolCallId,
+  state,
+  input,
+  output,
+  errorText
 }: PreviewVideoToolProps) {
   switch (state) {
     case 'input-streaming':
@@ -336,10 +338,11 @@ export function PreviewVideoTool({
 
     case 'output-available':
       if (output?.error) {
+        const previewErrorText = typeof output.error === 'string' ? output.error : JSON.stringify(output.error);
         return (
           <div className="flex items-center gap-2 my-2 text-sm text-red-500">
             <AlertCircle className="w-4 h-4" />
-            <span>{output.error}</span>
+            <span>{previewErrorText}</span>
           </div>
         )
       }
@@ -353,9 +356,9 @@ export function PreviewVideoTool({
           {/* Thumbnail */}
           <div className="relative aspect-video bg-black/50">
             {output?.thumbnail ? (
-              <img 
-                src={output.thumbnail} 
-                alt={output.title || "Video"} 
+              <img
+                src={output.thumbnail}
+                alt={output.title || "Video"}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -422,12 +425,12 @@ interface GetTaskOutputsToolProps extends BaseToolPartProps {
   output?: GetTaskOutputsOutput
 }
 
-export function GetTaskOutputsTool({ 
-  toolCallId, 
-  state, 
-  input, 
-  output, 
-  errorText 
+export function GetTaskOutputsTool({
+  toolCallId,
+  state,
+  input,
+  output,
+  errorText
 }: GetTaskOutputsToolProps) {
   switch (state) {
     case 'input-streaming':
@@ -479,13 +482,13 @@ interface UnknownToolProps extends BaseToolPartProps {
   toolName: string
 }
 
-export function UnknownTool({ 
-  toolCallId, 
-  toolName, 
-  state, 
-  input, 
-  output, 
-  errorText 
+export function UnknownTool({
+  toolCallId,
+  toolName,
+  state,
+  input,
+  output,
+  errorText
 }: UnknownToolProps) {
   switch (state) {
     case 'input-streaming':
