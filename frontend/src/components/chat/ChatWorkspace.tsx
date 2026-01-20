@@ -1,47 +1,77 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useSearchParams, useRouter, usePathname } from "next/navigation"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { cn } from "@/lib/utils"
 import { ChatContainer } from "./ChatContainer"
-import { VideoDetailPanel } from "./VideoDetailPanel"
+import dynamic from "next/dynamic"
+import { Loader2, GripVertical } from "lucide-react"
+
+const VideoDetailPanel = dynamic(
+  () => import("./VideoDetailPanel").then((mod) => mod.VideoDetailPanel),
+  {
+    loading: () => (
+      <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    )
+  }
+)
 import { MobileMenuDrawer } from "./MobileMenuDrawer"
 import { TopHeader } from "./TopHeader"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import type { UIMessage } from "ai"
 
 interface Thread {
-    id: string
-    title: string
-    updated_at: string
+  id: string
+  title: string
+  updated_at: string
 }
 
 interface ChatWorkspaceProps {
-    activeThreadId: string | null
-    initialMessages: UIMessage[]
-    onNewChat: () => void
-    onSelectThread: (threadId: string) => void
-    onThreadCreated?: () => void
-    threads?: Thread[]
+  activeThreadId: string | null
+  activeTaskId: string | null
+  initialMessages: UIMessage[]
+  onNewChat: () => void
+  onSelectThread: (threadId: string) => void
+  onSelectTask: (taskId: string | null) => void
+  onThreadCreated?: () => void
+  onChatStarted?: (threadId: string) => void
+  threads?: Thread[]
 }
 
+
 export function ChatWorkspace({
-    activeThreadId,
-    initialMessages,
-    onNewChat,
-    onSelectThread,
-    onThreadCreated,
-    threads
+  activeThreadId,
+  activeTaskId,
+  initialMessages,
+  onNewChat,
+  onSelectThread,
+  onSelectTask,
+  onThreadCreated,
+  onChatStarted,
+  threads
 }: ChatWorkspaceProps) {
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const pathname = usePathname()
-
-  // Existing task params
-  const taskId = searchParams.get("task")
-
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  
+  // Resizable logic
+  const [panelWidth, setPanelWidth] = useState(420)
+  const [isResizing, setIsResizing] = useState(false)
+  const sidebarRef = useRef<HTMLElement>(null)
+
+  // Load width from localStorage or set default to 60%
+  useEffect(() => {
+    const savedWidth = localStorage.getItem("vibe_panel_width")
+    if (savedWidth) {
+      setPanelWidth(parseInt(savedWidth, 10))
+    } else {
+      // Default to 60% of screen width if no saved preference
+      const defaultWidth = Math.floor(window.innerWidth * 0.6)
+      // Ensure it respects min/max constraints we'll enforce later
+      const constrainedWidth = Math.max(320, Math.min(defaultWidth, window.innerWidth - 320)) 
+      setPanelWidth(constrainedWidth)
+    }
+  }, [])
 
   // Detect mobile
   useEffect(() => {
@@ -54,18 +84,48 @@ export function ChatWorkspace({
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  const activeTaskId = taskId
-
   const setTaskParam = (nextTaskId: string | null) => {
-    const params = new URLSearchParams(searchParams.toString())
-    if (nextTaskId) {
-      params.set("task", nextTaskId)
-    } else {
-      params.delete("task")
-    }
-    const query = params.toString()
-    router.push(query ? `${pathname}?${query}` : pathname, { scroll: false })
+    onSelectTask(nextTaskId)
   }
+
+  const startResizing = useCallback(() => {
+    setIsResizing(true)
+  }, [])
+
+  const stopResizing = useCallback(() => {
+    setIsResizing(false)
+    localStorage.setItem("vibe_panel_width", panelWidth.toString())
+  }, [panelWidth])
+
+  const resize = useCallback(
+    (mouseMoveEvent: MouseEvent) => {
+      if (isResizing) {
+        // Calculate new width: window width - mouse X - right margin (approx 16px)
+        const newWidth = document.body.clientWidth - mouseMoveEvent.clientX - 16
+        
+        // Min 320px, Max 80% of screen (relaxed from 60% to allow wider context)
+        // Also ensure left chat panel maintains at least 320px
+        const maxAllowed = Math.max(320, document.body.clientWidth - 320)
+        
+        if (newWidth > 320 && newWidth < maxAllowed) {
+          setPanelWidth(newWidth)
+        }
+      }
+    },
+    [isResizing]
+  )
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener("mousemove", resize)
+      window.addEventListener("mouseup", stopResizing)
+    }
+    return () => {
+      window.removeEventListener("mousemove", resize)
+      window.removeEventListener("mouseup", stopResizing)
+    }
+  }, [isResizing, resize, stopResizing])
+
 
   return (
     <div className="flex-1 flex flex-col h-screen relative overflow-hidden bg-transparent">
@@ -82,24 +142,24 @@ export function ChatWorkspace({
         isOpen={isMobileMenuOpen}
         onOpenChange={setIsMobileMenuOpen}
         onNewChat={() => {
-            onNewChat()
-            setIsMobileMenuOpen(false)
+          onNewChat()
+          setIsMobileMenuOpen(false)
         }}
-        onOpenLibrary={() => { 
-            // Library functionality is handled by AppSidebar mostly, 
-            // but on mobile this might need to open something or just close menu
-            setIsMobileMenuOpen(false)
-        }} 
+        onOpenLibrary={() => {
+          // Library functionality is handled by AppSidebar mostly, 
+          // but on mobile this might need to open something or just close menu
+          setIsMobileMenuOpen(false)
+        }}
         threads={threads}
         activeThreadId={activeThreadId}
         onSelectThread={(id) => {
-            onSelectThread(id)
-            setIsMobileMenuOpen(false)
+          onSelectThread(id)
+          setIsMobileMenuOpen(false)
         }}
       />
 
       {/* Main Layout: Chat + Details */}
-      <main className="flex-1 flex m-3 lg:m-4 overflow-hidden gap-4">
+      <main className="flex-1 flex m-3 lg:m-4 overflow-hidden gap-0"> {/* gap-0 because handle adds spacing if needed */}
 
         {/* Chat Area */}
         <div className={cn(
@@ -114,17 +174,36 @@ export function ChatWorkspace({
               activeTaskId={activeTaskId}
               onOpenPanel={(id) => setTaskParam(id)}
               onSelectExample={(id) => setTaskParam(id)} // Might want to link this to task creation too
+              onChatStarted={onChatStarted}
             />
           </div>
         </div>
 
+        {/* Resizer Handle (Desktop Only) */}
+        {activeTaskId && (
+          <div
+            className="hidden xl:flex w-4 cursor-col-resize items-center justify-center hover:bg-white/5 transition-colors z-20"
+            onMouseDown={startResizing}
+          >
+            <div className="w-1 h-8 rounded-full bg-slate-300 dark:bg-white/20" />
+          </div>
+        )}
+
         {/* Video Context Panel (Desktop) */}
-        <aside className={cn(
-          "hidden xl:flex flex-col transition-all duration-700 cubic-bezier(0.19, 1, 0.22, 1) glass-panel",
-          activeTaskId
-            ? "w-[420px] opacity-100 ml-0 translate-x-0"
-            : "w-0 opacity-0 ml-0 border-none translate-x-10"
-        )}>
+        <aside 
+          ref={sidebarRef}
+          className={cn(
+            "hidden xl:flex flex-col glass-panel overflow-hidden",
+            activeTaskId
+              ? "opacity-100 ml-0 translate-x-0"
+              : "w-0 opacity-0 ml-0 border-none translate-x-10",
+             // Disable transition during resize to avoid lag/rubber-banding
+             !isResizing && "transition-all duration-700 cubic-bezier(0.19, 1, 0.22, 1)"
+          )}
+          style={{ 
+            width: activeTaskId ? panelWidth : 0 
+          }}
+        >
           {activeTaskId && (
             <VideoDetailPanel
               taskId={activeTaskId}
@@ -136,7 +215,14 @@ export function ChatWorkspace({
       </main>
 
       {/* Mobile Context Panel */}
-      <Sheet open={!!(isMobile && activeTaskId)} onOpenChange={(open) => !open && setTaskParam(null)}>
+      <Sheet
+        open={!!(isMobile && activeTaskId)}
+        onOpenChange={(open) => {
+          if (isMobile && !open) {
+            setTaskParam(null)
+          }
+        }}
+      >
         <SheetContent side="bottom" className="h-[90vh] p-0 rounded-t-[2rem] border-t border-slate-200 dark:border-white/20 bg-white dark:bg-zinc-900 [&>button]:hidden">
           <SheetTitle className="sr-only">Video Details</SheetTitle>
           {activeTaskId && (
