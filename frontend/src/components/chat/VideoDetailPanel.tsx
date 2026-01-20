@@ -46,8 +46,34 @@ export function VideoDetailPanel({
   const [mediaController, setMediaController] = useState<MediaController | null>(null)
   const supabase = createClient()
 
+  const parseSummaryContent = (content: any): StructuredSummaryV1 | null => {
+    if (!content) return null
+    if (typeof content === 'object') {
+      return content as StructuredSummaryV1
+    }
+    if (typeof content !== 'string') return null
+
+    const trimmed = content.trim()
+    if (!trimmed) return null
+
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        return JSON.parse(trimmed) as StructuredSummaryV1
+      } catch (e) {
+        console.error("Failed to parse summary JSON", e)
+      }
+    }
+
+    return {
+      overview: trimmed,
+      keypoints: []
+    }
+  }
+
   useEffect(() => {
     if (!taskId) return
+    setTask(null)
+    setSummary(null)
     const fetchData = async () => {
       // 1. Fetch Task
       const { data: t } = await supabase.from('tasks').select('*').eq('id', taskId).single()
@@ -63,12 +89,10 @@ export function VideoDetailPanel({
         .limit(1)
 
       if (outputs && outputs.length > 0) {
-        try {
-          const parsed = JSON.parse(outputs[0].content)
-          setSummary(parsed)
-        } catch (e) {
-          console.error("Failed to parse summary JSON", e)
-        }
+        const parsed = parseSummaryContent(outputs[0].content)
+        setSummary(parsed)
+      } else {
+        setSummary(null)
       }
     }
     fetchData()
@@ -82,10 +106,8 @@ export function VideoDetailPanel({
         event: 'INSERT', schema: 'public', table: 'task_outputs', filter: `task_id=eq.${taskId}`
       }, async (payload) => {
         if (payload.new.kind === 'summary' && payload.new.status === 'completed') {
-          try {
-            const parsed = JSON.parse(payload.new.content)
-            setSummary(parsed)
-          } catch { /* ignore parse errors */ }
+          const parsed = parseSummaryContent(payload.new.content)
+          setSummary(parsed)
         }
       })
       .subscribe()
