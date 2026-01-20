@@ -66,6 +66,7 @@ export function ChatWorkspace({
       setPanelWidth(parseInt(savedWidth, 10))
     } else {
       // Default to 60% of screen width if no saved preference
+      // This provides a better reading experience for the transcript/summary
       const defaultWidth = Math.floor(window.innerWidth * 0.6)
       // Ensure it respects min/max constraints we'll enforce later
       const constrainedWidth = Math.max(320, Math.min(defaultWidth, window.innerWidth - 320)) 
