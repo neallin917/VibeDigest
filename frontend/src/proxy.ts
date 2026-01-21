@@ -6,7 +6,7 @@ const SUPPORTED_LOCALES = ["en", "zh", "es", "ar", "fr", "ru", "pt", "hi", "ja",
 const DEFAULT_LOCALE = "en"
 const COOKIE_NAME = "vd_locale"
 
-export async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // 1. Route Strategy (i18n)
@@ -32,8 +32,7 @@ export async function middleware(request: NextRequest) {
           locale = cookieLocale
       }
 
-      // Perform Rewrite (renders locale page while keeping URL clean if desired,
-      // or aligns with previous proxy.ts logic which seemed to be doing rewrites)
+      // Perform Rewrite (renders locale page while keeping URL clean)
       const url = request.nextUrl.clone()
       url.pathname = `/${locale}${pathname}`
       response = NextResponse.rewrite(url, {
@@ -44,7 +43,6 @@ export async function middleware(request: NextRequest) {
   }
 
   // 2. Auth Logic (Supabase)
-  // Inject cookie operations into the response object
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -54,11 +52,11 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          // Update Request Cookies (so Server Components get the new token)
+          // Update Request Cookies
           cookiesToSet.forEach(({ name, value, options }) =>
             request.cookies.set(name, value)
           )
-          // Update Response Cookies (so Browser gets the new token)
+          // Update Response Cookies
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           )
@@ -68,7 +66,6 @@ export async function middleware(request: NextRequest) {
   )
 
   // 3. Refresh Token
-  // This triggers setAll if the token needs refreshing
   await supabase.auth.getUser()
 
   return response
