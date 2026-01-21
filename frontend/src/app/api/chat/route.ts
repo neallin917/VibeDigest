@@ -16,6 +16,13 @@ const MODEL_NAME = process.env.OPENAI_MODEL || 'gemini-3-flash';
 // Backend API URL (must match BACKEND_API_URL in .env.local)
 const API_BASE_URL = process.env.BACKEND_API_URL || 'http://127.0.0.1:8000';
 
+// --- Startup Logging ---
+console.log('>>> [API/Chat] Route Initialized <<<');
+console.log(`    Model:    ${MODEL_NAME}`);
+console.log(`    Base URL: ${process.env.OPENAI_BASE_URL || 'Default'}`);
+console.log(`    Backend:  ${API_BASE_URL}`);
+console.log('>>> ---------------------------- <<<');
+
 export const maxDuration = 30;
 
 // Helper to extract text from UIMessage (AI SDK v6 Best Practice)
@@ -24,6 +31,14 @@ function getTextFromUIMessage(message: UIMessage): string {
         .filter((part) => part.type === 'text')
         .map((part) => part.text)
         .join('');
+}
+
+// Helper to sanitize and validate URLs (Fix for "Invalid video URL" 400 errors)
+function extractUrl(text: string): string | null {
+    if (!text || typeof text !== 'string' || text === 'undefined' || text === 'null') return null;
+    // Extract first valid http/https URL, ignoring surrounding markdown or whitespace
+    const match = text.match(/(https?:\/\/[^\s<>"')\]]+)/);
+    return match ? match[0] : null;
 }
 
 export async function POST(req: Request) {
@@ -189,8 +204,9 @@ When a taskId is provided:
 - Use this real data to answer questions about the video content
 
 When users provide video URLs:
-- Use preview_video to show them what will be processed
-- Use create_task if they want to proceed with processing
+- Use preview_video to show them what will be processed. Pass ONLY the raw URL string (no markdown, no XML tags).
+- Use create_task if they want to proceed with processing.
+- If you do not have a valid URL, DO NOT call these tools with "undefined" or placeholder strings. Ask the user for the URL first.
 
 Your available tools:
 - get_task_status: Check current processing status and progress
@@ -305,6 +321,12 @@ Never make up information about video content. Always use tools to get real data
                     }) as any,
                     execute: async (args: any) => {
                         const { url, summaryLanguage } = args;
+
+                        const cleanUrl = extractUrl(url);
+                        if (!cleanUrl) {
+                            return { error: "No valid URL found in input. Please provide a valid YouTube URL." };
+                        }
+
                         if (!user?.id) {
                             return { error: 'Authentication required' };
                         }
@@ -316,7 +338,7 @@ Never make up information about video content. Always use tools to get real data
                                     'Authorization': `Bearer ${accessToken}`,
                                 },
                                 body: new URLSearchParams({
-                                    video_url: url,
+                                    video_url: cleanUrl,
                                     summary_language: summaryLanguage,
                                 }),
                             });
@@ -328,7 +350,7 @@ Never make up information about video content. Always use tools to get real data
                                 taskId: data.task_id,
                                 status: 'started',
                                 message: data.message || 'Task created successfully',
-                                videoUrl: url,
+                                videoUrl: cleanUrl,
                                 summaryLanguage,
                             };
                         } catch (error) {
@@ -343,6 +365,11 @@ Never make up information about video content. Always use tools to get real data
                     }),
                     // @ts-ignore
                     execute: async ({ url }: { url: string }) => {
+                        const cleanUrl = extractUrl(url);
+                        if (!cleanUrl) {
+                            return { error: "No valid URL found in input. Please provide a valid YouTube URL." };
+                        }
+
                         try {
                             const response = await fetch(`${API_BASE_URL}/api/preview-video`, {
                                 method: 'POST',
@@ -350,7 +377,7 @@ Never make up information about video content. Always use tools to get real data
                                     'Content-Type': 'application/x-www-form-urlencoded',
                                     'Authorization': `Bearer ${accessToken}`,
                                 },
-                                body: new URLSearchParams({ url }),
+                                body: new URLSearchParams({ url: cleanUrl }),
                             });
                             const data = await response.json();
                             if (!response.ok) {
