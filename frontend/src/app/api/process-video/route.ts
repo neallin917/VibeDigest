@@ -6,16 +6,24 @@ const API_BASE_URL = process.env.BACKEND_API_URL || "http://127.0.0.1:8000";
 export async function POST(req: Request) {
   const supabase = await createClient();
   const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const {
     data: { session },
   } = await supabase.auth.getSession();
 
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Session invalid" }, { status: 401 });
   }
 
   try {
     const body = await req.json();
-    
+
     // Convert JSON body to FormData as backend expects
     const formData = new FormData();
     formData.append("video_url", body.video_url);

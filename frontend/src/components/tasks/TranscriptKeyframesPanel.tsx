@@ -2,7 +2,6 @@
 
 import { useMemo } from "react"
 
-import { Button } from "@/components/ui/button"
 import { formatSeconds, parseScriptRawPayload } from "@/components/tasks/transcript"
 
 function buildTimelinePoints(scriptRawContent?: string) {

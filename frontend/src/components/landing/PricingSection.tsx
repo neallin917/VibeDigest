@@ -15,8 +15,8 @@ export function PricingSection() {
     const supabase = createClient()
 
     const handlePlanClick = async () => {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!session) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
             router.push(`/${locale}/login?next=/${locale}/settings/pricing`)
         } else {
             router.push(`/${locale}/settings/pricing`)

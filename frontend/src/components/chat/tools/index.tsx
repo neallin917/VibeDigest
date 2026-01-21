@@ -26,6 +26,7 @@ import {
   ExternalLink
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import Image from 'next/image'
 
 // ============================================================================
 // Type Definitions
@@ -104,10 +105,12 @@ export function GetTaskStatusTool({
           {/* Thumbnail */}
           <div className="relative aspect-video bg-black/50">
             {output?.thumbnail_url ? (
-              <img
+              <Image
                 src={output.thumbnail_url}
                 alt={output.video_title || "Video"}
-                className="w-full h-full object-cover opacity-80"
+                fill
+                unoptimized
+                className="object-cover opacity-80"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground">
@@ -356,10 +359,12 @@ export function PreviewVideoTool({
           {/* Thumbnail */}
           <div className="relative aspect-video bg-black/50">
             {output?.thumbnail ? (
-              <img
+              <Image
                 src={output.thumbnail}
                 alt={output.title || "Video"}
-                className="w-full h-full object-cover"
+                fill
+                unoptimized
+                className="object-cover"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground">

@@ -64,10 +64,10 @@ interface LibrarySidebarProps {
   onSelectTask: (taskId: string) => void
 }
 
-export function LibrarySidebar({ 
-  isOpen, 
-  onClose, 
-  onSelectTask 
+export function LibrarySidebar({
+  isOpen,
+  onClose,
+  onSelectTask
 }: LibrarySidebarProps) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -99,18 +99,19 @@ export function LibrarySidebar({
   }, [supabase, searchQuery])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (isOpen) fetchTasks()
   }, [isOpen, fetchTasks])
 
   const handleDelete = async (e: React.MouseEvent, taskId: string) => {
     e.stopPropagation()
     setDeletingId(taskId)
-    
+
     const { error } = await supabase
       .from('tasks')
       .update({ is_deleted: true })
       .eq('id', taskId)
-    
+
     if (!error) {
       setTasks(prev => prev.filter(t => t.id !== taskId))
     }

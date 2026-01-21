@@ -1,0 +1,27 @@
+src/app/api/chat/route.test.ts(50,9): error TS2698: Spread types may only be created from object types.
+src/app/api/chat/route.test.ts(128,37): error TS2345: Argument of type '(table: string) => { select: Mock<Procedure>; insert?: undefined; update?: undefined; } | { select: Mock<Procedure>; insert: Mock<Procedure>; update: Mock<...>; }' is not assignable to parameter of type '() => { select: Mock<Procedure>; insert: Mock<Procedure>; update: Mock<Procedure>; }'.
+  Target signature provides too few arguments. Expected 1 or more, but got 0.
+src/app/api/chat/route.test.ts(189,38): error TS2345: Argument of type '(table: any) => { select: Mock<Procedure>; insert: Mock<Procedure>; }' is not assignable to parameter of type '() => { select: Mock<Procedure>; insert: Mock<Procedure>; update: Mock<Procedure>; }'.
+  Target signature provides too few arguments. Expected 1 or more, but got 0.
+src/app/api/chat/route.test.ts(189,39): error TS7006: Parameter 'table' implicitly has an 'any' type.
+src/components/chat/ChatContainer.tsx(4,43): error TS2724: '"ai"' has no exported member named 'Message'. Did you mean 'UIMessage'?
+src/components/chat/ChatContainer.tsx(4,52): error TS2724: '"ai"' has no exported member named 'ToolInvocation'. Did you mean 'UIToolInvocation'?
+src/components/chat/ChatContainer.tsx(161,5): error TS2353: Object literal may only specify known properties, and 'initialMessages' does not exist in type 'UseChatOptions<UIMessage<unknown, UIDataTypes, UITools>>'.
+src/components/chat/ChatContainer.tsx(180,5): error TS2339: Property 'append' does not exist on type 'UseChatHelpers<UIMessage<unknown, UIDataTypes, UITools>>'.
+src/components/chat/ChatContainer.tsx(183,5): error TS2339: Property 'reload' does not exist on type 'UseChatHelpers<UIMessage<unknown, UIDataTypes, UITools>>'.
+src/components/chat/ChatContainer.tsx(296,32): error TS2339: Property 'toolInvocations' does not exist on type 'UIMessage<unknown, UIDataTypes, UITools>'.
+src/components/chat/ChatContainer.tsx(296,54): error TS7006: Parameter 'toolInvocation' implicitly has an 'any' type.
+src/components/chat/ChatContainer.tsx(296,70): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/components/chat/ChatContainer.tsx(306,30): error TS2339: Property 'content' does not exist on type 'UIMessage<unknown, UIDataTypes, UITools>'.
+src/components/chat/ChatContainer.tsx(362,36): error TS2339: Property 'content' does not exist on type 'UIMessage<unknown, UIDataTypes, UITools>'.
+src/lib/chat-utils.ts(45,18): error TS2345: Argument of type '(p: TextContentPart) => string' is not assignable to parameter of type '(value: ContentPart, index: number, array: ContentPart[]) => string'.
+  Types of parameters 'p' and 'value' are incompatible.
+    Type 'ContentPart' is not assignable to type 'TextContentPart'.
+      Property 'text' is missing in type 'OtherContentPart' but required in type 'TextContentPart'.
+src/lib/chat-utils.ts(67,9): error TS2322: Type '"data" | "user" | "system" | "assistant" | "tool"' is not assignable to type '"user" | "system" | "assistant"'.
+  Type '"data"' is not assignable to type '"user" | "system" | "assistant"'.
+src/lib/chat-utils.ts(73,9): error TS2322: Type 'ContentPart[]' is not assignable to type 'UIMessagePart<UIDataTypes, UITools>[]'.
+  Type 'ContentPart' is not assignable to type 'UIMessagePart<UIDataTypes, UITools>'.
+    Type 'OtherContentPart' is not assignable to type 'UIMessagePart<UIDataTypes, UITools>'.
+      Type 'OtherContentPart' is not assignable to type '{ type: "dynamic-tool"; toolName: string; toolCallId: string; title?: string | undefined; providerExecuted?: boolean | undefined; } & { state: "output-available"; input: unknown; output: unknown; errorText?: undefined; callProviderMetadata?: SharedV3ProviderMetadata | undefined; preliminary?: boolean | undefined; ap...'.
+        Type 'OtherContentPart' is missing the following properties from type '{ type: "dynamic-tool"; toolName: string; toolCallId: string; title?: string | undefined; providerExecuted?: boolean | undefined; }': toolName, toolCallId

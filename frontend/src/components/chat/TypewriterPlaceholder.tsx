@@ -13,14 +13,14 @@ interface TypewriterPlaceholderProps {
 
 type Phase = 'typing' | 'pausing' | 'deleting' | 'waiting'
 
-export function TypewriterPlaceholder({ 
-  visible = true, 
-  className 
+export function TypewriterPlaceholder({
+  visible = true,
+  className
 }: TypewriterPlaceholderProps) {
   const [displayText, setDisplayText] = useState('')
   const [urlIndex, setUrlIndex] = useState(0)
   const [phase, setPhase] = useState<Phase>('typing')
-  
+
   const currentUrl = EXAMPLE_URLS[urlIndex]
 
   const advanceToNextUrl = useCallback(() => {
@@ -28,7 +28,6 @@ export function TypewriterPlaceholder({
   }, [])
 
   // Animation loop: This pattern is intentional for typewriter effect state machine
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (!visible) return
 
@@ -38,6 +37,7 @@ export function TypewriterPlaceholder({
       case 'typing':
         if (displayText.length < currentUrl.length) {
           timeoutId = setTimeout(() => {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setDisplayText(currentUrl.slice(0, displayText.length + 1))
           }, TYPEWRITER_CONFIG.typingSpeed)
         } else {
@@ -75,9 +75,9 @@ export function TypewriterPlaceholder({
   }, [phase, displayText, currentUrl, visible, advanceToNextUrl])
 
   // Reset animation when visibility changes
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDisplayText('')
       setPhase('typing')
     }
@@ -86,7 +86,7 @@ export function TypewriterPlaceholder({
   if (!visible) return null
 
   return (
-    <div 
+    <div
       className={cn(
         "absolute inset-0 flex items-center pointer-events-none select-none",
         "pl-0", // Aligned with input text
@@ -96,7 +96,7 @@ export function TypewriterPlaceholder({
     >
       <span className="text-slate-400/80 dark:text-zinc-500 text-[15px] font-medium tracking-wide truncate">
         {displayText}
-        <span 
+        <span
           className={cn(
             "inline-block w-0.5 h-4 md:h-5 ml-0.5 bg-slate-400 dark:bg-zinc-500 align-middle",
             "animate-pulse"

@@ -258,13 +258,18 @@ class Summarizer:
         return out
 
     def _get_llm(self, model: str, max_tokens: int = None, model_kwargs: dict = None):
-        return ChatOpenAI(
-            model=model,
-            api_key=self.api_key,
-            base_url=self.base_url,
-            max_tokens=max_tokens,
-            model_kwargs=model_kwargs or {},
-            temperature=0.1,
+        # Use centralized factory for provider switching (LiteLLM support)
+        from utils.openai_client import create_chat_model
+        
+        # Use centralized default if max_tokens not provided
+        # (Though usually caller identifies task size)
+        tokens = max_tokens or settings.DEFAULT_MAX_TOKENS
+        
+        return create_chat_model(
+            model_name=model,
+            # temperature is handled by factory (smart default)
+            max_tokens=tokens,
+            model_kwargs=model_kwargs or {}
         )
 
     async def _ainvoke_with_fallback(
@@ -426,7 +431,7 @@ class Summarizer:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ],
-                max_completion_tokens=14000,
+                max_completion_tokens=settings.DEFAULT_MAX_TOKENS,
                 trace_config=trace_config,
             )
             optimized_text = response.content or ""
@@ -636,7 +641,7 @@ class Summarizer:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                max_completion_tokens=4000,
+                max_completion_tokens=settings.DEFAULT_MAX_TOKENS,
             )
             return self._validate_paragraph_lengths(response.content)
         except Exception as e:
@@ -810,7 +815,7 @@ class Summarizer:
                 }
 
             # Use with_structured_output for robust JSON parsing
-            llm = self._get_llm(self.classifier_model, max_tokens=500)
+            llm = self._get_llm(self.classifier_model, max_tokens=settings.SHORT_TASK_MAX_TOKENS)
             structured_llm = llm.with_structured_output(ContentClassification)
 
             # Note: _ainvoke_with_fallback handles raw messages, but here we use the specific structured invoke
@@ -1428,9 +1433,7 @@ class Summarizer:
                     1200, int(self.summary_integrate_max_output_tokens)
                 ),
                 trace_config=trace_config,
-                response_format={"type": "json_object"}
-                if self.use_response_format_json
-                else None,
+                response_format={"type": "json_object"} if settings.USE_JSON_MODE else None,
             )
             raw = (response.content or "").strip()
             json_text = self._extract_first_json_object(raw) or raw
@@ -1473,9 +1476,7 @@ class Summarizer:
                 ],
                 max_completion_tokens=int(self.summary_single_max_output_tokens),
                 trace_config=trace_config,
-                response_format={"type": "json_object"}
-                if self.use_response_format_json
-                else None,
+                response_format={"type": "json_object"} if settings.USE_JSON_MODE else None,
             )
             raw = (response.content or "").strip()
             json_text = self._extract_first_json_object(raw) or raw
@@ -1504,9 +1505,7 @@ class Summarizer:
                 models=[self.json_repair_model],
                 messages=[{"role": "user", "content": prompt}],
                 max_completion_tokens=2000,
-                response_format={"type": "json_object"}
-                if self.use_response_format_json
-                else None,
+                response_format={"type": "json_object"} if settings.USE_JSON_MODE else None,
             )
             raw = (response.content or "").strip()
             json_text = self._extract_first_json_object(raw) or raw
@@ -1608,9 +1607,7 @@ class Summarizer:
                 ],
                 max_completion_tokens=int(self.summary_integrate_max_output_tokens),
                 trace_config=trace_config,
-                response_format={"type": "json_object"}
-                if self.use_response_format_json
-                else None,
+                response_format={"type": "json_object"} if settings.USE_JSON_MODE else None,
             )
             raw = (response.content or "").strip()
             json_text = self._extract_first_json_object(raw) or raw

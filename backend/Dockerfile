@@ -8,17 +8,17 @@ RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Upgrade pip
-RUN pip install --upgrade pip
+# Upgrade pip and install uv
+RUN pip install --upgrade pip uv
 
 # Install Dependencies
 # Layer 1: Heavy Core Dependencies (Cached)
 COPY requirements.core.txt .
-RUN pip install --no-cache-dir -r requirements.core.txt
+RUN uv pip install --system --no-cache-dir -r requirements.core.txt
 
 # Layer 2: Frequent Updates
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN uv pip install --system --no-cache-dir -r requirements.txt
 
 # Create temp dir for processing
 RUN mkdir -p temp downloads

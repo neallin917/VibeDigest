@@ -90,9 +90,9 @@ export function VideoDetailPanel({
 
   useEffect(() => {
     if (!taskId) return
-    setTask(null)
-    setSummary(null)
-    setAudioData(null)
+    if (!taskId) return
+
+    // States are reset via key-based remounting in parent
     const fetchData = async () => {
       // 1. Fetch Task
       const { data: t } = await supabase.from('tasks').select('*').eq('id', taskId).single()
@@ -104,7 +104,7 @@ export function VideoDetailPanel({
         .select('*')
         .eq('task_id', taskId)
         .in('kind', ['summary', 'audio'])
-        
+
       if (outputs) {
         const summaryOut = outputs.find(o => o.kind === 'summary' && o.status === 'completed')
         if (summaryOut) {
@@ -132,27 +132,27 @@ export function VideoDetailPanel({
         event: 'INSERT', schema: 'public', table: 'task_outputs', filter: `task_id=eq.${taskId}`
       }, async (payload) => {
         if (payload.new.kind === 'summary' && payload.new.status === 'completed') {
-            const parsed = parseSummaryContent(payload.new.content)
-            setSummary(parsed)
+          const parsed = parseSummaryContent(payload.new.content)
+          setSummary(parsed)
         } else if (payload.new.kind === 'audio') {
-            // For audio, we accept any status as long as content parses to a URL
-            const parsed = parseAudioContent(payload.new.content)
-            if (parsed?.audioUrl) {
-                setAudioData(parsed)
-            }
+          // For audio, we accept any status as long as content parses to a URL
+          const parsed = parseAudioContent(payload.new.content)
+          if (parsed?.audioUrl) {
+            setAudioData(parsed)
+          }
         }
       })
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'task_outputs', filter: `task_id=eq.${taskId}`
       }, async (payload) => {
         if (payload.new.kind === 'summary' && payload.new.status === 'completed') {
-            const parsed = parseSummaryContent(payload.new.content)
-            setSummary(parsed)
+          const parsed = parseSummaryContent(payload.new.content)
+          setSummary(parsed)
         } else if (payload.new.kind === 'audio') {
-            const parsed = parseAudioContent(payload.new.content)
-            if (parsed?.audioUrl) {
-                setAudioData(parsed)
-            }
+          const parsed = parseAudioContent(payload.new.content)
+          if (parsed?.audioUrl) {
+            setAudioData(parsed)
+          }
         }
       })
       .subscribe()

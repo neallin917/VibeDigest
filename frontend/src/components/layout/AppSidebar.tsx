@@ -38,7 +38,7 @@ export function AppSidebar({
   activeThreadId,
   onSelectThread
 }: AppSidebarProps) {
-  const { isCollapsed, setCollapsed, toggleSidebar } = useAppSidebar()
+  const { isCollapsed, toggleSidebar } = useAppSidebar()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()

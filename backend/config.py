@@ -45,13 +45,41 @@ class Settings:
     # Models
     # Chat Agent Model
     MOCK_MODE: bool = os.getenv("MOCK_MODE", "false").lower() == "true"
-    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o")
+    
+    # LLM Configuration
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "openai").lower()
+    
+    # Model Aliases (Model Mapping)
+    # Allows mapping generic names to provider-specific names (e.g., "gpt-4o" -> "ollama/llama3")
+    MODEL_ALIAS_GPT_4O: str = os.getenv("MODEL_ALIAS_GPT_4O", "gpt-4o")
+    MODEL_ALIAS_GPT_4O_MINI: str = os.getenv("MODEL_ALIAS_GPT_4O_MINI", "gpt-4o-mini")
+    MODEL_ALIAS_COMPREHENSION: str = os.getenv("MODEL_ALIAS_COMPREHENSION", "gpt-5,gpt-4-turbo")
+    
+    # --- LLM Generation Defaults ---
+    DEFAULT_TEMPERATURE: float = 0.1  # Default for most tasks
+    REASONING_TEMPERATURE: float = 1.0 # Default for reasoning models (gpt-5/o1)
+    
+    # Token Limits (Sensible Defaults)
+    DEFAULT_MAX_TOKENS: int = 4000
+    SHORT_TASK_MAX_TOKENS: int = 1000
+    LONG_TASK_MAX_TOKENS: int = 16000
+    
+    # Feature Flags
+    USE_JSON_MODE: bool = True # Global flag to enable JSON mode where applicable
+
+    def get_temperature(self, model_name: str) -> float:
+        # Simple heuristic or lookup
+        if "gpt-5" in model_name or "o1-" in model_name:
+             return self.REASONING_TEMPERATURE
+        return self.DEFAULT_TEMPERATURE
+    
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", MODEL_ALIAS_GPT_4O)
     
     # OpenAI Models
     # Summary & Analysis Chain (Preferred -> Fallback)
     OPENAI_SUMMARY_MODELS: list[str] = [
-        os.getenv("OPENAI_SUMMARY_MODEL_PREFERRED", "gpt-4o-mini"), # V2 策略推荐模型 (gpt-5 系列在长文本摘要中表现不佳)
-        "gpt-4o",
+        os.getenv("OPENAI_SUMMARY_MODEL_PREFERRED", MODEL_ALIAS_GPT_4O_MINI), # V2 策略推荐模型
+        MODEL_ALIAS_GPT_4O,
         "gpt-5.2",
         "gpt-5",
         "gpt-5-mini",

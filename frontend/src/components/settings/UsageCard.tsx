@@ -22,33 +22,33 @@ export function UsageCard({ className }: { className?: string }) {
     const supabase = createClient()
 
     useEffect(() => {
-        fetchProfile()
-    }, [])
+        const fetchProfile = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser()
+                if (user) {
+                    const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).single()
 
-    const fetchProfile = async () => {
-        try {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (user) {
-                const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-
-                if (error && error.code === 'PGRST116') {
-                    // Profile not found (likely existing user before pricing), default to free
-                    setProfile({
-                        tier: 'free',
-                        usage_count: 0,
-                        usage_limit: 3,
-                        extra_credits: 0
-                    })
-                } else if (data) {
-                    setProfile(data as Profile)
+                    if (error && error.code === 'PGRST116') {
+                        // Profile not found (likely existing user before pricing), default to free
+                        setProfile({
+                            tier: 'free',
+                            usage_count: 0,
+                            usage_limit: 3,
+                            extra_credits: 0
+                        })
+                    } else if (data) {
+                        setProfile(data as Profile)
+                    }
                 }
+            } catch (error) {
+                console.error("Error fetching profile:", error)
+            } finally {
+                setLoading(false)
             }
-        } catch (error) {
-            console.error("Error fetching profile:", error)
-        } finally {
-            setLoading(false)
         }
-    }
+
+        fetchProfile()
+    }, [supabase])
 
     if (loading) return null
     // removed if (!profile) return null to allow rendering default state if setProfile logic above works

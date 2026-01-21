@@ -47,3 +47,50 @@ def get_async_openai_client(base_url: Optional[str] = None):
     if final_base_url:
         return LangfuseAsyncOpenAI(api_key=api_key, base_url=final_base_url)
     return LangfuseAsyncOpenAI(api_key=api_key)
+
+
+# Factory for LangChain Chat Models
+def create_chat_model(model_name: str, temperature: float = None, **kwargs):
+    """
+    Creates a LangChain Chat Model based on LLM_PROVIDER.
+    Supports 'openai' (default) and 'custom'/'litellm'.
+    """
+    from langchain_litellm import ChatLiteLLM
+    from langchain_openai import ChatOpenAI
+    
+    # Resolve temperature if not provided
+    if temperature is None:
+        temperature = settings.get_temperature(model_name)
+    
+    # 1. LiteLLM Logic (Preferred for switching)
+    # If using LiteLLM provider OR if model name implies a provider (e.g. "ollama/...")
+    use_litellm = settings.LLM_PROVIDER != "openai" or "/" in model_name
+    
+    if use_litellm:
+        import litellm
+        litellm.drop_params = True # Fix for gpt-5 unsupported params
+        
+        # LiteLLM handles API Key / Base URL lookup internally via os.environ usually.
+        # But we can pass explicitly if needed.
+        # Ensure we map config aliases if passed model is a raw alias key? 
+        # No, caller should pass resolved model name (e.g. MODEL_ALIAS_GPT_4O).
+        
+        # Note: ChatLiteLLM expects parameters compatible with LiteLLM.
+        # It doesn't strictly need api_key provided if env vars are set.
+        return ChatLiteLLM(
+            model=model_name,
+            temperature=temperature,
+            **kwargs
+        )
+    
+    # 2. Standard OpenAI Fallback
+    api_key = os.getenv("OPENAI_API_KEY")
+    base_url = os.getenv("OPENAI_BASE_URL")
+    return ChatOpenAI(
+        model=model_name,
+        api_key=api_key,
+        base_url=base_url,
+        temperature=temperature,
+        **kwargs
+    )
+

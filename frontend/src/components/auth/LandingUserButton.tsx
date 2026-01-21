@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { createClient } from "@/lib/supabase"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { Button } from "@/components/ui/button"
@@ -31,15 +32,20 @@ export function LandingUserButton() {
     useEffect(() => {
         // Check initial session
         const checkUser = async () => {
-            const { data: { session } } = await supabase.auth.getSession()
-            setUser(session?.user || null)
+            const { data: { user } } = await supabase.auth.getUser()
+            setUser(user)
             setLoading(false)
         }
         checkUser()
 
         // Listen for auth changes (including One Tap login)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user || null)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (session) {
+                const { data: { user } } = await supabase.auth.getUser()
+                setUser(user)
+            } else {
+                setUser(null)
+            }
         })
 
         return () => subscription.unsubscribe()
@@ -91,10 +97,13 @@ export function LandingUserButton() {
                 <DropdownMenuTrigger asChild>
                     <button className="flex items-center gap-2 rounded-full hover:ring-2 hover:ring-primary/50 transition-all focus:outline-none focus:ring-2 focus:ring-primary/50">
                         {avatarUrl ? (
-                            <img
+                            <Image
                                 src={avatarUrl}
                                 alt={displayName}
-                                className="w-8 h-8 rounded-full border border-black/10 dark:border-white/20"
+                                width={32}
+                                height={32}
+                                unoptimized
+                                className="rounded-full border border-black/10 dark:border-white/20"
                             />
                         ) : (
                             <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-sm font-medium">
