@@ -241,6 +241,38 @@ export function ChatContainer({
     handleSendMessage(text);
   }
 
+  // Auto-open panel when a task is created
+  const lastAutoOpenedTaskId = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!onOpenPanel || messages.length === 0) return
+
+    const lastMessage = messages[messages.length - 1]
+    if (lastMessage.role !== 'assistant' || !lastMessage.parts) return
+
+    // Check for create_task tool output
+    for (const part of lastMessage.parts) {
+      // Identify tool name
+      let toolName = ''
+      if (part.type === 'dynamic-tool') {
+        toolName = part.toolName
+      } else if (part.type.startsWith('tool-')) {
+        toolName = part.type.replace('tool-', '')
+      }
+
+      if (toolName === 'create_task' && part.output && part.output.taskId) {
+        const newTaskId = part.output.taskId
+
+        // Only trigger if we haven't already opened this specific task
+        // AND if it's not the currently active task (to avoid redundant calls)
+        if (newTaskId !== lastAutoOpenedTaskId.current && newTaskId !== activeTaskId) {
+          lastAutoOpenedTaskId.current = newTaskId
+          onOpenPanel(newTaskId)
+        }
+      }
+    }
+  }, [messages, onOpenPanel, activeTaskId])
+
   return (
     <div className="flex flex-col h-full relative">
       <div

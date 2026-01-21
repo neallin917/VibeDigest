@@ -199,7 +199,9 @@ export function GetTaskStatusTool({
 // ============================================================================
 
 interface CreateTaskInput {
-  videoUrl: string
+  video_url?: string
+  videoUrl?: string
+  url?: string
   summaryLanguage?: string
 }
 
@@ -226,6 +228,9 @@ export function CreateTaskTool({
   errorText,
   onViewClick
 }: CreateTaskToolProps) {
+  // Robust fallback for URL display
+  const displayUrl = input?.video_url || input?.videoUrl || input?.url;
+
   switch (state) {
     case 'input-streaming':
       return (
@@ -239,7 +244,7 @@ export function CreateTaskTool({
       return (
         <div className="flex items-center gap-2 my-2 text-sm text-blue-500">
           <Sparkles className="w-4 h-4 animate-pulse" />
-          <span>Starting video processing for: {input?.videoUrl?.slice(0, 40)}...</span>
+          <span>Starting video processing for: {displayUrl?.slice(0, 40)}...</span>
         </div>
       )
 
@@ -305,7 +310,9 @@ export function CreateTaskTool({
 // ============================================================================
 
 interface PreviewVideoInput {
-  url: string
+  video_url?: string
+  videoUrl?: string
+  url?: string
 }
 
 interface PreviewVideoOutput {
@@ -329,13 +336,16 @@ export function PreviewVideoTool({
   output,
   errorText
 }: PreviewVideoToolProps) {
+  // Robust fallback for URL display
+  const displayUrl = input?.video_url || input?.videoUrl || input?.url;
+
   switch (state) {
     case 'input-streaming':
     case 'input-available':
       return (
         <div className="flex items-center gap-2 my-2 text-sm text-slate-500 dark:text-slate-400">
           <Search className="w-4 h-4 animate-pulse text-blue-500" />
-          <span>Fetching video info{input?.url ? ` from ${new URL(input.url).hostname}...` : '...'}</span>
+          <span>Fetching video info{displayUrl ? ` from ${new URL(displayUrl).hostname}...` : '...'}</span>
         </div>
       )
 

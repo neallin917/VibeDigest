@@ -23,6 +23,8 @@ services:
       - ./backend/.env
     environment:
       - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-base}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # No Traefik labels - Dev is NOT exposed to internet
 
   langgraph-server:

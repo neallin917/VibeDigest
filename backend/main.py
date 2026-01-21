@@ -70,9 +70,19 @@ app = FastAPI(title="VibeDigest API (v2)", version="2.0.0")
 # No LangGraph schema needed - using AI SDK approach
 
 
-@app.on_event("shutdown")
-def shutdown_event():
-    # Flush Langfuse events (v3 SDK)
+@app.on_event("startup")
+async def startup_event():
+    logger.info(">>> VibeDigest Backend Starting <<<")
+    logger.info(f"LLM Provider:  {settings.LLM_PROVIDER}")
+    logger.info(
+        f"Smart Model:   {settings.MODEL_ALIAS_SMART} (Temp: {settings.REASONING_TEMPERATURE})"
+    )
+    logger.info(
+        f"Fast Model:    {settings.MODEL_ALIAS_FAST} (Temp: {settings.DEFAULT_TEMPERATURE})"
+    )
+    logger.info(f"OpenAI Base:   {settings.OPENAI_BASE_URL or 'Default'}")
+    logger.info(">>> --------------------------- <<<")
+
     try:
         from langfuse import get_client
 
@@ -162,6 +172,10 @@ async def preview_video(
         logger.info(f"Preview video request received for URL: {url}")
         normalized_url = normalize_video_url(url)
 
+        if not normalized_url:
+            logger.warning(f"Invalid URL received: {url}")
+            raise HTTPException(status_code=400, detail="Invalid video URL")
+
         # Extract metadata only (no download)
         info = await video_processor.extract_info_only(normalized_url)
 
@@ -215,6 +229,9 @@ async def process_video(
     """
     # Normalize URL if scheme is missing
     video_url = normalize_video_url(video_url)
+
+    if not video_url:
+        raise HTTPException(status_code=400, detail="Invalid video URL")
 
     # 0. Check Quota / Credits
     if not db_client.check_and_consume_quota(user_id):

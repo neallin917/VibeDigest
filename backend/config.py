@@ -48,12 +48,28 @@ class Settings:
     
     # LLM Configuration
     LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "openai").lower()
+    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", None)
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", None)
     
-    # Model Aliases (Model Mapping)
-    # Allows mapping generic names to provider-specific names (e.g., "gpt-4o" -> "ollama/llama3")
-    MODEL_ALIAS_GPT_4O: str = os.getenv("MODEL_ALIAS_GPT_4O", "gpt-4o")
-    MODEL_ALIAS_GPT_4O_MINI: str = os.getenv("MODEL_ALIAS_GPT_4O_MINI", "gpt-4o-mini")
-    MODEL_ALIAS_COMPREHENSION: str = os.getenv("MODEL_ALIAS_COMPREHENSION", "gpt-5,gpt-4-turbo")
+    # Model Aliases (Simplified Two-Tier Strategy)
+    # 1. SMART: High Intelligence (Reasoning, Complex Chat) - Default: gpt-5
+    MODEL_ALIAS_SMART: str = os.getenv("MODEL_ALIAS_SMART", "gpt-5")
+    
+    # 2. FAST: High Speed/Efficiency (Summary, Translation) - Default: gpt-4o-mini
+    MODEL_ALIAS_FAST: str = os.getenv("MODEL_ALIAS_FAST", "gpt-4o-mini")
+
+    # --- Functional Mappings ---
+    
+    # Chat: Use Smart
+    OPENAI_MODEL: str = MODEL_ALIAS_SMART
+    
+    # Comprehension: Use Smart (List format for fallback support)
+    OPENAI_COMPREHENSION_MODELS: list[str] = [MODEL_ALIAS_SMART]
+
+    # Sub-tasks: Use Fast
+    OPENAI_SUMMARY_MODELS: list[str] = [MODEL_ALIAS_FAST]
+    OPENAI_TRANSLATION_MODEL: str = MODEL_ALIAS_FAST
+    OPENAI_HELPER_MODEL: str = MODEL_ALIAS_FAST
     
     # --- LLM Generation Defaults ---
     DEFAULT_TEMPERATURE: float = 0.1  # Default for most tasks
@@ -68,33 +84,15 @@ class Settings:
     USE_JSON_MODE: bool = True # Global flag to enable JSON mode where applicable
 
     def get_temperature(self, model_name: str) -> float:
-        # Simple heuristic or lookup
-        if "gpt-5" in model_name or "o1-" in model_name:
-             return self.REASONING_TEMPERATURE
+        """
+        Smart routing for temperature.
+        Reasoning models (Smart tier) often require temp=1.0.
+        Utility models (Fast tier) usually prefer low temp for stability.
+        """
+        # If it's the Smart model, or explicitly an o1/gpt-5 variant
+        if model_name == self.MODEL_ALIAS_SMART or "gpt-5" in model_name or "o1-" in model_name:
+            return self.REASONING_TEMPERATURE
         return self.DEFAULT_TEMPERATURE
-    
-    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", MODEL_ALIAS_GPT_4O)
-    
-    # OpenAI Models
-    # Summary & Analysis Chain (Preferred -> Fallback)
-    OPENAI_SUMMARY_MODELS: list[str] = [
-        os.getenv("OPENAI_SUMMARY_MODEL_PREFERRED", MODEL_ALIAS_GPT_4O_MINI), # V2 策略推荐模型
-        MODEL_ALIAS_GPT_4O,
-        "gpt-5.2",
-        "gpt-5",
-        "gpt-5-mini",
-        "gpt-5-nano",
-        "gpt-4.1",
-    ]
-    
-    # Deep Comprehension Models (Learning Tab / Thinking prioritized)
-    OPENAI_COMPREHENSION_MODELS: list[str] = os.getenv("COMPREHENSION_MODELS", "gpt-5.2,gpt-5-mini,gpt-5,gpt-4.1").split(",")
-    
-    # Helper Models (for simpler tasks like JSON repair, formatting)
-    OPENAI_HELPER_MODEL: str = os.getenv("OPENAI_HELPER_MODEL", "gpt-5-mini")
-    
-    # Translation Models
-    OPENAI_TRANSLATION_MODEL: str = os.getenv("OPENAI_TRANSLATION_MODEL", "gpt-4.1-mini")
 
     # Transcription Models
     # Defaulting to whisper-1 for now, but ready to switch to gpt-4o-transcribe
