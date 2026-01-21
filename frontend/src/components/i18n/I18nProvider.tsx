@@ -1,7 +1,7 @@
 "use client"
 
 import React, { createContext, useCallback, useEffect, useMemo, useState } from "react"
-import { useRouter, usePathname } from "next/navigation"
+
 import {
   DEFAULT_LOCALE,
   getBestLocaleFromNavigator,
@@ -22,9 +22,6 @@ type I18nContextValue = {
 const I18nContext = createContext<I18nContextValue | null>(null)
 
 export function I18nProvider({ children, locale: initialLocale }: { children: React.ReactNode, locale?: Locale }) {
-  const router = useRouter()
-  const pathname = usePathname()
-
   // Initialize with server-provided locale if available, effectively synching URL and UI
   const [locale, setLocaleState] = useState<Locale>(initialLocale || DEFAULT_LOCALE)
 
@@ -69,7 +66,7 @@ export function I18nProvider({ children, locale: initialLocale }: { children: Re
   const setLocale = useCallback((next: Locale) => {
     // 1. Set Cookie
     document.cookie = `${COOKIE_NAME}=${next}; path=/; max-age=31536000; SameSite=Lax`
-    
+
     // 2. Set LocalStorage (sync)
     try {
       window.localStorage.setItem(STORAGE_KEY, next)

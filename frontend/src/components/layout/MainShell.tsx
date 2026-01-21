@@ -30,13 +30,13 @@ export function MainShell({ children }: { children: React.ReactNode }) {
   // Check authentication on mount and listen for auth changes
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session && !isPublicPath) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user && !isPublicPath) {
         // Redirect to login page if not authenticated and not on public path
         router.replace(`/${locale}/login`)
         return
       }
-      setIsAuthenticated(!!session)
+      setIsAuthenticated(!!user)
       setIsLoading(false)
     }
 
@@ -55,7 +55,7 @@ export function MainShell({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe()
     }
-  }, [router, supabase.auth, isPublicPath])
+  }, [router, supabase.auth, isPublicPath, locale])
 
   // Show loading spinner while checking auth (but allow public paths through)
   if (isLoading && !isPublicPath) {

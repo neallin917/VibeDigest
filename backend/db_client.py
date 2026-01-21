@@ -235,6 +235,30 @@ class DBClient:
         else:
             return self.create_completed_task_output(task_id, user_id, kind, content, locale)
 
+    def ensure_task_outputs(self, task_id: str, user_id: str, kinds: List[str], locale: Optional[str] = None):
+        """Ensure specific output placeholders exist for a task (Phase 0)."""
+        current_outputs = self.get_task_outputs(task_id)
+        existing_kinds = set(o["kind"] for o in current_outputs)
+        
+        for k in kinds:
+            if k not in existing_kinds:
+                try:
+                    self.create_task_output(task_id, user_id, kind=k, locale=locale)
+                except Exception as e:
+                    logger.warning(f"Failed to ensure output {k}: {e}")
+
+    def update_task_output_by_kind(self, task_id: str, kind: str, content: str = None, status: str = None, progress: int = None, error: str = None):
+        """Convenience: Update output finding it by kind first."""
+        # TODO: Optimize with direct SQL update where kind=? AND task_id=? 
+        # But for now, reuse existing patterns for safety
+        outputs = self.get_task_outputs(task_id)
+        target = next((o for o in outputs if o["kind"] == kind), None)
+        
+        if target:
+            self.update_output_status(target["id"], status=status, progress=progress, content=content, error=error)
+        else:
+            logger.warning(f"Attempted to update non-existent output kind '{kind}' for task {task_id}")
+
     def validate_token(self, token: str) -> Optional[str]:
         """Validate Supabase JWT and return user_id."""
         # Use Supabase Client as usual for Auth

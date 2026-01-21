@@ -53,7 +53,7 @@ export function ChatWorkspace({
 }: ChatWorkspaceProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  
+
   // Resizable logic
   const [panelWidth, setPanelWidth] = useState(420)
   const [isResizing, setIsResizing] = useState(false)
@@ -63,13 +63,14 @@ export function ChatWorkspace({
   useEffect(() => {
     const savedWidth = localStorage.getItem("vibe_panel_width")
     if (savedWidth) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPanelWidth(parseInt(savedWidth, 10))
     } else {
       // Default to 60% of screen width if no saved preference
       // This provides a better reading experience for the transcript/summary
       const defaultWidth = Math.floor(window.innerWidth * 0.6)
       // Ensure it respects min/max constraints we'll enforce later
-      const constrainedWidth = Math.max(320, Math.min(defaultWidth, window.innerWidth - 320)) 
+      const constrainedWidth = Math.max(320, Math.min(defaultWidth, window.innerWidth - 320))
       setPanelWidth(constrainedWidth)
     }
   }, [])
@@ -103,11 +104,11 @@ export function ChatWorkspace({
       if (isResizing) {
         // Calculate new width: window width - mouse X - right margin (approx 16px)
         const newWidth = document.body.clientWidth - mouseMoveEvent.clientX - 16
-        
+
         // Min 320px, Max 80% of screen (relaxed from 60% to allow wider context)
         // Also ensure left chat panel maintains at least 320px
         const maxAllowed = Math.max(320, document.body.clientWidth - 320)
-        
+
         if (newWidth > 320 && newWidth < maxAllowed) {
           setPanelWidth(newWidth)
         }
@@ -194,22 +195,23 @@ export function ChatWorkspace({
         )}
 
         {/* Video Context Panel (Desktop) */}
-        <aside 
+        <aside
           ref={sidebarRef}
           className={cn(
             "hidden xl:flex flex-col glass-panel overflow-hidden",
             activeTaskId
               ? "opacity-100 ml-0 translate-x-0"
               : "w-0 opacity-0 ml-0 border-none translate-x-10",
-             // Disable transition during resize to avoid lag/rubber-banding
-             !isResizing && "transition-all duration-700 cubic-bezier(0.19, 1, 0.22, 1)"
+            // Disable transition during resize to avoid lag/rubber-banding
+            !isResizing && "transition-all duration-700 cubic-bezier(0.19, 1, 0.22, 1)"
           )}
-          style={{ 
-            width: activeTaskId ? panelWidth : 0 
+          style={{
+            width: activeTaskId ? panelWidth : 0
           }}
         >
           {activeTaskId && (
             <VideoDetailPanel
+              key={activeTaskId}
               taskId={activeTaskId}
               onClose={() => setTaskParam(null)}
             />
@@ -231,6 +233,7 @@ export function ChatWorkspace({
           <SheetTitle className="sr-only">Video Details</SheetTitle>
           {activeTaskId && (
             <VideoDetailPanel
+              key={activeTaskId}
               taskId={activeTaskId}
               onClose={() => setTaskParam(null)}
             />

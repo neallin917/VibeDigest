@@ -13,7 +13,6 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useRouter, usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
@@ -35,9 +34,7 @@ const navItems: NavItem[] = [
 
 export function LandingNav() {
     const { locale } = useI18n()
-    const router = useRouter()
-    const pathname = usePathname()
-    const [activeSection, setActiveSection] = useState<string>("hero")
+    const [activeSection] = useState<string>("hero")
     const [isScrolled, setIsScrolled] = useState(false)
 
     // Labels for navigation items
@@ -62,12 +59,6 @@ export function LandingNav() {
         handleScroll()
         return () => window.removeEventListener("scroll", handleScroll)
     }, [])
-
-    const getHref = (id: string, href?: string) => {
-        if (href) return `/${locale}${href}`
-        // If on landing page, anchor link. Else, full URL with anchor.
-        return `/${locale}/#${id}`
-    }
 
     return (
         <nav className="fixed top-6 left-0 right-0 z-50 px-6 h-14 flex items-center pointer-events-none">

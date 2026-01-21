@@ -38,9 +38,9 @@ export function VideoCardMessage({
       {/* Thumbnail Section */}
       <div className="relative aspect-video bg-black/50">
         {thumbnailUrl ? (
-          <img 
-            src={thumbnailUrl} 
-            alt={title || "Video"} 
+          <img
+            src={thumbnailUrl}
+            alt={title || "Video"}
             className="w-full h-full object-cover opacity-80"
           />
         ) : (
@@ -48,7 +48,7 @@ export function VideoCardMessage({
             <Play className="w-8 h-8 opacity-20" />
           </div>
         )}
-        
+
         {/* Status Overlay */}
         <div className="absolute inset-0 flex items-center justify-center">
           {isProcessing && (
@@ -94,7 +94,7 @@ export function VideoCardMessage({
 
         {/* Action Button */}
         {isCompleted && onViewClick && (
-          <Button 
+          <Button
             onClick={() => onViewClick(taskId)}
             className="w-full h-8 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white dark:bg-emerald-600 dark:hover:bg-emerald-700"
           >

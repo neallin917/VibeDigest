@@ -159,6 +159,7 @@ async def preview_video(
     """
     try:
         # Normalize URL
+        logger.info(f"Preview video request received for URL: {url}")
         normalized_url = normalize_video_url(url)
 
         # Extract metadata only (no download)

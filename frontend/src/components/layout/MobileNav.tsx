@@ -26,7 +26,7 @@ function isActiveNav(pathname: string, href: string) {
 export function MobileHeader() {
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const supabase = createClient()
-  const { t, locale } = useI18n()
+  const { t } = useI18n()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUserEmail(user?.email || null))
@@ -45,7 +45,7 @@ export function MobileHeader() {
               <Menu className="h-5 w-5" />
             </Button>
           </DialogTrigger>
-            <DialogContent className="bg-white/80 dark:bg-black/60 backdrop-blur-xl border-slate-200/60 dark:border-white/10 p-4">
+          <DialogContent className="bg-white/80 dark:bg-black/60 backdrop-blur-xl border-slate-200/60 dark:border-white/10 p-4">
             <DialogHeader className="text-left">
               <DialogTitle className="text-base">{t("nav.menu")}</DialogTitle>
             </DialogHeader>
@@ -101,7 +101,7 @@ export function MobileHeader() {
 
 export function MobileBottomNav() {
   const pathname = usePathname()
-  const { t, locale } = useI18n()
+  const { t } = useI18n()
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 dark:border-white/10 bg-white/80 dark:bg-black/60 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">

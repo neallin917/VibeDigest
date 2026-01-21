@@ -88,6 +88,7 @@ make test            # Run all tests
     - `FRONTEND_URL` (Optional, used for payment redirect URLs; defaults to `http://localhost:3000`)
 
     > **Note**: If you update `requirements.txt`, run `docker-compose up --build -d transcriber-backend`.
+    > **Tip**: For a detailed explanation of all environment variables, see [docs/backend/env.md](docs/backend/env.md).
 
 3.  **Frontend Setup**
     ```bash

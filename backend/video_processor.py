@@ -24,6 +24,10 @@ class VideoProcessor:
         )
         self._cookie_file = os.getenv("YTDLP_COOKIE_FILE", "").strip()
         self._proxy = os.getenv("YTDLP_PROXY", "").strip()
+        # Defensive: Filter out invalid proxy strings that might come from misconfigured envs
+        if self._proxy.lower() in ("undefined", "null", "none", "false"):
+            self._proxy = ""
+
         self.ydl_opts = {
             'format': 'bestaudio/best',  # 优先下载最佳音频源
             'outtmpl': '%(title)s.%(ext)s',

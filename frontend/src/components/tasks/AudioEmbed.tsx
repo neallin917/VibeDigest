@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useRef } from "react"
+import NextImage from "next/image"
 
 import { ApplePodcastsIcon } from "@/components/icons/ApplePodcastsIcon"
 import { XiaoyuzhouIcon } from "@/components/icons/XiaoyuzhouIcon"
@@ -31,7 +32,7 @@ export function AudioEmbed({
 
         try {
           const p = audio.play()
-          if (p && typeof (p as Promise<void>).catch === "function") (p as Promise<void>).catch(() => {})
+          if (p && typeof (p as Promise<void>).catch === "function") (p as Promise<void>).catch(() => { })
         } catch {
           // ignore
         }
@@ -44,7 +45,7 @@ export function AudioEmbed({
           }
           try {
             const p = audio.play()
-            if (p && typeof (p as Promise<void>).catch === "function") (p as Promise<void>).catch(() => {})
+            if (p && typeof (p as Promise<void>).catch === "function") (p as Promise<void>).catch(() => { })
           } catch {
             // ignore
           }
@@ -75,11 +76,13 @@ export function AudioEmbed({
       <div className="flex flex-col md:flex-row">
         {coverUrl ? (
           <div className="relative shrink-0 md:w-64 aspect-square bg-black/40 overflow-hidden">
-            <img
+            <NextImage
               src={coverUrl}
               alt={title || "Audio cover"}
-              className="h-full w-full object-cover"
+              fill
+              className="object-cover"
               referrerPolicy="no-referrer"
+              sizes="(max-width: 768px) 100vw, 256px"
             />
           </div>
         ) : null}

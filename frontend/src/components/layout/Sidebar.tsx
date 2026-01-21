@@ -25,7 +25,7 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
     const pathname = usePathname()
     const [userEmail, setUserEmail] = useState<string | null>(null)
     const supabase = useMemo(() => createClient(), [])
-    const { t, locale } = useI18n()
+    const { t } = useI18n()
 
     useEffect(() => {
         supabase.auth.getUser().then(({ data: { user } }) => {

@@ -46,17 +46,19 @@ export async function POST(req: Request) {
         // Initialize Supabase client
         const supabase = await createClient();
 
-        // Verify authentication and get session for access token
-        const { data: { session }, error: authError } = await supabase.auth.getSession();
-        if (authError || !session) {
+        // Verify authentication using getUser() (Secure)
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
             console.error('[API/Chat] Auth Error:', authError);
             return new Response(JSON.stringify({ error: 'Unauthorized', details: authError?.message }), {
                 status: 401,
                 headers: { 'Content-Type': 'application/json' },
             });
         }
-        const user = session.user;
-        const accessToken = session.access_token;
+
+        // Get session for access token (needed for external API calls)
+        const { data: { session } } = await supabase.auth.getSession();
+        const accessToken = session?.access_token;
 
         // 1. Load Conversation History
         let messages: UIMessage[] = [];
@@ -298,11 +300,11 @@ Never make up information about video content. Always use tools to get real data
                 create_task: tool({
                     description: "Start processing a new video URL (transcribe and summarize)",
                     parameters: z.object({
-                        videoUrl: z.string().url().describe("The video URL to process"),
+                        url: z.string().url().describe("The video URL to process"),
                         summaryLanguage: z.string().default('zh').describe("Target language for summary (default: zh)"),
                     }) as any,
                     execute: async (args: any) => {
-                        const { videoUrl, summaryLanguage } = args;
+                        const { url, summaryLanguage } = args;
                         if (!user?.id) {
                             return { error: 'Authentication required' };
                         }
@@ -314,7 +316,7 @@ Never make up information about video content. Always use tools to get real data
                                     'Authorization': `Bearer ${accessToken}`,
                                 },
                                 body: new URLSearchParams({
-                                    video_url: videoUrl,
+                                    video_url: url,
                                     summary_language: summaryLanguage,
                                 }),
                             });
@@ -326,7 +328,7 @@ Never make up information about video content. Always use tools to get real data
                                 taskId: data.task_id,
                                 status: 'started',
                                 message: data.message || 'Task created successfully',
-                                videoUrl,
+                                videoUrl: url,
                                 summaryLanguage,
                             };
                         } catch (error) {
