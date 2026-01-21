@@ -51,12 +51,16 @@ class Settings:
     OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", None)
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", None)
     
-    # Model Aliases (Simplified Two-Tier Strategy)
-    # 1. SMART: High Intelligence (Reasoning, Complex Chat) - Default: gpt-5
-    MODEL_ALIAS_SMART: str = os.getenv("MODEL_ALIAS_SMART", "gpt-5")
+    # Provider-specific default models (change LLM_PROVIDER to switch all at once)
+    _PROVIDER_DEFAULTS = {
+        "openai": {"smart": "gpt-4o", "fast": "gpt-4o-mini"},
+        "custom": {"smart": "openai/gemini-3-pro-high", "fast": "openai/gemini-3-flash"}
+    }
     
-    # 2. FAST: High Speed/Efficiency (Summary, Translation) - Default: gpt-4o-mini
-    MODEL_ALIAS_FAST: str = os.getenv("MODEL_ALIAS_FAST", "gpt-4o-mini")
+    # Model Aliases: Auto-select based on provider, or override via .env
+    _defaults = _PROVIDER_DEFAULTS.get(LLM_PROVIDER, _PROVIDER_DEFAULTS["openai"])
+    MODEL_ALIAS_SMART: str = os.getenv("MODEL_ALIAS_SMART") or _defaults["smart"]
+    MODEL_ALIAS_FAST: str = os.getenv("MODEL_ALIAS_FAST") or _defaults["fast"]
 
     # --- Functional Mappings ---
     
