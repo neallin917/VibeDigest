@@ -316,14 +316,18 @@ Never make up information about video content. Always use tools to get real data
                 create_task: tool({
                     description: "Start processing a new video URL (transcribe and summarize)",
                     parameters: z.object({
-                        url: z.string().url().describe("The video URL to process"),
+                        video_url: z.string().url().describe("The video URL to process"),
                         summaryLanguage: z.string().default('zh').describe("Target language for summary (default: zh)"),
                     }) as any,
                     execute: async (args: any) => {
-                        const { url, summaryLanguage } = args;
+                        console.log('[API/Chat] create_task args:', JSON.stringify(args));
+                        // Support video_url (schema), videoUrl (legacy/LLM hallucination), and url (old schema)
+                        const rawUrl = args.video_url || args.videoUrl || args.url;
+                        const summaryLanguage = args.summaryLanguage || 'zh';
 
-                        const cleanUrl = extractUrl(url);
+                        const cleanUrl = extractUrl(rawUrl);
                         if (!cleanUrl) {
+                            console.error('[API/Chat] Invalid URL in create_task:', JSON.stringify(args));
                             return { error: "No valid URL found in input. Please provide a valid YouTube URL." };
                         }
 
@@ -361,12 +365,17 @@ Never make up information about video content. Always use tools to get real data
                 preview_video: tool({
                     description: "Get video metadata (title, thumbnail, duration) without processing the video",
                     parameters: z.object({
-                        url: z.string().describe("The video URL to preview"),
+                        video_url: z.string().describe("The video URL to preview"),
                     }),
                     // @ts-ignore
-                    execute: async ({ url }: { url: string }) => {
-                        const cleanUrl = extractUrl(url);
+                    execute: async (args: any) => {
+                        console.log('[API/Chat] preview_video args:', JSON.stringify(args));
+                        // Support video_url (schema), videoUrl (legacy/LLM hallucination), and url (old schema)
+                        const rawUrl = args.video_url || args.videoUrl || args.url;
+                        
+                        const cleanUrl = extractUrl(rawUrl);
                         if (!cleanUrl) {
+                            console.error('[API/Chat] Invalid URL in preview_video:', JSON.stringify(args));
                             return { error: "No valid URL found in input. Please provide a valid YouTube URL." };
                         }
 

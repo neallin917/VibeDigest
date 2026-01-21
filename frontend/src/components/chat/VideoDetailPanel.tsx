@@ -72,7 +72,8 @@ export function VideoDetailPanel({
     }
   }
 
-  const parseAudioContent = (content: string): { audioUrl: string, coverUrl?: string } | null => {
+  const parseAudioContent = (content: string | null | undefined): { audioUrl: string, coverUrl?: string } | null => {
+    if (!content || typeof content !== 'string') return null
     try {
       const parsed = JSON.parse(content)
       return {

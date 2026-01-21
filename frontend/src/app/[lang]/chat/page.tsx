@@ -196,7 +196,9 @@ export default function ChatPage() {
     }, [pathname, router, searchParams])
 
     // Handle Task Selection (from Sidebar or Workspace)
-    // CORE LOGIC: Clicking a task starts a NEW, fresh chat session to ensure clean context.
+    // CORE LOGIC: Clicking a task switches context. 
+    // If we are already in a thread, we PRESERVE it to avoid jarring resets.
+    // If we are not in a thread, we create a new one.
     const handleSelectTask = useCallback(async (taskId: string | null) => {
         const params = new URLSearchParams(searchParams.toString())
 
@@ -212,25 +214,34 @@ export default function ChatPage() {
             return
         }
 
-        // Case: Selecting a task (History or Demo)
-        // Action: Start a FRESH chat session with Context Pre-loaded
-        const newId = uuidv4()
-        
-        // Mark as new thread to skip loading
-        newThreadIdsRef.current.add(newId)
-        
-        // Update State
-        setActiveThreadId(newId)
+        // Case: Selecting a task (History or Demo or Auto-open)
         setActiveTaskId(taskId)
-        
-        // Pre-load context message
-        // This gives immediate visual feedback that the task is loaded
-        loadTaskContext(taskId)
-        
-        // Update URL
-        params.set('threadId', newId)
         params.set('task', taskId)
-        router.push(`${pathname}?${params.toString()}`, { scroll: false })
+
+        // Check if we have an active thread
+        if (activeThreadId) {
+            // KEEP current thread
+            params.set('threadId', activeThreadId)
+            router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+            // We do NOT call loadTaskContext here because we don't want to wipe the chat history.
+            // The VideoDetailPanel will load the context/summary.
+        } else {
+            // Start a FRESH chat session
+            const newId = uuidv4()
+            
+            // Mark as new thread to skip loading
+            newThreadIdsRef.current.add(newId)
+            
+            // Update State
+            setActiveThreadId(newId)
+            
+            // Pre-load context message for the fresh thread
+            loadTaskContext(taskId)
+            
+            // Update URL
+            params.set('threadId', newId)
+            router.push(`${pathname}?${params.toString()}`, { scroll: false })
+        }
 
     }, [activeThreadId, pathname, router, searchParams, loadTaskContext])
 
