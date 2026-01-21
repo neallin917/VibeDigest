@@ -13,12 +13,13 @@ logger = logging.getLogger(__name__)
 FREE_LIMIT = 3
 PRO_LIMIT = 100
 
+
 class DBClient:
     def __init__(self):
         # 1. Supabase Client (For Auth Validation ONLY)
         self.url = os.environ.get("SUPABASE_URL")
         self.key = os.environ.get("SUPABASE_SERVICE_KEY")
-        
+
         if not self.url or not self.key:
             logger.warning("Supabase credentials not found. Auth validation will fail.")
             self.supabase: Optional[Client] = None
@@ -34,10 +35,12 @@ class DBClient:
         # In production/dev, this should be the Supabase Transaction Pooler (port 6543) or Session Pooler (5432)
         # Format: postgresql://postgres.project:password@aws-0-region.pooler.supabase.com:6543/postgres
         self.db_url = os.environ.get("DATABASE_URL")
-        
+
         if self.db_url:
             try:
-                self.engine = create_engine(self.db_url, pool_pre_ping=True, pool_size=10, max_overflow=20)
+                self.engine = create_engine(
+                    self.db_url, pool_pre_ping=True, pool_size=10, max_overflow=20
+                )
                 self.Session = scoped_session(sessionmaker(bind=self.engine))
                 logger.info(f"SQLAlchemy engine initialized for: {self.db_url}")
             except Exception as e:
@@ -47,16 +50,18 @@ class DBClient:
             logger.warning("DATABASE_URL not set. Data operations will fail.")
             self.engine = None
 
-    def _execute_query(self, query_str: str, params: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+    def _execute_query(
+        self, query_str: str, params: Dict[str, Any] = None
+    ) -> List[Dict[str, Any]]:
         """Helper to execute safe parameterized queries."""
         if not self.engine:
             raise Exception("Database engine not initialized")
-        
+
         session = self.Session()
         try:
             result = session.execute(text(query_str), params or {})
             session.commit()
-            
+
             # Try to return dicts if it's a SELECT or RETURNING
             if result.returns_rows:
                 return [dict(row._mapping) for row in result]
@@ -67,40 +72,50 @@ class DBClient:
         finally:
             session.close()
 
-    def create_task(self, user_id: str, video_url: str, video_title: str = None) -> Dict[str, Any]:
+    def create_task(
+        self, user_id: str, video_url: str, video_title: str = None
+    ) -> Dict[str, Any]:
         """Create a new task row."""
         query = """
             INSERT INTO tasks (user_id, video_url, status, progress, video_title)
             VALUES (:user_id, :video_url, 'pending', 0, :video_title)
             RETURNING *;
         """
-        rows = self._execute_query(query, {
-            "user_id": user_id,
-            "video_url": video_url,
-            "video_title": video_title
-        })
+        rows = self._execute_query(
+            query,
+            {"user_id": user_id, "video_url": video_url, "video_title": video_title},
+        )
         return rows[0] if rows else None
 
-    def create_task_output(self, task_id: str, user_id: str, kind: str, locale: str = None) -> Dict[str, Any]:
+    def create_task_output(
+        self, task_id: str, user_id: str, kind: str, locale: str = None
+    ) -> Dict[str, Any]:
         """Create a new task_output row."""
         query = """
             INSERT INTO task_outputs (task_id, user_id, kind, locale, status, progress, attempt)
             VALUES (:task_id, :user_id, :kind, :locale, 'pending', 0, 0)
             RETURNING *;
         """
-        rows = self._execute_query(query, {
-            "task_id": task_id,
-            "user_id": user_id,
-            "kind": kind,
-            "locale": locale
-        })
+        rows = self._execute_query(
+            query,
+            {"task_id": task_id, "user_id": user_id, "kind": kind, "locale": locale},
+        )
         return rows[0] if rows else None
 
-    def update_task_status(self, task_id: str, status: str = None, progress: int = None, video_title: str = None, thumbnail_url: str = None, error: str = None, **kwargs):
+    def update_task_status(
+        self,
+        task_id: str,
+        status: str = None,
+        progress: int = None,
+        video_title: str = None,
+        thumbnail_url: str = None,
+        error: str = None,
+        **kwargs,
+    ):
         """Update task status and progress."""
         fields = []
         params = {"task_id": task_id}
-        
+
         if status:
             fields.append("status = :status")
             params["status"] = status
@@ -116,20 +131,26 @@ class DBClient:
         if error is not None:
             fields.append("error_message = :error")
             params["error"] = error
-            
+
         # Metadata fields
         meta_mapping = {
-            "author": "author", "author_url": "author_url", 
-            "author_image_url": "author_image_url", "description": "description",
-            "keywords": "keywords", "view_count": "view_count",
-            "upload_date": "upload_date", "duration": "duration"
+            "author": "author",
+            "author_url": "author_url",
+            "author_image_url": "author_image_url",
+            "description": "description",
+            "keywords": "keywords",
+            "view_count": "view_count",
+            "upload_date": "upload_date",
+            "duration": "duration",
         }
         for k, col in meta_mapping.items():
             if kwargs.get(k) is not None:
                 val = kwargs.get(k)
                 if k == "duration":
-                    try: val = int(float(val))
-                    except: val = 0
+                    try:
+                        val = int(float(val))
+                    except:
+                        val = 0
                 fields.append(f"{col} = :{k}")
                 params[k] = val
 
@@ -138,17 +159,24 @@ class DBClient:
 
         fields.append("updated_at = now()")
         query = f"UPDATE tasks SET {', '.join(fields)} WHERE id = :task_id"
-        
+
         try:
             self._execute_query(query, params)
         except Exception as e:
             logger.error(f"Failed to update task {task_id}: {e}")
 
-    def update_output_status(self, output_id: str, status: str = None, progress: int = None, content: str = None, error: str = None):
+    def update_output_status(
+        self,
+        output_id: str,
+        status: str = None,
+        progress: int = None,
+        content: str = None,
+        error: str = None,
+    ):
         """Update output status, content, and progress."""
         fields = []
         params = {"output_id": output_id}
-        
+
         if status:
             fields.append("status = :status")
             params["status"] = status
@@ -161,10 +189,10 @@ class DBClient:
         if error is not None:
             fields.append("error_message = :error")
             params["error"] = error
-            
+
         fields.append("updated_at = now()")
         query = f"UPDATE task_outputs SET {', '.join(fields)} WHERE id = :output_id"
-        
+
         try:
             self._execute_query(query, params)
         except Exception as e:
@@ -188,7 +216,9 @@ class DBClient:
         query = "SELECT * FROM task_outputs WHERE task_id = :task_id"
         return self._execute_query(query, {"task_id": task_id})
 
-    def find_latest_completed_task_by_url(self, video_url: str) -> Optional[Dict[str, Any]]:
+    def find_latest_completed_task_by_url(
+        self, video_url: str
+    ) -> Optional[Dict[str, Any]]:
         """Find the most recent completed task with the same video_url."""
         query = """
             SELECT * FROM tasks 
@@ -198,48 +228,88 @@ class DBClient:
         rows = self._execute_query(query, {"video_url": video_url})
         return rows[0] if rows else None
 
-    def create_completed_task_output(self, task_id: str, user_id: str, kind: str, content: str, locale: str = None, raw_data: Optional[Dict] = None) -> Dict[str, Any]:
+    def find_latest_task_with_valid_script(
+        self, video_url: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Find the most recent task that has a valid script output, regardless of task status.
+        This enables 'Resumable Workflow' where we reuse the expensive transcript.
+        """
+        query = """
+            SELECT t.* 
+            FROM tasks t
+            JOIN task_outputs o ON o.task_id = t.id
+            WHERE t.video_url = :video_url 
+              AND o.kind = 'script' 
+              AND o.status = 'completed'
+              AND length(o.content) > 0
+            ORDER BY t.created_at DESC 
+            LIMIT 1
+        """
+        rows = self._execute_query(query, {"video_url": video_url})
+        return rows[0] if rows else None
+
+    def create_completed_task_output(
+        self,
+        task_id: str,
+        user_id: str,
+        kind: str,
+        content: str,
+        locale: str = None,
+        raw_data: Optional[Dict] = None,
+    ) -> Dict[str, Any]:
         """Create a new task_output row that is already completed (for caching)."""
         query = """
             INSERT INTO task_outputs (task_id, user_id, kind, locale, status, progress, content, attempt)
             VALUES (:task_id, :user_id, :kind, :locale, 'completed', 100, :content, 0)
             RETURNING *;
         """
-        rows = self._execute_query(query, {
-            "task_id": task_id,
-            "user_id": user_id,
-            "kind": kind,
-            "locale": locale,
-            "content": content
-        })
+        rows = self._execute_query(
+            query,
+            {
+                "task_id": task_id,
+                "user_id": user_id,
+                "kind": kind,
+                "locale": locale,
+                "content": content,
+            },
+        )
         return rows[0] if rows else None
 
-    def upsert_completed_task_output(self, task_id: str, user_id: str, kind: str, content: str, locale: str = None) -> Dict[str, Any]:
+    def upsert_completed_task_output(
+        self, task_id: str, user_id: str, kind: str, content: str, locale: str = None
+    ) -> Dict[str, Any]:
         """Upsert a task_output row that is already completed (for caching or overwriting)."""
         # First check if it exists (placeholder or failed previous attempt)
         check_q = "SELECT id FROM task_outputs WHERE task_id = :tid AND kind = :kind"
         params = {"tid": task_id, "kind": kind}
-        
+
         # Locale matching logic
         if locale:
             check_q += " AND LOWER(locale) = LOWER(:loc)"
             params["loc"] = locale
         else:
             check_q += " AND locale IS NULL"
-        
+
         existing = self._execute_query(check_q, params)
         if existing:
-            oid = existing[0]['id']
-            self.update_output_status(oid, status='completed', progress=100, content=content)
+            oid = existing[0]["id"]
+            self.update_output_status(
+                oid, status="completed", progress=100, content=content
+            )
             return self.get_output(oid)
         else:
-            return self.create_completed_task_output(task_id, user_id, kind, content, locale)
+            return self.create_completed_task_output(
+                task_id, user_id, kind, content, locale
+            )
 
-    def ensure_task_outputs(self, task_id: str, user_id: str, kinds: List[str], locale: Optional[str] = None):
+    def ensure_task_outputs(
+        self, task_id: str, user_id: str, kinds: List[str], locale: Optional[str] = None
+    ):
         """Ensure specific output placeholders exist for a task (Phase 0)."""
         current_outputs = self.get_task_outputs(task_id)
         existing_kinds = set(o["kind"] for o in current_outputs)
-        
+
         for k in kinds:
             if k not in existing_kinds:
                 try:
@@ -247,17 +317,33 @@ class DBClient:
                 except Exception as e:
                     logger.warning(f"Failed to ensure output {k}: {e}")
 
-    def update_task_output_by_kind(self, task_id: str, kind: str, content: str = None, status: str = None, progress: int = None, error: str = None):
+    def update_task_output_by_kind(
+        self,
+        task_id: str,
+        kind: str,
+        content: str = None,
+        status: str = None,
+        progress: int = None,
+        error: str = None,
+    ):
         """Convenience: Update output finding it by kind first."""
-        # TODO: Optimize with direct SQL update where kind=? AND task_id=? 
+        # TODO: Optimize with direct SQL update where kind=? AND task_id=?
         # But for now, reuse existing patterns for safety
         outputs = self.get_task_outputs(task_id)
         target = next((o for o in outputs if o["kind"] == kind), None)
-        
+
         if target:
-            self.update_output_status(target["id"], status=status, progress=progress, content=content, error=error)
+            self.update_output_status(
+                target["id"],
+                status=status,
+                progress=progress,
+                content=content,
+                error=error,
+            )
         else:
-            logger.warning(f"Attempted to update non-existent output kind '{kind}' for task {task_id}")
+            logger.warning(
+                f"Attempted to update non-existent output kind '{kind}' for task {task_id}"
+            )
 
     def validate_token(self, token: str) -> Optional[str]:
         """Validate Supabase JWT and return user_id."""
@@ -279,7 +365,7 @@ class DBClient:
         """Fetch user profile including credits and tier."""
         query = "SELECT * FROM profiles WHERE id = :user_id"
         rows = self._execute_query(query, {"user_id": user_id})
-        
+
         if not rows:
             # Create default profile if missing
             try:
@@ -310,7 +396,9 @@ class DBClient:
 
         # 1. Check Monthly Quota
         if usage < limit:
-            update_q = "UPDATE profiles SET usage_count = usage_count + 1 WHERE id = :id"
+            update_q = (
+                "UPDATE profiles SET usage_count = usage_count + 1 WHERE id = :id"
+            )
             try:
                 self._execute_query(update_q, {"id": user_id})
                 return True
@@ -320,7 +408,9 @@ class DBClient:
 
         # 2. Check Extra Credits
         if extra > 0:
-            update_q = "UPDATE profiles SET extra_credits = extra_credits - 1 WHERE id = :id"
+            update_q = (
+                "UPDATE profiles SET extra_credits = extra_credits - 1 WHERE id = :id"
+            )
             try:
                 self._execute_query(update_q, {"id": user_id})
                 return True
@@ -332,7 +422,9 @@ class DBClient:
 
     def add_credits(self, user_id: str, amount: int):
         """Add one-time credits to a user."""
-        query = "UPDATE profiles SET extra_credits = extra_credits + :amount WHERE id = :id"
+        query = (
+            "UPDATE profiles SET extra_credits = extra_credits + :amount WHERE id = :id"
+        )
         try:
             self._execute_query(query, {"id": user_id, "amount": amount})
         except Exception as e:
@@ -340,31 +432,43 @@ class DBClient:
 
     def update_subscription(self, creem_customer_id: str, tier: str, period_end: str):
         """Update subscription status from Creem Webhook (by customer id)."""
-        limit = 100 if tier == 'pro' else 3
+        limit = 100 if tier == "pro" else 3
         query = """
             UPDATE profiles 
             SET tier = :tier, usage_limit = :limit, usage_count = 0, period_end = :period_end
             WHERE creem_customer_id = :cid
         """
         try:
-            self._execute_query(query, {
-                "tier": tier, "limit": limit, "period_end": period_end, "cid": creem_customer_id
-            })
+            self._execute_query(
+                query,
+                {
+                    "tier": tier,
+                    "limit": limit,
+                    "period_end": period_end,
+                    "cid": creem_customer_id,
+                },
+            )
         except Exception as e:
             logger.error(f"Failed to update subscription: {e}")
 
     def update_subscription_by_user(self, user_id: str, tier: str, period_end: str):
         """Update subscription status by user_id (for first-time subscriptions)."""
-        limit = 100 if tier == 'pro' else 3
+        limit = 100 if tier == "pro" else 3
         query = """
             UPDATE profiles 
             SET tier = :tier, usage_limit = :limit, usage_count = 0, period_end = :period_end
             WHERE id = :uid
         """
         try:
-            self._execute_query(query, {
-                "tier": tier, "limit": limit, "period_end": period_end, "uid": user_id
-            })
+            self._execute_query(
+                query,
+                {
+                    "tier": tier,
+                    "limit": limit,
+                    "period_end": period_end,
+                    "uid": user_id,
+                },
+            )
         except Exception as e:
             logger.error(f"Failed to update subscription by user: {e}")
 
@@ -379,23 +483,43 @@ class DBClient:
     # -------------------------------------------------------------------------
     # Payment / Order Methods (Unified)
     # -------------------------------------------------------------------------
-    def create_payment_order(self, user_id: str, provider: str, amount_fiat: float, currency_fiat: str = "USD") -> Dict[str, Any]:
+    def create_payment_order(
+        self,
+        user_id: str,
+        provider: str,
+        amount_fiat: float,
+        currency_fiat: str = "USD",
+    ) -> Dict[str, Any]:
         """Create a new payment order."""
         query = """
             INSERT INTO payment_orders (user_id, provider, amount_fiat, currency_fiat, status)
             VALUES (:uid, :prov, :amt, :curr, 'pending')
             RETURNING *;
         """
-        rows = self._execute_query(query, {
-            "uid": user_id, "prov": provider, "amt": amount_fiat, "curr": currency_fiat
-        })
+        rows = self._execute_query(
+            query,
+            {
+                "uid": user_id,
+                "prov": provider,
+                "amt": amount_fiat,
+                "curr": currency_fiat,
+            },
+        )
         return rows[0] if rows else None
 
-    def update_payment_order(self, order_id: str, provider_payment_id: str = None, status: str = None, amount_crypto: float = None, currency_crypto: str = None, metadata: Dict = None):
+    def update_payment_order(
+        self,
+        order_id: str,
+        provider_payment_id: str = None,
+        status: str = None,
+        amount_crypto: float = None,
+        currency_crypto: str = None,
+        metadata: Dict = None,
+    ):
         """Update payment order details."""
         fields = []
         params = {"oid": order_id}
-        
+
         if provider_payment_id:
             fields.append("provider_payment_id = :pid")
             params["pid"] = provider_payment_id
@@ -411,10 +535,11 @@ class DBClient:
         if metadata:
             fields.append("metadata = :meta")
             params["meta"] = json.dumps(metadata)
-            
-        if not fields: return
+
+        if not fields:
+            return
         fields.append("updated_at = now()")
-        
+
         query = f"UPDATE payment_orders SET {', '.join(fields)} WHERE id = :oid"
         try:
             self._execute_query(query, params)
@@ -425,26 +550,39 @@ class DBClient:
         query = "SELECT * FROM payment_orders WHERE id = :oid"
         rows = self._execute_query(query, {"oid": order_id})
         return rows[0] if rows else None
-    
-    def get_payment_order_by_provider_id(self, provider_payment_id: str) -> Optional[Dict[str, Any]]:
+
+    def get_payment_order_by_provider_id(
+        self, provider_payment_id: str
+    ) -> Optional[Dict[str, Any]]:
         query = "SELECT * FROM payment_orders WHERE provider_payment_id = :pid"
         rows = self._execute_query(query, {"pid": provider_payment_id})
         return rows[0] if rows else None
+
     # -------------------------------------------------------------------------
     # Chat Module Methods
     # -------------------------------------------------------------------------
 
-    def create_chat_thread(self, user_id: str, task_id: str, title: str) -> Dict[str, Any]:
+    def create_chat_thread(
+        self, user_id: str, task_id: str, title: str
+    ) -> Dict[str, Any]:
         """Create a new chat thread."""
         query = """
             INSERT INTO chat_threads (user_id, task_id, title)
             VALUES (:uid, :tid, :title)
             RETURNING *;
         """
-        rows = self._execute_query(query, {"uid": user_id, "tid": task_id, "title": title})
+        rows = self._execute_query(
+            query, {"uid": user_id, "tid": task_id, "title": title}
+        )
         return rows[0] if rows else None
 
-    def list_chat_threads(self, user_id: str, task_id: str, status_filter: str = "!=deleted", limit: int = 20) -> List[Dict[str, Any]]:
+    def list_chat_threads(
+        self,
+        user_id: str,
+        task_id: str,
+        status_filter: str = "!=deleted",
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
         """List threads with flexible status filtering."""
         base_query = """
             SELECT * FROM chat_threads 
@@ -457,10 +595,10 @@ class DBClient:
         elif status_filter == "active":
             base_query += " AND status = 'active'"
         elif status_filter == "archived":
-             base_query += " AND status = 'archived'"
+            base_query += " AND status = 'archived'"
         elif status_filter == "deleted":
-             base_query += " AND status = 'deleted'"
-        
+            base_query += " AND status = 'deleted'"
+
         # Sort by updated_at desc (Sidebar order)
         base_query += " ORDER BY updated_at DESC LIMIT :limit"
 
@@ -472,11 +610,17 @@ class DBClient:
         rows = self._execute_query(query, {"tid": thread_id})
         return rows[0] if rows else None
 
-    def update_chat_thread(self, thread_id: str, title: str = None, status: str = None, metadata: dict = None) -> Optional[Dict[str, Any]]:
+    def update_chat_thread(
+        self,
+        thread_id: str,
+        title: str = None,
+        status: str = None,
+        metadata: dict = None,
+    ) -> Optional[Dict[str, Any]]:
         """Update a thread's title, status, or metadata."""
         fields = []
         params = {"tid": thread_id}
-        
+
         if title:
             fields.append("title = :title")
             params["title"] = title
@@ -486,11 +630,14 @@ class DBClient:
         if metadata:
             fields.append("metadata = metadata || :meta")
             params["meta"] = json.dumps(metadata)
-            
-        if not fields: return self.get_chat_thread(thread_id)
-        
+
+        if not fields:
+            return self.get_chat_thread(thread_id)
+
         fields.append("updated_at = now()")
-        query = f"UPDATE chat_threads SET {', '.join(fields)} WHERE id = :tid RETURNING *"
+        query = (
+            f"UPDATE chat_threads SET {', '.join(fields)} WHERE id = :tid RETURNING *"
+        )
         rows = self._execute_query(query, params)
         return rows[0] if rows else None
 
