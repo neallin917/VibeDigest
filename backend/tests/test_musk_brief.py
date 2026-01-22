@@ -21,7 +21,7 @@ async def run_musk_comprehension_real():
     
     # Init DB engine manually since we are in a standalone script
     from sqlalchemy import create_engine
-    db.engine = create_engine(os.getenv("DATABASE_URL"))
+    db.engine = create_engine(os.getenv("DATABASE_URL") or "sqlite:///:memory:")
     
     print(f"Fetching transcript for task: {task_id}")
     outputs = db.get_task_outputs(task_id)

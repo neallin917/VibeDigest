@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import Optional
+from typing import Optional, List, Dict, Any, Tuple
 import json
 import asyncio
 from config import settings
@@ -25,18 +25,18 @@ MAX_SENTENCE_DURATION_SECONDS = 24.0  # keep chunks short for navigation
 MAX_SENTENCE_WORDS = 80
 MAX_SEGMENTS_PER_SENTENCE = 20
 
-def _split_long_sentence_segments(segments: list) -> list[dict]:
+def _split_long_sentence_segments(segments: List[Any]) -> List[Dict[str, Any]]:
     """
     Split an over-long sentence (represented by a list of OpenAI segment objects) into bounded chunks.
     Chunks are split on segment boundaries to preserve timestamps.
     """
-    chunks: list[dict] = []
-    chunk_segments = []
+    chunks: List[Dict[str, Any]] = []
+    chunk_segments: List[Any] = []
     chunk_units = 0
     chunk_duration = 0.0
-    chunk_start = None
+    chunk_start: Optional[float] = None
 
-    def push_chunk():
+    def push_chunk() -> None:
         nonlocal chunk_segments, chunk_units, chunk_duration, chunk_start
         if not chunk_segments:
             return
@@ -78,7 +78,7 @@ def _split_long_sentence_segments(segments: list) -> list[dict]:
     return chunks
 
 
-def _merge_segments_into_sentences(all_segments: list) -> list[dict]:
+def _merge_segments_into_sentences(all_segments: List[Any]) -> List[Dict[str, Any]]:
     """
     Merge OpenAI Whisper segments into sentence-like chunks for better readability.
     Returns list of dicts: {start, end, text, segments}
@@ -86,13 +86,13 @@ def _merge_segments_into_sentences(all_segments: list) -> list[dict]:
     if not all_segments:
         return []
 
-    merged: list[dict] = []
-    current_text_parts: list[str] = []
-    current_segments: list = []
+    merged: List[Dict[str, Any]] = []
+    current_text_parts: List[str] = []
+    current_segments: List[Any] = []
     carryover_text = ""
-    sentence_start = None
+    sentence_start: Optional[float] = None
 
-    def flush_sentence():
+    def flush_sentence() -> None:
         nonlocal current_text_parts, current_segments, sentence_start
         if not current_text_parts and not current_segments:
             return
@@ -177,19 +177,19 @@ def _merge_segments_into_sentences(all_segments: list) -> list[dict]:
     return merged
 
 
-def _group_sentences_into_paragraphs(sentences: list[dict], max_chars: int = 550, gap_seconds: float = 2.0) -> list[dict]:
+def _group_sentences_into_paragraphs(sentences: List[Dict[str, Any]], max_chars: int = 550, gap_seconds: float = 2.0) -> List[Dict[str, Any]]:
     """
     Group sentence chunks into paragraphs based on time gaps and character budget.
     Returns list of dicts: {start, end, text}
     """
     if not sentences:
         return []
-    paragraphs: list[dict] = []
+    paragraphs: List[Dict[str, Any]] = []
     cur_start = sentences[0]["start"]
     cur_end = sentences[0]["end"]
-    cur_parts: list[str] = []
+    cur_parts: List[str] = []
 
-    def push_para():
+    def push_para() -> None:
         nonlocal cur_start, cur_end, cur_parts
         txt = " ".join(cur_parts).strip()
         txt = WHITESPACE_GLOBAL_REGEX.sub(" ", txt).strip()
@@ -214,6 +214,7 @@ def _group_sentences_into_paragraphs(sentences: list[dict], max_chars: int = 550
     push_para()
     return paragraphs
 
+
 def _is_cjk_language(lang: str) -> bool:
     """Best-effort check for CJK-like languages where whitespace is sparse."""
     if not lang:
@@ -235,24 +236,24 @@ def _paragraph_limits_for_language(lang: str) -> tuple[int, float]:
 
 
 def _group_sentences_into_paragraphs_v2(
-    sentences: list[dict],
+    sentences: List[Dict[str, Any]],
     *,
     max_chars: int,
     gap_seconds: float,
     max_duration_seconds: float,
-) -> list[dict]:
+) -> List[Dict[str, Any]]:
     """
     Improved paragraph grouping with an additional max-duration bound.
     This avoids giant paragraphs for continuous speech with low gaps.
     """
     if not sentences:
         return []
-    paragraphs: list[dict] = []
+    paragraphs: List[Dict[str, Any]] = []
     cur_start = float(sentences[0]["start"])
     cur_end = float(sentences[0]["end"])
-    cur_parts: list[str] = []
+    cur_parts: List[str] = []
 
-    def push_para():
+    def push_para() -> None:
         nonlocal cur_start, cur_end, cur_parts
         txt = " ".join(cur_parts).strip()
         txt = WHITESPACE_GLOBAL_REGEX.sub(" ", txt).strip()
@@ -265,8 +266,8 @@ def _group_sentences_into_paragraphs_v2(
         s_end = float(s["end"])
         gap = s_start - cur_end
         candidate = (" ".join(cur_parts + [s["text"]])).strip()
-        next_end = s_end
-        next_duration = next_end - cur_start
+        # next_end = s_end
+        next_duration = s_end - cur_start
 
         should_split = False
         if cur_parts and gap > gap_seconds:
@@ -290,13 +291,13 @@ def _group_sentences_into_paragraphs_v2(
     push_para()
     return paragraphs
 
-def _serialize_raw_segments(all_segments: list) -> list[dict]:
+def _serialize_raw_segments(all_segments: List[Any]) -> List[Dict[str, Any]]:
     """
     Convert OpenAI segment objects into JSON-serializable dicts.
     We intentionally store a minimal, stable shape for future re-formatting:
     {start, end, duration, text}
     """
-    raw: list[dict] = []
+    raw: List[Dict[str, Any]] = []
     for seg in all_segments or []:
         start = float(getattr(seg, "start", 0.0) or 0.0)
         end = float(getattr(seg, "end", start) or start)
@@ -310,12 +311,12 @@ def _serialize_raw_segments(all_segments: list) -> list[dict]:
     return raw
 
 
-def format_markdown_from_raw_segments(raw_segments: list[dict], detected_language: str = "unknown") -> str:
+def format_markdown_from_raw_segments(raw_segments: List[Dict[str, Any]], detected_language: str = "unknown") -> str:
     """
     Public helper: format transcript markdown from stored raw segments (JSON).
     This enables re-formatting without re-transcribing.
     """
-    transcript_lines: list[str] = []
+    transcript_lines: List[str] = []
 
     # Convert raw dicts to a lightweight object-like interface expected by the merge logic.
     class _Seg:
@@ -344,7 +345,7 @@ def format_markdown_from_raw_segments(raw_segments: list[dict], detected_languag
         max_duration_seconds=max_dur,
     )
     for para in paragraphs:
-        start_time = Transcriber.format_time(float(para["start"])) 
+        start_time = Transcriber.format_time(float(para["start"]))
         transcript_lines.append(f"**[{start_time}]**")
         transcript_lines.append("")
         transcript_lines.append(para["text"])
@@ -355,19 +356,19 @@ def format_markdown_from_raw_segments(raw_segments: list[dict], detected_languag
 
 class Transcriber:
     """音频转录器，使用 OpenAI API 进行语音转文字"""
-    
-    def __init__(self, model_size: str = None):
+
+    def __init__(self, model_size: Optional[str] = None):
         """
         初始化转录器
-        
+
         Args:
             model_size: OpenAI 模型名称 (默认使用 config 中的配置)
         """
         self.model_name = model_size or settings.OPENAI_TRANSCRIPTION_MODEL
-        self.client = None
-        self.last_detected_language = None
-        
-    def _init_client(self):
+        self.client: Any = None
+        self.last_detected_language: Optional[str] = None
+
+    def _init_client(self) -> None:
         """延迟初始化 OpenAI 客户端 (Async)"""
         if self.client is None:
             # Import new factory
@@ -377,22 +378,22 @@ class Transcriber:
                 logger.info(f"OpenAI Async Client initialized (Transcriber)")
             else:
                 raise ValueError("未找到 OPENAI_API_KEY 环境变量")
-    
+
     async def transcribe(self, audio_path: str, language: Optional[str] = None) -> str:
         """
         转录音频文件
-        
+
         Args:
             audio_path: 音频文件路径
             language: 指定语言（可选，如果不指定则自动检测）
-            
+
         Returns:
             转录文本（Markdown格式）
         """
         md, _, _ = await self.transcribe_with_raw(audio_path, language=language)
         return md
 
-    async def transcribe_with_raw(self, audio_path: str, language: Optional[str] = None) -> tuple[str, str, str]:
+    async def transcribe_with_raw(self, audio_path: str, language: Optional[str] = None) -> Tuple[str, str, str]:
         """
         Transcribe audio and also return a JSON payload of raw segments for future re-formatting.
         Uses Langfuse span tracking when available.
@@ -532,38 +533,38 @@ class Transcriber:
                 logger.error(f"转录失败: {str(e)}")
                 raise Exception(f"转录失败: {str(e)}")
 
-    async def _split_audio(self, audio_path: str, chunk_length_ms: int = 10 * 60 * 1000) -> list:
+    async def _split_audio(self, audio_path: str, chunk_length_ms: int = 10 * 60 * 1000) -> List[Tuple[str, float]]:
         """
         使用 pydub 将音频切分为多个小片段
         """
         from pydub import AudioSegment
-        
-        def _do_split():
+
+        def _do_split() -> List[Tuple[str, float]]:
             try:
                 # pydub 依赖 ffmpeg，scripts/start.py 已检查
                 audio = AudioSegment.from_file(audio_path)
                 duration_ms = len(audio)
-                chunks = []
-                
+                chunks: List[Tuple[str, float]] = []
+
                 base_name = os.path.splitext(audio_path)[0]
-                
+
                 for i, start_ms in enumerate(range(0, duration_ms, chunk_length_ms)):
                     end_ms = min(start_ms + chunk_length_ms, duration_ms)
                     chunk = audio[start_ms:end_ms]
-                    
+
                     chunk_filename = f"{base_name}_part{i}.mp3"
                     # 导出为 mp3 以减小体积
                     chunk.export(chunk_filename, format="mp3")
-                    
+
                     chunks.append((chunk_filename, start_ms / 1000.0))
-                
+
                 return chunks
             except Exception as e:
                 logger.error(f"音频切片失败: {e}")
                 raise e
 
         return await asyncio.to_thread(_do_split)
-    
+
     @staticmethod
     def format_time(seconds: float) -> str:
         """
@@ -573,13 +574,13 @@ class Transcriber:
         hours = seconds // 3600
         minutes = (seconds % 3600) // 60
         seconds = seconds % 60
-        
+
         if hours > 0:
             return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
         else:
             return f"{minutes:02d}:{seconds:02d}"
-    
-    def get_supported_languages(self) -> list:
+
+    def get_supported_languages(self) -> List[str]:
         """
         获取支持的语言列表 (OpenAI Whisper 支持的常用语言)
         """
@@ -587,19 +588,19 @@ class Transcriber:
             "zh", "en", "ja", "ko", "es", "fr", "de", "it", "pt", "ru",
             "ar", "hi", "th", "vi", "tr", "pl", "nl", "sv", "da", "no"
         ]
-    
+
     def get_detected_language(self, transcript_text: Optional[str] = None) -> Optional[str]:
         """
         获取检测到的语言
         """
         if self.last_detected_language:
             return self.last_detected_language
-        
+
         if transcript_text and "**Detected Language:**" in transcript_text:
             lines = transcript_text.split('\n')
             for line in lines:
                 if "**Detected Language:**" in line:
                     lang = line.split(":")[-1].strip()
                     return lang
-        
+
         return None

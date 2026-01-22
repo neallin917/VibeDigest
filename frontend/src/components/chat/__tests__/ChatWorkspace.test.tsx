@@ -50,9 +50,11 @@ describe('ChatWorkspace', () => {
   it('renders the 3-column layout structure', () => {
     const mockProps = {
       activeThreadId: null,
+      activeTaskId: null,
       initialMessages: [],
       onNewChat: vi.fn(),
       onSelectThread: vi.fn(),
+      onSelectTask: vi.fn(),
       onChatStarted: vi.fn(),
     }
     render(<ChatWorkspace {...mockProps} />)

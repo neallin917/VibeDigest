@@ -7,7 +7,7 @@ import logging
 import os
 import uuid
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Any
 from urllib.parse import urlparse, urlunparse
 
 from dotenv import load_dotenv
@@ -574,7 +574,7 @@ try:
     from langfuse import get_client as get_langfuse_client, propagate_attributes
 except ImportError:
 
-    def get_langfuse_client():
+    def get_langfuse_client(*args: Any, **kwargs: Any) -> Any:
         return None
 
     from contextlib import contextmanager

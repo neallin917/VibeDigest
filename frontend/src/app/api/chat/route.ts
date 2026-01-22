@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createOpenAI } from '@ai-sdk/openai';
 import { streamText, convertToModelMessages, generateText, UIMessage, tool, createIdGenerator, stepCountIs } from 'ai';
 import { createClient } from '@/lib/supabase/server';
@@ -242,9 +241,9 @@ Never make up information about video content. Always use tools to get real data
                     description: "Get the current processing status and progress of a video task",
                     parameters: z.object({
                         taskId: z.string().describe("The ID of the task to check"),
-                    }) as any,
-                    execute: async (args: any) => {
-                        const { taskId } = args;
+                    }),
+                    // @ts-ignore
+                    execute: async ({ taskId }: { taskId: string }) => {
                         const { data, error } = await supabase
                             .from('tasks')
                             .select('*')
@@ -276,9 +275,9 @@ Never make up information about video content. Always use tools to get real data
                         taskId: z.string().describe("The ID of the task"),
                         kinds: z.array(z.enum(['script', 'summary', 'summary_source', 'audio'])).optional()
                             .describe("Specific output kinds to retrieve. If not provided, returns all completed outputs."),
-                    }) as any,
-                    execute: async (args: any) => {
-                        const { taskId, kinds } = args;
+                    }),
+                    // @ts-ignore
+                    execute: async ({ taskId, kinds }: { taskId: string, kinds?: string[] }) => {
                         const { data: task, error: taskError } = await supabase
                             .from('tasks')
                             .select('user_id, is_demo')
@@ -318,8 +317,9 @@ Never make up information about video content. Always use tools to get real data
                     parameters: z.object({
                         video_url: z.string().url().describe("The video URL to process"),
                         summaryLanguage: z.string().default('zh').describe("Target language for summary (default: zh)"),
-                    }) as any,
-                    execute: async (args: any) => {
+                    }),
+                    // @ts-ignore
+                    execute: async (args: { video_url: string, summaryLanguage: string, [key: string]: any }) => {
                         console.log('[API/Chat] create_task args:', JSON.stringify(args));
                         // Support video_url (schema), videoUrl (legacy/LLM hallucination), and url (old schema)
                         const rawUrl = args.video_url || args.videoUrl || args.url;
@@ -368,11 +368,11 @@ Never make up information about video content. Always use tools to get real data
                         video_url: z.string().describe("The video URL to preview"),
                     }),
                     // @ts-ignore
-                    execute: async (args: any) => {
+                    execute: async (args: { video_url: string, [key: string]: any }) => {
                         console.log('[API/Chat] preview_video args:', JSON.stringify(args));
                         // Support video_url (schema), videoUrl (legacy/LLM hallucination), and url (old schema)
                         const rawUrl = args.video_url || args.videoUrl || args.url;
-                        
+
                         const cleanUrl = extractUrl(rawUrl);
                         if (!cleanUrl) {
                             console.error('[API/Chat] Invalid URL in preview_video:', JSON.stringify(args));

@@ -122,7 +122,7 @@ async def check_cache(state: VideoProcessingState) -> Dict:
                 ]:
                     try:
                         db_client.upsert_completed_task_output(
-                            state["task_id"], state["user_id"], k, val, locale=loc
+                            state["task_id"], state["user_id"], str(k), str(val), locale=loc
                         )
                         if k == OutputKind.SCRIPT:
                             updates["transcript_text"] = val
@@ -143,7 +143,7 @@ async def check_cache(state: VideoProcessingState) -> Dict:
                     requested_locale = (state["summary_lang"] or "zh").lower()
                     if cached_locale == requested_locale:
                         db_client.upsert_completed_task_output(
-                            state["task_id"], state["user_id"], k, val, locale=loc
+                            state["task_id"], state["user_id"], str(k), str(val), locale=loc
                         )
                         updates["final_summary_json"] = val
 
@@ -268,7 +268,7 @@ async def ingest(state: VideoProcessingState) -> Dict:
         logger.info("Script already present (Cache Hit). Skipping ingest.")
         return {}
 
-    updates = {
+    updates: Dict[str, Any] = {
         "errors": [],
         "transcript_source": "unknown",
         "video_title": state.get("video_title") or "Unknown",
@@ -292,31 +292,31 @@ async def ingest(state: VideoProcessingState) -> Dict:
     if host.replace("www.", "").endswith(("xiaoyuzhoufm.com", "apple.com")):
         required_outputs.append(OutputKind.AUDIO)
 
-    db_client.ensure_task_outputs(task_id, user_id, required_outputs)
+    db_client.ensure_task_outputs(task_id, user_id, [str(k) for k in required_outputs])
 
     # --- Step 2: Metadata Extraction ---
     try:
         meta = await video_processor.extract_info_only(video_url)
         updates.update(
             {
-                "video_title": meta.get("title") or updates["video_title"],
-                "thumbnail_url": meta.get("thumbnail") or updates["thumbnail_url"],
-                "author": meta.get("author"),
-                "duration": meta.get("duration"),
-                "direct_audio_url": meta.get("audio_url"),
+                "video_title": str(meta.get("title") or updates["video_title"]),
+                "thumbnail_url": str(meta.get("thumbnail") or updates["thumbnail_url"]),
+                "author": str(meta.get("author") or ""),
+                "duration": float(meta.get("duration") or 0),
+                "direct_audio_url": str(meta.get("audio_url") or ""),
             }
         )
         db_client.update_task_status(
             task_id,
-            video_title=updates["video_title"],
-            thumbnail_url=updates["thumbnail_url"],
-            duration=updates["duration"],
+            video_title=str(updates.get("video_title")),
+            thumbnail_url=str(updates.get("thumbnail_url")),
+            duration=float(updates.get("duration") or 0),
         )
     except Exception as e:
         logger.warning(f"Metadata extraction warning: {e}")
 
     # --- Step 3: Transcript Strategy ---
-    result = None
+    result: Optional[Dict[str, Any]] = None
 
     # Strategy 1: Supadata
     if not result and is_youtube:
@@ -331,8 +331,9 @@ async def ingest(state: VideoProcessingState) -> Dict:
         result = await _ingest_whisper(state)
         # Check for error in whisper result
         if result and "error" in result:
-            updates["errors"].append(result["error"])
-            updates["ingest_error"] = result["error"]
+            err_list_w: List[str] = updates.get("errors", []) # type: ignore
+            err_list_w.append(str(result["error"]))
+            updates["ingest_error"] = str(result["error"])
             result = None
 
     # Merge results
@@ -341,35 +342,43 @@ async def ingest(state: VideoProcessingState) -> Dict:
         # Persist finalized script
         db_client.update_task_output_by_kind(
             task_id,
-            OutputKind.SCRIPT_RAW,
-            content=updates.get("transcript_raw"),
+            str(OutputKind.SCRIPT_RAW),
+            content=str(updates.get("transcript_raw") or ""),
             status=TaskStatus.COMPLETED,
             progress=100,
         )
         db_client.update_task_output_by_kind(
             task_id,
-            OutputKind.SCRIPT,
-            content=updates.get("transcript_text"),
+            str(OutputKind.SCRIPT),
+            content=str(updates.get("transcript_text") or ""),
             status=TaskStatus.COMPLETED,
             progress=100,
         )
     else:
         if not updates["errors"]:
-            updates["errors"].append("All ingest strategies failed.")
+            # Type hint helps mypy understand this is a list of strings
+            err_list: List[str] = updates.get("errors", []) # type: ignore
+            err_list.append("All ingest strategies failed.")
+
+        # Safe access to error message
+        err_msg = ""
+        if isinstance(updates.get("errors"), list) and updates["errors"]:
+             err_msg = str(updates["errors"][0])
+
         db_client.update_task_status(
-            task_id, status=TaskStatus.ERROR, error=updates["errors"][0]
+            task_id, status=TaskStatus.ERROR, error=err_msg
         )
 
     # Update Audio Logic
     if updates.get("direct_audio_url"):
-        db_client.ensure_task_outputs(task_id, user_id, [OutputKind.AUDIO])
+        db_client.ensure_task_outputs(task_id, user_id, [str(OutputKind.AUDIO)])
         payload = {
             "audioUrl": updates["direct_audio_url"],
             "coverUrl": updates.get("thumbnail_url"),
         }
         db_client.update_task_output_by_kind(
             task_id,
-            OutputKind.AUDIO,
+            str(OutputKind.AUDIO),
             content=json.dumps(payload, ensure_ascii=False),
             status=TaskStatus.COMPLETED,
             progress=100,
@@ -407,7 +416,7 @@ async def _run_classify(transcript_text: str, task_id: str, video_url: str, user
 
         db_client.update_task_output_by_kind(
             task_id,
-            OutputKind.CLASSIFICATION,
+            str(OutputKind.CLASSIFICATION),
             content=content_str,
             status=TaskStatus.COMPLETED,
             progress=100,
@@ -435,7 +444,7 @@ async def _run_summarize(transcript_text: str, task_id: str, user_id: str):
         )
         db_client.update_task_output_by_kind(
             task_id,
-            OutputKind.SUMMARY_SOURCE,
+            str(OutputKind.SUMMARY_SOURCE),
             content=content,
             status=TaskStatus.COMPLETED,
             progress=100,
@@ -469,27 +478,28 @@ async def cognition(state: VideoProcessingState) -> Dict:
     # Execute Parallel or Sequential based on config
     if settings.COGNITION_SEQUENTIAL:
         logger.info(f"Cognition: Sequential mode enabled (Delay: {settings.COGNITION_DELAY}s)")
-        
+
         # 1. Classify
         classification_res = await _run_classify(transcript_text, task_id, state["video_url"], state["user_id"])
-        
+
         # Delay if configured
         if settings.COGNITION_DELAY > 0:
             logger.info(f"Cognition: Sleeping for {settings.COGNITION_DELAY}s by configuration...")
             await asyncio.sleep(settings.COGNITION_DELAY)
-            
+
         # 2. Summarize
         summary_res = await _run_summarize(transcript_text, task_id, state["user_id"])
-        
+
         # Unify results format for processing below
-        results = [classification_res, summary_res]
+        results: List[Any] = [classification_res, summary_res]
     else:
         # Default: Parallel
-        results = await asyncio.gather(
+        results_tuple = await asyncio.gather(
             _run_classify(transcript_text, task_id, state["video_url"], state["user_id"]),
             _run_summarize(transcript_text, task_id, state["user_id"]),
             return_exceptions=True,
         )
+        results = list(results_tuple)
 
     updates = {}
     classification_res, summary_res = results[0], results[1]
@@ -524,9 +534,10 @@ async def cognition(state: VideoProcessingState) -> Dict:
 
 async def cleanup(state: VideoProcessingState) -> Dict:
     """Cleanup temp files and finalize task."""
-    if state.get("audio_path"):
+    audio_path = state.get("audio_path")
+    if audio_path:
         try:
-            path = Path(state["audio_path"])
+            path = Path(audio_path)
             if path.exists():
                 os.remove(path)
                 logger.info(f"Deleted temp file: {path}")
