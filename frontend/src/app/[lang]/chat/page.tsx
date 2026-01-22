@@ -72,7 +72,6 @@ export default function ChatPage() {
             const contextMessage: UIMessage = {
                 id: uuidv4(),
                 role: 'assistant',
-                content: welcomeContent,
                 parts: [{ type: 'text', text: welcomeContent }]
             }
             
