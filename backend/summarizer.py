@@ -2,7 +2,7 @@ import os
 from stop_words import get_stop_words
 import logging
 import asyncio
-from typing import Optional, Any, List
+from typing import Optional, Any, List, Dict, Set, Union, Tuple
 import json
 import re
 from pydantic import BaseModel, Field
@@ -10,7 +10,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from config import settings
 from utils.openai_client import get_openai_client
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage, BaseMessage
 from utils.text_utils import (
     LANGUAGE_MAP,
     get_language_name,
@@ -126,8 +126,8 @@ class Summarizer:
         name: str,
         default: int,
         *,
-        min_value: int | None = None,
-        max_value: int | None = None,
+        min_value: Optional[int] = None,
+        max_value: Optional[int] = None,
     ) -> int:
         raw = os.getenv(name)
         if raw is None or str(raw).strip() == "":
@@ -257,14 +257,14 @@ class Summarizer:
                 seen.add(m)
         return out
 
-    def _get_llm(self, model: str, max_tokens: int = None, model_kwargs: dict = None):
+    def _get_llm(self, model: str, max_tokens: Optional[int] = None, model_kwargs: Optional[Dict[str, Any]] = None) -> Any:
         # Use centralized factory for provider switching (LiteLLM support)
         from utils.openai_client import create_chat_model
-        
+
         # Use centralized default if max_tokens not provided
         # (Though usually caller identifies task size)
         tokens = max_tokens or settings.DEFAULT_MAX_TOKENS
-        
+
         return create_chat_model(
             model_name=model,
             # temperature is handled by factory (smart default)
@@ -274,12 +274,12 @@ class Summarizer:
 
     async def _ainvoke_with_fallback(
         self,
-        models: list[str],
-        messages: list[dict],
-        trace_config: dict = None,
-        **kwargs,
-    ):
-        lc_messages = []
+        models: List[str],
+        messages: List[Dict[str, str]],
+        trace_config: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> Any:
+        lc_messages: List[BaseMessage] = []
         for m in messages:
             if m["role"] == "system":
                 lc_messages.append(SystemMessage(content=m["content"]))
@@ -317,7 +317,7 @@ class Summarizer:
         raise last_exception or Exception("All models failed")
 
     async def optimize_transcript(
-        self, raw_transcript: str, trace_metadata: dict = None
+        self, raw_transcript: str, trace_metadata: Optional[Dict[str, Any]] = None
     ) -> str:
         trace_metadata = trace_metadata or {}
         trace_config = {
@@ -415,7 +415,7 @@ class Summarizer:
         self,
         chunk_text: str,
         transcript_language: str = "zh",
-        trace_config: dict = None,
+        trace_config: Optional[Dict[str, Any]] = None,
     ) -> str:
         if transcript_language == "zh":
             system_prompt = OPTIMIZE_TRANSCRIPT_SYSTEM_ZH
@@ -444,7 +444,7 @@ class Summarizer:
             logger.error(f"Chunk optimization failed: {e}")
             return self._apply_basic_formatting(chunk_text)
 
-    def _smart_split_long_chunk(self, text: str, max_chars_per_chunk: int) -> list:
+    def _smart_split_long_chunk(self, text: str, max_chars_per_chunk: int) -> List[str]:
         # Replaced custom logic with LangChain RecursiveCharacterTextSplitter
         splitter = RecursiveCharacterTextSplitter(
             separators=["\n\n", "。", "！", "？", ".", "!", "?", "，", "；", ", ", " "],
@@ -523,7 +523,7 @@ class Summarizer:
         raw_transcript: str,
         transcript_language: str,
         max_chars_per_chunk: int,
-        trace_config: dict = None,
+        trace_config: Optional[Dict[str, Any]] = None,
     ) -> str:
         parts = re.split(r"([。！？\.!?]+\s*)", raw_transcript)
         sentences = []
@@ -590,7 +590,7 @@ class Summarizer:
                 logger.warning(f"Chunk {i + 1} failed optimization: {e}")
                 optimized.append(self._apply_basic_formatting(c))
 
-        deduped = []
+        deduped: List[str] = []
         for i, c in enumerate(optimized):
             cur_txt = c
             if i > 0 and deduped:
@@ -606,7 +606,7 @@ class Summarizer:
         enforced = enforce_paragraph_max_chars(merged, max_chars=400)
         return ensure_markdown_paragraphs(enforced)
 
-    def _split_into_chunks(self, text: str, max_tokens: int) -> list:
+    def _split_into_chunks(self, text: str, max_tokens: int) -> List[str]:
         # Replaced custom token-estimation based splitting with LangChain Splitter
         # Note: We use length_function=self._estimate_tokens to respect token limits
         pure_text = extract_pure_text(text)
@@ -654,7 +654,7 @@ class Summarizer:
         try:
             paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
             organized_chunks = []
-            current_chunk = []
+            current_chunk: List[str] = []
             current_tokens = 0
             max_chunk_tokens = 2500
 
@@ -706,7 +706,7 @@ class Summarizer:
                 validated.append(para)
         return "\n\n".join(validated)
 
-    def _split_long_paragraph(self, paragraph: str) -> list:
+    def _split_long_paragraph(self, paragraph: str) -> List[str]:
         parts = re.split(r"([.!?。！？]\s+)", paragraph)
         sentences = []
         for i in range(0, len(parts) - 1, 2):
@@ -715,7 +715,7 @@ class Summarizer:
             sentences.append(parts[-1])
 
         split = []
-        cur_para = []
+        cur_para: List[str] = []
         cur_len = 0
         for s in sentences:
             slen = len(s.split())
@@ -752,9 +752,9 @@ class Summarizer:
         self,
         transcript: str,
         target_language: str = "zh",
-        video_title: str = None,
-        existing_classification: dict | None = None,
-        trace_metadata: dict = None,
+        video_title: Optional[str] = None,
+        existing_classification: Optional[Dict[str, Any]] = None,
+        trace_metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         try:
             if not self.api_key:
@@ -795,8 +795,8 @@ class Summarizer:
             return self._fallback_summary_json_v1(transcript, target_language)
 
     async def classify_content(
-        self, transcript: str, trace_metadata: dict = None
-    ) -> dict:
+        self, transcript: str, trace_metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         transcript_sample = transcript[
             :15000
         ]  # Increased limit since we trust structural output
@@ -895,8 +895,8 @@ class Summarizer:
             }
 
     def _build_v2_dynamic_prompt(
-        self, classification: dict, language_name: str, target_language: str
-    ) -> tuple[str, str]:
+        self, classification: Dict[str, Any], language_name: str, target_language: str
+    ) -> str:
         content_form = classification.get("content_form", "casual")
         info_structure = classification.get("info_structure", "thematic")
         cognitive_goal = classification.get("cognitive_goal", "digest")
@@ -923,8 +923,8 @@ class Summarizer:
         self,
         transcript: str,
         target_language: str,
-        existing_classification: dict | None = None,
-        trace_metadata: dict = None,
+        existing_classification: Optional[Dict[str, Any]] = None,
+        trace_metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         language_name = self.language_map.get(target_language, "English")
         if existing_classification:
@@ -1036,7 +1036,7 @@ class Summarizer:
 
     def _parse_script_raw_payload(
         self, script_raw_json: Optional[str]
-    ) -> tuple[str, list[dict]]:
+    ) -> Tuple[str, List[Dict[str, Any]]]:
         if not script_raw_json:
             return "unknown", []
         try:
@@ -1064,7 +1064,7 @@ class Summarizer:
         return lang, out
 
     @staticmethod
-    def _build_keypoint_query(kp: dict) -> str:
+    def _build_keypoint_query(kp: Dict[str, Any]) -> str:
         if not isinstance(kp, dict):
             return ""
         evidence = str(kp.get("evidence", "")).strip()
@@ -1093,7 +1093,7 @@ class Summarizer:
         s = re.sub(r"[^\w\u4e00-\u9fff]+", " ", s, flags=re.UNICODE)
         return re.sub(r"\s+", " ", s).strip()
 
-    def _tokenize_for_match(self, text: str, lang: str = "en") -> set[str]:
+    def _tokenize_for_match(self, text: str, lang: str = "en") -> Set[str]:
         s = self._normalize_for_match(text)
         if not s:
             return set()
@@ -1224,7 +1224,7 @@ class Summarizer:
         return {t for t in s.split(" ") if len(t) >= 2 and t not in stop_words}
 
     def _score_segment_match(
-        self, *, query: str, query_tokens: set[str], seg_text: str, seg_tokens: set[str]
+        self, *, query: str, query_tokens: Set[str], seg_text: str, seg_tokens: Set[str]
     ) -> float:
         if not seg_text:
             return 0.0
@@ -1241,8 +1241,8 @@ class Summarizer:
         return score
 
     def _inject_keypoint_timestamps(
-        self, summary_obj: dict, segments: list[dict], lang: str = "en"
-    ) -> dict:
+        self, summary_obj: Dict[str, Any], segments: List[Dict[str, Any]], lang: str = "en"
+    ) -> Dict[str, Any]:
         if not isinstance(summary_obj, dict):
             return summary_obj
         kps = summary_obj.get("keypoints", [])
@@ -1307,7 +1307,7 @@ class Summarizer:
             try:
                 kp["startSeconds"] = float(segments[start_idx].get("start", 0.0))
                 kp["endSeconds"] = float(
-                    segments[end_idx].get("end", kp["startSeconds"])
+                    segments[end_idx].get("end", kp["startSeconds"]) or 0.0
                 )
             except:
                 continue
@@ -1323,10 +1323,10 @@ class Summarizer:
         transcript: str,
         *,
         summary_language: str,
-        video_title: str | None = None,
-        script_raw_json: str | None = None,
-        existing_classification: dict | None = None,
-        trace_metadata: dict = None,
+        video_title: Optional[str] = None,
+        script_raw_json: Optional[str] = None,
+        existing_classification: Optional[Dict[str, Any]] = None,
+        trace_metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         base = await self.summarize(
             transcript,
@@ -1352,7 +1352,7 @@ class Summarizer:
         except:
             return base
 
-    def _validate_summary_json_v1(self, obj: dict, target_language: str) -> dict:
+    def _validate_summary_json_v1(self, obj: Dict[str, Any], target_language: str) -> Dict[str, Any]:
         if not isinstance(obj, dict):
             raise ValueError("Summary JSON must be an object")
         version = int(obj.get("version", 2))
@@ -1368,7 +1368,7 @@ class Summarizer:
                 detail = str(kp.get("detail") or "").strip()
                 if not title and not detail:
                     continue
-                out = {
+                out: Dict[str, Any] = {
                     "title": title or detail[:48],
                     "detail": detail,
                     "evidence": str(kp.get("evidence") or "").strip(),
@@ -1386,7 +1386,7 @@ class Summarizer:
         }
 
     async def translate_summary_json(
-        self, summary_json: str, *, target_language: str, trace_metadata: dict = None
+        self, summary_json: str, *, target_language: str, trace_metadata: Optional[Dict[str, Any]] = None
     ) -> str:
         if not summary_json:
             return summary_json
@@ -1446,7 +1446,7 @@ class Summarizer:
             return json.dumps(src_obj, ensure_ascii=False)
 
     async def _summarize_single_text_json(
-        self, transcript: str, target_language: str, trace_metadata: dict = None
+        self, transcript: str, target_language: str, trace_metadata: Optional[Dict[str, Any]] = None
     ) -> str:
         language_name = self.language_map.get(target_language, "English")
         system_prompt = SUMMARY_SINGLE_SYSTEM.format(
@@ -1521,7 +1521,7 @@ class Summarizer:
         transcript: str,
         target_language: str,
         max_summarize_tokens: int,
-        trace_metadata: dict = None,
+        trace_metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         chunks = self._split_into_chunks(transcript, max_summarize_tokens)
         logger.info(f"Split into {len(chunks)} chunks for summarization")
@@ -1573,9 +1573,9 @@ class Summarizer:
 
     async def _integrate_chunk_summaries(
         self,
-        chunk_summaries: list[str],
+        chunk_summaries: List[str],
         target_language: str,
-        trace_metadata: dict = None,
+        trace_metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         combined = "\n\n".join(chunk_summaries)
         language_name = self.language_map.get(target_language, "English")

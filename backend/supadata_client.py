@@ -3,7 +3,7 @@ import time
 import logging
 import json
 import httpx
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any, List
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +167,7 @@ class SupadataClient:
                     # Supadata often returns word-level segments (especially for Chinese), which frontend filters out (<12 chars).
                     merged_segments = []
                     current_chunk = {"start": 0.0, "end": 0.0, "text": ""}
-                    current_parts = []
+                    current_parts: List[str] = []
 
                     is_cjk = detected_lang in [
                         "zh",

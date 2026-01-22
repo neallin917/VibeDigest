@@ -5,6 +5,8 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
+from typing import Optional, Any
+
 # Langfuse v3: Use langfuse.openai wrapper for automatic tracing
 try:
     from langfuse.openai import OpenAI as LangfuseOpenAI
@@ -16,7 +18,7 @@ except ImportError as e:
     from openai import OpenAI as LangfuseOpenAI  # Fallback to standard
     from openai import AsyncOpenAI as LangfuseAsyncOpenAI
 
-def get_openai_client(base_url: Optional[str] = None):
+def get_openai_client(base_url: Optional[str] = None) -> Any:
     """
     Factory to get an OpenAI client (Synchronous).
     Uses Langfuse-wrapped client if available for automatic tracing.
@@ -25,14 +27,14 @@ def get_openai_client(base_url: Optional[str] = None):
     if not api_key:
         logger.warning("OPENAI_API_KEY not set in environment.")
         return None
-        
+
     final_base_url = base_url or os.getenv("OPENAI_BASE_URL")
-    
+
     if final_base_url:
         return LangfuseOpenAI(api_key=api_key, base_url=final_base_url)
     return LangfuseOpenAI(api_key=api_key)
 
-def get_async_openai_client(base_url: Optional[str] = None):
+def get_async_openai_client(base_url: Optional[str] = None) -> Any:
     """
     Factory to get an Async OpenAI client.
     Uses Langfuse-wrapped client if available for automatic tracing.
@@ -41,16 +43,16 @@ def get_async_openai_client(base_url: Optional[str] = None):
     if not api_key:
         logger.warning("OPENAI_API_KEY not set in environment.")
         return None
-        
+
     final_base_url = base_url or os.getenv("OPENAI_BASE_URL")
-    
+
     if final_base_url:
         return LangfuseAsyncOpenAI(api_key=api_key, base_url=final_base_url)
     return LangfuseAsyncOpenAI(api_key=api_key)
 
 
 # Factory for LangChain Chat Models
-def create_chat_model(model_name: str, temperature: float = None, **kwargs):
+def create_chat_model(model_name: str, temperature: Optional[float] = None, **kwargs: Any) -> Any:
     """
     Creates a LangChain Chat Model based on LLM_PROVIDER.
     Supports 'openai' (default) and 'custom'/'litellm'.
@@ -86,9 +88,12 @@ def create_chat_model(model_name: str, temperature: float = None, **kwargs):
     # 2. Standard OpenAI Fallback
     api_key = os.getenv("OPENAI_API_KEY")
     base_url = os.getenv("OPENAI_BASE_URL")
+
+    from pydantic import SecretStr
+
     return ChatOpenAI(
         model=model_name,
-        api_key=api_key,
+        api_key=SecretStr(api_key) if api_key else None,
         base_url=base_url,
         temperature=temperature,
         **kwargs

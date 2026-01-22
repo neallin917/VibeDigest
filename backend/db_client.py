@@ -3,6 +3,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from supabase import create_client, Client
 from sqlalchemy import create_engine, text, exc
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 import json
 
@@ -35,6 +36,7 @@ class DBClient:
         # In production/dev, this should be the Supabase Transaction Pooler (port 6543) or Session Pooler (5432)
         # Format: postgresql://postgres.project:password@aws-0-region.pooler.supabase.com:6543/postgres
         self.db_url = os.environ.get("DATABASE_URL")
+        self.engine: Optional[Engine] = None
 
         if self.db_url:
             try:
@@ -51,7 +53,7 @@ class DBClient:
             self.engine = None
 
     def _execute_query(
-        self, query_str: str, params: Dict[str, Any] = None
+        self, query_str: str, params: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
         """Helper to execute safe parameterized queries."""
         if not self.engine:
@@ -73,8 +75,8 @@ class DBClient:
             session.close()
 
     def create_task(
-        self, user_id: str, video_url: str, video_title: str = None
-    ) -> Dict[str, Any]:
+        self, user_id: str, video_url: str, video_title: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         """Create a new task row."""
         query = """
             INSERT INTO tasks (user_id, video_url, status, progress, video_title)
@@ -88,8 +90,8 @@ class DBClient:
         return rows[0] if rows else None
 
     def create_task_output(
-        self, task_id: str, user_id: str, kind: str, locale: str = None
-    ) -> Dict[str, Any]:
+        self, task_id: str, user_id: str, kind: str, locale: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         """Create a new task_output row."""
         query = """
             INSERT INTO task_outputs (task_id, user_id, kind, locale, status, progress, attempt)
@@ -105,16 +107,16 @@ class DBClient:
     def update_task_status(
         self,
         task_id: str,
-        status: str = None,
-        progress: int = None,
-        video_title: str = None,
-        thumbnail_url: str = None,
-        error: str = None,
-        **kwargs,
-    ):
+        status: Optional[str] = None,
+        progress: Optional[int] = None,
+        video_title: Optional[str] = None,
+        thumbnail_url: Optional[str] = None,
+        error: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
         """Update task status and progress."""
         fields = []
-        params = {"task_id": task_id}
+        params: Dict[str, Any] = {"task_id": task_id}
 
         if status:
             fields.append("status = :status")
@@ -144,8 +146,8 @@ class DBClient:
             "duration": "duration",
         }
         for k, col in meta_mapping.items():
-            if kwargs.get(k) is not None:
-                val = kwargs.get(k)
+            val = kwargs.get(k)
+            if val is not None:
                 if k == "duration":
                     try:
                         val = int(float(val))
@@ -168,14 +170,14 @@ class DBClient:
     def update_output_status(
         self,
         output_id: str,
-        status: str = None,
-        progress: int = None,
-        content: str = None,
-        error: str = None,
-    ):
+        status: Optional[str] = None,
+        progress: Optional[int] = None,
+        content: Optional[str] = None,
+        error: Optional[str] = None,
+    ) -> None:
         """Update output status, content, and progress."""
         fields = []
-        params = {"output_id": output_id}
+        params: Dict[str, Any] = {"output_id": output_id}
 
         if status:
             fields.append("status = :status")
@@ -198,7 +200,7 @@ class DBClient:
         except Exception as e:
             logger.error(f"Failed to update output {output_id}: {e}")
 
-    def get_task(self, task_id: str) -> Dict[str, Any]:
+    def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Fetch a task by ID."""
         query = "SELECT * FROM tasks WHERE id = :task_id"
         rows = self._execute_query(query, {"task_id": task_id})
@@ -255,9 +257,9 @@ class DBClient:
         user_id: str,
         kind: str,
         content: str,
-        locale: str = None,
+        locale: Optional[str] = None,
         raw_data: Optional[Dict] = None,
-    ) -> Dict[str, Any]:
+    ) -> Optional[Dict[str, Any]]:
         """Create a new task_output row that is already completed (for caching)."""
         query = """
             INSERT INTO task_outputs (task_id, user_id, kind, locale, status, progress, content, attempt)
@@ -277,8 +279,8 @@ class DBClient:
         return rows[0] if rows else None
 
     def upsert_completed_task_output(
-        self, task_id: str, user_id: str, kind: str, content: str, locale: str = None
-    ) -> Dict[str, Any]:
+        self, task_id: str, user_id: str, kind: str, content: str, locale: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         """Upsert a task_output row that is already completed (for caching or overwriting)."""
         # First check if it exists (placeholder or failed previous attempt)
         check_q = "SELECT id FROM task_outputs WHERE task_id = :tid AND kind = :kind"
@@ -305,7 +307,7 @@ class DBClient:
 
     def ensure_task_outputs(
         self, task_id: str, user_id: str, kinds: List[str], locale: Optional[str] = None
-    ):
+    ) -> None:
         """Ensure specific output placeholders exist for a task (Phase 0)."""
         current_outputs = self.get_task_outputs(task_id)
         existing_kinds = set(o["kind"] for o in current_outputs)
@@ -321,11 +323,11 @@ class DBClient:
         self,
         task_id: str,
         kind: str,
-        content: str = None,
-        status: str = None,
-        progress: int = None,
-        error: str = None,
-    ):
+        content: Optional[str] = None,
+        status: Optional[str] = None,
+        progress: Optional[int] = None,
+        error: Optional[str] = None,
+    ) -> None:
         """Convenience: Update output finding it by kind first."""
         # TODO: Optimize with direct SQL update where kind=? AND task_id=?
         # But for now, reuse existing patterns for safety
@@ -361,7 +363,7 @@ class DBClient:
             logger.error(f"Token validation failed: {e}")
             return None
 
-    def get_profile(self, user_id: str) -> Dict[str, Any]:
+    def get_profile(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Fetch user profile including credits and tier."""
         query = "SELECT * FROM profiles WHERE id = :user_id"
         rows = self._execute_query(query, {"user_id": user_id})
@@ -489,7 +491,7 @@ class DBClient:
         provider: str,
         amount_fiat: float,
         currency_fiat: str = "USD",
-    ) -> Dict[str, Any]:
+    ) -> Optional[Dict[str, Any]]:
         """Create a new payment order."""
         query = """
             INSERT INTO payment_orders (user_id, provider, amount_fiat, currency_fiat, status)
@@ -510,15 +512,15 @@ class DBClient:
     def update_payment_order(
         self,
         order_id: str,
-        provider_payment_id: str = None,
-        status: str = None,
-        amount_crypto: float = None,
-        currency_crypto: str = None,
-        metadata: Dict = None,
-    ):
+        provider_payment_id: Optional[str] = None,
+        status: Optional[str] = None,
+        amount_crypto: Optional[float] = None,
+        currency_crypto: Optional[str] = None,
+        metadata: Optional[Dict] = None,
+    ) -> None:
         """Update payment order details."""
         fields = []
-        params = {"oid": order_id}
+        params: Dict[str, Any] = {"oid": order_id}
 
         if provider_payment_id:
             fields.append("provider_payment_id = :pid")
@@ -564,7 +566,7 @@ class DBClient:
 
     def create_chat_thread(
         self, user_id: str, task_id: str, title: str
-    ) -> Dict[str, Any]:
+    ) -> Optional[Dict[str, Any]]:
         """Create a new chat thread."""
         query = """
             INSERT INTO chat_threads (user_id, task_id, title)
@@ -585,8 +587,8 @@ class DBClient:
     ) -> List[Dict[str, Any]]:
         """List threads with flexible status filtering."""
         base_query = """
-            SELECT * FROM chat_threads 
-            WHERE user_id = :uid AND task_id = :tid 
+            SELECT * FROM chat_threads
+            WHERE user_id = :uid AND task_id = :tid
         """
         params = {"uid": user_id, "tid": task_id, "limit": limit}
 
@@ -613,13 +615,13 @@ class DBClient:
     def update_chat_thread(
         self,
         thread_id: str,
-        title: str = None,
-        status: str = None,
-        metadata: dict = None,
+        title: Optional[str] = None,
+        status: Optional[str] = None,
+        metadata: Optional[dict] = None,
     ) -> Optional[Dict[str, Any]]:
         """Update a thread's title, status, or metadata."""
         fields = []
-        params = {"tid": thread_id}
+        params: Dict[str, Any] = {"tid": thread_id}
 
         if title:
             fields.append("title = :title")

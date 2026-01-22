@@ -33,8 +33,8 @@ class Settings:
     
     # LangSmith
     LANGCHAIN_TRACING_V2: str = os.getenv("LANGCHAIN_TRACING_V2", "false")
-    LANGCHAIN_API_KEY: str = os.getenv("LANGCHAIN_API_KEY") or os.getenv("LANGSMITH_API_KEY", "")
-    LANGCHAIN_PROJECT: str = os.getenv("LANGCHAIN_PROJECT") or os.getenv("LANGSMITH_PROJECT", "default")
+    LANGCHAIN_API_KEY: str = os.getenv("LANGCHAIN_API_KEY") or os.getenv("LANGSMITH_API_KEY") or ""
+    LANGCHAIN_PROJECT: str = os.getenv("LANGCHAIN_PROJECT") or os.getenv("LANGSMITH_PROJECT") or "default"
 
     # Monitoring
     SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
@@ -45,23 +45,23 @@ class Settings:
     # Models
     # Chat Agent Model
     MOCK_MODE: bool = os.getenv("MOCK_MODE", "false").lower() == "true"
-    
+
     # Cognition Rate Limiting (Local/Dev)
     # Default to TRUE for safety if env var invalid
     COGNITION_SEQUENTIAL: bool = os.getenv("COGNITION_SEQUENTIAL", "true").lower() == "true"
-    COGNITION_DELAY: float = float(os.getenv("COGNITION_DELAY", "0.0"))
+    COGNITION_DELAY: float = float(os.getenv("COGNITION_DELAY") or "0.0")
     
     # LLM Configuration
-    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "openai").lower()
-    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", None)
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", None)
-    
+    LLM_PROVIDER: str = (os.getenv("LLM_PROVIDER") or "openai").lower()
+    OPENAI_BASE_URL: Optional[str] = os.getenv("OPENAI_BASE_URL")
+    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
+
     # Provider-specific default models (change LLM_PROVIDER to switch all at once)
     _PROVIDER_DEFAULTS = {
         "openai": {"smart": "gpt-4o", "fast": "gpt-4o-mini"},
         "custom": {"smart": "openai/gemini-3-pro-high", "fast": "openai/gemini-3-flash"}
     }
-    
+
     # Model Aliases: Auto-select based on provider, or override via .env
     _defaults = _PROVIDER_DEFAULTS.get(LLM_PROVIDER, _PROVIDER_DEFAULTS["openai"])
     MODEL_ALIAS_SMART: str = os.getenv("MODEL_ALIAS_SMART") or _defaults["smart"]

@@ -36,9 +36,9 @@ class ComprehensionAgent:
         # Higher-level reasoning models prioritized for deep comprehension (Learning Tab)
         self.comprehension_models = settings.OPENAI_COMPREHENSION_MODELS
 
-    def _get_llm(self, model_name: str, max_tokens: int = None):
+    def _get_llm(self, model_name: str, max_tokens: Optional[int] = None):
         from utils.openai_client import create_chat_model
-        
+
         # Use centralized default if max_tokens not provided
         tokens = max_tokens or settings.DEFAULT_MAX_TOKENS
         
