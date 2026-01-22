@@ -260,8 +260,8 @@ export function ChatContainer({
         toolName = part.type.replace('tool-', '')
       }
 
-      if (toolName === 'create_task' && part.output && part.output.taskId) {
-        const newTaskId = part.output.taskId
+      if (toolName === 'create_task' && (part as any).output && (part as any).output.taskId) {
+        const newTaskId = (part as any).output.taskId
 
         // Only trigger if we haven't already opened this specific task
         // AND if it's not the currently active task (to avoid redundant calls)

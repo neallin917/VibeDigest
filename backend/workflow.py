@@ -381,9 +381,13 @@ async def ingest(state: VideoProcessingState) -> Dict:
 # --- Cognition Helpers ---
 
 
-async def _run_classify(transcript_text: str, task_id: str, video_url: str):
+async def _run_classify(transcript_text: str, task_id: str, video_url: str, user_id: str):
     try:
         logger.info("Cognition: Starting classification...")
+        
+        # Ensure Output Exists (in case Ingest was skipped via Cache Hit)
+        db_client.ensure_task_outputs(task_id, user_id, [OutputKind.CLASSIFICATION])
+        
         trace_meta = {
             "session_id": str(task_id),
             "metadata": {"video_url": video_url},
@@ -457,12 +461,35 @@ async def cognition(state: VideoProcessingState) -> Dict:
 
     task_id = state["task_id"]
 
-    # Execute Parallel
-    results = await asyncio.gather(
-        _run_classify(transcript_text, task_id, state["video_url"]),
-        _run_summarize(transcript_text, task_id, state["user_id"]),
-        return_exceptions=True,
-    )
+    # Debug Log for Verification (Print for Docker visibility)
+    mode_msg = f"Cognition Execution Mode: Sequential={settings.COGNITION_SEQUENTIAL}, Delay={settings.COGNITION_DELAY}"
+    logger.warning(mode_msg)
+    print(mode_msg, flush=True)
+
+    # Execute Parallel or Sequential based on config
+    if settings.COGNITION_SEQUENTIAL:
+        logger.info(f"Cognition: Sequential mode enabled (Delay: {settings.COGNITION_DELAY}s)")
+        
+        # 1. Classify
+        classification_res = await _run_classify(transcript_text, task_id, state["video_url"], state["user_id"])
+        
+        # Delay if configured
+        if settings.COGNITION_DELAY > 0:
+            logger.info(f"Cognition: Sleeping for {settings.COGNITION_DELAY}s by configuration...")
+            await asyncio.sleep(settings.COGNITION_DELAY)
+            
+        # 2. Summarize
+        summary_res = await _run_summarize(transcript_text, task_id, state["user_id"])
+        
+        # Unify results format for processing below
+        results = [classification_res, summary_res]
+    else:
+        # Default: Parallel
+        results = await asyncio.gather(
+            _run_classify(transcript_text, task_id, state["video_url"], state["user_id"]),
+            _run_summarize(transcript_text, task_id, state["user_id"]),
+            return_exceptions=True,
+        )
 
     updates = {}
     classification_res, summary_res = results[0], results[1]

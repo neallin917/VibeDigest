@@ -70,5 +70,5 @@ export function mapDBMessageToUIMessage(dbMsg: DBMessage): UIMessage {
         // Attach parts if your UI component uses them directly.
         // We cast to any to avoid strict UIMessagePart structure checks against our simple ContentPart types
         parts: parts as any,
-    };
+    } as unknown as UIMessage;
 }

@@ -46,6 +46,11 @@ class Settings:
     # Chat Agent Model
     MOCK_MODE: bool = os.getenv("MOCK_MODE", "false").lower() == "true"
     
+    # Cognition Rate Limiting (Local/Dev)
+    # Default to TRUE for safety if env var invalid
+    COGNITION_SEQUENTIAL: bool = os.getenv("COGNITION_SEQUENTIAL", "true").lower() == "true"
+    COGNITION_DELAY: float = float(os.getenv("COGNITION_DELAY", "0.0"))
+    
     # LLM Configuration
     LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "openai").lower()
     OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", None)

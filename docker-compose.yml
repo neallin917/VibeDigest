@@ -47,7 +47,7 @@ services:
       - POSTGRES_URI=postgresql://postgres:password@postgres:5432/langgraph
       - REDIS_URI=redis://redis:6379
       - PYTHONPATH=/deps/backend
-      - LANGSERVE_GRAPHS={"agent":"agent.chat_graph:graph","dummy":"dummy_graph:graph"}
+      - LANGSERVE_GRAPHS={"agent":"agent.chat_graph:graph"}
     env_file:
       - .env
       - ./backend/.env
