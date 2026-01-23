@@ -79,12 +79,14 @@ def create_chat_model(model_name: str, temperature: Optional[float] = None, **kw
         
         # Note: ChatLiteLLM expects parameters compatible with LiteLLM.
         # It doesn't strictly need api_key provided if env vars are set.
-        return ChatLiteLLM(
+
+        # Use our RateLimitAware wrapper instead of standard ChatLiteLLM
+        return RateLimitAwareChatLiteLLM(
             model=model_name,
             temperature=temperature,
             **kwargs
         )
-    
+
     # 2. Standard OpenAI Fallback
     api_key = os.getenv("OPENAI_API_KEY")
     base_url = os.getenv("OPENAI_BASE_URL")
@@ -98,4 +100,50 @@ def create_chat_model(model_name: str, temperature: Optional[float] = None, **kw
         temperature=temperature,
         **kwargs
     )
+
+
+import re
+import asyncio
+from langchain_litellm import ChatLiteLLM
+from typing import List, Optional, Any
+
+class RateLimitAwareChatLiteLLM(ChatLiteLLM):
+    """
+    Custom wrapper around ChatLiteLLM that parses 'Please wait X seconds'
+    error messages and automatically retries after sleeping.
+    """
+
+    async def _agenerate(
+        self,
+        messages: List[Any],
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[Any] = None,
+        **kwargs: Any,
+    ) -> Any:
+        # Retry loop parameters
+        max_retries = 3
+        current_attempt = 0
+
+        while True:
+            try:
+                # Call parent method
+                return await super()._agenerate(messages, stop, run_manager, **kwargs)
+            except Exception as e:
+                current_attempt += 1
+                error_str = str(e)
+
+                # Check for rate limit message
+                wait_match = re.search(r"wait (\d+)s", error_str, re.IGNORECASE)
+
+                if wait_match and current_attempt <= max_retries:
+                    wait_seconds = int(wait_match.group(1)) + 2  # Add 2s buffer
+                    logger.warning(
+                        f"Rate limit hit. API requested wait: {wait_seconds}s. "
+                        f"Retrying ({current_attempt}/{max_retries})..."
+                    )
+                    await asyncio.sleep(wait_seconds)
+                    continue
+
+                # If no match or retries exhausted, re-raise
+                raise e
 

@@ -427,7 +427,12 @@ async def _run_classify(transcript_text: str, task_id: str, video_url: str, user
         return e
 
 
-async def _run_summarize(transcript_text: str, task_id: str, user_id: str):
+async def _run_summarize(
+    transcript_text: str,
+    task_id: str,
+    user_id: str,
+    classification_result: Optional[Dict[str, Any]] = None,
+):
     try:
         logger.info("Cognition: Starting summarization...")
         trace_meta = {
@@ -435,7 +440,11 @@ async def _run_summarize(transcript_text: str, task_id: str, user_id: str):
             "user_id": str(user_id),
             "metadata": {"node": "cognition_summarize"},
         }
-        summary = await summarizer.summarize(transcript_text, trace_metadata=trace_meta)
+        summary = await summarizer.summarize(
+            transcript_text,
+            trace_metadata=trace_meta,
+            existing_classification=classification_result,
+        )
 
         content = (
             summary.model_dump_json()
@@ -488,7 +497,10 @@ async def cognition(state: VideoProcessingState) -> Dict:
             await asyncio.sleep(settings.COGNITION_DELAY)
 
         # 2. Summarize
-        summary_res = await _run_summarize(transcript_text, task_id, state["user_id"])
+        # PASS CLASSIFICATION RESULT TO AVOID REDUNDANT LLM CALLS
+        summary_res = await _run_summarize(
+            transcript_text, task_id, state["user_id"], classification_result=classification_res
+        )
 
         # Unify results format for processing below
         results: List[Any] = [classification_res, summary_res]

@@ -2,16 +2,16 @@
 import os
 import sys
 import logging
-from dotenv import load_dotenv
+# Add parent dir to path to import utils
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from backend.utils.env_loader import load_env
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("test_litellm")
 
-# Try to load .env manually if not already set (relying on container env first)
-if not os.getenv("LLM_PROVIDER"):
-    logger.info("Loading .env file...")
-    load_dotenv()
+# Load environment variables correctly
+load_env()
 
 try:
     import litellm

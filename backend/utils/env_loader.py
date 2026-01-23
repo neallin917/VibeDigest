@@ -17,10 +17,10 @@ def load_env():
     backend_dir = current_file.parent.parent
     project_root = backend_dir.parent
 
-    env_production = project_root / ".env.production"
+    env_production = project_root / ".env"
     env_local = project_root / ".env.local"
 
-    # Load in order: production first, then local overrides
+    # Load in order: shared config first, then local secrets overrides
     if env_production.exists():
         load_dotenv(dotenv_path=env_production)
     if env_local.exists():
