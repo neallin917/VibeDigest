@@ -49,7 +49,7 @@ temp/
 # Environment variables
 .env
 .env.local
-.env.production
+#.env.production
 backend/.env
 
 # Audio/Video files
