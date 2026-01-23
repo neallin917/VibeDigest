@@ -2,15 +2,13 @@ import asyncio
 import logging
 import os
 import sys
-from dotenv import load_dotenv
 
 # Add backend to path to allow imports
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(backend_dir)
 
-# Load .env from backend directory before importing other modules
-env_path = os.path.join(backend_dir, '.env')
-load_dotenv(env_path)
+from utils.env_loader import load_env
+load_env()
 
 from db_client import DBClient
 from workflow import app as workflow_app

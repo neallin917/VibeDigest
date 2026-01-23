@@ -4,13 +4,12 @@ import json
 import argparse
 import sys
 from pathlib import Path
-from dotenv import load_dotenv
 
 # Add backend to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-# Load environment variables from .env file
-load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
+from utils.env_loader import load_env
+load_env()
 
 from summarizer import Summarizer
 from config import settings

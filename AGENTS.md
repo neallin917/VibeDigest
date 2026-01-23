@@ -311,11 +311,12 @@ All port configurations are defined in the **root `.env`** file. Other `.env` fi
 | **PostgreSQL** | 15432 | N/A (Supabase) | `DB_PORT` |
 | **Redis** | 16379 | N/A | `REDIS_PORT` |
 
-**Configuration Files:**
+**Configuration Files (Shared Config + Local Secrets Pattern):**
 ```
-.env                    # Master config (ports, project name)
-├── frontend/.env.local # Frontend-specific (API URLs, Supabase keys)
-└── backend/.env        # Backend-specific (API keys, secrets)
+.env.production              # Shared config (ports, URLs) - committed to Git
+.env.local                   # Secrets (API keys, passwords) - NOT committed
+├── frontend/.env.production # Frontend shared config - committed to Git
+└── frontend/.env.local      # Frontend secrets - NOT committed
 ```
 
 **Development Workflow:**
