@@ -20,7 +20,8 @@ services:
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     # ---------------------------------------------------------
     env_file:
-      - ./backend/.env
+      - .env.production
+      - .env.local
     environment:
       - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-base}
     extra_hosts:
@@ -49,8 +50,8 @@ services:
       - PYTHONPATH=/deps/backend
       - LANGSERVE_GRAPHS={"agent":"agent.chat_graph:graph"}
     env_file:
-      - .env
-      - ./backend/.env
+      - .env.production
+      - .env.local
 
   postgres:
     image: postgres:16
