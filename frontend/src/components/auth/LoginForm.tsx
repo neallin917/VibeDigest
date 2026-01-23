@@ -95,7 +95,7 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
     }
 
     return (
-        <Card className={`w-full max-w-md relative overflow-hidden transition-all duration-300 backdrop-blur-xl ${className} ${isModal ? 'bg-transparent shadow-none border-0' : 'bg-white/80 dark:bg-black/60 border border-slate-200/60 dark:border-white/10 shadow-xl ring-1 ring-white/60 dark:ring-white/5'}`}>
+        <Card className={`w-full max-w-md relative overflow-hidden transition-all duration-300 backdrop-blur-xl ${isModal ? 'shadow-none border-0' : 'bg-white/80 dark:bg-black/60 border border-slate-200/60 dark:border-white/10 shadow-xl ring-1 ring-white/60 dark:ring-white/5'} ${className}`}>
             {!isModal && (
                 <div className="absolute top-4 right-4 z-10">
                     <LanguageInlineSelect />
