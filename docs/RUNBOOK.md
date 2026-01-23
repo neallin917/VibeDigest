@@ -23,12 +23,34 @@ The application uses Docker Compose for orchestration.
 
 ### Environment Configuration
 
-Ensure the `.env` file is populated on the production server.
+The project follows a **"Config in Git, Secrets in Local"** strategy to minimize manual configuration.
 
-**Key Production Settings:**
+#### 1. Configuration Files
+*   **`.env.production` (Committed to Git)**: Contains all SHARED, non-sensitive configuration (Ports, Public URLs, non-secret keys). **Do not modify secrets here.**
+*   **`.env.local` (Local Only)**: Contains ONLY sensitive secrets (Passwords, Private API Keys).
+
+#### 2. Deployment Setup
+On a fresh server/environment:
+
+1.  **Clone the repository** (This brings in `.env.production`).
+2.  **Create `.env.local`** with the following minimal secrets:
+    ```bash
+    # Database
+    DATABASE_URL=postgresql://...
+    SUPABASE_SERVICE_KEY=...
+
+    # AI Provider
+    OPENAI_API_KEY=...
+
+    # Optional Integrations
+    RESEND_API_KEY=...
+    COINBASE_API_KEY=...
+    ```
+3.  **Deploy**: The `docker-compose.yml` is configured to automatically load `.env.production` first, then override with `.env.local`.
+
+**Key Production Settings (in .env.production):**
 *   `MOCK_MODE=false`
-*   `LOG_LEVEL=INFO` (or `WARN`)
-*   `LLM_PROVIDER=openai` (Ensure valid quota)
+*   `LOG_LEVEL=INFO`
 
 ## Monitoring & Observability
 
