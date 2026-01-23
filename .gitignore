@@ -47,9 +47,11 @@ temp/
 *.temp
 
 # Environment variables
-.env
+# .env is tracked (shared config)
 .env.local
-#.env.production
+.env.production
+.env.test
+.env.test.local
 backend/.env
 
 # Audio/Video files

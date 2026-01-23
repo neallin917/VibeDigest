@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 async def run_test():
     db = DBClient()
-    video_url = "https://www.youtube.com/watch?v=l0h3nAW13ao"
+    video_url = "https://www.youtube.com/watch?v=AmdLVWMdjOk"
     
     logger.info("--- Starting Manual Test ---")
     logger.info(f"Video URL: {video_url}")

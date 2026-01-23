@@ -75,7 +75,7 @@ class ContentClassification(BaseModel):
         ...,
         description="The primary cognitive goal for the reader, e.g. understand, decide, execute, inspire, digest, evaluate, solve, memorize",
     )
-    confidence: float = Field(..., description="Confidence score between 0.0 and 1.0")
+    confidence: float = Field(default=0.0, description="Confidence score between 0.0 and 1.0")
 
 
 class KeyPoint(BaseModel):

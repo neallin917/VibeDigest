@@ -21,15 +21,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 env_local = os.path.join(project_root, ".env.local")
-env_production = os.path.join(project_root, ".env.production")
+env_shared = os.path.join(project_root, ".env")
 
-# Try .env.local first, then .env.production
+# Try .env.local first, then .env
 if os.path.exists(env_local):
     load_dotenv(env_local)
     print(f"Loaded env from: {env_local}")
-elif os.path.exists(env_production):
-    load_dotenv(env_production)
-    print(f"Loaded env from: {env_production}")
+if os.path.exists(env_shared):
+    load_dotenv(env_shared)
+    print(f"Loaded env from: {env_shared}")
 else:
     load_dotenv()
     print("Using default dotenv loading")

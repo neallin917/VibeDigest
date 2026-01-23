@@ -2,5 +2,5 @@
     "graphs": {
         "agent": "./agent/chat_graph.py:graph"
     },
-    "env": "../.env.production"
+    "env": "../.env"
 }

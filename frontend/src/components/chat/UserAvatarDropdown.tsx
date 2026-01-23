@@ -49,7 +49,7 @@ export function UserAvatarDropdown({
       window.google.accounts.id.disableAutoSelect()
     }
     await supabase.auth.signOut()
-    window.location.href = '/login'
+    window.location.href = '/'
   }
 
   const avatarSize = size === "sm" ? "h-8 w-8 text-[10px]" : "h-9 w-9 md:h-10 md:w-10 text-xs"
