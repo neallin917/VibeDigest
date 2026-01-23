@@ -1,87 +1,125 @@
-# Contribution Guide
+# Contributor Guide
+
+Welcome to the VibeDigest project! This guide covers the development workflow, environment setup, and testing procedures.
 
 ## Development Workflow
 
-1.  **Clone & Configure**
-    ```bash
-    git clone <repo>
-    cp .env.example .env
-    # Configure keys in .env (OpenAI, Supabase, etc.)
-    ```
+We follow a strict development workflow to ensure quality and stability.
 
-2.  **Install Dependencies**
-    ```bash
-    make install
-    ```
-    This installs Python requirements for the backend and npm packages for the frontend.
+### 1. Git Workflow
+- **Branching**: Create feature branches from `main` (e.g., `feat/user-auth`, `fix/login-bug`).
+- **Commits**: Use conventional commits format:
+  ```text
+  <type>: <description>
 
-3.  **Start Development Environment**
-    ```bash
-    make start-dev
-    ```
-    Starts the backend in Docker with hot-reloading and the frontend locally.
+  <optional body>
+  ```
+  Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`.
+- **Pull Requests**:
+  - Use `git diff [base-branch]...HEAD` to review all changes.
+  - Draft a comprehensive summary.
+  - Include a test plan.
 
-4.  **Testing**
-    *   **All Tests:** `make test`
-    *   **Backend:** `make test-backend` (Pytest)
-    *   **Frontend:** `make test-frontend` (Vitest)
-
-5.  **Code Quality**
-    *   **Lint:** `make lint`
-    *   **Format:** Prettier (Frontend) / Ruff (Backend - auto-checked on commit if hooks enabled)
-
-## Scripts Reference
-
-### Global Commands (Makefile)
-
-| Command | Description |
-| :--- | :--- |
-| `make install` | Install all dependencies (backend & frontend). |
-| `make start-dev` | Start backend (Docker w/ reload) & frontend. |
-| `make start-prod` | Start backend (Docker prod image) & frontend. |
-| `make test` | Run unit & integration tests. |
-| `make lint` | Run linters. |
-| `make clean` | Remove temp files (`__pycache__`, etc.). |
-| `make deploy` | Build production image and start prod containers. |
-
-### Frontend Commands (frontend/package.json)
-
-| Script | Command | Description |
-| :--- | :--- | :--- |
-| `dev` | `python3 ../scripts/workspace_dev.py` | Dev server with workspace management. |
-| `dev:next` | `next dev` | Standard Next.js dev server. |
-| `build` | `next build` | Production build. |
-| `start` | `next start` | Start production server. |
-| `test` | `vitest` | Run unit tests. |
-| `lint` | `eslint` | Run ESLint. |
+### 2. Coding Standards
+- **Immutability**: Always create new objects; never mutate state.
+- **File Organization**: Prefer many small files (200-400 lines) over few large ones.
+- **Error Handling**: Comprehensive `try/catch` blocks with user-friendly messages.
+- **Input Validation**: Use `zod` for all data crossing boundaries.
 
 ## Environment Setup
 
-### Backend (.env)
+### 1. Prerequisites
+- Node.js (v20+)
+- Python (3.10+)
+- Docker & Docker Compose
+- Supabase CLI (optional, for local DB)
 
-The application requires a `.env` file in the root directory. See `.env.example` for the template.
+### 2. Configuration
+We use a **shared config + local secrets** pattern:
 
-**Critical Variables:**
+- `.env.production` — Shared configuration (committed to Git)
+- `.env.local` — Secrets/API keys (never committed)
 
-*   **LLM Provider:** `OPENAI_API_KEY` (or custom provider config).
-*   **Database:** `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `DATABASE_URL`.
-*   **Authentication:** `SUPABASE_KEY` (Anon), `SUPABASE_SERVICE_KEY` (Service Role).
-*   **Frontend:** `FRONTEND_URL` (CORS and redirects).
+```bash
+# 1. Clone will get .env.production automatically (from Git)
 
-### Frontend
+# 2. Create local secrets file (root - for backend/docker)
+cp .env.example .env.local
+# Fill in: OPENAI_API_KEY, SUPABASE_SERVICE_KEY, DATABASE_URL, etc.
 
-Frontend environment variables are handled via Next.js and often mirror the root configuration or use `NEXT_PUBLIC_` prefixes where exposed.
+# 3. Create local secrets file (frontend)
+cp frontend/.env.production frontend/.env.local
+# Fill in: OPENAI_API_KEY, TEST_USER_PASSWORD, etc.
+```
 
-## Git Workflow
+**Key Environment Variables:**
 
-*   **Branching:** `feat/feature-name`, `fix/issue-description`.
-*   **Commits:** Conventional Commits (`feat: ...`, `fix: ...`).
-*   **PRs:** Require CI pass (tests + lint) before merge.
+| Variable | Description |
+|----------|-------------|
+| `OPENAI_API_KEY` | Required for LLM functionality |
+| `SUPABASE_URL` | Database endpoint |
+| `SUPABASE_SERVICE_KEY` | Backend service role key (keep secret!) |
+| `LLM_PROVIDER` | `openai` (default) or `custom` |
+| `SENTRY_DSN` | Error tracking DSN |
+| `LANGFUSE_PUBLIC_KEY` | LLM observability |
 
-## 🧱 Database Migrations
+### 3. Installation
+Use the Makefile to install dependencies for both frontend and backend:
 
-The project uses raw SQL files for Supabase migrations, located in `backend/sql/`.
+```bash
+make install
+```
 
-*   **Pricing schema:** `backend/sql/01_pricing_schema.sql`
-*   **Payment orders (Creem + Coinbase):** `backend/sql/02_payment_orders.sql`
-*   **Stripe to Creem migration:** `backend/sql/03_stripe_to_creem_migration.sql`
+## Available Scripts
+
+We use `make` to orchestrate tasks across the monorepo.
+
+### Root Commands (Makefile)
+
+| Command | Description |
+|---------|-------------|
+| `make install` | Install both backend (pip) and frontend (npm) dependencies |
+| `make start-dev` | Start backend in Docker with hot-reload |
+| `make start-frontend` | Start the Next.js frontend development server |
+| `make start-prod` | Start backend in Docker (Production mode, immutable image) |
+| `make stop` | Stop all running Docker containers |
+| `make restart-dev` | Restart backend Docker container (Dev mode) |
+| `make deploy` | Build and deploy production images |
+| `make verify` | Run connection tests for LLM and Workflow |
+| `make clean` | Clean up temporary files (`__pycache__`, etc.) |
+
+### Frontend Commands (`frontend/package.json`)
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Build production application |
+| `npm run lint` | Run ESLint |
+| `npm run test` | Run unit tests (Vitest) |
+| `npm run test:cov` | Run tests with coverage report |
+
+## Testing Procedures
+
+We require **80% test coverage** for all new features.
+
+### Running Tests
+```bash
+# Run all tests (Frontend + Backend)
+make test
+
+# Run only backend tests (Pytest)
+make test-backend
+
+# Run only frontend tests (Vitest)
+make test-frontend
+```
+
+### Test Types
+1. **Unit Tests**: Individual functions/components.
+2. **Integration Tests**: API endpoints and database interactions.
+3. **Verification**: Use `make verify` to test actual LLM connectivity.
+
+### Troubleshooting
+- If build fails, analyze the error log.
+- Use `make clean` to remove stale artifacts.
+- Ensure Docker is running for integration tests.

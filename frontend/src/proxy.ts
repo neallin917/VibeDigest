@@ -1,48 +1,18 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-
-// i18n Configuration
-const SUPPORTED_LOCALES = ["en", "zh", "es", "ar", "fr", "ru", "pt", "hi", "ja", "ko"]
-const DEFAULT_LOCALE = "en"
-const COOKIE_NAME = "vd_locale"
+import { match } from '@formatjs/intl-localematcher'
+import Negotiator from 'negotiator'
+import { SUPPORTED_LOCALES, DEFAULT_LOCALE, COOKIE_NAME } from './lib/i18n'
 
 export default async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl
+  // 1. Initialize response
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
 
-  // 1. Route Strategy (i18n)
-  let response: NextResponse
-
-  // Check if pathname already has a locale
-  const pathnameHasLocale = SUPPORTED_LOCALES.some(
-      (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
-  )
-
-  if (pathnameHasLocale) {
-      // Path is already correct, create base response
-      response = NextResponse.next({
-          request: {
-              headers: request.headers,
-          },
-      })
-  } else {
-      // Need rewrite/redirect: Get locale from cookie or default
-      let locale = DEFAULT_LOCALE
-      const cookieLocale = request.cookies.get(COOKIE_NAME)?.value
-      if (cookieLocale && SUPPORTED_LOCALES.includes(cookieLocale)) {
-          locale = cookieLocale
-      }
-
-      // Perform Rewrite (renders locale page while keeping URL clean)
-      const url = request.nextUrl.clone()
-      url.pathname = `/${locale}${pathname}`
-      response = NextResponse.rewrite(url, {
-          request: {
-              headers: request.headers,
-          }
-      })
-  }
-
-  // 2. Auth Logic (Supabase)
+  // 2. Refresh Supabase Session
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -52,28 +22,79 @@ export default async function proxy(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          // Update Request Cookies
-          cookiesToSet.forEach(({ name, value, options }) =>
+          cookiesToSet.forEach(({ name, value, options }) => {
             request.cookies.set(name, value)
-          )
-          // Update Response Cookies
-          cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
-          )
+          })
         },
       },
     }
   )
 
-  // 3. Refresh Token
+  // This will refresh session if expired - required for Server Components
   await supabase.auth.getUser()
+
+  // 3. Handle i18n Routing
+  const pathname = request.nextUrl.pathname
+
+  // Skip internal paths and static assets
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname.includes('.') ||
+    pathname.startsWith('/auth/callback') // Allow un-prefixed callback if it happens, though we fixed the redirect
+  ) {
+    return response
+  }
+
+  // Check if there is any supported locale in the pathname
+  const pathnameIsMissingLocale = SUPPORTED_LOCALES.every(
+    (locale) => !pathname.startsWith(`/${locale}/`) && pathname !== `/${locale}`
+  )
+
+  // Redirect if there is no locale
+  if (pathnameIsMissingLocale) {
+    const locale = getLocale(request)
+
+    // Redirect to the same path with locale prefix
+    // e.g. /dashboard -> /en/dashboard
+    return NextResponse.redirect(
+      new URL(
+        `/${locale}${pathname.startsWith('/') ? '' : '/'}${pathname}`,
+        request.url
+      )
+    )
+  }
 
   return response
 }
 
+function getLocale(request: NextRequest): string {
+  // 1. Check cookie preference
+  const cookieLocale = request.cookies.get(COOKIE_NAME)?.value
+  if (cookieLocale && SUPPORTED_LOCALES.includes(cookieLocale as any)) {
+    return cookieLocale
+  }
+
+  // 2. Check Accept-Language header
+  const headers = { 'accept-language': request.headers.get('accept-language') || '' }
+  const languages = new Negotiator({ headers }).languages()
+
+  try {
+    return match(languages, SUPPORTED_LOCALES as unknown as string[], DEFAULT_LOCALE)
+  } catch (e) {
+    return DEFAULT_LOCALE
+  }
+}
+
 export const config = {
   matcher: [
-    // Exclude static files, APIs, and Next.js internals
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

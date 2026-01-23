@@ -7,9 +7,8 @@ import logging
 # Add backend to path
 sys.path.append(os.path.join(os.getcwd(), "backend"))
 
-# Load env vars
-from dotenv import load_dotenv
-load_dotenv(os.path.join(os.getcwd(), "backend", ".env"))
+from utils.env_loader import load_env
+load_env()
 
 # Import workflow
 from workflow import build_graph, VideoProcessingState

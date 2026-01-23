@@ -1,13 +1,12 @@
 import sys
 import os
 import asyncio
-from dotenv import load_dotenv
 
 # Add backend to sys.path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-# Load .env explicitly
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+from utils.env_loader import load_env
+load_env()
 
 from config import settings
 from utils.openai_client import create_chat_model

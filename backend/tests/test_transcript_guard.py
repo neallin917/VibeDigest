@@ -2,12 +2,12 @@ import sys
 import os
 import asyncio
 from pathlib import Path
-from dotenv import load_dotenv
 
 # Setup path
 sys.path.append(str(Path(__file__).parent.parent))
-env_path = Path(__file__).parent.parent / ".env"
-load_dotenv(env_path)
+
+from utils.env_loader import load_env
+load_env()
 
 from transcript_guard import TranscriptGuard
 

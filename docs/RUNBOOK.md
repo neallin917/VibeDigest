@@ -1,107 +1,103 @@
-# Runbook
+# Runbook: VibeDigest Operations
+
+This document outlines the procedures for deploying, monitoring, and maintaining the VibeDigest application.
 
 ## Deployment Procedures
 
-The application uses Docker Compose for orchestration.
-
 ### Production Deployment
+The application is containerized using Docker.
 
-1.  **Build & Deploy**
-    ```bash
-    make deploy
-    ```
-    This command:
-    1.  Builds the production Docker image (`transcriber-backend:prod`) using `release-prod`.
-    2.  Starts containers using `docker-compose.prod.yml`.
+1. **Build & Start**:
+   ```bash
+   make deploy
+   ```
+   This command executes `release-prod` (builds image) followed by `start-prod` (runs container).
 
-2.  **Verify Status**
-    ```bash
-    docker ps
-    # Check logs
-    docker logs vibe-digest-backend
-    ```
+2. **Verify Deployment**:
+   After deployment, verify the services are running:
+   ```bash
+   docker ps
+   # Check logs
+   docker logs vibedigest-backend-1
+   ```
 
-### Environment Configuration
+3. **Database Migrations**:
+   Ensure Supabase migrations are applied (currently managed via Supabase CLI or dashboard).
 
-The project follows a **"Config in Git, Secrets in Local"** strategy to minimize manual configuration.
+### Rollback Strategy
+If a deployment fails or introduces critical bugs:
 
-#### 1. Configuration Files
-*   **`.env.production` (Committed to Git)**: Contains all SHARED, non-sensitive configuration (Ports, Public URLs, non-secret keys). **Do not modify secrets here.**
-*   **`.env.local` (Local Only)**: Contains ONLY sensitive secrets (Passwords, Private API Keys).
+1. **Stop Current Containers**:
+   ```bash
+   make stop
+   ```
+2. **Revert to Previous Image**:
+   Modify `docker-compose.prod.yml` to point to the previous working tag or rebuild from the previous git commit.
+3. **Restart**:
+   ```bash
+   make start-prod
+   ```
 
-#### 2. Deployment Setup
-On a fresh server/environment:
+## Monitoring and Observability
 
-1.  **Clone the repository** (This brings in `.env.production`).
-2.  **Create `.env.local`** with the following minimal secrets:
-    ```bash
-    # Database
-    DATABASE_URL=postgresql://...
-    SUPABASE_SERVICE_KEY=...
+The system uses several tools for observability. Ensure these environment variables are set.
 
-    # AI Provider
-    OPENAI_API_KEY=...
+### Error Tracking (Sentry)
+- **Frontend**: Reports client-side errors.
+- **Backend**: Reports API and worker exceptions.
+- **Check**: Log into Sentry dashboard to view active issues.
+- **Config**: `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`.
 
-    # Optional Integrations
-    RESEND_API_KEY=...
-    COINBASE_API_KEY=...
-    ```
-3.  **Deploy**: The `docker-compose.yml` is configured to automatically load `.env.production` first, then override with `.env.local`.
-
-**Key Production Settings (in .env.production):**
-*   `MOCK_MODE=false`
-*   `LOG_LEVEL=INFO`
-
-## Monitoring & Observability
+### LLM Observability (Langfuse / LangSmith)
+- Traces LLM calls, costs, and latency.
+- **Config**:
+  - `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY`
+  - `LANGCHAIN_TRACING_V2=true`
 
 ### Logging
-*   **Container Logs:** `docker logs -f <container_id>`
-*   **Log Level:** Controlled via `LOG_LEVEL` env var.
-
-### Sentry (Error Tracking)
-*   **DSN:** Configured via `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`.
-*   Captures unhandled exceptions in both Backend (FastAPI) and Frontend (Next.js).
-
-### LLM Tracing (LangSmith / LangFuse)
-*   **LangSmith:** Enabled if `LANGCHAIN_TRACING_V2=true`. Tracks chain execution latency and token usage.
-*   **LangFuse:** Enabled via `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY`.
+- **Level**: Configured via `LOG_LEVEL` (default: `INFO`).
+- **Access**:
+  ```bash
+  docker logs -f <container_id>
+  ```
 
 ## Common Issues & Fixes
 
-### 1. Database Connection Failures
-*   **Symptom:** 500 Errors, "Connection refused".
-*   **Check:** `DATABASE_URL` format. Ensure it points to the connection pooler (port 6543) for transactional workloads if using Supabase.
-*   **Fix:** Verify Supabase project status and IP allowlists.
+### 1. LLM Connection Failures
+**Symptoms**: Summarization fails, timeout errors.
+**Fix**:
+1. Run verification script:
+   ```bash
+   make verify
+   ```
+2. Check `OPENAI_API_KEY` validity.
+3. Verify `OPENAI_BASE_URL` if using a proxy.
 
-### 2. LLM Rate Limits
-*   **Symptom:** 429 Errors from OpenAI.
-*   **Check:** `OPENAI_API_KEY` quota usage.
-*   **Fix:** Rotate keys or request quota increase. Switch providers via `LLM_PROVIDER` if necessary.
+### 2. Docker Container Crashes
+**Symptoms**: API unreachable, container status `Exited`.
+**Fix**:
+- Check memory usage.
+- Review logs for unhandled exceptions during startup.
+- Ensure `SUPABASE_SERVICE_KEY` is present.
 
-### 3. Docker Container Crashes
-*   **Symptom:** Container exits immediately.
-*   **Check:** `docker logs <container>`. Often due to missing mandatory env vars (e.g., `SUPABASE_SERVICE_KEY`).
+### 3. Frontend Build Errors
+**Symptoms**: `npm run build` fails.
+**Fix**:
+- Run type checking locally: `tsc --noEmit`.
+- Check for environment variable mismatches between local and build env.
 
-## Rollback Procedures
+## Maintenance Tasks
 
-If a deployment fails:
+### Cleaning Up
+Remove temporary files and build artifacts:
+```bash
+make clean
+```
 
-1.  **Revert Code**
-    ```bash
-    git revert HEAD
-    git push origin main
-    ```
+### Database Backups
+(Managed via Supabase Platform)
+- Ensure Point-in-Time Recovery (PITR) is enabled in Supabase settings.
 
-2.  **Redeploy Previous Image**
-    If the previous image tag is preserved:
-    ```bash
-    # (Optional) Retag previous image if versioned
-    docker stop <container>
-    docker run -d <previous_image>
-    ```
-    *Currently, `make deploy` overwrites `transcriber-backend:prod`. For safer rollbacks, implement semantic versioning for docker images.*
+## Support
 
-3.  **Restart Services**
-    ```bash
-    make restart-prod
-    ```
+For critical incidents, contact the engineering lead or refer to the internal escalation policy.

@@ -13,8 +13,16 @@ from urllib.parse import urlparse, urlunparse
 from dotenv import load_dotenv
 
 # Load environment variables before other local imports
-env_path = Path(__file__).parent / ".env"
-load_dotenv(dotenv_path=env_path)
+# Priority: .env.local (secrets) > .env.production (shared config)
+project_root = Path(__file__).parent.parent
+env_local = project_root / ".env.local"
+env_production = project_root / ".env.production"
+
+# Load in order: production first, then local overrides
+if env_production.exists():
+    load_dotenv(dotenv_path=env_production)
+if env_local.exists():
+    load_dotenv(dotenv_path=env_local, override=True)
 
 import httpx
 from coinbase_commerce.client import Client as CoinbaseClient
