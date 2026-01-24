@@ -1,7 +1,6 @@
 import os
 import sys
 from datetime import datetime
-import json
 
 # Add backend to path so we can import db_client
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -9,7 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from dotenv import load_dotenv
 load_dotenv()
 
-from db_client import DBClient
+from db_client import DBClient  # noqa: E402
 
 def parse_time(ts_str):
     if not ts_str:

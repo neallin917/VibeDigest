@@ -4,7 +4,6 @@ from typing import Optional, List, Dict, Any, Tuple
 import json
 import asyncio
 from config import settings
-from utils.openai_client import get_openai_client
 from utils.text_utils import (
     count_words_or_units,
     find_early_punctuation_split,
@@ -375,7 +374,7 @@ class Transcriber:
             from utils.openai_client import get_async_openai_client
             self.client = get_async_openai_client()
             if self.client:
-                logger.info(f"OpenAI Async Client initialized (Transcriber)")
+                logger.info("OpenAI Async Client initialized (Transcriber)")
             else:
                 raise ValueError("未找到 OPENAI_API_KEY 环境变量")
 
@@ -401,7 +400,7 @@ class Transcriber:
         Returns:
             (markdown_text, raw_segments_json, detected_language)
         """
-        from contextlib import nullcontext, asynccontextmanager
+        from contextlib import nullcontext
         
         # Langfuse V3: Create a span for Whisper transcription
         # Langfuse async wrapper handles context automatically if we use the wrapped client.
@@ -432,7 +431,7 @@ class Transcriber:
         # Actually langfuse observation is a context manager, not async context manager.
         # We can wrap it.
         
-        with observation_ctx as gen:
+        with observation_ctx:
             try:
                 # 检查文件是否存在
                 if not os.path.exists(audio_path):

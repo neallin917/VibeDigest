@@ -5,11 +5,11 @@ import asyncio
 # Add backend to sys.path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from utils.env_loader import load_env
+from utils.env_loader import load_env  # noqa: E402
 load_env()
 
-from config import settings
-from utils.openai_client import create_chat_model
+from config import settings  # noqa: E402
+from utils.openai_client import create_chat_model  # noqa: E402
 
 def verify_config():
     print("\n=== 1. Checking Configuration Loading ===")

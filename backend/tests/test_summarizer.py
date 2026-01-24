@@ -18,7 +18,7 @@ sys.modules["langchain_openai"] = MagicMock()
 sys.modules["langchain_core"] = MagicMock()
 sys.modules["langchain_core.messages"] = MagicMock()
 
-from summarizer import Summarizer
+from summarizer import Summarizer  # noqa: E402
 
 
 # --- FIXTURES ---

@@ -5,10 +5,8 @@ import hmac
 import json
 import logging
 import os
-import uuid
 from pathlib import Path
-from typing import Optional, List, Any
-from urllib.parse import urlparse, urlunparse
+from typing import Optional, Any
 
 from dotenv import load_dotenv
 
@@ -24,15 +22,13 @@ if env_shared.exists():
 if env_local.exists():
     load_dotenv(dotenv_path=env_local, override=True)
 
-import httpx
-from coinbase_commerce.client import Client as CoinbaseClient
-from coinbase_commerce.webhook import Webhook as CoinbaseWebhook
-from dotenv import load_dotenv
-from fastapi import (
+import httpx  # noqa: E402
+from coinbase_commerce.client import Client as CoinbaseClient  # noqa: E402
+from coinbase_commerce.webhook import Webhook as CoinbaseWebhook  # noqa: E402
+from dotenv import load_dotenv  # noqa: E402
+from fastapi import (  # noqa: E402
     FastAPI,
     HTTPException,
-    UploadFile,
-    File,
     Form,
     Header,
     BackgroundTasks,
@@ -40,22 +36,20 @@ from fastapi import (
     Body,
     Request,
 )
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-import sentry_sdk
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from pydantic import BaseModel  # noqa: E402
+import sentry_sdk  # noqa: E402
 
-from config import settings
-from db_client import DBClient
-from notifier import Notifier
-from supadata_client import SupadataClient
-from summarizer import Summarizer
-from transcriber import Transcriber, format_markdown_from_raw_segments
-from translator import Translator
-from video_processor import VideoProcessor
-from utils.url import normalize_video_url
-from workflow import app as workflow_app
+from config import settings  # noqa: E402
+from db_client import DBClient  # noqa: E402
+from notifier import Notifier  # noqa: E402
+from supadata_client import SupadataClient  # noqa: E402
+from summarizer import Summarizer  # noqa: E402
+from transcriber import Transcriber, format_markdown_from_raw_segments  # noqa: E402
+from translator import Translator  # noqa: E402
+from video_processor import VideoProcessor  # noqa: E402
+from utils.url import normalize_video_url  # noqa: E402
+from workflow import app as workflow_app  # noqa: E402
 
 
 # Langfuse V3 setup moved to Background Workers section below
@@ -97,7 +91,7 @@ async def startup_event():
         lf = get_client()
         if lf:
             lf.flush()
-    except:
+    except Exception:
         pass
 
 
@@ -372,7 +366,6 @@ async def creem_webhook(request: Request):
         user_id = metadata.get("user_id")
         customer = obj.get("customer", {})
         customer_id = customer.get("id") if isinstance(customer, dict) else customer
-        order = obj.get("order", {})
         product = obj.get("product", {})
         subscription = obj.get("subscription", {})
 

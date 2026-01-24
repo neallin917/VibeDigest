@@ -2,7 +2,6 @@
 Centralized environment variable loader.
 Priority: .env.local (secrets) > .env.production (shared config)
 """
-import os
 from pathlib import Path
 from dotenv import load_dotenv
 

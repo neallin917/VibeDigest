@@ -23,7 +23,7 @@ def verify_llm():
     print("----------------------------------------------------------------")
     print("🔍 Testing LLM Connection inside Docker")
     print("----------------------------------------------------------------")
-    print(f"Configuration:")
+    print("Configuration:")
     print(f"  Provider:     {settings.LLM_PROVIDER}")
     print(f"  Base URL:     {settings.OPENAI_BASE_URL}")
     print(f"  API Key:      {settings.OPENAI_API_KEY[:5]}***" if settings.OPENAI_API_KEY else "  API Key:      None")
@@ -41,7 +41,7 @@ def verify_llm():
         response = chat.invoke(messages)
         
         print("----------------------------------------------------------------")
-        print(f"✅ Response Received:")
+        print("✅ Response Received:")
         print(f"{response.content}")
         print("----------------------------------------------------------------")
         print("✅ LLM Connection Successful!")
@@ -49,7 +49,7 @@ def verify_llm():
 
     except Exception as e:
         print("----------------------------------------------------------------")
-        print(f"❌ LLM Connection Failed!")
+        print("❌ LLM Connection Failed!")
         print(f"Error Type: {type(e).__name__}")
         print(f"Error Message: {str(e)}")
         print("----------------------------------------------------------------")

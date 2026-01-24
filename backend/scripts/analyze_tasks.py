@@ -1,17 +1,15 @@
 import os
 import sys
-import json
-from datetime import datetime
 from dateutil import parser
 # Add parent directory to path to allow importing from backend
 current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.dirname(current_dir)
 sys.path.append(backend_dir)
 
-from utils.env_loader import load_env
+from utils.env_loader import load_env  # noqa: E402
 load_env()
 
-from db_client import DBClient
+from db_client import DBClient  # noqa: E402
 
 def calculate_duration(start, end):
     if not start or not end:
@@ -20,7 +18,7 @@ def calculate_duration(start, end):
         start_time = parser.parse(start)
         end_time = parser.parse(end)
         return (end_time - start_time).total_seconds()
-    except Exception as e:
+    except Exception:
         return None
 
 def main():

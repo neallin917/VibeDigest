@@ -1,15 +1,14 @@
 import asyncio
-import os
 import sys
 from pathlib import Path
 
 # Add backend to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from utils.env_loader import load_env
+from utils.env_loader import load_env  # noqa: E402
 load_env()
 
-from summarizer import Summarizer
+from summarizer import Summarizer  # noqa: E402
 
 async def test_summarizer():
     print("Initializing Summarizer...")

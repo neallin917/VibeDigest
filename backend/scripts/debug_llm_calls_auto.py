@@ -34,8 +34,8 @@ else:
     load_dotenv()
     print("Using default dotenv loading")
 
-from config import settings
-from summarizer import Summarizer
+from config import settings  # noqa: E402
+from summarizer import Summarizer  # noqa: E402
 
 # ANSI colors for terminal output
 class Colors:
@@ -218,12 +218,12 @@ async def test_step_by_step():
             print(f"\n{Colors.RED}{Colors.BOLD}{'='*60}")
             print("🚨 RATE LIMIT DETECTED!")
             print("="*60)
-            print(f"This confirms the bug:")
-            print(f"  - Step 1 called classify_content() ✓")
-            print(f"  - Step 2's summarize() called classify_content() AGAIN internally")
-            print(f"  - Total: 3 LLM calls in quick succession -> RATE LIMITED")
-            print(f"")
-            print(f"FIX: Pass existing_classification to summarize()")
+            print("This confirms the bug:")
+            print("  - Step 1 called classify_content() ✓")
+            print("  - Step 2's summarize() called classify_content() AGAIN internally")
+            print("  - Total: 3 LLM calls in quick succession -> RATE LIMITED")
+            print("")
+            print("FIX: Pass existing_classification to summarize()")
             print(f"{'='*60}{Colors.RESET}\n", flush=True)
 
     # ============================================================

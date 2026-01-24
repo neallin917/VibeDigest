@@ -1,15 +1,14 @@
 import sys
-import os
 import asyncio
 from pathlib import Path
 
 # Setup path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from utils.env_loader import load_env
+from utils.env_loader import load_env  # noqa: E402
 load_env()
 
-from transcript_guard import TranscriptGuard
+from transcript_guard import TranscriptGuard  # noqa: E402
 
 async def test_guard_scenarios():
     guard = TranscriptGuard()

@@ -1,38 +1,27 @@
 import os
 from stop_words import get_stop_words
 import logging
-import asyncio
-from typing import Optional, Any, List, Dict, Set, Union, Tuple
+from typing import Optional, Any, List, Dict, Set, Tuple
 import json
 import re
 from pydantic import BaseModel, Field
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from config import settings
-from utils.openai_client import get_openai_client
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, BaseMessage
 from utils.text_utils import (
     LANGUAGE_MAP,
-    get_language_name,
-    count_words_or_units,
     ensure_markdown_paragraphs,
-    is_cjk_language,
     remove_timestamps_and_meta,
     remove_transcript_heading,
     enforce_paragraph_max_chars,
     extract_pure_text,
-    split_into_sentences,
-    join_sentences,
     detect_language,
-    smart_chunk_text,
 )
 from prompts import (
     OPTIMIZE_TRANSCRIPT_SYSTEM_ZH,
     OPTIMIZE_TRANSCRIPT_USER_ZH,
     OPTIMIZE_TRANSCRIPT_SYSTEM_EN,
     OPTIMIZE_TRANSCRIPT_USER_EN,
-    CHUNK_OPTIMIZE_SYSTEM,
-    CHUNK_OPTIMIZE_USER,
     ORGANIZE_PARAGRAPHS_SYSTEM,
     ORGANIZE_PARAGRAPHS_USER,
     ORGANIZE_CHUNK_SYSTEM,
@@ -43,8 +32,6 @@ from prompts import (
     SUMMARY_CHUNK_USER,
     SUMMARY_INTEGRATE_SYSTEM,
     SUMMARY_INTEGRATE_USER,
-    JSON_REPAIR_SYSTEM,
-    JSON_REPAIR_USER,
     TRANSLATE_JSON_SYSTEM,
     CONTENT_CLASSIFIER_SYSTEM,
     CONTENT_CLASSIFIER_USER,
@@ -53,8 +40,6 @@ from prompts import (
     FORM_SUPPLEMENTS,
     SUMMARY_V2_SYSTEM_TEMPLATE,
     SUMMARY_V2_USER_TEMPLATE,
-    COMPREHENSION_BRIEF_SYSTEM,
-    COMPREHENSION_BRIEF_USER,
 )
 
 logger = logging.getLogger(__name__)
@@ -1041,7 +1026,7 @@ class Summarizer:
             return "unknown", []
         try:
             payload = json.loads(script_raw_json)
-        except:
+        except Exception:
             return "unknown", []
         if not isinstance(payload, dict):
             return "unknown", []
@@ -1059,7 +1044,7 @@ class Summarizer:
                 text = str(s.get("text", "")).strip()
                 if text:
                     out.append({"start": start, "end": end, "text": text})
-            except:
+            except Exception:
                 continue
         return lang, out
 
@@ -1110,7 +1095,7 @@ class Summarizer:
             if target == "unknown":
                 target = "en"
             stop_words = set(get_stop_words(target))
-        except:
+        except Exception:
             # Fallback to English if language not supported or error
             stop_words = {
                 "the",
@@ -1309,12 +1294,12 @@ class Summarizer:
                 kp["endSeconds"] = float(
                     segments[end_idx].get("end", kp["startSeconds"]) or 0.0
                 )
-            except:
+            except Exception:
                 continue
 
         try:
             summary_obj["version"] = max(int(summary_obj.get("version", 1) or 1), 2)
-        except:
+        except Exception:
             summary_obj["version"] = 2
         return summary_obj
 
@@ -1349,7 +1334,7 @@ class Summarizer:
                 obj = self._inject_keypoint_timestamps(obj, segments, lang=lang_code)
                 return json.dumps(obj, ensure_ascii=False)
             return base
-        except:
+        except Exception:
             return base
 
     def _validate_summary_json_v1(self, obj: Dict[str, Any], target_language: str) -> Dict[str, Any]:
@@ -1392,7 +1377,7 @@ class Summarizer:
             return summary_json
         try:
             src_obj = json.loads(summary_json)
-        except:
+        except Exception:
             return summary_json
         if not isinstance(src_obj, dict):
             return summary_json
@@ -1492,7 +1477,7 @@ class Summarizer:
                     )
                     if repaired:
                         return repaired
-                except:
+                except Exception:
                     pass
             return self._fallback_summary_json_v1(transcript, target_language)
 
@@ -1623,6 +1608,6 @@ class Summarizer:
                     )
                     if repaired:
                         return repaired
-                except:
+                except Exception:
                     pass
             return self._fallback_summary_json_v1(combined, target_language)

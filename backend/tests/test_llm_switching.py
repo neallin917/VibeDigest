@@ -1,6 +1,4 @@
-import os
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from config import settings
 from utils.openai_client import create_chat_model
 
@@ -13,7 +11,7 @@ class TestLLMSwitching:
 
         # Case 1: Default (OpenAI)
         with patch.object(settings, 'LLM_PROVIDER', 'openai'):
-            model = create_chat_model("gpt-4o")
+            create_chat_model("gpt-4o")
             mock_chat_openai.assert_called()
             mock_rate_limit_llm.assert_not_called()
 
@@ -22,7 +20,7 @@ class TestLLMSwitching:
 
         # Case 2: Custom Provider (e.g. Ollama)
         with patch.object(settings, 'LLM_PROVIDER', 'ollama'):
-            model = create_chat_model("gpt-4o")
+            create_chat_model("gpt-4o")
             mock_rate_limit_llm.assert_called()
             mock_chat_openai.assert_not_called()
 
@@ -32,7 +30,7 @@ class TestLLMSwitching:
         with patch.object(settings, 'LLM_PROVIDER', 'custom'):
             # Simulate config using an alias
             aliased_model = "ollama/llama3"
-            model = create_chat_model(aliased_model)
+            create_chat_model(aliased_model)
 
             mock_rate_limit_llm.assert_called_with(
                 model=aliased_model,

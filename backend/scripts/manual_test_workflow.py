@@ -7,12 +7,12 @@ import sys
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(backend_dir)
 
-from utils.env_loader import load_env
+from utils.env_loader import load_env  # noqa: E402
 load_env()
 
-from db_client import DBClient
-from workflow import app as workflow_app
-from config import settings
+from db_client import DBClient  # noqa: E402
+from workflow import app as workflow_app  # noqa: E402
+from config import settings  # noqa: E402
 
 # Configure Logging to stdout
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

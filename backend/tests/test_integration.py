@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from httpx import AsyncClient
 from sqlalchemy import text
 from main import app, get_current_user, db_client

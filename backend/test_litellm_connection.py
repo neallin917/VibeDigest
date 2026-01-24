@@ -31,14 +31,14 @@ def test_connection():
     base_url = os.getenv("OPENAI_BASE_URL")
     model_alias_fast = os.getenv("MODEL_ALIAS_FAST", "gpt-4o-mini")
 
-    logger.info(f"--- Configuration ---")
+    logger.info("--- Configuration ---")
     logger.info(f"LLM_PROVIDER: {provider}")
     logger.info(f"OPENAI_BASE_URL: {base_url}")
     # Mask API key for security in logs
     masked_key = f"{api_key[:5]}...{api_key[-5:]}" if api_key and len(api_key) > 10 else "None"
     logger.info(f"OPENAI_API_KEY: {masked_key}")
     logger.info(f"Model to test: {model_alias_fast}")
-    logger.info(f"---------------------")
+    logger.info("---------------------")
 
     # 2. Configure LiteLLM
     if provider != "openai":
@@ -67,7 +67,7 @@ def test_connection():
         logger.info(f"Model Used: {response.model}")
         
     except Exception as e:
-        logger.error(f"--- Failure ---")
+        logger.error("--- Failure ---")
         logger.error(f"Error details: {str(e)}")
         sys.exit(1)
 
