@@ -2,7 +2,7 @@ import os
 import yt_dlp
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict, Any, Tuple
 import re
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
@@ -16,11 +16,18 @@ class VideoProcessor:
     
     def __init__(self):
         # A conservative desktop UA helps with providers that block default agents.
-        self._default_user_agent = (
+        self._default_user_agent = os.getenv(
+            "YTDLP_USER_AGENT",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
+            "Chrome/120.0.0.0 Safari/537.36",
         )
+        self._cookie_file = os.getenv("YTDLP_COOKIE_FILE", "").strip()
+        self._proxy = os.getenv("YTDLP_PROXY", "").strip()
+        # Defensive: Filter out invalid proxy strings that might come from misconfigured envs
+        if self._proxy.lower() in ("undefined", "null", "none", "false"):
+            self._proxy = ""
+
         self.ydl_opts = {
             'format': 'bestaudio/best',  # 优先下载最佳音频源
             'outtmpl': '%(title)s.%(ext)s',
@@ -38,7 +45,15 @@ class VideoProcessor:
             'noplaylist': True,  # 强制只下载单个视频，不下载播放列表
         }
 
-    def _build_http_headers(self, url: str) -> dict:
+    def _ydl_overrides(self) -> Dict[str, str]:
+        overrides = {}
+        if self._cookie_file:
+            overrides["cookiefile"] = self._cookie_file
+        if self._proxy:
+            overrides["proxy"] = self._proxy
+        return overrides
+
+    def _build_http_headers(self, url: str) -> Dict[str, str]:
         """
         Build best-effort headers to reduce 403/anti-bot blocks.
         For Bilibili, optionally inject cookies via env:
@@ -121,12 +136,12 @@ class VideoProcessor:
         m = self._fetch_xiaoyuzhou_metadata(page_url, timeout_seconds)
         return m.get("thumbnail")
 
-    def _fetch_xiaoyuzhou_metadata(self, page_url: str, timeout_seconds: float = 8.0) -> dict:
+    def _fetch_xiaoyuzhou_metadata(self, page_url: str, timeout_seconds: float = 8.0) -> Dict[str, Any]:
         """
         Xiaoyuzhou episode pages embed richer data in __NEXT_DATA__.
         Returns dict with keys: author (podcast title), thumbnail, etc.
         """
-        metadata = {}
+        metadata: Dict[str, Any] = {}
         try:
             req = Request(
                 page_url,
@@ -179,12 +194,12 @@ class VideoProcessor:
             logger.warning(f"解析 xiaoyuzhou metadata 失败（非致命）: {e}")
             return {}
 
-    def _fetch_apple_metadata(self, page_url: str, timeout_seconds: float = 8.0) -> dict:
+    def _fetch_apple_metadata(self, page_url: str, timeout_seconds: float = 8.0) -> Dict[str, Any]:
         """
-        Apple Podcast pages often have the author in meta tags or specific classes 
+        Apple Podcast pages often have the author in meta tags or specific classes
         that yt-dlp might miss for direct audio links.
         """
-        metadata = {}
+        metadata: Dict[str, Any] = {}
         try:
              # Basic regex fallback because importing lxml/bs4 might be overkill if not already there
              req = Request(page_url, headers={"User-Agent": "Mozilla/5.0"}, method="GET")
@@ -249,7 +264,7 @@ class VideoProcessor:
         except Exception as e:
             logger.warning(f"Failed to fetch Bilibili avatar for mid={mid}: {e}")
         return None
-    def _enrich_metadata(self, url: str, info: dict) -> None:
+    def _enrich_metadata(self, url: str, info: Dict[str, Any]) -> None:
         """
         Enrich yt-dlp info dict with platform-specific extractions.
         Modifies info in-place.
@@ -261,10 +276,10 @@ class VideoProcessor:
         elif "bilibili" in url:
             self._enrich_bilibili(url, info)
 
-    def _enrich_xiaoyuzhou(self, url: str, info: dict) -> None:
+    def _enrich_xiaoyuzhou(self, url: str, info: Dict[str, Any]) -> None:
         """Enrich Xiaoyuzhou metadata."""
         xyz_meta = self._fetch_xiaoyuzhou_metadata(url)
-        
+
         # Thumbnail hierarchy: API > og:image
         if xyz_meta.get("thumbnail"):
             info["thumbnail"] = xyz_meta.get("thumbnail")
@@ -272,7 +287,7 @@ class VideoProcessor:
             og_image = self._fetch_og_image(url)
             if og_image:
                 info["thumbnail"] = og_image
-        
+
         # Author info
         if xyz_meta.get("author"):
             info["uploader"] = xyz_meta.get("author")
@@ -282,7 +297,7 @@ class VideoProcessor:
         if xyz_meta.get("author_url"):
             info["uploader_url"] = xyz_meta.get("author_url")
 
-    def _enrich_apple(self, url: str, info: dict) -> None:
+    def _enrich_apple(self, url: str, info: Dict[str, Any]) -> None:
         """Enrich Apple Podcasts metadata."""
         if not info.get("uploader") or info.get("uploader") == "Unknown":
             apple_meta = self._fetch_apple_metadata(url)
@@ -291,20 +306,20 @@ class VideoProcessor:
             if apple_meta.get("author_image"):
                 info["uploader_avatar"] = apple_meta.get("author_image")
 
-    def _enrich_bilibili(self, url: str, info: dict) -> None:
+    def _enrich_bilibili(self, url: str, info: Dict[str, Any]) -> None:
         """Enrich Bilibili metadata."""
         # Ensure author_url
         if not info.get("uploader_url") and info.get("uploader_id"):
             mid = str(info.get("uploader_id"))
             if mid.isdigit():
                 info["uploader_url"] = f"https://space.bilibili.com/{mid}"
-                
+
                 # Fetch avatar if missing
                 if not info.get("uploader_avatar"):
                     avatar = self._fetch_bilibili_avatar(mid)
                     if avatar:
                         info["uploader_avatar"] = avatar
-    def _extract_direct_audio_url_from_info(self, info: dict) -> Optional[str]:
+    def _extract_direct_audio_url_from_info(self, info: Dict[str, Any]) -> Optional[str]:
         """
         Best-effort: extract a direct audio URL from yt-dlp info dict.
         This avoids uploading to any storage; frontend can play via <audio src>.
@@ -354,10 +369,10 @@ class VideoProcessor:
         return None
         return None
     
-    async def download_and_convert(self, url: str, output_dir: Path) -> tuple[str, str, Optional[str], Optional[str], dict]:
+    async def download_and_convert(self, url: str, output_dir: Path) -> Tuple[str, str, Optional[str], Optional[str], Dict[str, Any]]:
         """
         下载视频并转换为m4a格式
-        
+
         Returns:
             (audio_file_path, video_title, thumbnail_url, direct_audio_url, metadata_dict)
         """
@@ -374,6 +389,7 @@ class VideoProcessor:
             ydl_opts = self.ydl_opts.copy()
             ydl_opts['outtmpl'] = output_template
             ydl_opts["http_headers"] = self._build_http_headers(url)
+            ydl_opts.update(self._ydl_overrides())
             
             logger.info(f"开始下载视频: {url}")
             
@@ -430,7 +446,7 @@ class VideoProcessor:
                 stdout, stderr = await process.communicate()
                 out = stdout.decode().strip()
                 actual_duration = float(out) if out else 0.0
-            except Exception as _:
+            except Exception:
                 actual_duration = 0.0
             
             if expected_duration and actual_duration and abs(actual_duration - expected_duration) / expected_duration > 0.1:
@@ -501,7 +517,7 @@ class VideoProcessor:
             logger.error(f"下载视频失败: {str(e)}")
             raise Exception(f"下载视频失败: {str(e)}")
 
-    def _parse_vtt(self, vtt_path: Path) -> tuple[str, list[dict]]:
+    def _parse_vtt(self, vtt_path: Path) -> Tuple[str, List[Dict[str, Any]]]:
         """
         Simple VTT parser.
         Returns: (full_text_markdown, segments_list_for_json)
@@ -522,7 +538,7 @@ class VideoProcessor:
         # Buffer for current cue
         current_start = None
         current_end = None
-        current_text = []
+        current_text: List[str] = []
         
         # Regex for VTT timestamps: 00:00:00.000 or 00:00.000
         # timestamp arrow timestamp
@@ -590,7 +606,7 @@ class VideoProcessor:
 
         return "\n\n".join(text_blocks), segments
 
-    async def extract_captions(self, url: str) -> Optional[tuple[str, str, str]]:
+    async def extract_captions(self, url: str) -> Optional[Tuple[str, str, str]]:
         """
         Attempt to download and parse subtitles via yt-dlp.
         Returns: (script_text_with_timestamps, raw_json_str, detected_language) or None
@@ -617,7 +633,9 @@ class VideoProcessor:
             'outtmpl': output_template,
             'quiet': True,
             'no_warnings': True,
+            'http_headers': self._build_http_headers(url),
         }
+        opts.update(self._ydl_overrides())
         
         logger.info(f"Trying yt-dlp subtitle extraction for {url}")
         
@@ -697,7 +715,7 @@ class VideoProcessor:
             logger.warning(f"yt-dlp subtitle extraction failed: {e}")
             return None
 
-    async def extract_info_only(self, url: str) -> dict:
+    async def extract_info_only(self, url: str) -> Dict[str, Any]:
         """
         Extract metadata without downloading the full audio.
         Returns: metadata_dict (includes title, thumbnail, audio_url, etc.)
@@ -714,6 +732,7 @@ class VideoProcessor:
             'extract_flat': False, # We need formats for direct audio url
             'http_headers': self._build_http_headers(url),
         }
+        opts.update(self._ydl_overrides())
         
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
@@ -749,5 +768,3 @@ class VideoProcessor:
         except Exception as e:
             logger.error(f"Metadata extraction failed: {e}")
             raise e
-
-

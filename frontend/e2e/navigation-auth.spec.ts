@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Navigation & Auth Flows', () => {
 
     test.describe('Guest User (Non-logged in)', () => {
-        // 清除 storageState 确保是未登录状态
+        // Clear storageState ensures guest mode
         test.use({ storageState: { cookies: [], origins: [] } });
 
         test('Landing Page: Navigation Links should work', async ({ page }) => {
@@ -67,7 +67,7 @@ test.describe('Navigation & Auth Flows', () => {
 
         test('Protected Routes: Should redirect to Login', async ({ page }) => {
             const protectedPaths = [
-                '/en/dashboard',
+                '/en/chat',
                 '/en/settings',
                 '/en/history'
             ];
@@ -108,24 +108,26 @@ test.describe('Navigation & Auth Flows', () => {
      */
     test.describe('Authenticated User', () => {
 
-        test('4.1 [P0] Dashboard access after login', async ({ page }) => {
+        test('4.1 [P0] Chat access after login', async ({ page }) => {
             // Given: 用户已登录 (storageState)
-            // When: 访问 /dashboard
-            await page.goto('/en/dashboard');
+            // When: 访问 /chat (原 dashboard)
+            await page.goto('/en/chat');
 
-            // Then: 应该停留在 dashboard 而不是被重定向到 login
-            await expect(page).toHaveURL(/.*\/dashboard/);
+            // Then: 应该停留在 chat 而不是被重定向到 login
+            await expect(page).toHaveURL(/.*\/chat/);
 
             // 验证 Sidebar 存在 (History 链接)
-            await expect(page.getByRole('link', { name: /history|历史/i })).toBeVisible({ timeout: 10000 });
+            // Sidebar in Chat interface might be different, but typically still has History or similar.
+            // Let's check for the main input area as a primary indicator of Chat UI
+            await expect(page.getByPlaceholder(/Ask anything|Ask a question/i)).toBeVisible({ timeout: 10000 });
         });
 
         test.skip('4.2 [P0] Logout clears session and redirects', async ({ page }) => {
             // NOTE: Dashboard 可能有错误遮罩阻止用户菜单交互
             // 需要重启 dev server 以应用 next.config.ts 更改
-            // Given: 用户已登录，在 Dashboard
-            await page.goto('/en/dashboard');
-            await expect(page).toHaveURL(/.*\/dashboard/);
+            // Given: 用户已登录，在 Chat
+            await page.goto('/en/chat');
+            await expect(page).toHaveURL(/.*\/chat/);
 
             // When: 点击用户头像 -> 展开菜单 -> 点击 Log out
             // 用户按钮在 sidebar 底部，包含用户名
@@ -138,10 +140,9 @@ test.describe('Navigation & Auth Flows', () => {
             // Then: 应该被重定向到首页或登录页
             await expect(page).toHaveURL(/\/(en)?(\/login)?$/, { timeout: 10000 });
 
-            // 验证: 再次访问 /dashboard 应该被重定向到 login
-            await page.goto('/en/dashboard');
+            // 验证: 再次访问 /chat 应该被重定向到 login
+            await page.goto('/en/chat');
             await expect(page).toHaveURL(/.*\/login/, { timeout: 10000 });
         });
     });
 });
-

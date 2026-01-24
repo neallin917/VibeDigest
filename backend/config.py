@@ -33,33 +33,75 @@ class Settings:
     
     # LangSmith
     LANGCHAIN_TRACING_V2: str = os.getenv("LANGCHAIN_TRACING_V2", "false")
-    LANGCHAIN_API_KEY: str = os.getenv("LANGCHAIN_API_KEY") or os.getenv("LANGSMITH_API_KEY", "")
-    LANGCHAIN_PROJECT: str = os.getenv("LANGCHAIN_PROJECT") or os.getenv("LANGSMITH_PROJECT", "default")
+    LANGCHAIN_API_KEY: str = os.getenv("LANGCHAIN_API_KEY") or os.getenv("LANGSMITH_API_KEY") or ""
+    LANGCHAIN_PROJECT: str = os.getenv("LANGCHAIN_PROJECT") or os.getenv("LANGSMITH_PROJECT") or "default"
 
     # Monitoring
     SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
 
+    # Database
+    POSTGRES_URI: str = os.getenv("POSTGRES_URI", "postgresql://postgres:password@postgres:5432/langgraph")
+
     # Models
-    # OpenAI Models
-    # Summary & Analysis Chain (Preferred -> Fallback)
-    OPENAI_SUMMARY_MODELS: list[str] = [
-        os.getenv("OPENAI_SUMMARY_MODEL_PREFERRED", "gpt-4o-mini"), # V2 策略推荐模型 (gpt-5 系列在长文本摘要中表现不佳)
-        "gpt-4o",
-        "gpt-5.2",
-        "gpt-5",
-        "gpt-5-mini",
-        "gpt-5-nano",
-        "gpt-4.1",
-    ]
+    # Chat Agent Model
+    MOCK_MODE: bool = os.getenv("MOCK_MODE", "false").lower() == "true"
+
+    # Cognition Rate Limiting (Local/Dev)
+    # Default to TRUE for safety if env var invalid
+    COGNITION_SEQUENTIAL: bool = os.getenv("COGNITION_SEQUENTIAL", "true").lower() == "true"
+    COGNITION_DELAY: float = float(os.getenv("COGNITION_DELAY") or "0.0")
     
-    # Deep Comprehension Models (Learning Tab / Thinking prioritized)
-    OPENAI_COMPREHENSION_MODELS: list[str] = os.getenv("COMPREHENSION_MODELS", "gpt-5.2,gpt-5-mini,gpt-5,gpt-4.1").split(",")
+    # LLM Configuration
+    LLM_PROVIDER: str = (os.getenv("LLM_PROVIDER") or "openai").lower()
+    OPENAI_BASE_URL: Optional[str] = os.getenv("OPENAI_BASE_URL")
+    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
+
+    # Provider-specific default models (change LLM_PROVIDER to switch all at once)
+    _PROVIDER_DEFAULTS = {
+        "openai": {"smart": "gpt-4o", "fast": "gpt-4o-mini"},
+        "custom": {"smart": "openai/gemini-3-pro-high", "fast": "openai/gemini-3-flash"}
+    }
+
+    # Model Aliases: Auto-select based on provider, or override via .env
+    _defaults = _PROVIDER_DEFAULTS.get(LLM_PROVIDER, _PROVIDER_DEFAULTS["openai"])
+    MODEL_ALIAS_SMART: str = os.getenv("MODEL_ALIAS_SMART") or _defaults["smart"]
+    MODEL_ALIAS_FAST: str = os.getenv("MODEL_ALIAS_FAST") or _defaults["fast"]
+
+    # --- Functional Mappings ---
     
-    # Helper Models (for simpler tasks like JSON repair, formatting)
-    OPENAI_HELPER_MODEL: str = os.getenv("OPENAI_HELPER_MODEL", "gpt-5-mini")
+    # Chat: Use Smart
+    OPENAI_MODEL: str = MODEL_ALIAS_SMART
     
-    # Translation Models
-    OPENAI_TRANSLATION_MODEL: str = os.getenv("OPENAI_TRANSLATION_MODEL", "gpt-4.1-mini")
+    # Comprehension: Use Smart (List format for fallback support)
+    OPENAI_COMPREHENSION_MODELS: list[str] = [MODEL_ALIAS_SMART]
+
+    # Sub-tasks: Use Fast
+    OPENAI_SUMMARY_MODELS: list[str] = [MODEL_ALIAS_FAST]
+    OPENAI_TRANSLATION_MODEL: str = MODEL_ALIAS_FAST
+    OPENAI_HELPER_MODEL: str = MODEL_ALIAS_FAST
+    
+    # --- LLM Generation Defaults ---
+    DEFAULT_TEMPERATURE: float = 0.1  # Default for most tasks
+    REASONING_TEMPERATURE: float = 1.0 # Default for reasoning models (gpt-5/o1)
+    
+    # Token Limits (Sensible Defaults)
+    DEFAULT_MAX_TOKENS: int = 4000
+    SHORT_TASK_MAX_TOKENS: int = 1000
+    LONG_TASK_MAX_TOKENS: int = 16000
+    
+    # Feature Flags
+    USE_JSON_MODE: bool = True # Global flag to enable JSON mode where applicable
+
+    def get_temperature(self, model_name: str) -> float:
+        """
+        Smart routing for temperature.
+        Reasoning models (Smart tier) often require temp=1.0.
+        Utility models (Fast tier) usually prefer low temp for stability.
+        """
+        # If it's the Smart model, or explicitly an o1/gpt-5 variant
+        if model_name == self.MODEL_ALIAS_SMART or "gpt-5" in model_name or "o1-" in model_name:
+            return self.REASONING_TEMPERATURE
+        return self.DEFAULT_TEMPERATURE
 
     # Transcription Models
     # Defaulting to whisper-1 for now, but ready to switch to gpt-4o-transcribe

@@ -77,7 +77,7 @@ function NotificationSettings() {
 
     if (permission === 'granted') {
         return (
-            <div className="flex items-center gap-3 text-green-400 bg-green-500/10 px-4 py-3 rounded-lg border border-green-500/20">
+            <div className="flex items-center gap-3 text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-500/10 px-4 py-3 rounded-lg border border-green-200 dark:border-green-500/20">
                 <Bell className="h-5 w-5" />
                 <span className="font-medium">{t("tasks.notificationEnabled")}</span>
             </div>
@@ -86,7 +86,7 @@ function NotificationSettings() {
 
     if (permission === 'denied') {
         return (
-            <div className="flex items-center gap-3 text-red-300 bg-red-500/10 px-4 py-3 rounded-lg border border-red-500/20">
+            <div className="flex items-center gap-3 text-red-600 dark:text-red-300 bg-red-100 dark:bg-red-500/10 px-4 py-3 rounded-lg border border-red-200 dark:border-red-500/20">
                 <BellOff className="h-5 w-5" />
                 <span className="font-medium">{t("tasks.notificationPermissionDenied")}</span>
             </div>

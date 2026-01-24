@@ -4,6 +4,7 @@ import { useI18n } from "@/components/i18n/I18nProvider"
 import { Heading, Text } from "@/components/ui/typography"
 import { Badge } from "@/components/ui/badge"
 import { motion } from "framer-motion"
+import { cn } from "@/lib/utils"
 import {
     FileText,
     AlignLeft,
@@ -18,40 +19,57 @@ interface FeatureCardProps {
     icon: LucideIcon
     title: string
     desc: string
-    color: string
+    gradient: string
+    iconColor: string
     delay: number
     comingSoon?: boolean
     className?: string
 }
 
-function FeatureCard({ icon: Icon, title, desc, color, delay, comingSoon, className = "" }: FeatureCardProps) {
+function FeatureCard({ icon: Icon, title, desc, gradient, iconColor, delay, comingSoon, className = "" }: FeatureCardProps) {
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: 0.5, delay, ease: "easeOut" }}
-            className={`group relative p-8 rounded-3xl bg-zinc-900/50 border border-white/5 hover:border-white/10 overflow-hidden transition-all duration-500 hover:bg-zinc-900/80 ${className}`}
+            className={cn(
+                "group relative p-6 rounded-3xl overflow-hidden transition-all duration-500",
+                // Light mode - cleaner glass
+                "bg-white/40 backdrop-blur-xl border border-white/60 shadow-lg hover:shadow-xl hover:bg-white/60",
+                // Dark mode - deep glass with glow
+                "dark:bg-card/40 dark:backdrop-blur-xl dark:border-white/5 dark:hover:border-white/10 dark:hover:bg-card/60 dark:shadow-none",
+                className
+            )}
         >
-            <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${color} opacity-[0.03] group-hover:opacity-[0.08] blur-2xl rounded-full transition-opacity duration-500`} />
+            {/* Hover Gradient Spotlight */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-[0.05] dark:group-hover:opacity-[0.1] transition-opacity duration-500`} />
+            
+            {/* Ambient Corner Blob */}
+            <div className={`absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br ${gradient} opacity-[0.1] dark:opacity-[0.15] blur-3xl rounded-full group-hover:scale-150 transition-transform duration-700 ease-out`} />
 
-            <div className="relative z-10">
-                <div className={`w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500 border border-white/5`}>
-                    <Icon className={`w-6 h-6 ${color.replace('from-', 'text-').replace('to-', '')}`} />
-                </div>
-
-                <div className="flex items-center gap-3 mb-3">
-                    <Heading as="h3" className="text-xl font-bold text-zinc-100 group-hover:text-white transition-colors">
-                        {title}
-                    </Heading>
+            <div className="relative z-10 flex flex-col h-full">
+                <div className="flex items-start justify-between mb-4">
+                    <div className={cn(
+                        "w-12 h-12 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-500 shadow-sm",
+                        "bg-white border border-white/50",
+                        "dark:bg-white/5 dark:border-white/10"
+                    )}>
+                        <Icon className={cn("w-6 h-6", iconColor)} />
+                    </div>
+                    
                     {comingSoon && (
-                        <Badge variant="secondary" className="text-[10px] h-5 px-2 font-medium border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
+                        <Badge variant="secondary" className="text-[10px] h-5 px-2 font-semibold border-emerald-500/10 bg-emerald-500/5 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400">
                             Soon
                         </Badge>
                     )}
                 </div>
 
-                <Text className="text-zinc-400 leading-relaxed text-sm font-medium">
+                <Heading as="h3" className="text-lg font-bold text-slate-900 dark:text-white mb-2 group-hover:translate-x-1 transition-transform duration-300">
+                    {title}
+                </Heading>
+                
+                <Text className="text-slate-600 dark:text-zinc-400 leading-relaxed text-sm font-medium">
                     {desc}
                 </Text>
             </div>
@@ -67,58 +85,64 @@ export function FeaturesSection() {
             icon: FileText,
             title: t("landing.smartSummarization"),
             desc: t("landing.smartSummarizationDesc"),
-            color: "from-emerald-400 to-teal-500",
+            gradient: "from-emerald-500/20 to-teal-600/20",
+            iconColor: "text-emerald-700",
             className: "md:col-span-2 lg:col-span-2" // Large card
         },
         {
             icon: AlignLeft,
             title: t("landing.interactiveTranscript"),
             desc: t("landing.interactiveTranscriptDesc"),
-            color: "from-blue-400 to-indigo-500",
+            gradient: "from-sky-500/20 to-blue-600/20",
+            iconColor: "text-sky-700",
         },
         {
             icon: Languages,
             title: t("landing.crossLanguageAI"),
             desc: t("landing.crossLanguageAIDesc"),
-            color: "from-orange-400 to-amber-500",
+            gradient: "from-amber-500/20 to-orange-600/20",
+            iconColor: "text-amber-700",
         },
         {
             icon: Share2,
             title: t("landing.visualMindMaps"),
             desc: t("landing.visualMindMapsDesc"),
-            color: "from-purple-400 to-pink-500",
+            gradient: "from-teal-500/20 to-cyan-600/20",
+            iconColor: "text-teal-700",
             className: "md:col-span-2 lg:col-span-2" // Large card
         },
         {
             icon: MessageSquare,
             title: t("landing.chatWithVideo"),
             desc: t("landing.chatWithVideoDesc"),
-            color: "from-pink-400 to-rose-500",
+            gradient: "from-cyan-500/20 to-blue-600/20",
+            iconColor: "text-cyan-700",
             comingSoon: true
         },
         {
             icon: Download,
             title: t("landing.seamlessExport"),
             desc: t("landing.seamlessExportDesc"),
-            color: "from-indigo-400 to-cyan-500",
+            gradient: "from-blue-500/20 to-sky-600/20",
+            iconColor: "text-blue-700",
             comingSoon: true
         }
     ]
 
     return (
-        <section id="features" className="py-24 px-6 relative scroll-mt-24">
-            <div className="max-w-7xl mx-auto">
-                <div className="text-center mb-16 relative z-10">
+        <section id="features" className="py-20 px-6 relative scroll-mt-24">
+            <div className="max-w-6xl mx-auto">
+                <div className="text-center mb-12 relative z-10">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.6 }}
                     >
-                        <Heading as="h2" className="text-3xl md:text-5xl font-display font-bold mb-6">
-                            Everything you need to <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">learn faster</span>
+                        <Heading as="h2" className="text-2xl md:text-4xl font-display font-bold mb-5 text-slate-900 dark:text-white">
+                            Everything you need to <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-700 to-teal-700 dark:from-emerald-400 dark:to-teal-400">learn faster</span>
                         </Heading>
-                        <Text className="max-w-2xl mx-auto text-zinc-400 text-lg">
+                        <Text className="max-w-xl mx-auto text-slate-600 dark:text-zinc-400 text-base">
                             Transform passive watching into active understanding with our suite of AI-powered tools.
                         </Text>
                     </motion.div>

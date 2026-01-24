@@ -74,18 +74,17 @@ make test            # 运行所有测试
     # 确保 Docker Desktop 正在运行
     docker-compose up -d
     ```
-    *配置环境*：创建 `backend/.env` 并包含：
-    - `SUPABASE_URL`
-    - `SUPABASE_SERVICE_KEY`
-    - `SUPABASE_SERVICE_KEY`
-    - `OPENAI_API_KEY`
-    - `RESEND_API_KEY` (可选，用于反馈邮件)
-    - `CREEM_API_KEY` (可选，用于定价 / Creem 结帐)
-    - `CREEM_WEBHOOK_SECRET` (可选，用于 Creem webhook 验证)
-    - `COINBASE_API_KEY` (可选，用于加密货币结帐)
-    - `COINBASE_WEBHOOK_SECRET` (可选，用于 Coinbase webhook 验证)
-    - `OPENAI_SUMMARY_MATCH_THRESHOLD` (可选，默认: 4.0。越低 = 时间戳匹配越多，越高 = 更严格)
-    - `FRONTEND_URL` (可选，用于支付重定向 URL；默认为 `http://localhost:3000`)
+    *配置环境*：项目使用 **共享配置 + 本地密钥** 模式：
+    - `.env.production` — 通用配置（已提交到 Git，无需创建）
+    - `.env.local` — 创建此文件并填入密钥：
+      - `OPENAI_API_KEY`
+      - `SUPABASE_SERVICE_KEY`
+      - `DATABASE_URL`
+      - `RESEND_API_KEY` (可选，用于反馈邮件)
+      - `CREEM_API_KEY` (可选，用于定价 / Creem 结帐)
+      - `CREEM_WEBHOOK_SECRET` (可选，用于 Creem webhook 验证)
+      - `COINBASE_API_KEY` (可选，用于加密货币结帐)
+      - `COINBASE_WEBHOOK_SECRET` (可选，用于 Coinbase webhook 验证)
 
     > **注意**：如果您更新了 `requirements.txt`，请运行 `docker-compose up --build -d transcriber-backend`。
 
@@ -94,10 +93,11 @@ make test            # 运行所有测试
     cd frontend
     npm install
     ```
-    *配置环境*：创建 `frontend/.env.local` 并包含：
-    - `NEXT_PUBLIC_SUPABASE_URL`
-    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-    - `NEXT_PUBLIC_API_URL=http://localhost:8000`
+    *配置环境*：
+    - `frontend/.env.production` — 通用配置（已提交到 Git，无需创建）
+    - `frontend/.env.local` — 创建此文件并填入密钥：
+      - `OPENAI_API_KEY`
+      - `TEST_USER_PASSWORD` (可选，用于 E2E 测试)
 
 ### 使用
 

@@ -3,18 +3,15 @@ import sys
 import json
 from datetime import datetime
 from dateutil import parser
-from dotenv import load_dotenv
-
 # Add parent directory to path to allow importing from backend
 current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.dirname(current_dir)
 sys.path.append(backend_dir)
 
-from db_client import DBClient
+from utils.env_loader import load_env
+load_env()
 
-# Load environment variables from .env file in backend directory
-dotenv_path = os.path.join(backend_dir, '.env')
-load_dotenv(dotenv_path)
+from db_client import DBClient
 
 def calculate_duration(start, end):
     if not start or not end:

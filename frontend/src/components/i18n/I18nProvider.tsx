@@ -1,16 +1,17 @@
 "use client"
 
 import React, { createContext, useCallback, useEffect, useMemo, useState } from "react"
-import { useRouter, usePathname } from "next/navigation"
+
 import {
   DEFAULT_LOCALE,
   getBestLocaleFromNavigator,
   isLocale,
   type Locale,
   createTranslator,
+  COOKIE_NAME,
 } from "@/lib/i18n"
 
-const STORAGE_KEY = "vd.locale"
+const STORAGE_KEY = "vd.locale" // Keep for legacy/client-side preference persistence if needed
 
 type I18nContextValue = {
   locale: Locale
@@ -21,9 +22,6 @@ type I18nContextValue = {
 const I18nContext = createContext<I18nContextValue | null>(null)
 
 export function I18nProvider({ children, locale: initialLocale }: { children: React.ReactNode, locale?: Locale }) {
-  const router = useRouter()
-  const pathname = usePathname()
-
   // Initialize with server-provided locale if available, effectively synching URL and UI
   const [locale, setLocaleState] = useState<Locale>(initialLocale || DEFAULT_LOCALE)
 
@@ -66,32 +64,19 @@ export function I18nProvider({ children, locale: initialLocale }: { children: Re
   }, [locale])
 
   const setLocale = useCallback((next: Locale) => {
-    setLocaleState(next)
+    // 1. Set Cookie
+    document.cookie = `${COOKIE_NAME}=${next}; path=/; max-age=31536000; SameSite=Lax`
+
+    // 2. Set LocalStorage (sync)
     try {
       window.localStorage.setItem(STORAGE_KEY, next)
     } catch {
       // ignore
     }
 
-    // Update URL to match new locale
-    if (pathname) {
-      const segments = pathname.split('/')
-      // Assuming URL structure is /:lang/:path*
-      // segments[0] is empty, segments[1] is the locale
-      if (segments.length > 1 && isLocale(segments[1])) {
-        if (segments[1] !== next) {
-          segments[1] = next
-          router.push(segments.join('/'))
-        }
-      } else {
-        // If URL doesn't have locale prefix (e.g. root /), rewrite with new locale?
-        // Or maybe strictly append? This depends on middleware. 
-        // For now, let's assume we are always in /[lang] structure if isLocale(segments[1]) is true.
-        // If we are at root and isLocale(segments[1]) is false (e.g. /about), 
-        // we might need to prepend.
-      }
-    }
-  }, [pathname, router])
+    // 3. Force Reload to trigger Middleware Rewrite
+    window.location.reload()
+  }, [])
 
   const t = useMemo(() => createTranslator(locale), [locale])
 

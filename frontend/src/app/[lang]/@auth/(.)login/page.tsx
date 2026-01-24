@@ -15,7 +15,7 @@ export default function LoginModal() {
                 <VisuallyHidden>
                     <DialogTitle>Login</DialogTitle>
                 </VisuallyHidden>
-                <LoginForm isModal className="backdrop-blur-2xl bg-black/85 border border-white/10 shadow-2xl" />
+                <LoginForm isModal className="backdrop-blur-xl bg-white/60 dark:bg-black/60 border border-white/40 dark:border-white/10 shadow-2xl ring-1 ring-white/40 dark:ring-white/5" />
             </DialogContent>
         </Dialog>
     )

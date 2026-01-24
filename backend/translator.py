@@ -21,14 +21,13 @@ class Translator:
         api_key = os.getenv("OPENAI_API_KEY")
         base_url = os.getenv("OPENAI_BASE_URL")
         
-        if api_key:
-             logger.info("ChatOpenAI initialized (Translator)")
-             # Initialize with default translation model
-             self.llm = ChatOpenAI(
-                 model=settings.OPENAI_TRANSLATION_MODEL,
-                 api_key=api_key,
-                 base_url=base_url,
-                 temperature=0.3, # Slightly lower temp for translation consistency
+        if api_key or settings.LLM_PROVIDER != 'openai':
+             logger.info("Translator initialized via create_chat_model")
+             from utils.openai_client import create_chat_model
+             
+             self.llm = create_chat_model(
+                 model_name=settings.OPENAI_TRANSLATION_MODEL,
+                 temperature=0.3,
                  max_tokens=4000
              )
         else:

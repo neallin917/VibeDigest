@@ -46,7 +46,7 @@ export function ConfirmationModal({
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 10 }}
                         transition={{ duration: 0.2 }}
-                        className="relative z-50 w-full max-w-md rounded-xl border border-white/10 bg-[#0A0A0A]/90 p-6 shadow-2xl backdrop-blur-md"
+                        className="relative z-50 w-full max-w-md rounded-xl border border-white/10 bg-background/90 p-6 shadow-2xl backdrop-blur-md"
                     >
                         <div className="flex flex-col gap-4">
                             <div className="flex flex-col gap-2 text-center sm:text-left">

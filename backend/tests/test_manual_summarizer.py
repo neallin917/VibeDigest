@@ -2,14 +2,12 @@ import asyncio
 import os
 import sys
 from pathlib import Path
-from dotenv import load_dotenv
 
 # Add backend to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-# Load env from backend/.env
-env_path = Path(__file__).parent.parent / ".env"
-load_dotenv(env_path)
+from utils.env_loader import load_env
+load_env()
 
 from summarizer import Summarizer
 

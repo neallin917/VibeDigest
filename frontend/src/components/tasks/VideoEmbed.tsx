@@ -144,6 +144,11 @@ function BilibiliPlayer({
 
   // Facade Mode
   if (coverUrl && !isPlaying && seekSeconds === null) {
+    // Ensure cover URL uses HTTPS to avoid "next/image" mixed content errors
+    const safeCoverUrl = coverUrl.startsWith("http://") 
+      ? coverUrl.replace("http://", "https://") 
+      : coverUrl
+
     return (
       <div
         className="overflow-hidden rounded-xl border border-white/10 bg-black/20 cursor-pointer group relative"
@@ -151,7 +156,7 @@ function BilibiliPlayer({
       >
         <div className="aspect-video w-full relative">
           <Image
-            src={coverUrl}
+            src={safeCoverUrl}
             alt={title || "Video thumbnail"}
             fill
             className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"

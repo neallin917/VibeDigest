@@ -1,0 +1,14 @@
+FROM langchain/langgraph-api:3.11
+
+# Install dependencies
+# Layer 1: Heavy Core Dependencies (includes supabase, etc.)
+COPY requirements.core.txt /tmp/requirements.core.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.core.txt
+
+# Layer 2: Frequent Updates
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+WORKDIR /deps/backend
+COPY langgraph.json .
+COPY langgraph.json /langgraph.json

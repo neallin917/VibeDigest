@@ -5,6 +5,8 @@ export type Locale = typeof SUPPORTED_LOCALES[number]
 
 export const DEFAULT_LOCALE: Locale = "en"
 
+export const COOKIE_NAME = "vd_locale"
+
 export const LOCALE_LABEL: Record<Locale, string> = {
   en: "English",
   zh: "中文",
@@ -46,6 +48,7 @@ const messages: Record<Locale, Messages> = {
     },
     nav: {
       newTask: "New Task",
+      chat: "Chat",
       history: "History",
       settings: "Settings",
       pricing: "Pricing",
@@ -179,7 +182,9 @@ const messages: Record<Locale, Messages> = {
         extra: "Extra"
       },
       communityExamples: "Community",
-      communityExamplesHint: "Try these ready-made examples"
+      communityExamplesHint: "Try these ready-made examples",
+      credits: "credits",
+      upgrade: "Upgrade"
     },
     history: {
       title: "Transcription History",
@@ -371,6 +376,20 @@ const messages: Record<Locale, Messages> = {
       ar: "Arabic",
       hi: "Hindi",
     },
+    chat: {
+      newChat: "New Chat",
+      community: "Community",
+      tasks: "Tasks",
+      chats: "Chats",
+      inputPlaceholder: "Paste a video URL or ask anything...",
+      loadMore: "Load More",
+      loadingMore: "Loading...",
+      welcome: {
+        title: "What would you like to digest today?",
+        subtitle: "Paste a video or podcast URL to get AI-powered insights",
+        tryExamples: "Or try these examples",
+      },
+    },
     feedback: {
       title: "Send Feedback",
       subtitle: "Help us improve {appName}",
@@ -444,6 +463,7 @@ const messages: Record<Locale, Messages> = {
     },
     nav: {
       newTask: "新任务",
+      chat: "对话",
       history: "历史记录",
       settings: "设置",
       pricing: "方案",
@@ -593,6 +613,8 @@ const messages: Record<Locale, Messages> = {
       },
       communityExamples: "社区",
       communityExamplesHint: "试试这些精选的示例内容",
+      credits: "额度",
+      upgrade: "升级"
     },
     history: {
       title: "历史记录",
@@ -798,6 +820,20 @@ const messages: Record<Locale, Messages> = {
       ar: "阿拉伯语",
       hi: "印地语",
     },
+    chat: {
+      newChat: "新对话",
+      community: "社区",
+      tasks: "任务",
+      chats: "对话",
+      inputPlaceholder: "粘贴视频链接或提问...",
+      loadMore: "加载更多",
+      loadingMore: "加载中...",
+      welcome: {
+        title: "今天想总结什么内容？",
+        subtitle: "粘贴视频或播客链接，获取 AI 洞察",
+        tryExamples: "或者试试这些示例",
+      },
+    },
     feedback: {
       title: "发送反馈",
       subtitle: "帮助我们改进 {appName}",
@@ -875,6 +911,11 @@ const messages: Record<Locale, Messages> = {
       showSidebar: "Mostrar barra lateral",
       hideSidebar: "Ocultar barra lateral",
       backToHome: "Volver al Inicio",
+    },
+    chat: {
+      community: "Comunidad",
+      tasks: "Tareas",
+      chats: "Chats",
     },
     auth: {
       welcomeBack: "Bienvenido de nuevo",
@@ -1171,6 +1212,11 @@ const messages: Record<Locale, Messages> = {
       hideSidebar: "إخفاء الشريط الجانبي",
       backToHome: "العودة إلى الرئيسية",
     },
+    chat: {
+      community: "المجتمع",
+      tasks: "المهام",
+      chats: "الدردشات",
+    },
     auth: {
       welcomeBack: "مرحبًا بعودتك",
       signInToContinue: "تسجيل الدخول للمتابعة",
@@ -1395,6 +1441,11 @@ const messages: Record<Locale, Messages> = {
       showSidebar: "Afficher la barre latérale",
       hideSidebar: "Masquer la barre latérale",
       backToHome: "Retour à l'accueil",
+    },
+    chat: {
+      community: "Communauté",
+      tasks: "Tâches",
+      chats: "Discussions",
     },
     auth: {
       welcomeBack: "Bon retour",
@@ -1621,6 +1672,11 @@ const messages: Record<Locale, Messages> = {
       hideSidebar: "Скрыть боковую панель",
       backToHome: "Вернуться на главную",
     },
+    chat: {
+      community: "Сообщество",
+      tasks: "Задачи",
+      chats: "Чаты",
+    },
     auth: {
       welcomeBack: "С возвращением",
       signInToContinue: "Войдите, чтобы продолжить",
@@ -1846,6 +1902,11 @@ const messages: Record<Locale, Messages> = {
       hideSidebar: "Ocultar barra lateral",
       backToHome: "Voltar ao Início",
     },
+    chat: {
+      community: "Comunidade",
+      tasks: "Tarefas",
+      chats: "Chats",
+    },
     auth: {
       welcomeBack: "Bem-vindo de volta",
       signInToContinue: "Faça login para continuar",
@@ -2070,6 +2131,11 @@ const messages: Record<Locale, Messages> = {
       showSidebar: "साइडबार दिखाएँ",
       hideSidebar: "साइडबार छिपाएँ",
       backToHome: "होम पर वापस जाएँ",
+    },
+    chat: {
+      community: "समुदाय",
+      tasks: "कार्य",
+      chats: "चैट्स",
     },
     auth: {
       welcomeBack: "वापसी पर स्वागत है",
@@ -2298,6 +2364,11 @@ const messages: Record<Locale, Messages> = {
       showSidebar: "サイドバーを表示",
       hideSidebar: "サイドバーを非表示",
       backToHome: "ホームに戻る",
+    },
+    chat: {
+      community: "コミュニティ",
+      tasks: "タスク",
+      chats: "チャット",
     },
     auth: {
       welcomeBack: "おかえりなさい",
@@ -2566,6 +2637,11 @@ const messages: Record<Locale, Messages> = {
       showSidebar: "사이드바 표시",
       hideSidebar: "사이드바 숨기기",
       backToHome: "홈으로 돌아가기",
+    },
+    chat: {
+      community: "커뮤니티",
+      tasks: "작업",
+      chats: "채팅",
     },
     auth: {
       welcomeBack: "환영합니다",

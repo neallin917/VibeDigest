@@ -1,5 +1,6 @@
 from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 
+
 def normalize_video_url(url: str) -> str:
     """
     Normalize a video URL to improve cache hit rates.
@@ -10,8 +11,13 @@ def normalize_video_url(url: str) -> str:
     """
     if not url:
         return ""
-        
+
     url = url.strip()
+
+    # Defensive: Filter out Javascript string literals "undefined", "null"
+    if url.lower() in ("undefined", "null", "none"):
+        return ""
+
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
 
@@ -40,30 +46,36 @@ def normalize_video_url(url: str) -> str:
                 if "/shorts/" in path:
                     parts = path.split("/shorts/")
                     if len(parts) > 1:
-                        video_id = parts[1].split("/")[0] # handle trailing slashes
+                        video_id = parts[1].split("/")[0]  # handle trailing slashes
                 elif "v" in query:
                     video_id = query["v"][0]
-            
+
             if video_id:
                 # Return canonical YouTube URL
-                # We discard timestamps (t=...) for caching purposes? 
+                # We discard timestamps (t=...) for caching purposes?
                 # Ideally yes, we want to cache the whole video processing.
                 return f"https://youtube.com/watch?v={video_id}"
 
         # General Parameter Cleanup
         # Remove tracking parameters
         blocked_params = {
-            "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
-            "ref", "source", "from"
+            "utm_source",
+            "utm_medium",
+            "utm_campaign",
+            "utm_term",
+            "utm_content",
+            "ref",
+            "source",
+            "from",
         }
-        
+
         # Rebuild query keeping only non-blocked
         new_query_parts = []
         for key, values in query.items():
             if key.lower() not in blocked_params:
                 for v in values:
                     new_query_parts.append((key, v))
-        
+
         # Sort for determinism
         new_query_parts.sort()
         new_query_string = urlencode(new_query_parts)
