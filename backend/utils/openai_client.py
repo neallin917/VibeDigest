@@ -57,9 +57,9 @@ def create_chat_model(model_name: str, temperature: Optional[float] = None, **kw
     Creates a LangChain Chat Model based on LLM_PROVIDER.
     Supports 'openai' (default) and 'custom'/'litellm'.
     """
-    from langchain_litellm import ChatLiteLLM
+    from langchain_community.chat_models import ChatLiteLLM
     from langchain_openai import ChatOpenAI
-    
+
     # Resolve temperature if not provided
     if temperature is None:
         temperature = settings.get_temperature(model_name)
@@ -104,7 +104,7 @@ def create_chat_model(model_name: str, temperature: Optional[float] = None, **kw
 
 import re
 import asyncio
-from langchain_litellm import ChatLiteLLM
+from langchain_community.chat_models import ChatLiteLLM
 from typing import List, Optional, Any
 
 class RateLimitAwareChatLiteLLM(ChatLiteLLM):
