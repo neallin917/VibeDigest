@@ -5,8 +5,8 @@ from config import settings
 from utils.openai_client import create_chat_model
 
 class TestLLMSwitching:
-    
-    @patch('langchain_litellm.ChatLiteLLM')
+
+    @patch('langchain_community.chat_models.ChatLiteLLM')
     @patch('langchain_openai.ChatOpenAI')
     def test_provider_switching(self, mock_chat_openai, mock_chat_litellm):
         """Verify factory chooses correct class based on LLM_PROVIDER"""
@@ -26,7 +26,7 @@ class TestLLMSwitching:
             mock_chat_litellm.assert_called()
             mock_chat_openai.assert_not_called()
 
-    @patch('langchain_litellm.ChatLiteLLM')
+    @patch('langchain_community.chat_models.ChatLiteLLM')
     def test_model_alias_mapping(self, mock_chat_litellm):
         """Verify aliases are passed correctly"""
         with patch.object(settings, 'LLM_PROVIDER', 'custom'):
