@@ -11,7 +11,7 @@ sys.path.append(backend_dir)
 sys.modules["openai"] = MagicMock()
 sys.modules["pydub"] = MagicMock()
 
-from transcriber import (  # noqa: E402
+from services.formatting import (  # noqa: E402
     _merge_segments_into_sentences,
     _split_long_sentence_segments,
 )
