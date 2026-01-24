@@ -202,7 +202,15 @@ class DBClient:
 
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Fetch a task by ID."""
-        query = "SELECT * FROM tasks WHERE id = :task_id"
+        # Explicitly select columns to avoid future schema changes breaking things or fetching unused heavy columns
+        query = """
+            SELECT
+                id, user_id, video_url, status, progress, video_title, thumbnail_url,
+                error_message, created_at, updated_at, is_demo,
+                author, author_url, author_image_url, description, keywords,
+                view_count, upload_date, duration
+            FROM tasks WHERE id = :task_id
+        """
         rows = self._execute_query(query, {"task_id": task_id})
         logger.info(f"Task fetch result: {rows}")
         return rows[0] if rows else None
@@ -213,9 +221,20 @@ class DBClient:
         rows = self._execute_query(query, {"output_id": output_id})
         return rows[0] if rows else None
 
-    def get_task_outputs(self, task_id: str) -> List[Dict[str, Any]]:
-        """Fetch all outputs for a task."""
-        query = "SELECT * FROM task_outputs WHERE task_id = :task_id"
+    def get_task_outputs(self, task_id: str, include_content: bool = True) -> List[Dict[str, Any]]:
+        """
+        Fetch all outputs for a task.
+        :param include_content: If False, excludes the heavy 'content' column.
+        """
+        if include_content:
+            query = "SELECT * FROM task_outputs WHERE task_id = :task_id"
+        else:
+            query = """
+                SELECT
+                    id, task_id, user_id, kind, locale, status, progress,
+                    attempt, error_message, created_at, updated_at
+                FROM task_outputs WHERE task_id = :task_id
+            """
         return self._execute_query(query, {"task_id": task_id})
 
     def find_latest_completed_task_by_url(

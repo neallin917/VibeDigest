@@ -1,6 +1,8 @@
 import pytest
 from httpx import AsyncClient, ASGITransport
-from main import app, db_client
+from main import app
+from db_client import DBClient
+from dependencies import get_db_client
 from typing import AsyncGenerator
 import os
 from sqlalchemy import create_engine, text
@@ -183,19 +185,20 @@ async def async_client(test_db) -> AsyncGenerator[AsyncClient, None]:
     Fixture for creating an async client.
     Overrides the DBClient to point to the test container.
     """
-    # Override Global DBClient's engine
-    # We need to patch the instance 'db_client' in main.
-    os.environ["DATABASE_URL"] = test_db
-    
-    # Re-init engine (hacky but effective for singleton pattern in main.py)
-    # Actually db_client is instantiated at module level in main.py.
-    # We can manually replace its inner engine.
-    db_client.db_url = test_db
-    db_client.engine = create_engine(test_db)
-    db_client.Session = None # Clear session factory
+    # Create a fresh DBClient for testing
+    test_db_client = DBClient()
+    test_db_client.db_url = test_db
+    test_db_client.engine = create_engine(test_db)
+
     from sqlalchemy.orm import sessionmaker, scoped_session
-    db_client.Session = scoped_session(sessionmaker(bind=db_client.engine))
-    
+    test_db_client.Session = scoped_session(sessionmaker(bind=test_db_client.engine))
+
+    # Override the dependency
+    app.dependency_overrides[get_db_client] = lambda: test_db_client
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
+
+    # Clean up
+    app.dependency_overrides.pop(get_db_client, None)
