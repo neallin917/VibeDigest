@@ -54,7 +54,7 @@ async def run_musk_comprehension_real():
     )
     
     print("\n--- SUCCESSFULLY UPDATED DATABASE ---")
-    print(json.dumps(data, indent=2, ensure_ascii=False))
+    print(json.dumps(brief_json, indent=2, ensure_ascii=False))
 
 if __name__ == "__main__":
     asyncio.run(run_musk_comprehension_real())
