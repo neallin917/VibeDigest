@@ -68,7 +68,9 @@ async def test_workflow_mocked():
         
         # --- Mock Summarizer ---
         # Mock class methods
-        mock_summarizer.optimize_transcript = AsyncMock(return_value="Optimized mock transcript.")
+        # IMPORTANT: Must be >50 chars to pass 'Smart Skip' in cognition node
+        long_transcript = "Optimized mock transcript. " * 3
+        mock_summarizer.optimize_transcript = AsyncMock(return_value=long_transcript)
         mock_summarizer.classify_content = AsyncMock(return_value={"form": "monologue", "confidence": 0.9})
         # Workflow calls .summarize() which internally might call others, but we should mock the entry point used by workflow.py
         mock_summarizer.summarize = AsyncMock(return_value={"overview": "Mock summary", "key_points": []})
