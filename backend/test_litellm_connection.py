@@ -2,6 +2,7 @@
 import os
 import sys
 import logging
+import pytest
 # Add parent dir to path to import utils
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from backend.utils.env_loader import load_env
@@ -19,6 +20,10 @@ except ImportError:
     logger.error("litellm not installed. Please install it.")
     sys.exit(1)
 
+@pytest.mark.skipif(
+    os.getenv("OPENAI_API_KEY") == "dummy-key",
+    reason="Skipping real API call test in CI with dummy credentials"
+)
 def test_connection():
     # 1. Print current configuration from environment
     provider = os.getenv("LLM_PROVIDER", "openai")
