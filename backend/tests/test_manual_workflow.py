@@ -112,7 +112,7 @@ async def test_workflow_mocked():
         print(f"Errors: {final_state.get('errors')}")
 
         # Assertions
-        assert final_state.get("transcript_text") == "Optimized mock transcript."
+        assert final_state.get("transcript_text") == long_transcript
         assert final_state.get("final_summary_json") is not None
         print("\n✅ Verification SUCCESS: Graph executed all nodes correctly.")
 
