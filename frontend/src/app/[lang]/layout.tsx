@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Syne, Manrope } from "next/font/google";
+import { Syne, Manrope, Plus_Jakarta_Sans } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GoogleAnalytics } from '@next/third-parties/google';
@@ -7,6 +7,7 @@ import "../globals.css";
 
 import { cn } from "@/lib/utils";
 import { Providers } from "@/components/providers";
+import { Vignette } from "@/components/ui/vignette";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -20,7 +21,24 @@ const manrope = Manrope({
   variable: "--font-manrope",
 });
 
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-jakarta",
+});
+
 const gaId = process.env.NEXT_PUBLIC_GA_ID || "";
+
+import { Viewport } from 'next'
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: 'white' },
+    { media: '(prefers-color-scheme: dark)', color: 'black' },
+  ],
+  width: 'device-width',
+  initialScale: 1,
+}
 
 export async function generateMetadata({
   params,
@@ -49,6 +67,14 @@ export async function generateMetadata({
   return {
     applicationName: "VibeDigest",
     metadataBase: new URL(baseUrl),
+    formatDetection: {
+      telephone: false,
+    },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "default",
+      title: "VibeDigest",
+    },
     alternates: {
       canonical: "./",
       languages: {
@@ -119,6 +145,8 @@ export async function generateMetadata({
   };
 }
 
+import { Toaster } from "sonner";
+
 export default async function RootLayout({
   children,
   auth,
@@ -130,8 +158,9 @@ export default async function RootLayout({
 }>) {
   const { lang } = await params;
   return (
-    <html lang={lang} className="dark" suppressHydrationWarning>
-      <body className={cn(manrope.className, syne.variable, "bg-background text-foreground antialiased font-sans")} suppressHydrationWarning>
+    <html lang={lang} suppressHydrationWarning>
+      <body className={cn(manrope.className, syne.variable, jakarta.variable, "bg-background text-foreground antialiased font-sans tracking-tight")} suppressHydrationWarning>
+        <Vignette />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -173,6 +202,7 @@ export default async function RootLayout({
           {auth}
           {children}
         </Providers>
+        <Toaster />
         <Analytics />
         <SpeedInsights />
         {gaId && <GoogleAnalytics gaId={gaId} />}

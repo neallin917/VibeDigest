@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { createClient } from "@/lib/supabase"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { Button } from "@/components/ui/button"
@@ -31,15 +32,20 @@ export function LandingUserButton() {
     useEffect(() => {
         // Check initial session
         const checkUser = async () => {
-            const { data: { session } } = await supabase.auth.getSession()
-            setUser(session?.user || null)
+            const { data: { user } } = await supabase.auth.getUser()
+            setUser(user)
             setLoading(false)
         }
         checkUser()
 
         // Listen for auth changes (including One Tap login)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user || null)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (session) {
+                const { data: { user } } = await supabase.auth.getUser()
+                setUser(user)
+            } else {
+                setUser(null)
+            }
         })
 
         return () => subscription.unsubscribe()
@@ -64,7 +70,7 @@ export function LandingUserButton() {
     // Not logged in - show Sign Up button
     if (!user) {
         return (
-            <Link href={`/${locale}/login`}>
+            <Link href="/login">
                 <Button variant="outline" size="sm" className="gap-2 bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20">
                     {t("auth.signUp")}
                 </Button>
@@ -80,7 +86,7 @@ export function LandingUserButton() {
     return (
         <div className="flex items-center gap-2">
             {/* Direct Dashboard Button */}
-            <Link href={`/${locale}/dashboard`}>
+            <Link href="/chat">
                 <Button variant="outline" size="sm" className="gap-2 bg-primary/10 border-primary/30 hover:bg-primary/20 hover:border-primary/40 text-primary">
                     {t("auth.goToDashboard")}
                 </Button>
@@ -91,10 +97,13 @@ export function LandingUserButton() {
                 <DropdownMenuTrigger asChild>
                     <button className="flex items-center gap-2 rounded-full hover:ring-2 hover:ring-primary/50 transition-all focus:outline-none focus:ring-2 focus:ring-primary/50">
                         {avatarUrl ? (
-                            <img
+                            <Image
                                 src={avatarUrl}
                                 alt={displayName}
-                                className="w-8 h-8 rounded-full border border-white/20"
+                                width={32}
+                                height={32}
+                                unoptimized
+                                className="rounded-full border border-black/10 dark:border-white/20"
                             />
                         ) : (
                             <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-sm font-medium">
@@ -103,12 +112,12 @@ export function LandingUserButton() {
                         )}
                     </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 glass border-white/10">
-                    <div className="px-3 py-2 border-b border-white/10">
+                <DropdownMenuContent align="end" className="w-56">
+                    <div className="px-3 py-2 border-b border-slate-200 dark:border-white/10">
                         <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
                         <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                     </div>
-                    <DropdownMenuItem onClick={handleLogout} className="text-red-400 focus:text-red-400 cursor-pointer">
+                    <DropdownMenuItem onClick={handleLogout} className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 cursor-pointer">
                         <LogOut className="mr-2 h-4 w-4" />
                         {t("auth.logout")}
                     </DropdownMenuItem>

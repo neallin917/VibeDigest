@@ -47,9 +47,11 @@ temp/
 *.temp
 
 # Environment variables
-.env
+# .env is tracked (shared config)
 .env.local
 .env.production
+.env.test
+.env.test.local
 backend/.env
 
 # Audio/Video files
@@ -69,6 +71,9 @@ backend/.env
 models/
 .cache/
 
+# Backend generated outputs
+backend/generations/
+
 # Node.js
 node_modules/
 npm-debug.log
@@ -77,3 +82,4 @@ yarn-error.log
 # Next.js
 .next/
 out/
+.workspace.json

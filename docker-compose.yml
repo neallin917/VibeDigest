@@ -20,9 +20,12 @@ services:
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     # ---------------------------------------------------------
     env_file:
-      - ./backend/.env
+      - .env
+      - .env.local
     environment:
       - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-base}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # No Traefik labels - Dev is NOT exposed to internet
 
   langgraph-server:
@@ -45,10 +48,10 @@ services:
       - POSTGRES_URI=postgresql://postgres:password@postgres:5432/langgraph
       - REDIS_URI=redis://redis:6379
       - PYTHONPATH=/deps/backend
-      - LANGSERVE_GRAPHS={"agent":"agent.chat_graph:graph","dummy":"dummy_graph:graph"}
+      - LANGSERVE_GRAPHS={"agent":"agent.chat_graph:graph"}
     env_file:
       - .env
-      - ./backend/.env
+      - .env.local
 
   postgres:
     image: postgres:16

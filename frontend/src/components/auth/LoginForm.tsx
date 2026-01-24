@@ -53,16 +53,14 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
                 email,
                 password,
                 options: {
-                    emailRedirectTo: `${window.location.origin}/${locale}/auth/callback`
+                    emailRedirectTo: `${window.location.origin}/auth/callback`
                 }
             })
             if (error) {
-                console.error("Sign up error:", error)
                 setMessage({ type: 'error', text: getErrorMessage(error.message) })
             } else {
-                console.log("Sign up successful:", data)
                 if (data.session) {
-                    window.location.href = `/${locale}/dashboard`
+                    window.location.href = '/chat'
                 } else {
                     setMessage({ type: 'success', text: t("auth.checkEmailForConfirmation") || "Please check your email to confirm your account." })
                 }
@@ -75,13 +73,13 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
             if (error) {
                 setMessage({ type: 'error', text: getErrorMessage(error.message) })
             } else {
-                window.location.href = `/${locale}/dashboard`
+                window.location.href = '/chat'
             }
         } else {
             const { error } = await supabase.auth.signInWithOtp({
                 email,
                 options: {
-                    emailRedirectTo: `${window.location.origin}/${locale}/auth/callback`
+                    emailRedirectTo: `${window.location.origin}/auth/callback`
                 }
             })
 
@@ -94,8 +92,13 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
         setLoading(false)
     }
 
+    // Adaptive card styles based on context
+    const cardStyles = isModal
+        ? 'shadow-none border-0'
+        : 'bg-white/70 dark:bg-black/60 backdrop-blur-xl border border-gray-200/50 dark:border-white/10 shadow-xl ring-1 ring-black/5 dark:ring-white/5'
+
     return (
-        <Card className={`w-full max-w-md border-white/10 relative overflow-hidden transition-all duration-300 ${className} ${isModal ? 'bg-transparent shadow-none border-0' : 'glass'}`}>
+        <Card className={`w-full max-w-md relative overflow-hidden transition-all duration-300 ${cardStyles} ${className}`}>
             {!isModal && (
                 <div className="absolute top-4 right-4 z-10">
                     <LanguageInlineSelect />
@@ -103,13 +106,13 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
             )}
 
             <CardHeader className="text-center space-y-2 relative z-10">
-                <div className="mx-auto bg-primary/20 p-3 rounded-full w-fit mb-2 shadow-[0_0_20px_rgba(62,207,142,0.2)]">
-                    <Sparkles className="h-6 w-6 text-primary" />
+                <div className="mx-auto bg-emerald-500/10 dark:bg-emerald-500/20 p-3 rounded-full w-fit mb-2 shadow-[0_0_20px_rgba(62,207,142,0.15)]">
+                    <Sparkles className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <CardTitle className="font-bold text-2xl bg-clip-text text-transparent bg-gradient-to-br from-white to-white/60">
+                <CardTitle className="font-bold text-2xl text-gray-900 dark:text-white">
                     {isSignUp ? (t("auth.createAccount") || "Create Account") : t("auth.welcomeBack")}
                 </CardTitle>
-                <CardDescription className="text-muted-foreground/80">
+                <CardDescription className="text-gray-500 dark:text-gray-400">
                     {isSignUp ? (t("auth.signUpToContinue") || "Sign up to get started") : t("auth.signInToContinue", { appName: t("brand.name") })}
                 </CardDescription>
             </CardHeader>
@@ -119,7 +122,7 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
                     variant="outline"
                     onClick={handleGoogleLogin}
                     disabled={loading}
-                    className="w-full h-11 bg-white hover:bg-white/90 text-black hover:text-black border-0 font-medium transition-transform hover:scale-[1.02] duration-200"
+                    className="w-full h-11 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 font-medium transition-transform hover:scale-[1.01] duration-200 dark:bg-white dark:text-black dark:hover:bg-gray-100 dark:border-0"
                 >
                     <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
                         <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
@@ -131,14 +134,12 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
                     {t("auth.signInWithGoogle")}
                 </Button>
 
-
-
                 <div className="relative">
                     <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t border-white/10" />
+                        <span className="w-full border-t border-gray-200 dark:border-white/10" />
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-transparent px-2 text-muted-foreground backdrop-blur-sm rounded-full">
+                        <span className="bg-white/80 dark:bg-black/40 px-3 text-gray-500 dark:text-gray-400 backdrop-blur-sm rounded-full">
                             {isSignUp ? (t("auth.orWithEmail") || "Or with Email") : (isPasswordLogin ? t("auth.orWithEmail") : t("auth.orWithEmail"))}
                         </span>
                     </div>
@@ -153,7 +154,7 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
                             value={email}
                             onChange={e => setEmail(e.target.value)}
                             required
-                            className="bg-black/20 border-white/10 h-11 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
+                            className="h-11 bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all"
                         />
                         {(isPasswordLogin || isSignUp) && (
                             <Input
@@ -162,11 +163,15 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
                                 required
-                                className="bg-black/20 border-white/10 h-11 focus:border-primary/50 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
+                                className="h-11 bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all"
                             />
                         )}
                     </div>
-                    <Button type="submit" className="w-full h-11 gap-2 bg-primary text-black hover:bg-primary/90 shadow-[0_0_15px_rgba(62,207,142,0.3)] hover:shadow-[0_0_20px_rgba(62,207,142,0.5)] transition-all duration-300" disabled={loading}>
+                    <Button
+                        type="submit"
+                        className="w-full h-11 gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all duration-300"
+                        disabled={loading}
+                    >
                         <Mail className="h-4 w-4" />
                         {loading ? t("auth.sending") : (
                             isSignUp ? (t("auth.signUp") || "Sign Up") :
@@ -179,7 +184,7 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
                             <button
                                 type="button"
                                 onClick={() => setIsPasswordLogin(!isPasswordLogin)}
-                                className="text-muted-foreground hover:text-white transition-colors underline underline-offset-4"
+                                className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
                             >
                                 {isPasswordLogin ? (t("auth.useMagicLink") || "Use Magic Link instead") : (t("auth.usePassword") || "Sign in with Password")}
                             </button>
@@ -191,7 +196,7 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
                                 setIsPasswordLogin(false)
                                 setMessage(null)
                             }}
-                            className="text-muted-foreground hover:text-white transition-colors underline underline-offset-4"
+                            className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
                         >
                             {isSignUp ? (t("auth.haveAccount") || "Already have an account? Sign In") : (t("auth.noAccount") || "Don't have an account? Sign Up")}
                         </button>
@@ -199,7 +204,7 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
                 </form>
 
                 {message && (
-                    <div className={`p-3 rounded-lg text-sm text-center animate-in fade-in slide-in-from-top-2 duration-300 ${message.type === 'error' ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
+                    <div className={`p-3 rounded-lg text-sm text-center animate-in fade-in slide-in-from-top-2 duration-300 ${message.type === 'error' ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20' : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20'}`}>
                         {message.text}
                     </div>
                 )}

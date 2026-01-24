@@ -1,19 +1,18 @@
 import asyncio
 import json
 import os
+import sys
 import logging
-from comprehension import ComprehensionAgent
-from db_client import DBClient
-from dotenv import load_dotenv
 from pathlib import Path
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Add backend to path
+sys.path.append(str(Path(__file__).parent.parent))
 
-# Load env vars
-env_path = Path(__file__).parent.parent / ".env"
-load_dotenv(dotenv_path=env_path)
+from utils.env_loader import load_env
+load_env()
+
+from comprehension import ComprehensionAgent
+from db_client import DBClient
 
 async def run_musk_comprehension_real():
     task_id = "41cb3a14-6726-4516-a983-4a2f3572c157"
@@ -21,7 +20,7 @@ async def run_musk_comprehension_real():
     
     # Init DB engine manually since we are in a standalone script
     from sqlalchemy import create_engine
-    db.engine = create_engine(os.getenv("DATABASE_URL"))
+    db.engine = create_engine(os.getenv("DATABASE_URL") or "sqlite:///:memory:")
     
     print(f"Fetching transcript for task: {task_id}")
     outputs = db.get_task_outputs(task_id)

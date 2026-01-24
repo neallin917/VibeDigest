@@ -29,11 +29,25 @@ import { MessageSquare, Loader2 } from "lucide-react"
 interface FeedbackDialogProps {
     children?: React.ReactNode
     defaultCategory?: string
+    /** Controlled open state */
+    open?: boolean
+    /** Callback when open state changes */
+    onOpenChange?: (open: boolean) => void
 }
 
-export function FeedbackDialog({ children, defaultCategory = "bug" }: FeedbackDialogProps) {
+export function FeedbackDialog({ 
+    children, 
+    defaultCategory = "bug",
+    open: controlledOpen,
+    onOpenChange: controlledOnOpenChange
+}: FeedbackDialogProps) {
     const { t } = useI18n()
-    const [open, setOpen] = useState(false)
+    const [internalOpen, setInternalOpen] = useState(false)
+    
+    // Support both controlled and uncontrolled modes
+    const isControlled = controlledOpen !== undefined
+    const open = isControlled ? controlledOpen : internalOpen
+    const setOpen = isControlled ? (controlledOnOpenChange || (() => {})) : setInternalOpen
     const [loading, setLoading] = useState(false)
     const [category, setCategory] = useState(defaultCategory)
     const [message, setMessage] = useState("")
@@ -94,21 +108,24 @@ export function FeedbackDialog({ children, defaultCategory = "bug" }: FeedbackDi
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                {children ? (
-                    children
-                ) : (
-                    <Button
-                        variant="ghost"
-                        className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
-                        suppressHydrationWarning
-                    >
-                        <MessageSquare className="h-4 w-4" />
+            {/* Only render trigger when not in controlled mode or when children are provided */}
+            {!isControlled && (
+                <DialogTrigger asChild>
+                    {children ? (
+                        children
+                    ) : (
+                        <Button
+                            variant="ghost"
+                            className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+                            suppressHydrationWarning
+                        >
+                            <MessageSquare className="h-4 w-4" />
                         {t("feedback.title")}
                     </Button>
                 )}
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] bg-black/40 backdrop-blur-md text-foreground border-white/10 shadow-2xl">
+                </DialogTrigger>
+            )}
+            <DialogContent className="sm:max-w-[425px] bg-white/90 dark:bg-black/40 backdrop-blur-md text-foreground border-slate-200 dark:border-white/10 shadow-2xl">
                 <DialogHeader>
                     <DialogTitle>{t("feedback.title")}</DialogTitle>
                     <DialogDescription>
@@ -119,10 +136,10 @@ export function FeedbackDialog({ children, defaultCategory = "bug" }: FeedbackDi
                     <div className="grid gap-2">
                         <Label htmlFor="category">{t("feedback.category")}</Label>
                         <Select value={category} onValueChange={setCategory}>
-                            <SelectTrigger id="category" className="bg-muted border-white/5">
+                            <SelectTrigger id="category" className="bg-slate-100 dark:bg-muted border-slate-200 dark:border-white/5">
                                 <SelectValue placeholder={t("feedback.category")} />
                             </SelectTrigger>
-                            <SelectContent className="bg-black/80 backdrop-blur-xl border-white/10 text-foreground">
+                            <SelectContent className="bg-white/95 dark:bg-black/80 backdrop-blur-xl border-slate-200 dark:border-white/10 text-foreground">
                                 <SelectItem value="support">{t("feedback.types.support")}</SelectItem>
                                 <SelectItem value="bug">{t("feedback.types.bug")}</SelectItem>
                                 <SelectItem value="feature">{t("feedback.types.feature")}</SelectItem>
@@ -138,7 +155,7 @@ export function FeedbackDialog({ children, defaultCategory = "bug" }: FeedbackDi
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             placeholder={t("feedback.message")}
-                            className="bg-muted border-white/5 min-h-[100px]"
+                            className="bg-slate-100 dark:bg-muted border-slate-200 dark:border-white/5 min-h-[100px]"
                             required
                         />
                     </div>
@@ -150,7 +167,7 @@ export function FeedbackDialog({ children, defaultCategory = "bug" }: FeedbackDi
                             value={contactEmail}
                             onChange={(e) => setContactEmail(e.target.value)}
                             placeholder={t("feedback.contactEmailPlaceholder")}
-                            className="bg-muted border-white/5"
+                            className="bg-slate-100 dark:bg-muted border-slate-200 dark:border-white/5"
                         />
                     </div>
                     <DialogFooter>

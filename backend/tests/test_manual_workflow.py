@@ -3,12 +3,12 @@ import sys
 import logging
 from pathlib import Path
 from unittest.mock import MagicMock, AsyncMock, patch
-from dotenv import load_dotenv
 
 # Setup path and env
 sys.path.append(str(Path(__file__).parent.parent))
-env_path = Path(__file__).parent.parent / ".env"
-load_dotenv(env_path)
+
+from utils.env_loader import load_env
+load_env()
 
 # Configure simplified logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')

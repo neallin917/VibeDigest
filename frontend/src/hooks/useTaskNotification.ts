@@ -15,12 +15,16 @@ export function useTaskNotification() {
     const [subbedTaskIds, setSubbedTaskIds] = useState<Set<string>>(new Set())
 
     useEffect(() => {
-        if (typeof window === "undefined" || !("Notification" in window)) {
-            setPermission("unsupported")
+        // Handle initial permission state
+        if (typeof window !== "undefined" && "Notification" in window) {
+            const current = window.Notification.permission as NotificationPermissionStatus
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setPermission(prev => prev !== current ? current : prev)
+        } else {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setPermission(prev => prev !== "unsupported" ? "unsupported" : prev)
             return
         }
-        // Map Notification.permission to our status type
-        setPermission(window.Notification.permission as NotificationPermissionStatus)
 
         // Load from localStorage
         const loadFromStorage = () => {

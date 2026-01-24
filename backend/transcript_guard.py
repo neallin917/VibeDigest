@@ -18,7 +18,7 @@ class TranscriptGuard:
     
     def __init__(self, model_name: str = "gpt-4o-mini"):
         self.model_name = model_name
-        self._llm = None
+        self._llm: Optional[ChatOpenAI] = None
 
     def _get_llm(self):
         if self._llm is None:

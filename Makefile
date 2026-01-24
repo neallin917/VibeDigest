@@ -90,6 +90,12 @@ test-frontend:
 	@echo "Running frontend tests..."
 	cd frontend && npm run test
 
+verify:
+	@echo "Verifying LLM connection..."
+	export PYTHONPATH=$$(pwd)/backend && backend/venv/bin/python3 backend/scripts/verify_llm_connection.py
+	@echo "Verifying Workflow..."
+	export PYTHONPATH=$$(pwd)/backend && backend/venv/bin/python3 backend/scripts/manual_test_workflow.py
+
 # --- Quality Control ---
 lint:
 	@echo "Linting backend..."

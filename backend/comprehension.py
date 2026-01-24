@@ -4,7 +4,6 @@ import logging
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from config import settings
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from prompts import COMPREHENSION_BRIEF_SYSTEM, COMPREHENSION_BRIEF_USER
@@ -37,12 +36,16 @@ class ComprehensionAgent:
         # Higher-level reasoning models prioritized for deep comprehension (Learning Tab)
         self.comprehension_models = settings.OPENAI_COMPREHENSION_MODELS
 
-    def _get_llm(self, model_name: str, max_tokens: int = 4000):
-        return ChatOpenAI(
-            model=model_name,
-            temperature=0.1,
-            max_tokens=max_tokens,
-            openai_api_key=self.openai_api_key
+    def _get_llm(self, model_name: str, max_tokens: Optional[int] = None):
+        from utils.openai_client import create_chat_model
+
+        # Use centralized default if max_tokens not provided
+        tokens = max_tokens or settings.DEFAULT_MAX_TOKENS
+        
+        return create_chat_model(
+            model_name=model_name,
+            # temperature handled by factory
+            max_tokens=tokens
         )
 
     async def generate_comprehension_brief(
@@ -70,7 +73,7 @@ class ComprehensionAgent:
         last_exception = None
         for model in self.comprehension_models:
             try:
-                llm = self._get_llm(model, max_tokens=4000)
+                llm = self._get_llm(model)
                 structured_llm = llm.with_structured_output(ComprehensionBriefResponse)
                 
                 messages = [

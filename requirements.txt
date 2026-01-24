@@ -18,9 +18,13 @@ httpx>=0.27.0
 sentry-sdk[fastapi]
 sqlalchemy>=2.0.25
 psycopg2-binary>=2.9.9
-langgraph>=0.0.10
-langchain-core>=0.1.0
-langchain-openai>=0.1.0
+
+# Backend specific dependencies (Refactor Update)
+langgraph>=1.0.0
+langchain-core>=1.0.0
+langchain-openai>=1.0.0
 langchain-text-splitters>=0.0.1
 langsmith>=0.1.0
 stop-words==2018.7.23
+langgraph-checkpoint-postgres>=2.0.0
+testcontainers[postgres]>=3.7.1

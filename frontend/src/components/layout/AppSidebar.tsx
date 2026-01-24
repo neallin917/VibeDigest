@@ -1,0 +1,273 @@
+"use client"
+
+import { useState } from "react"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import {
+  Plus,
+  Library,
+  ChevronDown,
+  ChevronRight,
+  Menu,
+  Sparkles,
+  MessageSquare,
+  Loader2
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+// import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip" // Removed unused import
+import { useAppSidebar } from "./AppSidebarContext"
+import { useI18n } from "@/components/i18n/I18nProvider"
+import { Thread } from "@/types"
+import { TaskItem } from "./sidebar/TaskItem"
+import { CollapsedView } from "./sidebar/CollapsedView"
+import { useTasks } from "@/hooks/useTasks"
+
+interface AppSidebarProps {
+  onNewChat?: () => void
+  onSelectTask?: (taskId: string) => void
+  className?: string
+  threads?: Thread[]
+  activeThreadId?: string | null
+  onSelectThread?: (threadId: string) => void
+}
+
+export function AppSidebar({
+  onNewChat,
+  onSelectTask,
+  className,
+  threads = [],
+  activeThreadId,
+  onSelectThread
+}: AppSidebarProps) {
+  const { isCollapsed, toggleSidebar } = useAppSidebar()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const { t, locale } = useI18n()
+
+  const isNewChatActive = pathname?.endsWith('/chat') && !searchParams?.get('task') && !activeThreadId
+  const isCommunityActive = pathname?.includes('/explore')
+
+  // Hook for tasks
+  // Only fetch when sidebar is expanded
+  const { tasks, loading, deleteTask } = useTasks(!isCollapsed)
+
+  // Local UI States
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [isTasksOpen, setIsTasksOpen] = useState(true)
+  const [isChatsOpen, setIsChatsOpen] = useState(true)
+
+  // Handle task selection
+  const handleTaskSelect = (taskId: string) => {
+    if (onSelectTask) {
+      onSelectTask(taskId)
+    } else {
+      router.push(`/${locale}/chat?task=${taskId}`)
+    }
+  }
+
+  // Handle delete
+  const handleDelete = async (e: React.MouseEvent, taskId: string) => {
+    e.stopPropagation()
+    setDeletingId(taskId)
+    await deleteTask(taskId)
+    setDeletingId(null)
+  }
+
+  // Handle new chat
+  const handleNewChat = () => {
+    if (onNewChat) {
+      onNewChat()
+    } else {
+      router.push(`/${locale}/chat`)
+    }
+  }
+
+  // Handle community click
+  const handleCommunityClick = () => {
+    router.push(`/${locale}/explore`)
+  }
+
+  return (
+    <aside
+      className={cn(
+        "h-screen flex-none flex flex-col py-4 hidden md:flex transition-all duration-300 ease-in-out",
+        "border-r backdrop-blur-xl",
+        "bg-white/70 border-slate-200/60",
+        "dark:bg-black/40 dark:border-white/10",
+        isCollapsed ? "w-[72px] px-3" : "w-[280px] px-4",
+        className
+      )}
+    >
+      {/* Hamburger Button - Always at top-left */}
+      <div className={cn(
+        "flex items-center mb-4 gap-3",
+        isCollapsed ? "justify-center" : "justify-start px-2"
+      )}>
+        <button
+          onClick={toggleSidebar}
+          className={cn(
+            "p-2.5 rounded-xl transition-all",
+            "text-slate-500 hover:text-slate-700 hover:bg-slate-100",
+            "dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/10"
+          )}
+          aria-label="Toggle sidebar"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        {/* Brand Logo - Only visible when expanded or we can show icon when collapsed */}
+        {!isCollapsed && (
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center shadow-sm">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-700 via-teal-600 to-emerald-600 dark:from-emerald-400 dark:via-teal-300 dark:to-cyan-300 tracking-tight">VibeDigest</span>
+          </div>
+        )}
+      </div>
+
+      {isCollapsed ? (
+        // ========== COLLAPSED VIEW ==========
+        <CollapsedView
+          onNewChat={handleNewChat}
+          onCommunityClick={handleCommunityClick}
+          t={t}
+        />
+      ) : (
+        // ========== EXPANDED VIEW ==========
+        <>
+          {/* New Task Button */}
+          <button
+            onClick={handleNewChat}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all mb-1 mx-1",
+              isNewChatActive
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/30 dark:text-emerald-400 font-semibold shadow-sm shadow-emerald-900/5"
+                : "text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-slate-300 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
+            )}
+          >
+            <Plus className={cn("w-5 h-5", isNewChatActive && "text-emerald-600 dark:text-emerald-400")} />
+            <span className="text-sm font-medium">{t("chat.newChat") || "New task"}</span>
+          </button>
+
+          {/* Community Button */}
+          <button
+            onClick={handleCommunityClick}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all mb-3 mx-1",
+              isCommunityActive
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/30 dark:text-emerald-400 font-semibold shadow-sm shadow-emerald-900/5"
+                : "text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-slate-300 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
+            )}
+          >
+            <Library className={cn("w-5 h-5", isCommunityActive && "text-emerald-600 dark:text-emerald-400")} />
+            <span className="text-sm font-medium">{t("chat.community") || "Community"}</span>
+          </button>
+
+          {/* Divider */}
+          <div className="h-px mx-3 mb-3 bg-slate-200/60 dark:bg-white/10" />
+
+          {/* Chats Section */}
+          <div className="flex-none flex flex-col mb-2">
+            <button
+              onClick={() => setIsChatsOpen(!isChatsOpen)}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-xl mx-1",
+                "text-slate-500 hover:text-slate-700 hover:bg-slate-50",
+                "dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-white/5"
+              )}
+            >
+              {isChatsOpen ? (
+                <ChevronDown className="w-4 h-4" />
+              ) : (
+                <ChevronRight className="w-4 h-4" />
+              )}
+              <span>{t("chat.chats") || "Chats"}</span>
+            </button>
+
+            {isChatsOpen && (
+              <div className="overflow-y-auto max-h-[30vh] custom-scrollbar mt-1 px-1 space-y-0.5">
+                {threads.length === 0 ? (
+                  <div className="text-center py-4 px-4">
+                    <p className="text-xs text-slate-400">No chats yet</p>
+                  </div>
+                ) : (
+                  threads.map(thread => (
+                    <button
+                      key={thread.id}
+                      onClick={() => onSelectThread?.(thread.id)}
+                      className={cn(
+                        "w-full text-left px-3 py-2 rounded-xl transition-all flex items-center gap-3 cursor-pointer group",
+                        "hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300",
+                        activeThreadId === thread.id && "bg-emerald-50/50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                      )}
+                    >
+                      <MessageSquare className={cn(
+                        "w-4 h-4 shrink-0",
+                        activeThreadId === thread.id ? "text-emerald-500" : "text-slate-400"
+                      )} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm truncate">
+                          {thread.title || 'New Chat'}
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Tasks Section */}
+          <div className="flex-1 overflow-hidden flex flex-col">
+            {/* Tasks Header */}
+            <button
+              onClick={() => setIsTasksOpen(!isTasksOpen)}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-xl mx-1",
+                "text-slate-500 hover:text-slate-700 hover:bg-slate-50",
+                "dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-white/5"
+              )}
+            >
+              {isTasksOpen ? (
+                <ChevronDown className="w-4 h-4" />
+              ) : (
+                <ChevronRight className="w-4 h-4" />
+              )}
+              <span>{t("chat.tasks") || "Tasks"}</span>
+            </button>
+
+            {/* Tasks List */}
+            {isTasksOpen && (
+              <div className="flex-1 overflow-y-auto custom-scrollbar mt-1">
+                {loading ? (
+                  <div className="flex justify-center py-6">
+                    <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+                  </div>
+                ) : tasks.length === 0 ? (
+                  <div className="text-center py-6 px-4">
+                    <p className="text-sm text-slate-400">
+                      No recent tasks
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-0.5 px-1">
+                    {tasks.map(task => (
+                      <TaskItem
+                        key={task.id}
+                        task={task}
+                        onSelect={() => handleTaskSelect(task.id)}
+                        onDelete={(e) => handleDelete(e, task.id)}
+                        isDeleting={deletingId === task.id}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </aside>
+  )
+}

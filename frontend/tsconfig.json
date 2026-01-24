@@ -5,7 +5,8 @@
     "lib": [
       "dom",
       "dom.iterable",
-      "esnext"
+      "esnext",
+      "es2022"
     ],
     "allowJs": true,
     "skipLibCheck": true,
@@ -27,7 +28,10 @@
       "@/*": [
         "./src/*"
       ]
-    }
+    },
+    "types": [
+      "vitest/globals"
+    ]
   },
   "include": [
     "next-env.d.ts",
@@ -35,7 +39,9 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    ".next-test/types/**/*.ts",
+    ".next-test/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

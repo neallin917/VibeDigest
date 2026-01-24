@@ -1,4 +1,4 @@
-# AGENTS.md — VibeDigest Architecture & Vibe Coding Guide (v3.3)
+# AGENTS.md — VibeDigest Architecture & Vibe Coding Guide (v3.4)
 
 > **Note to AI Agents**: This document is the Single Source of Truth for the project's architecture. Before writing code, READ this file. If you make architectural changes, UPDATE this file.
 
@@ -14,6 +14,15 @@ VibeDigest is a full-stack tool engineered to download videos, transcribe audio,
 - **Core Orchestration**: Migrated to **LangGraph** & **LangChain** for robust, stateful video processing workflows.
 - **Design System**: "Supabase-style" aesthetic (Dark mode, Glassmorphism, Emerald Green accents).
 - **Auth**: **Web2 Only** (Email/Google) via Supabase Auth. Web3 Login removed in v3.1.
+
+**v3.4 Changes (Chat-First Architecture):**
+- **Core Interface Migration**: `/chat` is now the primary interface, replacing `/dashboard`.
+- **Route Redirects**: `/dashboard` → `/chat`, `/history` → `/chat?library=open`.
+- **Mobile Navigation**: Hamburger menu drawer for mobile devices on `/chat` page.
+- **IconSidebar Enhancement**: User dropdown now includes Settings/Pricing links.
+- **WelcomeScreen**: Empty state shows community examples for quick start.
+- **LibrarySidebar**: Enhanced with delete functionality and improved search.
+- **Deprecated Routes**: `/dashboard` and `/history` now redirect; will be removed in future versions.
 
 **Recent (Post-v3.3) Additions:**
 - **Seekable Playback**: Task detail page supports click-to-seek for YouTube/Bilibili embeds and audio sources.
@@ -33,15 +42,25 @@ VibeDigest is a full-stack tool engineered to download videos, transcribe audio,
     - `*.py`: Stateless processors (yt-dlp).
 - `frontend/`: **Frontend Source** (Next.js/TypeScript)
     - `src/app/`: App Router pages.
-        - `(main)/`: **Protected Route Group** (Responsive Navigation Shell).
-            - Desktop (`md+`): Sidebar navigation.
-            - Mobile (`< md`): Sticky top header + bottom tab navigation.
-            - `dashboard/`, `history/`, `settings/`, `tasks/`.
-        - `page.tsx`: Public Landing Page.
-        - `login/`: Auth Page.
-    - `src/middleware.ts`: Auth Gatekeeper.
+        - `[lang]/`: Locale-prefixed routes (i18n).
+            - `chat/`: **Core Interface** (Chat-First Design).
+            - `(main)/`: Protected Route Group (MainShell navigation).
+                - `dashboard/`: **@deprecated** → Redirects to `/chat`.
+                - `history/`: **@deprecated** → Redirects to `/chat?library=open`.
+                - `settings/`, `tasks/`.
+            - `page.tsx`: Public Landing Page.
+            - `login/`: Auth Page.
+    - `src/middleware.ts`: Auth Gatekeeper + Route Redirects.
     - `src/components/ui/`: Reusable UI components (Button, Card, etc.).
     - `src/components/layout/`: App shell & navigation (`Sidebar`, `MobileNav`, shared `navItems`).
+    - `src/components/chat/`: Chat-First UI Components
+        - `ChatWorkspace.tsx`: Main chat layout container.
+        - `ChatContainer.tsx`: AI chat + task creation logic.
+        - `IconSidebar.tsx`: Desktop sidebar (64px) with user dropdown.
+        - `MobileMenuDrawer.tsx`: Mobile hamburger menu drawer.
+        - `LibrarySidebar.tsx`: History sidebar with search/delete.
+        - `WelcomeScreen.tsx`: Empty state with community examples.
+        - `VideoDetailPanel.tsx`: Right panel for task details.
     - `src/components/tasks/`: Media + transcript UX
         - `VideoEmbed.tsx`: Video source routing + seek controller (YouTube via JS API; Bilibili best-effort reload).
         - `YouTubePlayer.tsx`: YouTube IFrame Player API wrapper with `seek(seconds)` controller.
@@ -279,6 +298,33 @@ Demo tasks are featured content visible to all users (including anonymous visito
 *   **Production**: `vibedigest.neallin.xyz` (Prod DB).
 *   **Development**: `localhost` or Preview URL (Dev DB).
 *   **Rule**: "Prod is Sacred". Never test against Prod DB.
+
+### 7.4 Port Configuration (Single Source of Truth)
+
+All port configurations are defined in the **root `.env`** file. Other `.env` files should reference these values.
+
+| Service | Dev Port | Prod Port | Config Key |
+|---------|----------|-----------|------------|
+| **Frontend** | 3000 | N/A (Vercel) | `FRONTEND_PORT` |
+| **Backend API** | 16081 | 16080 | `BACKEND_PORT` |
+| **LangGraph Server** | 8123 | 8123 | `LANGGRAPH_PORT` |
+| **PostgreSQL** | 15432 | N/A (Supabase) | `DB_PORT` |
+| **Redis** | 16379 | N/A | `REDIS_PORT` |
+
+**Configuration Files (Shared Config + Local Secrets Pattern):**
+```
+.env.production              # Shared config (ports, URLs) - committed to Git
+.env.local                   # Secrets (API keys, passwords) - NOT committed
+├── frontend/.env.production # Frontend shared config - committed to Git
+└── frontend/.env.local      # Frontend secrets - NOT committed
+```
+
+**Development Workflow:**
+1. Start backend first: `cd backend && uv run uvicorn main:app --port 16081 --reload`
+2. Start frontend with check: `cd frontend && npm run dev:check` (auto-checks backend health)
+3. Or skip check: `cd frontend && npm run dev`
+
+**Health Check Script:** `scripts/check-backend.sh` verifies backend is running before frontend starts.
 
 ---
 
