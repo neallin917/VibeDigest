@@ -8,6 +8,7 @@ const mockSelect = vi.fn()
 const mockEq = vi.fn()
 const mockSingle = vi.fn()
 const mockLimit = vi.fn()
+const mockIn = vi.fn()
 
 // Create a builder object that references the mocks
 // We use a getter to return 'this' so chaining works
@@ -16,13 +17,25 @@ const queryBuilder = {
   eq: mockEq,
   single: mockSingle,
   limit: mockLimit,
+  in: mockIn,
 }
 
 // Configure chainable methods to return the builder
 mockSelect.mockReturnValue(queryBuilder)
 mockEq.mockReturnValue(queryBuilder)
 mockLimit.mockReturnValue(queryBuilder)
-// mockSingle is terminal, returns promise
+// mockIn is terminal in this usage (await supabase...in(...)) or chainable?
+// In Supabase js, .in() returns a builder that is thenable.
+// For mocking simple usage, we can make it return a Promise-like object or just be the terminal if we await it directly.
+// But wait, the component code is: await supabase....in(...)
+// So mockIn should return the Promise that resolves to { data: ... }
+// BUT, if we want to support chaining (if needed later), usually we return a thenable builder.
+// For this test, let's just make mockIn return the promise, OR make it chainable if we were calling .single() after.
+// The component ends with .in(). So it awaits the result of .in().
+// So mockIn should return the data promise.
+
+// However, we also need to allow configuration per test.
+// So we'll let tests override the return value.
 
 const mockSupabase = {
   from: vi.fn(() => queryBuilder),
@@ -56,6 +69,7 @@ describe('VideoDetailPanel', () => {
       }
     })
     mockLimit.mockResolvedValue({ data: [] }) // Default no summary
+    mockIn.mockResolvedValue({ data: [] }) // Default no outputs for .in() queries
   })
 
   it('renders loading state initially', () => {

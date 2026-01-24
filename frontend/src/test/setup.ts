@@ -1,6 +1,10 @@
 import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
+// Mock Environment Variables
+process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'example-key'
+
 // Mock localStorage
 const localStorageMock = (() => {
     let store: Record<string, string> = {}
