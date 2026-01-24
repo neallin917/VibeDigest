@@ -1,7 +1,6 @@
 import asyncio
 import os
 import sys
-from pathlib import Path
 
 # Add /app to sys.path just in case, though it should be cwd
 sys.path.append('/app')

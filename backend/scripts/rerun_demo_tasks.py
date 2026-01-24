@@ -9,9 +9,9 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from dotenv import load_dotenv
 load_dotenv()
 
-from db_client import DBClient
-from main import _execute_pipeline_core, MAX_CONCURRENT_JOBS, processing_limiter
-from config import settings
+from db_client import DBClient  # noqa: E402
+from main import _execute_pipeline_core  # noqa: E402
+from config import settings  # noqa: E402
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

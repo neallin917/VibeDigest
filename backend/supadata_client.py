@@ -1,9 +1,9 @@
 import os
-import time
 import logging
 import json
+import asyncio
 import httpx
-from typing import Optional, Tuple, Dict, Any, List
+from typing import Optional, Tuple, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +53,6 @@ class SupadataClient:
         try:
             # https://docs.supadata.ai/get-transcript
             # GET /transcript?url=...&text=false
-            params = {
-                "url": video_url,
-                "text": "false",  # We want segments
-                "mode": "auto",  # auto = try native, fallback to generate?
-                # Docs say: 'native', 'auto', or 'generate'
-                # We prefer 'auto' to get whatever is available best.
-            }
-
             # Using httpx for sync request (can be async, but for MVP we match current arch if easiest,
             # but main.py uses async pipeline. Let's strictly use sync for now or async?
             # main.py is async. Let's make this async or wrap it?
@@ -99,7 +91,7 @@ class SupadataClient:
         except ImportError:
             observation_ctx = nullcontext()
 
-        with observation_ctx as span:
+        with observation_ctx:
             if not self.api_key:
                 logger.warning("Supadata API key not configured. Skipping.")
                 return None, None, None
@@ -349,6 +341,3 @@ class SupadataClient:
             f"Supadata job {job_id} timed out after {max_retries * 2} seconds."
         )
         return None
-
-
-import asyncio

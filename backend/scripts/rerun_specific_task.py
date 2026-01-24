@@ -13,8 +13,8 @@ load_env()
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
-from workflow import app, VideoProcessingState
-from db_client import DBClient
+from workflow import app, VideoProcessingState  # noqa: E402
+from db_client import DBClient  # noqa: E402
 
 async def rerun_task(task_id: str):
     db_client = DBClient()

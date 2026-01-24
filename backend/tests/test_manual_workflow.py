@@ -2,7 +2,7 @@ import asyncio
 import sys
 import logging
 from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, patch
 
 # Setup path and env
 sys.path.append(str(Path(__file__).parent.parent))
@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 # We need to import after sys.path is set, but we also want to patch BEFORE main logic runs if possible.
 # Ideally we patch the module 'workflow' where these instances are.
-from workflow import app, VideoProcessingState
+from workflow import app, VideoProcessingState  # noqa: E402
 
 async def test_workflow_mocked():
     print("--- Starting Mocked Workflow Test ---")

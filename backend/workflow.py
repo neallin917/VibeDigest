@@ -409,10 +409,8 @@ async def _run_classify(transcript_text: str, task_id: str, video_url: str, user
             import json
 
             content_str = json.dumps(classification, ensure_ascii=False)
-            result = classification
         else:
             content_str = classification.model_dump_json()
-            result = classification
 
         db_client.update_task_output_by_kind(
             task_id,

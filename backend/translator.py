@@ -3,11 +3,9 @@ import os
 from typing import Optional
 from config import settings
 # from utils.openai_client import get_openai_client # Deprecated for Translator
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from utils.text_utils import LANGUAGE_MAP, detect_language, smart_chunk_text
 from prompts import TRANSLATE_SYSTEM, TRANSLATE_USER, TRANSLATE_CHUNK_SYSTEM
-import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +17,6 @@ class Translator:
         # Initialize ChatOpenAI client
         # We rely on OPENAI_API_KEY env var being set
         api_key = os.getenv("OPENAI_API_KEY")
-        base_url = os.getenv("OPENAI_BASE_URL")
         
         if api_key or settings.LLM_PROVIDER != 'openai':
              logger.info("Translator initialized via create_chat_model")

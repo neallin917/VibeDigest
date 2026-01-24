@@ -7,12 +7,12 @@ import logging
 # Add backend to path
 sys.path.append(os.path.join(os.getcwd(), "backend"))
 
-from utils.env_loader import load_env
+from utils.env_loader import load_env  # noqa: E402
 load_env()
 
 # Import workflow
-from workflow import build_graph, VideoProcessingState
-from db_client import DBClient
+from workflow import build_graph  # noqa: E402
+from db_client import DBClient  # noqa: E402
 
 # Setup Logger
 logging.basicConfig(level=logging.INFO)

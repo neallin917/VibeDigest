@@ -1,4 +1,5 @@
 import os
+import asyncio
 import yt_dlp
 import logging
 from pathlib import Path
@@ -225,7 +226,7 @@ class VideoProcessor:
                               metadata["author"] = data["author"].get("name")
                           if "image" in data:
                               metadata["author_image"] = data["image"]
-                 except: 
+                 except Exception:
                      pass
              
              if not metadata.get("author"):
@@ -434,7 +435,7 @@ class VideoProcessor:
             
             # 校验时长，如果和源视频差异较大，尝试一次ffmpeg规范化重封装
             try:
-                import subprocess, shlex
+                import shlex
                 # 使用 asyncio.create_subprocess_shell 替代同步 subprocess
                 probe_cmd = f"ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 {shlex.quote(audio_file)}"
                 
@@ -659,7 +660,8 @@ class VideoProcessor:
                 if f.exists():
                     found_file = f
                     found_lang = lang if "zh" in lang else "en" # Simplify lang code for system
-                    if "zh" in lang: found_lang = "zh"
+                    if "zh" in lang:
+                        found_lang = "zh"
                     break
             
             # Fallback: any vtt with unique_id
@@ -720,9 +722,6 @@ class VideoProcessor:
         Extract metadata without downloading the full audio.
         Returns: metadata_dict (includes title, thumbnail, audio_url, etc.)
         """
-        import asyncio
-        start_time = asyncio.get_event_loop().time()
-        
         # Use a fresh YDL instance with download=False (simulate=True implicitly via extract_info(..., download=False))
         # We assume same opts are fine, or minimal opts.
         # fast discovery

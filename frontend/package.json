@@ -10,7 +10,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",
-    "test:cov": "vitest run --coverage"
+    "test:cov": "vitest run --coverage",
+    "video:preview": "remotion preview src/remotion/index.ts",
+    "video:render": "remotion render src/remotion/index.ts PromoVideo out/video.mp4"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.12",
@@ -61,6 +63,9 @@
   "devDependencies": {
     "@next/bundle-analyzer": "^16.1.4",
     "@playwright/test": "^1.57.0",
+    "@remotion/cli": "^4.0.409",
+    "@remotion/shapes": "^4.0.409",
+    "@remotion/tailwind": "^4.0.409",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
@@ -70,9 +75,14 @@
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^5.1.2",
     "@vitest/coverage-v8": "^4.0.16",
+    "css-loader": "^7.1.2",
     "eslint": "^9",
     "eslint-config-next": "16.1.0",
     "jsdom": "^27.3.0",
+    "postcss": "^8.5.6",
+    "postcss-loader": "^8.2.0",
+    "remotion": "^4.0.409",
+    "style-loader": "^4.0.0",
     "tailwindcss": "^4",
     "typescript": "5.9.3",
     "vitest": "^4.0.16"

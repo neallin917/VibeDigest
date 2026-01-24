@@ -23,8 +23,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 load_dotenv()
 
-from config import settings
-from summarizer import Summarizer
+from config import settings  # noqa: E402
+from summarizer import Summarizer  # noqa: E402
 
 # ANSI colors for terminal output
 class Colors:

@@ -3,7 +3,6 @@ from httpx import AsyncClient, ASGITransport
 from main import app, db_client
 from typing import AsyncGenerator
 import os
-import time
 from sqlalchemy import create_engine, text
 
 
@@ -191,7 +190,6 @@ async def async_client(test_db) -> AsyncGenerator[AsyncClient, None]:
     # Re-init engine (hacky but effective for singleton pattern in main.py)
     # Actually db_client is instantiated at module level in main.py.
     # We can manually replace its inner engine.
-    from main import db_client
     db_client.db_url = test_db
     db_client.engine = create_engine(test_db)
     db_client.Session = None # Clear session factory

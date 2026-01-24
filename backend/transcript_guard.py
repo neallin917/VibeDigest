@@ -1,8 +1,7 @@
 import logging
-from typing import Optional, List, Dict
+from typing import Optional, Dict
 from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
-from config import settings
 from utils.text_utils import extract_pure_text, count_words_or_units
 
 logger = logging.getLogger(__name__)

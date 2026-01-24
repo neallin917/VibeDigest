@@ -1,4 +1,3 @@
-import os
 import asyncio
 import json
 import argparse
@@ -8,11 +7,10 @@ from pathlib import Path
 # Add backend to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from utils.env_loader import load_env
+from utils.env_loader import load_env  # noqa: E402
 load_env()
 
-from summarizer import Summarizer
-from config import settings
+from summarizer import Summarizer  # noqa: E402
 
 SOCIAL_POST_PROMPT_SYSTEM = """你是一位顶尖的自媒体运营专家，擅长将长视频转录文稿改造成极具传播力的社交媒体精品推文（如微博、小红书）。
 

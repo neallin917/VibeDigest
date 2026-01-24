@@ -11,12 +11,11 @@ sys.path.append(backend_dir)
 sys.modules["openai"] = MagicMock()
 sys.modules["pydub"] = MagicMock()
 
-import pytest
-from transcriber import (
+from transcriber import (  # noqa: E402
     _merge_segments_into_sentences,
     _split_long_sentence_segments,
 )
-from utils.text_utils import (
+from utils.text_utils import (  # noqa: E402
     count_words_or_units,
     ends_with_sentence,
 )

@@ -2,7 +2,7 @@ import os
 import logging
 from typing import Dict, Any, List, Optional
 from supabase import create_client, Client
-from sqlalchemy import create_engine, text, exc
+from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 import json
@@ -151,7 +151,7 @@ class DBClient:
                 if k == "duration":
                     try:
                         val = int(float(val))
-                    except:
+                    except (ValueError, TypeError):
                         val = 0
                 fields.append(f"{col} = :{k}")
                 params[k] = val

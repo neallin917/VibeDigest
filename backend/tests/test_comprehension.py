@@ -2,7 +2,6 @@ import pytest
 import asyncio
 import json
 from comprehension import ComprehensionAgent
-from pydantic import ValidationError
 from unittest.mock import MagicMock, AsyncMock, patch
 
 @pytest.mark.asyncio

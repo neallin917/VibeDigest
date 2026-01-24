@@ -2,17 +2,16 @@ import asyncio
 import json
 import os
 import sys
-import logging
 from pathlib import Path
 
 # Add backend to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from utils.env_loader import load_env
+from utils.env_loader import load_env  # noqa: E402
 load_env()
 
-from comprehension import ComprehensionAgent
-from db_client import DBClient
+from comprehension import ComprehensionAgent  # noqa: E402
+from db_client import DBClient  # noqa: E402
 
 async def run_musk_comprehension_real():
     task_id = "41cb3a14-6726-4516-a983-4a2f3572c157"
@@ -31,7 +30,7 @@ async def run_musk_comprehension_real():
         return
 
     agent = ComprehensionAgent()
-    print(f"Generating Comprehension Brief using prioritized models...")
+    print("Generating Comprehension Brief using prioritized models...")
     
     # Generate in Chinese
     brief_json = await agent.generate_comprehension_brief(
