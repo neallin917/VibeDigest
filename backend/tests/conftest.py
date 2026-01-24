@@ -17,8 +17,8 @@ def postgres_container():
     Returns DB URL.
     Optimized: Uses TEST_DATABASE_URL if set, or defaults to local docker run.
     """
-    # For debugging: Use the manually started container
-    db_url = os.environ.get("TEST_DATABASE_URL", "postgresql://postgres:test@localhost:5455/postgres")
+    # Default to standard port 5432 if not specified
+    database_url = os.getenv("TEST_DATABASE_URL", "postgresql://postgres:test@localhost:5432/postgres")
     
     # Simple check if ready
     # We yield it. If connection fails in test_db, it will raise there.

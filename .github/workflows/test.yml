@@ -30,6 +30,7 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
+        cache: 'pip'
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -38,6 +39,13 @@ jobs:
         echo "=== Debug Dependencies ==="
         pip list
         python -c "import sqlalchemy; print(f'SQLAlchemy version: {sqlalchemy.__version__}')"
+
+    - name: Run Linting
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        ruff check backend --select=E9,F63,F7,F82 --target-version=py310
+        # Exit with zero even if there are errors, to treat as warnings for now
+        ruff check backend --exit-zero
 
     - name: Install system dependencies
       run: |
@@ -65,6 +73,8 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
     - name: Install dependencies
       run: npm install
     - name: Run tests
