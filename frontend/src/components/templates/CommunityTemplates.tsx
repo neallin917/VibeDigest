@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { PlayCircle, Loader2 } from "lucide-react"
+import { PlayCircle, Loader2, Sparkles } from "lucide-react"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { createClient } from "@/lib/supabase"
 import { motion } from "framer-motion"
