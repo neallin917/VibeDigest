@@ -5,12 +5,12 @@ from coinbase_commerce.client import Client as CoinbaseClient
 
 from db_client import DBClient
 from config import settings
-from notifier import Notifier
-from supadata_client import SupadataClient
-from summarizer import Summarizer
-from transcriber import Transcriber
-from translator import Translator
-from video_processor import VideoProcessor
+from services.notifier import Notifier
+from services.supadata_client import SupadataClient
+from services.summarizer import Summarizer
+from services.transcriber import Transcriber
+from services.translator import Translator
+from services.video_processor import VideoProcessor
 
 # Service Providers using lru_cache to act as singletons within the request scope context
 # (though lru_cache makes them global singletons effectively)

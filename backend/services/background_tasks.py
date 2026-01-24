@@ -6,9 +6,9 @@ from contextlib import nullcontext, contextmanager
 
 from config import settings
 from db_client import DBClient
-from summarizer import Summarizer
+from .summarizer import Summarizer
 from workflow import app as workflow_app
-from transcriber import format_markdown_from_raw_segments
+from .transcriber import format_markdown_from_raw_segments
 from dependencies import get_db_client, get_summarizer
 
 logger = logging.getLogger(__name__)

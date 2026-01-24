@@ -5,7 +5,7 @@ import sys
 # Add /app to sys.path just in case, though it should be cwd
 sys.path.append('/app')
 
-from video_processor import VideoProcessor
+from services.video_processor import VideoProcessor
 
 async def main():
     url = "https://www.youtube.com/watch?v=ExNWGF-q64M"
