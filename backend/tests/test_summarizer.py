@@ -18,7 +18,7 @@ sys.modules["langchain_openai"] = MagicMock()
 sys.modules["langchain_core"] = MagicMock()
 sys.modules["langchain_core.messages"] = MagicMock()
 
-from summarizer import Summarizer  # noqa: E402
+from services.summarizer import Summarizer  # noqa: E402
 
 
 # --- FIXTURES ---
@@ -299,7 +299,7 @@ class TestPydanticModels:
     """Test Pydantic model imports and creation."""
 
     def test_content_classification_model(self):
-        from summarizer import ContentClassification
+        from services.summarizer import ContentClassification
         obj = ContentClassification(
             content_form="tutorial",
             info_structure="sequential",
@@ -309,7 +309,7 @@ class TestPydanticModels:
         assert obj.content_form == "tutorial"
 
     def test_keypoint_model(self):
-        from summarizer import KeyPoint
+        from services.summarizer import KeyPoint
         kp = KeyPoint(
             title="Test Title",
             detail="Test Detail",
@@ -318,7 +318,7 @@ class TestPydanticModels:
         assert kp.title == "Test Title"
 
     def test_summary_response_model(self):
-        from summarizer import SummaryResponse, KeyPoint
+        from services.summarizer import SummaryResponse, KeyPoint
         sr = SummaryResponse(
             language="en",
             overview="Test Overview",

@@ -270,7 +270,7 @@ class SupadataClient:
                     # The Plan said: "Returns (markdown, raw_json, detected_language)"
                     # To avoid circular imports or duplication, we can import the helper here.
 
-                    from transcriber import format_markdown_from_raw_segments
+                    from .transcriber import format_markdown_from_raw_segments
 
                     markdown_text = format_markdown_from_raw_segments(
                         final_segments, detected_language=detected_lang

@@ -35,7 +35,7 @@ else:
     print("Using default dotenv loading")
 
 from config import settings  # noqa: E402
-from summarizer import Summarizer  # noqa: E402
+from services.summarizer import Summarizer  # noqa: E402
 
 # ANSI colors for terminal output
 class Colors:

@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 import json
-from comprehension import ComprehensionAgent
+from services.comprehension import ComprehensionAgent
 from unittest.mock import MagicMock, AsyncMock, patch
 
 @pytest.mark.asyncio

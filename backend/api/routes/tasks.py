@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from dependencies import get_current_user, get_db_client, get_video_processor
 from db_client import DBClient
-from video_processor import VideoProcessor
+from services.video_processor import VideoProcessor
 from utils.url import normalize_video_url
 from services.background_tasks import run_pipeline, handle_retry_output
 

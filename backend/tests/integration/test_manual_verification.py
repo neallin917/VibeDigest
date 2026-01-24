@@ -8,14 +8,14 @@ import sys
 from pathlib import Path
 
 # Add backend to path
-backend_path = Path(__file__).parent / "backend"
+backend_path = Path(__file__).parents[2]
 sys.path.insert(0, str(backend_path))
 
 
 async def test_preview_endpoint():
     """Test the new preview-video endpoint."""
     try:
-        from video_processor import VideoProcessor
+        from services.video_processor import VideoProcessor
         from utils.url import normalize_video_url
 
         print("✅ Successfully imported backend modules")

@@ -3,7 +3,7 @@ from fastapi import APIRouter, BackgroundTasks, Header, Depends, HTTPException
 from pydantic import BaseModel
 
 from dependencies import get_db_client, get_notifier
-from notifier import Notifier
+from services.notifier import Notifier
 from db_client import DBClient
 
 router = APIRouter()

@@ -13,11 +13,11 @@ from langgraph.graph import StateGraph, END
 from config import settings
 from db_client import DBClient
 from constants import OutputKind, TaskStatus
-from supadata_client import SupadataClient
-from summarizer import Summarizer
-from comprehension import ComprehensionAgent
-from transcriber import Transcriber
-from video_processor import VideoProcessor
+from services.supadata_client import SupadataClient
+from services.summarizer import Summarizer
+from services.comprehension import ComprehensionAgent
+from services.transcriber import Transcriber
+from services.video_processor import VideoProcessor
 from utils.url import normalize_video_url
 
 # Setup logger
