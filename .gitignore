@@ -83,3 +83,6 @@ yarn-error.log
 .next/
 out/
 .workspace.json
+
+# local docker compose
+/docker-compose.*.yml
