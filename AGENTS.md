@@ -35,11 +35,14 @@ VibeDigest is a full-stack tool engineered to download videos, transcribe audio,
     - `main.py`: FastAPI entry point (Control Plane).
     - `workflow.py`: **LangGraph** Workflow Definition (State & Nodes).
     - `db_client.py`: Supabase Service Role interactions (Data Plane).
-    - `transcriber.py`: OpenAI Whisper Integration + `pydub` Chunking.
-    - `notifier.py`: Email notifications via Resend.
-    - `supadata_client.py`: **Optional** Supadata transcript fetcher (YouTube only) using `httpx`.
+    - `api/routes/`: FastAPI Route Handlers (tasks, payments, webhooks).
+    - `services/`: Business Logic & Integrations.
+        - `transcriber.py`: OpenAI Whisper Integration + `pydub` Chunking.
+        - `notifier.py`: Email notifications via Resend.
+        - `supadata_client.py`: **Optional** Supadata transcript fetcher (YouTube only).
+        - `video_processor.py`, `summarizer.py`: Core processing logic.
     - `scripts/`: Internal utility and debugging scripts (e.g., `debug_log.py`).
-    - `*.py`: Stateless processors (yt-dlp).
+    - `utils/`: Shared utilities (OpenAI client, text tools).
 - `frontend/`: **Frontend Source** (Next.js/TypeScript)
     - `src/app/`: App Router pages.
         - `[lang]/`: Locale-prefixed routes (i18n).
