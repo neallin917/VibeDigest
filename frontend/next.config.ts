@@ -3,6 +3,7 @@ console.error('[Debug] NODE_ENV:', process.env.NODE_ENV);
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 import withBundleAnalyzer from '@next/bundle-analyzer';
+import path from "path";
 
 const bundleAnalyzer = withBundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',
@@ -11,6 +12,11 @@ const bundleAnalyzer = withBundleAnalyzer({
 const nextConfig: NextConfig = {
   // Allow custom build directory for testing to avoid lock conflicts
   distDir: process.env.NEXT_DIST_DIR || '.next',
+  // Keep workspace root anchored to the frontend folder for module resolution.
+  // This avoids Tailwind resolving from the monorepo root when multiple lockfiles exist.
+  turbopack: {
+    root: __dirname,
+  },
   /* config options here */
   images: {
     minimumCacheTTL: 60 * 60 * 24, // Cache images for 24 hours
@@ -42,6 +48,15 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     optimizePackageImports: ['lucide-react'],
+  },
+  webpack: (config) => {
+    const resolveModules = config.resolve?.modules ?? [];
+    config.resolve = config.resolve || {};
+    config.resolve.modules = [
+      path.resolve(__dirname, "node_modules"),
+      ...resolveModules,
+    ];
+    return config;
   },
 };
 
