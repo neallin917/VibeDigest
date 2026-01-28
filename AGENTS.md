@@ -189,7 +189,7 @@ docker-compose -f docker-compose.test.yml up -d
         *   If Supadata skipped this: Calls **OpenAI Whisper** on audio file.
         *   Generates `script` (Markdown) and `script_raw` (JSON).
     *   **Node: `summarize`**:
-        *   Uses **LangChain ChatOpenAI** to generate summary (`v2` JSON schema).
+        *   Uses **LangChain ChatLiteLLM** (via `litellm`) to generate summary (`v2` JSON schema).
         *   Handles chunking for long transcripts automatically.
     *   **Node: `classify`**:
         *   Tags content type/structure using LLM.
