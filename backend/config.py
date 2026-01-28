@@ -3,6 +3,28 @@ import logging
 from typing import Dict, Optional
 from pydantic import BaseModel
 
+
+def _parse_bool_env(name: str, default: bool = False) -> bool:
+    """
+    Parse a boolean environment variable with common truthy/falsy values.
+
+    Truthy: "1", "true", "t", "yes", "y", "on" (case-insensitive)
+    Falsy: "0", "false", "f", "no", "n", "off" (case-insensitive)
+
+    Returns the default if the env var is not set or has an unrecognized value.
+
+    Note: This is inlined here to avoid circular imports with utils.text_utils.
+    """
+    raw = os.getenv(name)
+    if raw is None:
+        return bool(default)
+    s = str(raw).strip().lower()
+    if s in ("1", "true", "t", "yes", "y", "on"):
+        return True
+    if s in ("0", "false", "f", "no", "n", "off"):
+        return False
+    return bool(default)
+
 class PriceConfig(BaseModel):
     id: str
     amount: float
@@ -44,11 +66,11 @@ class Settings:
 
     # Models
     # Chat Agent Model
-    MOCK_MODE: bool = os.getenv("MOCK_MODE", "false").lower() == "true"
+    MOCK_MODE: bool = _parse_bool_env("MOCK_MODE", False)
 
     # Cognition Rate Limiting (Local/Dev)
     # Default to TRUE for safety if env var invalid
-    COGNITION_SEQUENTIAL: bool = os.getenv("COGNITION_SEQUENTIAL", "true").lower() == "true"
+    COGNITION_SEQUENTIAL: bool = _parse_bool_env("COGNITION_SEQUENTIAL", True)
     COGNITION_DELAY: float = float(os.getenv("COGNITION_DELAY") or "0.0")
     
     # LLM Configuration

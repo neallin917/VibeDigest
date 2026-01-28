@@ -16,6 +16,7 @@ from utils.text_utils import (
     enforce_paragraph_max_chars,
     extract_pure_text,
     detect_language,
+    extract_first_json_object,
 )
 from prompts import (
     OPTIMIZE_TRANSCRIPT_SYSTEM_ZH,
@@ -104,7 +105,13 @@ class SummaryResponse(BaseModel):
 
 
 class Summarizer:
-    """文本总结器，使用LangChain ChatOpenAI生成多语言摘要"""
+    """Text Summarizer using LiteLLM (Unified) for multi-language summaries"""
+
+    @staticmethod
+    def _supports_structured_output(model_name: str) -> bool:
+        # LiteLLM generally supports structured output for OpenAI-compatible models.
+        # We assume support for now as part of the unification.
+        return True
 
     @staticmethod
     def _read_int_env(
@@ -216,6 +223,9 @@ class Summarizer:
         )
         self.enable_json_repair = self._read_bool_env(
             "OPENAI_SUMMARY_JSON_REPAIR", True
+        )
+        self.enable_summary_fallback = self._read_bool_env(
+            "OPENAI_SUMMARY_FALLBACK", True
         )
         self.json_repair_model = (
             os.getenv("OPENAI_JSON_REPAIR_MODEL") or ""
@@ -359,16 +369,47 @@ class Summarizer:
         return int(base_tokens + format_overhead + system_prompt_overhead)
 
     def _extract_first_json_object(self, text: str) -> Optional[str]:
-        if not text:
-            return None
-        s = text.strip()
-        s = re.sub(r"^```(?:json)?\s*", "", s, flags=re.IGNORECASE)
-        s = re.sub(r"\s*```$", "", s)
-        start = s.find("{")
-        end = s.rfind("}")
-        if start == -1 or end == -1 or end <= start:
-            return None
-        return s[start : end + 1]
+        return extract_first_json_object(text)
+
+    async def _ainvoke_structured_json(
+        self,
+        llm: Any,
+        schema: Any,
+        messages: List[BaseMessage],
+        *,
+        config: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Invoke a structured-output LLM, but gracefully fall back to parsing JSON text
+        when tool-calling is not supported or returns None.
+        """
+        structured_llm = llm.with_structured_output(schema)
+        result = await structured_llm.ainvoke(messages, config=config)
+
+        if result is None:
+            raw = await llm.ainvoke(messages, config=config)
+            raw_text = getattr(raw, "content", None) or str(raw)
+            json_text = extract_first_json_object(raw_text) or raw_text
+            obj = json.loads(json_text)
+            parsed = schema(**obj)
+            if hasattr(parsed, "model_dump"):
+                return parsed.model_dump()
+            return parsed.dict()
+
+        if hasattr(result, "model_dump"):
+            return result.model_dump()
+        if hasattr(result, "dict"):
+            return result.dict()
+        if isinstance(result, dict):
+            return result
+        if isinstance(result, str):
+            obj = json.loads(result)
+            parsed = schema(**obj)
+            if hasattr(parsed, "model_dump"):
+                return parsed.model_dump()
+            return parsed.dict()
+
+        raise ValueError(f"Unexpected structured output type: {type(result)!r}")
 
     def _fallback_summary_json_v1(self, transcript: str, target_language: str) -> str:
         cleaned = remove_timestamps_and_meta(transcript or "").strip()
@@ -743,8 +784,13 @@ class Summarizer:
     ) -> str:
         try:
             if not self.api_key:
-                logger.warning("OpenAI API unavailable, fallback JSON summary")
-                return self._fallback_summary_json_v1(transcript, target_language)
+                logger.warning("OpenAI API unavailable, summary generation skipped")
+                if self.enable_summary_fallback:
+                    fallback_language = self._normalize_lang_code(target_language)
+                    return self._fallback_summary_json_v1(
+                        transcript, fallback_language
+                    )
+                raise RuntimeError("OpenAI API unavailable for summary generation")
 
             target_language = self._normalize_lang_code(target_language)
 
@@ -777,7 +823,20 @@ class Summarizer:
 
         except Exception as e:
             logger.error(f"Summary generation failed: {str(e)}")
-            return self._fallback_summary_json_v1(transcript, target_language)
+            if self.enable_summary_fallback:
+                try:
+                    fallback_language = self._normalize_lang_code(target_language)
+                    logger.warning(
+                        "Falling back to heuristic summary JSON after failure"
+                    )
+                    return self._fallback_summary_json_v1(
+                        transcript, fallback_language
+                    )
+                except Exception as fallback_error:
+                    logger.error(
+                        f"Fallback summary generation failed: {fallback_error}"
+                    )
+            raise
 
     async def classify_content(
         self, transcript: str, trace_metadata: Optional[Dict[str, Any]] = None
@@ -799,17 +858,9 @@ class Summarizer:
                     **{k: v for k, v in trace_metadata.items() if k != "metadata"},
                 }
 
-            # Use with_structured_output for robust JSON parsing
-            llm = self._get_llm(self.classifier_model, max_tokens=settings.SHORT_TASK_MAX_TOKENS)
-            structured_llm = llm.with_structured_output(ContentClassification)
-
-            # Note: _ainvoke_with_fallback handles raw messages, but here we use the specific structured invoke
-            # We bypass _ainvoke_with_fallback for now to use the structured method directly,
-            # or we could adapt _ainvoke_with_fallback to support structured output.
-            # For simplicity in this refactor, let's call structured_llm directly or use a simple fallback loop.
-
-            # Since _ainvoke_with_fallback is custom, let's try to adapt logic inline for structured output
-            # But the simplest way is to just call ainvoke on the structured_llm
+            llm = self._get_llm(
+                self.classifier_model, max_tokens=settings.SHORT_TASK_MAX_TOKENS
+            )
 
             messages = [
                 SystemMessage(content=system_prompt),
@@ -825,16 +876,32 @@ class Summarizer:
                 "metadata": trace_config.get("metadata", {}) if trace_config else {},
             }
 
-            classification: ContentClassification = await structured_llm.ainvoke(
-                messages, config=lc_config
-            )
+            if self.use_response_format_json or not self._supports_structured_output(
+                self.classifier_model
+            ):
+                raw = await llm.ainvoke(messages, config=lc_config)
+                raw_text = getattr(raw, "content", None) or str(raw)
+                json_text = self._extract_first_json_object(raw_text) or raw_text
+                obj = json.loads(json_text)
+                classification_obj = ContentClassification(**obj)
+                if hasattr(classification_obj, "model_dump"):
+                    classification_data = classification_obj.model_dump()
+                else:
+                    classification_data = classification_obj.dict()
+            else:
+                classification_data = await self._ainvoke_structured_json(
+                    llm,
+                    ContentClassification,
+                    messages,
+                    config=lc_config,
+                )
 
             # Convert back to dict for compatibility
             result = {
-                "content_form": classification.content_form,
-                "info_structure": classification.info_structure,
-                "cognitive_goal": classification.cognitive_goal,
-                "confidence": classification.confidence,
+                "content_form": classification_data.get("content_form"),
+                "info_structure": classification_data.get("info_structure"),
+                "cognitive_goal": classification_data.get("cognitive_goal"),
+                "confidence": classification_data.get("confidence", 0.0),
             }
 
             # Normalize defaults (Fallback validation is technically handled by Pydantic but we ensure safe strings)
@@ -950,8 +1017,6 @@ class Summarizer:
                     llm = self._get_llm(
                         model, max_tokens=self.summary_single_max_output_tokens
                     )
-                    structured_llm = llm.with_structured_output(SummaryResponse)
-
                     messages = [
                         SystemMessage(content=system_prompt),
                         HumanMessage(content=user_prompt),
@@ -971,12 +1036,28 @@ class Summarizer:
                         },
                     }
 
-                    summary_obj: SummaryResponse = await structured_llm.ainvoke(
-                        messages, config=lc_config
-                    )
+                    if self.use_response_format_json or not self._supports_structured_output(
+                        model
+                    ):
+                        raw = await llm.ainvoke(messages, config=lc_config)
+                        raw_text = getattr(raw, "content", None) or str(raw)
+                        json_text = self._extract_first_json_object(raw_text) or raw_text
+                        obj = json.loads(json_text)
+                        summary_obj = SummaryResponse(**obj)
+                        if hasattr(summary_obj, "model_dump"):
+                            obj = summary_obj.model_dump()
+                        else:
+                            obj = summary_obj.dict()
+                    else:
+                        obj = await self._ainvoke_structured_json(
+                            llm,
+                            SummaryResponse,
+                            messages,
+                            config=lc_config,
+                        )
 
-                    # Convert to dict
-                    obj = summary_obj.dict()
+                    if not isinstance(obj, dict):
+                        raise ValueError("Structured summary payload is not a dict")
                     if "content_type" in obj:
                         obj["content_type"] = classification
 
@@ -986,13 +1067,14 @@ class Summarizer:
                     logger.warning(f"Summarize V2 with model {model} failed: {e}")
                     continue
 
+            if self.enable_summary_fallback:
+                return self._fallback_summary_json_v1(transcript, target_language)
             raise last_exception or Exception("All models failed for Summarize V2")
         except Exception as e:
             logger.error(f"Summarize V2 failed: {e}")
-            # Try repair on whatever raw we had? (Not applicable here as we failed LLM call or parsing)
-            # Fallback to legacy
-            pass
-            return self._fallback_summary_json_v1(transcript, target_language)
+            if self.enable_summary_fallback:
+                return self._fallback_summary_json_v1(transcript, target_language)
+            raise
 
     def _normalize_lang_code(self, lang: Optional[str]) -> str:
         if not lang:
@@ -1479,7 +1561,9 @@ class Summarizer:
                         return repaired
                 except Exception:
                     pass
-            return self._fallback_summary_json_v1(transcript, target_language)
+            if self.enable_summary_fallback:
+                return self._fallback_summary_json_v1(transcript, target_language)
+            raise
 
     async def _repair_summary_json_v1(
         self, raw_text: str, target_language: str
@@ -1550,7 +1634,9 @@ class Summarizer:
 
         valid_summaries = [s for s in chunk_summaries if s.strip()]
         if not valid_summaries:
-            return self._fallback_summary_json_v1(transcript, target_language)
+            if self.enable_summary_fallback:
+                return self._fallback_summary_json_v1(transcript, target_language)
+            raise RuntimeError("Chunk summary failed for all chunks")
 
         return await self._integrate_chunk_summaries(
             valid_summaries, target_language, trace_metadata=trace_metadata
@@ -1610,4 +1696,6 @@ class Summarizer:
                         return repaired
                 except Exception:
                     pass
-            return self._fallback_summary_json_v1(combined, target_language)
+            if self.enable_summary_fallback:
+                return self._fallback_summary_json_v1(combined, target_language)
+            raise
