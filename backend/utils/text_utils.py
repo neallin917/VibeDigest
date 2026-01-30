@@ -1,5 +1,16 @@
 import re
 
+# Re-export from env_utils for backward compatibility
+from utils.env_utils import parse_bool_env  # noqa: F401
+
+# Re-export from language_utils for backward compatibility
+from utils.language_utils import (  # noqa: F401
+    LANGUAGE_MAP,
+    is_cjk_language,
+    get_language_name,
+    normalize_lang_code,
+)
+
 # Common patterns to avoid treating "." as sentence-ending for URLs/abbrevs/extensions.
 COMMON_TLDS = {
     "com", "org", "net", "edu", "gov", "co", "io", "ai", "dev",
@@ -12,54 +23,6 @@ WHITESPACE_GLOBAL_REGEX = re.compile(r"\s+")
 PUNCTUATION_OR_SPACE_REGEX = re.compile(r"[\s,;!?]")
 DIGIT_REGEX = re.compile(r"\d")
 NON_PERIOD_SENTENCE_ENDING_REGEX = re.compile(r"[!?\u3002\uff01\uff1f\u203c\u2047\u2048]$")
-
-LANGUAGE_MAP = {
-    "en": "English",
-    "zh": "中文（简体）",
-    "zh-cn": "中文（简体）",
-    "zh-tw": "中文（繁体）",
-    "chinese": "中文（简体）",
-    "es": "Español",
-    "fr": "Français", 
-    "de": "Deutsch",
-    "it": "Italiano",
-    "pt": "Português",
-    "ru": "Русский",
-    "ja": "日本語",
-    "japanese": "日本語",
-    "ko": "한국어",
-    "korean": "한국어",
-    "ar": "العربية",
-    "hi": "हिन्दी"
-}
-
-
-
-def parse_bool_env(name: str, default: bool = False) -> bool:
-    """
-    Parse a boolean environment variable with common truthy/falsy values.
-    
-    Truthy: "1", "true", "t", "yes", "y", "on" (case-insensitive)
-    Falsy: "0", "false", "f", "no", "n", "off" (case-insensitive)
-    
-    Returns the default if the env var is not set or has an unrecognized value.
-    """
-    import os
-    raw = os.getenv(name)
-    if raw is None:
-        return bool(default)
-    s = str(raw).strip().lower()
-    if s in ("1", "true", "t", "yes", "y", "on"):
-        return True
-    if s in ("0", "false", "f", "no", "n", "off"):
-        return False
-    return bool(default)
-
-def get_language_name(code: str) -> str:
-    """Get the display name for a language code, or return the code itself."""
-    if not code:
-        return "English"
-    return LANGUAGE_MAP.get(code.lower(), code)
 
 def count_words_or_units(text: str) -> int:
     """
@@ -184,12 +147,6 @@ def ensure_markdown_paragraphs(text: str) -> str:
     formatted = re.sub(r"\n+$", "", formatted)
     return formatted
 
-def is_cjk_language(lang: str) -> bool:
-    """Best-effort check for CJK-like languages where whitespace is sparse."""
-    if not lang:
-        return False
-    s = str(lang).lower()
-    return any(k in s for k in ("zh", "chinese", "ja", "japanese", "ko", "korean"))
 def remove_timestamps_and_meta(text: str) -> str:
     """Remove timestamp lines and obvious metadata while preserving original speech."""
     if not text:

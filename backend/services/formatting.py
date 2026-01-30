@@ -9,6 +9,7 @@ from utils.text_utils import (
     find_early_punctuation_split,
     find_late_punctuation_split,
 )
+from utils.language_utils import is_cjk_language
 
 logger = logging.getLogger(__name__)
 
@@ -215,14 +216,6 @@ def _group_sentences_into_paragraphs(sentences: List[Dict[str, Any]], max_chars:
     return paragraphs
 
 
-def _is_cjk_language(lang: str) -> bool:
-    """Best-effort check for CJK-like languages where whitespace is sparse."""
-    if not lang:
-        return False
-    s = str(lang).lower()
-    return any(k in s for k in ("zh", "chinese", "ja", "japanese", "ko", "korean"))
-
-
 def _paragraph_limits_for_language(lang: str) -> Tuple[int, float]:
     """
     Tuned readability limits:
@@ -230,7 +223,7 @@ def _paragraph_limits_for_language(lang: str) -> Tuple[int, float]:
     - Non-CJK: can be longer
     Returns: (max_chars, max_duration_seconds)
     """
-    if _is_cjk_language(lang):
+    if is_cjk_language(lang):
         return 260, 28.0
     return 520, 36.0
 
