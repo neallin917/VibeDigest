@@ -16,21 +16,21 @@ from services.formatting import (
 logger = logging.getLogger(__name__)
 
 class Transcriber:
-    """音频转录器，使用 OpenAI API 进行语音转文字"""
+    """Audio transcriber using the OpenAI API for speech-to-text."""
 
     def __init__(self, model_size: Optional[str] = None):
         """
-        初始化转录器
+        Initialize the transcriber.
 
         Args:
-            model_size: OpenAI 模型名称 (默认使用 config 中的配置)
+            model_size: OpenAI model name (defaults to config settings)
         """
         self.model_name = model_size or settings.OPENAI_TRANSCRIPTION_MODEL
         self.client: Any = None
         self.last_detected_language: Optional[str] = None
 
     def _init_client(self) -> None:
-        """延迟初始化 OpenAI 客户端 (Async)"""
+        """Lazy-init the OpenAI client (async)."""
         if self.client is None:
             # Import new factory
             from utils.openai_client import get_async_openai_client
@@ -42,14 +42,14 @@ class Transcriber:
 
     async def transcribe(self, audio_path: str, language: Optional[str] = None) -> str:
         """
-        转录音频文件
+        Transcribe an audio file.
 
         Args:
-            audio_path: 音频文件路径
-            language: 指定语言（可选，如果不指定则自动检测）
+            audio_path: Audio file path
+            language: Optional language hint (auto-detected if omitted)
 
         Returns:
-            转录文本（Markdown格式）
+            Transcript text (Markdown)
         """
         md, _, _ = await self.transcribe_with_raw(audio_path, language=language)
         return md
@@ -81,23 +81,23 @@ class Transcriber:
 
         with observation_ctx:
             try:
-                # 检查文件是否存在
+                # Check file exists
                 if not os.path.exists(audio_path):
                     raise Exception(f"音频文件不存在: {audio_path}")
 
-                # 初始化客户端
+                # Initialize client
                 self._init_client()
 
                 logger.info(f"开始使用 OpenAI (Async) 转录音频: {audio_path}")
 
-                # 检查文件大小 (OpenAI 限制 25MB)
+                # Check file size (OpenAI limit ~25MB)
                 file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
                 logger.info(f"文件大小: {file_size_mb:.2f} MB")
 
                 files_to_transcribe = []
                 is_chunked = False
 
-                if file_size_mb > 24.0: # 留一点余量
+                if file_size_mb > 24.0: # Leave some headroom
                     logger.info("文件超过25MB，开始分片处理...")
                     is_chunked = True
                     files_to_transcribe = await self._split_audio(audio_path)
@@ -120,19 +120,19 @@ class Transcriber:
                                 response_format="verbose_json"
                             )
 
-                        # 记录第一个分片的语言检测结果
+                        # Record language detection result from first chunk
                         if offset == 0.0:
                             detected_language = getattr(transcript, 'language', 'unknown')
                             self.last_detected_language = detected_language
 
-                        # 调整时间戳并合并
+                        # Offset timestamps and merge
                         for segment in transcript.segments:
                             segment.start += offset
                             segment.end += offset
                             all_segments.append(segment)
 
                 finally:
-                    # 清理临时分片文件
+                    # Clean up temporary chunk files
                     if is_chunked:
                         for chunk_path, _ in files_to_transcribe:
                             try:
@@ -151,7 +151,7 @@ class Transcriber:
                 }
                 raw_json = json.dumps(raw_payload, ensure_ascii=False)
 
-                # 组装转录结果
+                # Assemble transcript output
                 transcript_lines = []
 
                 sentences = _merge_segments_into_sentences(all_segments)
@@ -182,13 +182,13 @@ class Transcriber:
 
     async def _split_audio(self, audio_path: str, chunk_length_ms: int = 10 * 60 * 1000) -> List[Tuple[str, float]]:
         """
-        使用 pydub 将音频切分为多个小片段
+        Split audio into smaller chunks using pydub.
         """
         from pydub import AudioSegment
 
         def _do_split() -> List[Tuple[str, float]]:
             try:
-                # pydub 依赖 ffmpeg，scripts/start.py 已检查
+                # pydub depends on ffmpeg; scripts/start.py checks it.
                 audio = AudioSegment.from_file(audio_path)
                 duration_ms = len(audio)
                 chunks: List[Tuple[str, float]] = []
@@ -200,7 +200,7 @@ class Transcriber:
                     chunk = audio[start_ms:end_ms]
 
                     chunk_filename = f"{base_name}_part{i}.mp3"
-                    # 导出为 mp3 以减小体积
+                    # Export as mp3 to reduce size
                     chunk.export(chunk_filename, format="mp3")
 
                     chunks.append((chunk_filename, start_ms / 1000.0))
@@ -215,13 +215,13 @@ class Transcriber:
     @staticmethod
     def format_time(seconds: float) -> str:
         """
-        将秒数转换为时分秒格式 MM:SS 或 HH:MM:SS
+        Convert seconds to MM:SS or HH:MM:SS.
         """
         return format_time(seconds)
 
     def get_supported_languages(self) -> List[str]:
         """
-        获取支持的语言列表 (OpenAI Whisper 支持的常用语言)
+        Return supported languages (common OpenAI Whisper languages).
         """
         return [
             "zh", "en", "ja", "ko", "es", "fr", "de", "it", "pt", "ru",
@@ -230,7 +230,7 @@ class Transcriber:
 
     def get_detected_language(self, transcript_text: Optional[str] = None) -> Optional[str]:
         """
-        获取检测到的语言
+        Return the last detected language.
         """
         if self.last_detected_language:
             return self.last_detected_language

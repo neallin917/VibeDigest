@@ -2,6 +2,12 @@
 .git
 .gitignore
 
+# Frontend (not needed for backend images)
+frontend/
+
+# Auto-claude worktrees
+.auto-claude/
+
 # Python相关
 __pycache__/
 *.py[cod]

@@ -3,6 +3,10 @@ import logging
 from typing import Dict, Optional
 from pydantic import BaseModel
 
+from utils.logging import configure_logging
+
+configure_logging()
+
 
 def _parse_bool_env(name: str, default: bool = False) -> bool:
     """
@@ -81,7 +85,7 @@ class Settings:
     # Provider-specific default models (change LLM_PROVIDER to switch all at once)
     _PROVIDER_DEFAULTS = {
         "openai": {"smart": "gpt-4o", "fast": "gpt-4o-mini"},
-        "custom": {"smart": "openai/gemini-3-pro-high", "fast": "openai/gemini-3-flash"}
+        "custom": {"smart": "gemini-3.0-pro", "fast": "gemini-3.0-flash"}
     }
 
     # Model Aliases: Auto-select based on provider, or override via .env

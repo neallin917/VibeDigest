@@ -10,8 +10,8 @@
   --radius: 0.75rem;
 
   /* Diabrowser Light Mode Aesthetic */
-  /* Off-white background: #F8F8F8 approx equivalent */
-  --background: oklch(0.985 0 0);
+  /* Off-white background: slightly warmer tone */
+  --background: oklch(0.97 0 0);
   /* Soft Black foreground: #111 approx equivalent */
   --foreground: oklch(0.145 0 0);
 
@@ -49,7 +49,7 @@
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
 
-  --sidebar: oklch(0.985 0 0);
+  --sidebar: oklch(0.97 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.21 0.006 285.885);
   --sidebar-primary-foreground: oklch(0.985 0 0);
@@ -98,8 +98,10 @@ body:not(.dark) {
   background: 
     radial-gradient(circle at 15% 50%, rgba(240, 245, 255, 0.8) 0%, transparent 25%),
     radial-gradient(circle at 85% 30%, rgba(240, 255, 245, 0.6) 0%, transparent 25%),
-    #FAFAFA; /* Slightly warmer/softer white than pure #ffffff */
+    linear-gradient(to bottom, #f8fafc, #f1f5f9),
+    radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.03) 1px, transparent 0); /* Subtle grid dots */
   background-attachment: fixed;
+  background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px; /* Grid spacing */
   color: #27272a;
 }
 

@@ -98,7 +98,7 @@ class TestWorkflow(unittest.IsolatedAsyncioTestCase):
         print("\nRunning test_cognition_parallel...")
         # Setup Mocks to return objects with model_dump
         self.mock_summarizer.classify_content.return_value = self.MockModel({"category": "Tech"})
-        self.mock_summarizer.summarize.return_value = self.MockModel({"overview": "Summary"})
+        self.mock_summarizer.summarize.return_value = self.MockModel({"overview": "Summary", "keypoints": []})
         
         state = {
             "task_id": str(uuid4()),

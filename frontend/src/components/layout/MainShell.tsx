@@ -77,7 +77,7 @@ export function MainShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AppSidebarProvider defaultCollapsed={true}>
-      <div className="flex h-dvh overflow-hidden bg-background">
+      <div className="flex h-dvh overflow-hidden">
         <TaskNotificationListener />
 
         {/* Grid background for entire app */}

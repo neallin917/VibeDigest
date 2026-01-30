@@ -2,6 +2,7 @@ import logging
 import os
 from typing import Optional
 from config import settings
+from utils.llm_router import resolve_model_for_intent
 # from utils.openai_client import get_openai_client # Deprecated for Translator
 from langchain_core.messages import SystemMessage, HumanMessage
 from utils.text_utils import LANGUAGE_MAP, detect_language, smart_chunk_text
@@ -10,48 +11,49 @@ from prompts import TRANSLATE_SYSTEM, TRANSLATE_USER, TRANSLATE_CHUNK_SYSTEM
 logger = logging.getLogger(__name__)
 
 class Translator:
-    """文本翻译器，使用 LangChain ChatOpenAI 进行高质量翻译"""
-    
+    """Text Translator using LiteLLM for high-quality translation"""
+
     def __init__(self):
         self.language_map = LANGUAGE_MAP
-        # Initialize ChatOpenAI client
-        # We rely on OPENAI_API_KEY env var being set
+        # Initialize LLM client
+        # We rely on OPENAI_API_KEY env var being set or LLM_PROVIDER configuration
         api_key = os.getenv("OPENAI_API_KEY")
-        
+
         if api_key or settings.LLM_PROVIDER != 'openai':
              logger.info("Translator initialized via create_chat_model")
              from utils.openai_client import create_chat_model
-             
+
+             model_name = resolve_model_for_intent("translation") or settings.OPENAI_TRANSLATION_MODEL
              self.llm = create_chat_model(
-                 model_name=settings.OPENAI_TRANSLATION_MODEL,
+                 model_name=model_name,
                  temperature=0.3,
                  max_tokens=4000
              )
         else:
-             logger.warning("OpenAI API Key missing, Translator will fail.")
+             logger.warning("LLM API Key missing, Translator will fail.")
              self.llm = None
-    
+
     async def translate_text(self, text: str, target_language: str, source_language: Optional[str] = None) -> str:
         """
-        翻译文本到目标语言
-        
+        Translate text to target language
+
         Args:
-            text: 要翻译的文本
-            target_language: 目标语言代码
-            source_language: 源语言代码（可选，会自动检测）
-            
+            text: Text to translate
+            target_language: Target language code
+            source_language: Source language code (optional, auto-detected)
+
         Returns:
-            翻译后的文本
+            Translated text
         """
         try:
             if not self.llm:
-                logger.warning("ChatOpenAI API不可用，无法翻译")
+                logger.warning("LLM API unavailable, cannot translate")
                 return text
             
             if not source_language:
                 source_language = detect_language(text)
             
-            # 如果源语言和目标语言相同，直接返回
+            # If source and target languages match, return as-is
             if source_language == target_language:
                 return text
             
@@ -60,7 +62,7 @@ class Translator:
             
             logger.info(f"开始翻译：{source_lang_name} -> {target_lang_name}")
             
-            # 估算文本长度，决定是否需要分块
+            # Estimate text length to decide chunking
             if len(text) > 3000:
                 logger.info(f"文本较长({len(text)} chars)，启用分块翻译")
                 return await self._translate_with_chunks(text, target_lang_name, source_lang_name)
@@ -72,7 +74,7 @@ class Translator:
             return text
     
     async def _translate_single_text(self, text: str, target_lang_name: str, source_lang_name: str) -> str:
-        """翻译单个文本块"""
+        """Translate a single text chunk."""
         system_prompt = TRANSLATE_SYSTEM.format(source_lang=source_lang_name, target_lang=target_lang_name)
         user_prompt = TRANSLATE_USER.format(source_lang=source_lang_name, target_lang=target_lang_name, text=text)
 
@@ -90,7 +92,7 @@ class Translator:
             return text
     
     async def _translate_with_chunks(self, text: str, target_lang_name: str, source_lang_name: str) -> str:
-        """分块翻译长文本"""
+        """Translate long text in chunks."""
         chunks = smart_chunk_text(text, max_chars=4000)
         logger.info(f"分割为 {len(chunks)} 个块进行翻译")
         
@@ -126,19 +128,19 @@ class Translator:
         return "\n\n".join(translated_chunks)
     
     def should_translate(self, source_language: str, target_language: str) -> bool:
-        """判断是否需要翻译"""
+        """Determine whether translation is needed."""
         if not source_language or not target_language:
             return False
         
-        # 标准化语言代码
+        # Normalize language codes
         source_lang = source_language.lower().strip()
         target_lang = target_language.lower().strip()
         
-        # 如果语言相同，不需要翻译
+        # If languages match, no translation needed
         if source_lang == target_lang:
             return False
         
-        # 处理中文的特殊情况
+        # Handle Chinese variants
         chinese_variants = ["zh", "zh-cn", "zh-hans", "chinese"]
         if source_lang in chinese_variants and target_lang in chinese_variants:
             return False

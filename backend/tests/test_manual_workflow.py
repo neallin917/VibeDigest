@@ -73,7 +73,7 @@ async def test_workflow_mocked():
         mock_summarizer.optimize_transcript = AsyncMock(return_value=long_transcript)
         mock_summarizer.classify_content = AsyncMock(return_value={"form": "monologue", "confidence": 0.9})
         # Workflow calls .summarize() which internally might call others, but we should mock the entry point used by workflow.py
-        mock_summarizer.summarize = AsyncMock(return_value={"overview": "Mock summary", "key_points": []})
+        mock_summarizer.summarize = AsyncMock(return_value={"overview": "Mock summary", "keypoints": []})
         mock_summarizer.summarize_in_language_with_anchors = AsyncMock(return_value='{"overview": "Mock summary"}')
         mock_summarizer.translate_summary_json = AsyncMock(return_value='{"overview": "Mock summary translated"}')
 

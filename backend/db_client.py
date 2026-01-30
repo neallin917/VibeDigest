@@ -52,6 +52,13 @@ class DBClient:
             logger.warning("DATABASE_URL not set. Data operations will fail.")
             self.engine = None
 
+    def _normalize_kind(self, kind: Any) -> str:
+        if kind is None:
+            return ""
+        if hasattr(kind, "value"):
+            return str(kind.value)
+        return str(kind)
+
     def _execute_query(
         self, query_str: str, params: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
@@ -93,6 +100,7 @@ class DBClient:
         self, task_id: str, user_id: str, kind: str, locale: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """Create a new task_output row."""
+        kind = self._normalize_kind(kind)
         query = """
             INSERT INTO task_outputs (task_id, user_id, kind, locale, status, progress, attempt)
             VALUES (:task_id, :user_id, :kind, :locale, 'pending', 0, 0)
@@ -280,6 +288,7 @@ class DBClient:
         raw_data: Optional[Dict] = None,
     ) -> Optional[Dict[str, Any]]:
         """Create a new task_output row that is already completed (for caching)."""
+        kind = self._normalize_kind(kind)
         query = """
             INSERT INTO task_outputs (task_id, user_id, kind, locale, status, progress, content, attempt)
             VALUES (:task_id, :user_id, :kind, :locale, 'completed', 100, :content, 0)
@@ -301,6 +310,7 @@ class DBClient:
         self, task_id: str, user_id: str, kind: str, content: str, locale: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """Upsert a task_output row that is already completed (for caching or overwriting)."""
+        kind = self._normalize_kind(kind)
         # First check if it exists (placeholder or failed previous attempt)
         check_q = "SELECT id FROM task_outputs WHERE task_id = :tid AND kind = :kind"
         params = {"tid": task_id, "kind": kind}
@@ -332,11 +342,12 @@ class DBClient:
         existing_kinds = set(o["kind"] for o in current_outputs)
 
         for k in kinds:
-            if k not in existing_kinds:
+            kind = self._normalize_kind(k)
+            if kind not in existing_kinds:
                 try:
-                    self.create_task_output(task_id, user_id, kind=k, locale=locale)
+                    self.create_task_output(task_id, user_id, kind=kind, locale=locale)
                 except Exception as e:
-                    logger.warning(f"Failed to ensure output {k}: {e}")
+                    logger.warning(f"Failed to ensure output {kind}: {e}")
 
     def update_task_output_by_kind(
         self,
@@ -348,6 +359,7 @@ class DBClient:
         error: Optional[str] = None,
     ) -> None:
         """Convenience: Update output finding it by kind first."""
+        kind = self._normalize_kind(kind)
         # TODO: Optimize with direct SQL update where kind=? AND task_id=?
         # But for now, reuse existing patterns for safety
         outputs = self.get_task_outputs(task_id)

@@ -17,7 +17,7 @@ export default async function LandingPage({ params }: { params: Promise<{ lang: 
     <div className="flex flex-col min-h-screen bg-transparent text-slate-800 dark:text-zinc-100 relative overflow-hidden font-sans selection:bg-primary/20 selection:text-primary">
 
       {/* Background Blobs (Light Mode) */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none dark:hidden -z-10 bg-[#FAFAFA]">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none dark:hidden -z-10">
         <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-emerald-100/40 rounded-full blur-[100px] mix-blend-multiply animate-float-slow" />
         <div className="absolute top-[20%] left-[-10%] w-[35%] h-[35%] bg-teal-100/40 rounded-full blur-[100px] mix-blend-multiply animate-float-slow" style={{ animationDelay: '2s' }} />
         <div className="absolute bottom-[-10%] left-[20%] w-[45%] h-[45%] bg-cyan-100/40 rounded-full blur-[100px] mix-blend-multiply animate-float-slow" style={{ animationDelay: '4s' }} />

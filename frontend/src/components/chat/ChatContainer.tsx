@@ -33,7 +33,12 @@ interface ChatContainerProps {
 
 // Helper function to render tool invocations using AI SDK v6 standard ToolInvocation type
 // Helper function to render tool parts using AI SDK v6 standard UIMessage types
-function renderToolPart(part: any, index: number, onOpenPanel?: (taskId: string) => void) {
+function renderToolPart(
+  part: any,
+  index: number,
+  onOpenPanel?: (taskId: string) => void,
+  options?: { hasGetTaskStatus?: boolean }
+) {
   // We explicitly handle parts that are tool invocations.
   if (!part.type.startsWith('tool-') && part.type !== 'dynamic-tool') {
     return null;
@@ -70,29 +75,26 @@ function renderToolPart(part: any, index: number, onOpenPanel?: (taskId: string)
       )
 
     case 'create_task':
+      if (options?.hasGetTaskStatus) return null
+      if (!result?.taskId) return null
       return (
-        <CreateTaskTool
+        <GetTaskStatusTool
           key={toolCallId || index}
           toolCallId={toolCallId}
-          state={state}
-          input={args}
-          output={result}
+          state="output-available"
+          output={{
+            taskId: result.taskId,
+            status: 'pending',
+            progress: 0,
+            video_url: result.videoUrl
+          }}
           errorText={errorText}
           onViewClick={onOpenPanel}
         />
       )
 
     case 'preview_video':
-      return (
-        <PreviewVideoTool
-          key={toolCallId || index}
-          toolCallId={toolCallId}
-          state={state}
-          input={args}
-          output={result}
-          errorText={errorText}
-        />
-      )
+      return null
 
     case 'get_task_outputs':
       return (
@@ -309,16 +311,25 @@ export function ChatContainer({
                           'px-6 py-5 text-[15.5px] leading-7 relative overflow-hidden backdrop-blur-md',
                           m.role === 'user'
                             ? 'rounded-[20px] rounded-tr-sm bg-emerald-600/10 dark:bg-emerald-500/10 border border-emerald-600/10 dark:border-emerald-500/20 text-slate-800 dark:text-zinc-200'
-                            : 'rounded-[20px] rounded-tl-sm bg-white/40 dark:bg-white/5 border border-white/40 dark:border-white/5 text-slate-800 dark:text-zinc-200 shadow-sm',
+                            : 'rounded-[20px] rounded-tl-sm bg-white/60 dark:bg-zinc-900/60 border border-white/50 dark:border-white/10 text-slate-800 dark:text-zinc-200 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.3)]',
                         )}
                       >
                         <div className="w-full min-w-0">
                           {/* Part 1: Render Parts (Text + Tools) */}
-                          {m.parts && m.parts.length > 0 ? (
-                            m.parts.map((part, index) => {
-                              // Handle Text parts
-                              if (part.type === 'text') {
-                                return (
+                           {m.parts && m.parts.length > 0 ? (
+                             (() => {
+                               const toolParts = m.parts.filter((p) => p.type?.startsWith('tool-') || p.type === 'dynamic-tool')
+                               const hasGetTaskStatus = toolParts.some((p) => {
+                                 const name = p.type === 'dynamic-tool'
+                                   ? p.toolName
+                                   : p.type.replace('tool-', '')
+                                 return name === 'get_task_status'
+                               })
+
+                               return m.parts.map((part, index) => {
+                               // Handle Text parts
+                               if (part.type === 'text') {
+                                 return (
                                   <div key={index} className="prose prose-sm md:prose-base prose-slate dark:prose-invert max-w-none break-words">
                                     <ReactMarkdown
                                       remarkPlugins={[remarkGfm]}
@@ -380,17 +391,18 @@ export function ChatContainer({
                               }
 
                               // Handle Tool parts
-                              if (part.type.startsWith('tool-') || part.type === 'dynamic-tool') {
-                                return (
-                                  <div key={index}>
-                                    {renderToolPart(part, index, onOpenPanel)}
-                                  </div>
-                                )
-                              }
+                               if (part.type.startsWith('tool-') || part.type === 'dynamic-tool') {
+                                 return (
+                                   <div key={index}>
+                                    {renderToolPart(part, index, onOpenPanel, { hasGetTaskStatus })}
+                                   </div>
+                                 )
+                               }
 
                               return null
-                            })
-                          ) : null}
+                             })
+                             })()
+                           ) : null}
 
                         </div>
                       </div>

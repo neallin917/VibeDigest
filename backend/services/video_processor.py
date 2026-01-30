@@ -1,6 +1,5 @@
 import os
 import asyncio
-import yt_dlp
 import logging
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Tuple
@@ -13,9 +12,10 @@ import json
 logger = logging.getLogger(__name__)
 
 class VideoProcessor:
-    """视频处理器，使用yt-dlp下载和转换视频"""
+    """Video processor using yt-dlp to download and convert media."""
     
     def __init__(self):
+        # Lazy import for test environments to avoid heavy deps at import time.
         # A conservative desktop UA helps with providers that block default agents.
         self._default_user_agent = os.getenv(
             "YTDLP_USER_AGENT",
@@ -30,20 +30,20 @@ class VideoProcessor:
             self._proxy = ""
 
         self.ydl_opts = {
-            'format': 'bestaudio/best',  # 优先下载最佳音频源
+            'format': 'bestaudio/best',  # Prefer best-available audio stream
             'outtmpl': '%(title)s.%(ext)s',
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
-                # 直接在提取阶段转换为单声道 16k（空间小且稳定）
+                # Convert to mono 16kHz during extraction (smaller and stable)
                 'preferredcodec': 'm4a',
                 'preferredquality': '192'
             }],
-            # 全局FFmpeg参数：单声道 + 16k 采样率 + faststart
+            # Global FFmpeg args: mono + 16kHz sample rate + faststart
             'postprocessor_args': ['-ac', '1', '-ar', '16000', '-movflags', '+faststart'],
             'prefer_ffmpeg': True,
             'quiet': True,
             'no_warnings': True,
-            'noplaylist': True,  # 强制只下载单个视频，不下载播放列表
+            'noplaylist': True,  # Force single video download (no playlists)
         }
 
     def _ydl_overrides(self) -> Dict[str, str]:
@@ -372,21 +372,21 @@ class VideoProcessor:
     
     async def download_and_convert(self, url: str, output_dir: Path) -> Tuple[str, str, Optional[str], Optional[str], Dict[str, Any]]:
         """
-        下载视频并转换为m4a格式
+        Download media and convert to m4a.
 
         Returns:
             (audio_file_path, video_title, thumbnail_url, direct_audio_url, metadata_dict)
         """
         try:
-            # 创建输出目录
+            # Create output directory
             output_dir.mkdir(exist_ok=True)
             
-            # 生成唯一的文件名
+            # Generate a unique filename
             import uuid
             unique_id = str(uuid.uuid4())[:8]
             output_template = str(output_dir / f"audio_{unique_id}.%(ext)s")
             
-            # 更新yt-dlp选项
+            # Update yt-dlp options
             ydl_opts = self.ydl_opts.copy()
             ydl_opts['outtmpl'] = output_template
             ydl_opts["http_headers"] = self._build_http_headers(url)
@@ -394,12 +394,13 @@ class VideoProcessor:
             
             logger.info(f"开始下载视频: {url}")
             
-            # 直接同步执行，不使用线程池
-            # 在FastAPI中，IO密集型操作可以直接await
+            # Run synchronously without a thread pool
+            # In FastAPI, IO-bound operations can be awaited directly
             import asyncio
+            import yt_dlp
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 try:
-                    # 获取视频信息（放到线程池避免阻塞事件循环）
+                    # Fetch video info (use thread to avoid blocking event loop)
                     info = await asyncio.to_thread(ydl.extract_info, url, False)
                 except Exception as e:
                     msg = str(e)
@@ -417,14 +418,14 @@ class VideoProcessor:
                 direct_audio_url = self._extract_direct_audio_url_from_info(info)
                 logger.info(f"视频标题: {video_title}")
 
-                # 下载视频（放到线程池避免阻塞事件循环）
+                # Download media (use thread to avoid blocking event loop)
                 await asyncio.to_thread(ydl.download, [url])
             
-            # 查找生成的m4a文件
+            # Locate generated m4a file
             audio_file = str(output_dir / f"audio_{unique_id}.m4a")
             
             if not os.path.exists(audio_file):
-                # 如果m4a文件不存在，查找其他音频格式
+                # If m4a is missing, look for other audio formats
                 for ext in ['webm', 'mp4', 'mp3', 'wav']:
                     potential_file = str(output_dir / f"audio_{unique_id}.{ext}")
                     if os.path.exists(potential_file):
@@ -433,10 +434,10 @@ class VideoProcessor:
                 else:
                     raise Exception("未找到下载的音频文件")
             
-            # 校验时长，如果和源视频差异较大，尝试一次ffmpeg规范化重封装
+            # Validate duration; if it differs significantly, try an ffmpeg remux
             try:
                 import shlex
-                # 使用 asyncio.create_subprocess_shell 替代同步 subprocess
+                # Use asyncio.create_subprocess_shell instead of sync subprocess
                 probe_cmd = f"ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 {shlex.quote(audio_file)}"
                 
                 process = await asyncio.create_subprocess_shell(
@@ -458,7 +459,7 @@ class VideoProcessor:
                     fixed_path = str(output_dir / f"audio_{unique_id}_fixed.m4a")
                     fix_cmd = f"ffmpeg -y -i {shlex.quote(audio_file)} -vn -c:a aac -b:a 160k -movflags +faststart {shlex.quote(fixed_path)}"
                     
-                    # 异步执行 ffmpeg 修复命令
+                    # Run ffmpeg repair command asynchronously
                     fix_process = await asyncio.create_subprocess_shell(
                         fix_cmd,
                         stdout=asyncio.subprocess.PIPE,
@@ -467,9 +468,9 @@ class VideoProcessor:
                     await fix_process.communicate()
                     
                     if fix_process.returncode == 0:
-                        # 用修复后的文件替换
+                        # Replace with repaired file
                         audio_file = fixed_path
-                        # 重新探测 (异步)
+                        # Re-probe (async)
                         probe_cmd2 = probe_cmd.replace(shlex.quote(audio_file.rsplit('.',1)[0]+'.m4a'), shlex.quote(audio_file))
                         process2 = await asyncio.create_subprocess_shell(
                             probe_cmd2,
@@ -641,6 +642,7 @@ class VideoProcessor:
         logger.info(f"Trying yt-dlp subtitle extraction for {url}")
         
         try:
+            import yt_dlp
             with yt_dlp.YoutubeDL(opts) as ydl:
                 await asyncio.to_thread(ydl.download, [url])
             
@@ -734,6 +736,7 @@ class VideoProcessor:
         opts.update(self._ydl_overrides())
         
         try:
+            import yt_dlp
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = await asyncio.to_thread(ydl.extract_info, url, False)
                 

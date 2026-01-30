@@ -260,7 +260,7 @@ export default function ChatPage() {
 
     return (
         <AppSidebarProvider defaultCollapsed={true}>
-            <div className="h-screen w-full flex bg-background text-foreground overflow-hidden">
+            <div className="h-screen w-full flex text-foreground overflow-hidden">
                 {/* Global Sidebar */}
                 <AppSidebar
                     threads={threads}

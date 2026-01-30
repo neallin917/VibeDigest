@@ -1,5 +1,8 @@
 import logging
+import asyncio
+import os
 from fastapi import APIRouter, Depends, Form, HTTPException, BackgroundTasks, Body
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from dependencies import get_current_user, get_db_client, get_video_processor
@@ -7,6 +10,10 @@ from db_client import DBClient
 from services.video_processor import VideoProcessor
 from utils.url import normalize_video_url
 from services.background_tasks import run_pipeline, handle_retry_output
+from services.event_bus import event_bus
+from utils.sse import format_sse_event, SSEStream
+from schemas.events import TaskProgressEvent, HeartbeatEvent
+from constants import TaskStatus
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -70,8 +77,17 @@ async def process_video(
     if not video_url:
         raise HTTPException(status_code=400, detail="Invalid video URL")
 
+    dev_quota_bypass = os.getenv("DEV_AUTH_BYPASS", "").strip().lower() in {
+        "1",
+        "true",
+        "t",
+        "yes",
+        "y",
+        "on",
+    }
+
     # 0. Check Quota / Credits
-    if not db.check_and_consume_quota(user_id):
+    if not dev_quota_bypass and not db.check_and_consume_quota(user_id):
         raise HTTPException(
             status_code=402,
             detail="Quota exceeded or insufficient credits. Please upgrade your plan.",
@@ -80,7 +96,9 @@ async def process_video(
     try:
         # 1. Create Task (Always create a new container)
         task = db.create_task(user_id=user_id, video_url=video_url)
-        task_id = task["id"]
+        if not task:
+            raise HTTPException(status_code=500, detail="Failed to create task")
+        task_id = str(task["id"])
 
         # 1.1 Create Essential Placeholders (Synchronous)
         # This ensures UI has something to show immediately and satisfies integration tests.
@@ -149,3 +167,153 @@ async def update_task_title(
         db.update_task_status(task_id, video_title=new_title)
 
     return {"status": "success"}
+
+
+@router.get("/tasks/{task_id}/stream")
+async def stream_task_progress(
+    task_id: str,
+    user_id: str = Depends(get_current_user),
+    db: DBClient = Depends(get_db_client),
+):
+    """
+    SSE endpoint for real-time task progress updates.
+
+    Streams events as the task processes:
+    - progress: Processing progress updates (0-100%)
+    - output: When a task output is ready
+    - complete: When task finishes successfully
+    - error: When task encounters an error
+    - heartbeat: Keep-alive events (every 15s)
+
+    Usage:
+        const eventSource = new EventSource('/api/tasks/{task_id}/stream');
+        eventSource.addEventListener('progress', (e) => {
+            const data = JSON.parse(e.data);
+            console.log(`Progress: ${data.progress}%`);
+        });
+    """
+    # 1. Verify task exists and user has access
+    task = db.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if task["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    async def event_generator():
+        """Generate SSE events for the task."""
+        stream = SSEStream(heartbeat_interval=15.0)
+        queue = await event_bus.subscribe(task_id)
+
+        try:
+            # Send initial state event
+            initial_event = TaskProgressEvent(
+                task_id=task_id,
+                status=TaskStatus(task.get("status", "pending")),
+                progress=task.get("progress", 0),
+                stage="init",
+                message="Connected to task stream",
+            )
+            yield stream.event("init", initial_event)
+
+            # Check if task is already completed/errored
+            current_status = task.get("status", "pending")
+            if current_status == TaskStatus.COMPLETED.value:
+                yield stream.event("complete", {
+                    "task_id": task_id,
+                    "status": "completed",
+                    "video_title": task.get("video_title"),
+                    "thumbnail_url": task.get("thumbnail_url"),
+                })
+                return
+            elif current_status == TaskStatus.ERROR.value:
+                yield stream.event("error", {
+                    "task_id": task_id,
+                    "status": "error",
+                    "error": task.get("error", "Unknown error"),
+                })
+                return
+
+            # Stream events until task completes or errors
+            while True:
+                try:
+                    # Wait for event with timeout (for heartbeat)
+                    event = await asyncio.wait_for(
+                        queue.get(),
+                        timeout=30.0,
+                    )
+
+                    # Serialize and send the event
+                    event_type = getattr(event, "event_type", "unknown")
+                    yield stream.event(event_type, event)
+
+                    # Check for terminal events
+                    if event_type in ("complete", "error"):
+                        logger.info(
+                            f"Task {task_id} stream ending with {event_type}"
+                        )
+                        break
+
+                except asyncio.TimeoutError:
+                    # Send heartbeat to keep connection alive
+                    yield stream.event("heartbeat", HeartbeatEvent())
+
+                except asyncio.CancelledError:
+                    logger.info(f"Task {task_id} stream cancelled by client")
+                    break
+
+        except Exception as e:
+            logger.error(f"Error in task stream for {task_id}: {e}")
+            yield stream.event("error", {
+                "task_id": task_id,
+                "error": str(e),
+                "recoverable": True,
+            })
+
+        finally:
+            # Clean up subscription
+            await event_bus.unsubscribe(task_id, queue)
+            logger.debug(f"Unsubscribed from task {task_id} stream")
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+            "Access-Control-Allow-Origin": "*",  # CORS for EventSource
+        },
+    )
+
+
+@router.get("/tasks/{task_id}/status")
+async def get_task_status(
+    task_id: str,
+    user_id: str = Depends(get_current_user),
+    db: DBClient = Depends(get_db_client),
+):
+    """
+    Get current task status (polling fallback for SSE).
+
+    For clients that don't support SSE, this endpoint provides
+    the same information via traditional polling.
+    """
+    task = db.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if task["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    return {
+        "id": task["id"],
+        "video_url": task.get("video_url"),
+        "video_title": task.get("video_title"),
+        "thumbnail_url": task.get("thumbnail_url"),
+        "status": task.get("status", "pending"),
+        "progress": task.get("progress", 0),
+        "error": task.get("error"),
+        "created_at": task.get("created_at"),
+        "updated_at": task.get("updated_at"),
+    }

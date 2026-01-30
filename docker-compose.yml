@@ -1,8 +1,8 @@
 services:
   backend-dev:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     image: transcriber-backend:dev
     restart: unless-stopped
     # ---------------------------------------------------------
@@ -30,8 +30,8 @@ services:
 
   langgraph-server:
     build:
-      context: ./backend
-      dockerfile: Dockerfile.langgraph
+      context: .
+      dockerfile: backend/Dockerfile.langgraph
     # container_name removed
     restart: unless-stopped
     ports:
@@ -48,7 +48,7 @@ services:
       - POSTGRES_URI=postgresql://postgres:password@postgres:5432/langgraph
       - REDIS_URI=redis://redis:6379
       - PYTHONPATH=/deps/backend
-      - LANGSERVE_GRAPHS={"agent":"agent.chat_graph:graph"}
+      - LANGSERVE_GRAPHS={"agent":"workflow:app"}
     env_file:
       - .env
       - .env.local
