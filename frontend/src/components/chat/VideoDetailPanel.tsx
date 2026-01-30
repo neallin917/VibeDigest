@@ -210,14 +210,14 @@ export function VideoDetailPanel({
 
         {/* Summary Overview (Reordered to top) */}
         {summary?.overview && (
-          <div className="px-4 py-2">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-[11px] font-bold text-emerald-400 dark:text-emerald-300/80 uppercase tracking-widest">
+          <div className="rounded-2xl px-4 py-3 border border-white/60 dark:border-white/10 bg-white/70 dark:bg-zinc-900/40 shadow-glass backdrop-blur-xl">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-[13px] font-semibold text-emerald-500 dark:text-emerald-300 tracking-wide">
                 Summary
               </span>
               <div className="h-px flex-1 bg-gradient-to-r from-emerald-200 to-transparent dark:from-emerald-500/30" />
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            <p className="text-[13px] text-slate-700 dark:text-slate-200 leading-7 text-balance">
               {summary.overview}
             </p>
           </div>
@@ -225,63 +225,69 @@ export function VideoDetailPanel({
 
         {/* Divider for Key Insights */}
         <div className="flex items-center gap-3 px-2">
-          <span data-testid="header-key-insights" className="text-[11px] font-bold text-emerald-400 dark:text-emerald-300/80 uppercase tracking-widest">
+          <span data-testid="header-key-insights" className="text-[13px] font-semibold text-emerald-500 dark:text-emerald-300 uppercase tracking-wide">
             Key Insights
           </span>
+          {summary?.keypoints?.length ? (
+            <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-200 bg-emerald-100/80 dark:bg-emerald-500/15 border border-emerald-200/80 dark:border-emerald-500/30 px-2 py-0.5 rounded-full">
+              {summary.keypoints.length}
+            </span>
+          ) : null}
           <div className="h-px flex-1 bg-gradient-to-r from-emerald-200 to-transparent dark:from-emerald-500/30" />
         </div>
 
         {/* Loading State */}
         {!summary && task.status === 'processing' && (
-          <div className="p-8 text-center">
+          <div className="rounded-2xl px-4 py-6 text-center border border-white/60 dark:border-white/10 bg-white/70 dark:bg-zinc-900/40 shadow-glass backdrop-blur-xl">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 dark:border-emerald-400 mb-2"></div>
-            <p className="text-xs text-slate-400">Analyzing video...</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">Analyzing video...</p>
           </div>
         )}
 
         {/* Empty State */}
         {!summary && task.status === 'completed' && (
-          <div className="p-4 text-center text-sm text-slate-400">
+          <div className="rounded-2xl px-4 py-5 text-center text-[12px] text-slate-500 dark:text-slate-400 border border-white/60 dark:border-white/10 bg-white/70 dark:bg-zinc-900/40 shadow-glass backdrop-blur-xl">
             No summary available.
           </div>
         )}
 
         {/* Insights Cards */}
         {summary?.keypoints?.map((kp, idx) => (
-          <motion.div
-            key={idx}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: idx * 0.1 }}
-            onClick={() => kp.startSeconds && mediaController?.seek(kp.startSeconds)}
-            whileHover={{ y: -4, scale: 1.02 }}
-            className={cn(
-              "rounded-[28px] p-5 cursor-pointer group relative overflow-hidden transition-all duration-300 backdrop-blur-xl border",
-              // Light: Active Glass Gradient
-              "bg-gradient-to-br from-white/90 to-white/60 shadow-glass border-white/80 hover:shadow-xl",
-              // Dark: Dark Glass
-              "dark:bg-none dark:bg-zinc-900/50 dark:border-white/5 dark:shadow-none dark:hover:bg-zinc-800/50"
-            )}
-          >
-            <div className="flex justify-between items-start mb-3">
-              <span className="bg-emerald-100/90 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-500/30 uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
-                <Lightbulb className="w-3.5 h-3.5" />
-                Insight {idx + 1}
-              </span>
-              {kp.startSeconds !== undefined && (
-                <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 bg-white/50 dark:bg-white/5 px-2 py-1 rounded-md backdrop-blur-sm flex items-center gap-1 hover:bg-white/80 dark:hover:bg-white/10 transition-colors">
-                  <PlayCircle className="w-3 h-3" />
-                  {formatSeconds(kp.startSeconds)}
-                </span>
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: idx * 0.1 }}
+              onClick={() => kp.startSeconds && mediaController?.seek(kp.startSeconds)}
+              whileHover={{ y: -2 }}
+              className={cn(
+                "rounded-[26px] p-5 cursor-pointer group relative overflow-hidden transition-all duration-300 backdrop-blur-xl border",
+                // Light: Active Glass Gradient
+                "bg-gradient-to-br from-white/90 to-white/60 shadow-glass border-white/80 hover:shadow-xl",
+                // Dark: Dark Glass
+                "dark:bg-none dark:bg-zinc-900/50 dark:border-white/5 dark:shadow-none dark:hover:bg-zinc-800/50"
               )}
-            </div>
-            <h5 className="text-[15px] font-bold text-slate-800 dark:text-slate-100 mb-2 leading-tight">
-              {kp.title}
-            </h5>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-4">
-              {kp.detail}
-            </p>
-          </motion.div>
+            >
+              <div className="absolute inset-y-3 left-3 w-[2px] rounded-full bg-gradient-to-b from-emerald-400/70 via-emerald-200/30 to-transparent dark:from-emerald-300/70 dark:via-emerald-500/20" />
+              <div className="flex justify-between items-start mb-3">
+                <span className="bg-emerald-100/90 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 text-[9px] font-semibold px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-500/30 uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
+                  <Lightbulb className="w-3.5 h-3.5" />
+                  Insight {idx + 1}
+                </span>
+                {kp.startSeconds !== undefined && (
+                  <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 bg-white/60 dark:bg-white/5 px-2 py-1 rounded-md backdrop-blur-sm flex items-center gap-1 transition-colors group-hover:bg-white/80 dark:group-hover:bg-white/10">
+                    <PlayCircle className="w-3 h-3" />
+                    {formatSeconds(kp.startSeconds)}
+                  </span>
+                )}
+              </div>
+              <h5 className="text-[15px] font-semibold text-slate-800 dark:text-slate-100 mb-2 leading-tight">
+                {kp.title}
+              </h5>
+              <p className="text-[12px] text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-5">
+                {kp.detail}
+              </p>
+            </motion.div>
         ))}
 
       </div>
