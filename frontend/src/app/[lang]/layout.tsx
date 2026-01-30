@@ -159,7 +159,7 @@ export default async function RootLayout({
   const { lang } = await params;
   return (
     <html lang={lang} suppressHydrationWarning>
-      <body className={cn(manrope.className, syne.variable, jakarta.variable, "bg-background text-foreground antialiased font-sans tracking-tight")} suppressHydrationWarning>
+      <body className={cn(manrope.className, syne.variable, jakarta.variable, "text-foreground antialiased font-sans tracking-tight")} suppressHydrationWarning>
         <Vignette />
         <script
           type="application/ld+json"

@@ -86,9 +86,9 @@ export function ChatWorkspace({
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  const setTaskParam = (nextTaskId: string | null) => {
+  const setTaskParam = useCallback((nextTaskId: string | null) => {
     onSelectTask(nextTaskId)
-  }
+  }, [onSelectTask])
 
   const startResizing = useCallback(() => {
     setIsResizing(true)
@@ -177,8 +177,8 @@ export function ChatWorkspace({
               threadId={activeThreadId}
               initialMessages={initialMessages}
               activeTaskId={activeTaskId}
-              onOpenPanel={(id) => setTaskParam(id)}
-              onSelectExample={(id) => setTaskParam(id)} // Might want to link this to task creation too
+              onOpenPanel={setTaskParam}
+              onSelectExample={setTaskParam} // Might want to link this to task creation too
               onChatStarted={onChatStarted}
             />
           </div>
@@ -187,7 +187,7 @@ export function ChatWorkspace({
         {/* Resizer Handle (Desktop Only) */}
         {activeTaskId && (
           <div
-            className="hidden xl:flex w-4 cursor-col-resize items-center justify-center hover:bg-white/5 transition-colors z-20"
+            className="hidden lg:flex w-4 cursor-col-resize items-center justify-center hover:bg-white/5 transition-colors z-20"
             onMouseDown={startResizing}
           >
             <div className="w-1 h-8 rounded-full bg-slate-300 dark:bg-white/20" />
@@ -198,7 +198,7 @@ export function ChatWorkspace({
         <aside
           ref={sidebarRef}
           className={cn(
-            "hidden xl:flex flex-col glass-panel overflow-hidden",
+            "hidden lg:flex flex-col glass-panel overflow-hidden",
             activeTaskId
               ? "opacity-100 ml-0 translate-x-0"
               : "w-0 opacity-0 ml-0 border-none translate-x-10",

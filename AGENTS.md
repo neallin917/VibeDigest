@@ -36,6 +36,7 @@ VibeDigest is a full-stack tool engineered to download videos, transcribe audio,
     - `workflow.py`: **LangGraph** Workflow Definition (State & Nodes).
     - `db_client.py`: Supabase Service Role interactions (Data Plane).
     - `api/routes/`: FastAPI Route Handlers (tasks, payments, webhooks, system).
+        - `models.py`: Exposes model/provider metadata for frontend (SSOT read-only).
     - `services/`: Business Logic & Integrations.
         - `background_tasks.py`: Async background task management.
         - `comprehension.py`: Content understanding and extraction.
@@ -49,6 +50,10 @@ VibeDigest is a full-stack tool engineered to download videos, transcribe audio,
         - `video_processor.py`: Core video processing logic.
     - `scripts/`: Internal utility and debugging scripts (e.g., `debug_log.py`).
     - `utils/`: Shared utilities (OpenAI client, text tools, env loader, url parsing).
+        - `model_registry.py`: Loads provider/model config from YAML + env (SSOT).
+        - `llm_router.py`: Centralized model resolution + structured output helpers.
+- `backend/configs/`: **Backend Config Source**
+    - `providers/`: Provider + model definitions (YAML SSOT).
 - `frontend/`: **Frontend Source** (Next.js/TypeScript)
     - `src/app/`: App Router pages.
         - `[lang]/`: Locale-prefixed routes (i18n).
@@ -362,6 +367,7 @@ All port configurations are defined in the **root `.env`** file. Other `.env` fi
 *   `POST /api/process-video`: Start video processing.
     *   Input: `{ video_url, language, ... }`
 *   `POST /api/retry-output`: Retry failed task.
+*   `GET /api/models/providers`: Read-only model/provider config for frontend (SSOT).
 
 ### Forbidden Patterns
 *   **NO** `GET /api/status`: Use Supabase Realtime.

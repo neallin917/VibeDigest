@@ -1,4 +1,5 @@
 from functools import lru_cache
+import os
 from typing import Optional
 from fastapi import Header, HTTPException, Depends
 from coinbase_commerce.client import Client as CoinbaseClient
@@ -49,9 +50,25 @@ def get_coinbase_client() -> CoinbaseClient:
 
 async def get_current_user(
     authorization: Optional[str] = Header(None),
+    x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
+    user_id_header: Optional[str] = Header(None, alias="user_id"),
     db: DBClient = Depends(get_db_client)
 ) -> str:
     """Validate Bearer token and return user_id."""
+    dev_bypass = os.getenv("DEV_AUTH_BYPASS", "").strip().lower() in {
+        "1",
+        "true",
+        "t",
+        "yes",
+        "y",
+        "on",
+    }
+    if dev_bypass:
+        if x_user_id:
+            return x_user_id
+        if user_id_header:
+            return user_id_header
+
     if settings.MOCK_MODE:
         return "00000000-0000-0000-0000-000000000001"
 

@@ -1,13 +1,10 @@
-import logging
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from loguru import logger
 
-from config import settings
-from api.routes import system, tasks, webhooks, payments
+from utils.logging import configure_logging
 
 # Load environment variables before other local imports
 # Priority: .env.local (secrets) > .env (shared config)
@@ -21,10 +18,13 @@ if env_shared.exists():
 if env_local.exists():
     load_dotenv(dotenv_path=env_local, override=True)
 
-# Configure Logging
-log_level = os.getenv("LOG_LEVEL", "INFO").upper()
-logging.basicConfig(level=getattr(logging, log_level, logging.INFO))
-logger = logging.getLogger(__name__)
+configure_logging()
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from config import settings
+from api.routes import system, tasks, webhooks, payments, models
 
 if settings.SENTRY_DSN:
     import sentry_sdk
@@ -85,6 +85,7 @@ app.include_router(system.router, tags=["System"])
 app.include_router(tasks.router, prefix="/api", tags=["Tasks"])
 app.include_router(payments.router, prefix="/api", tags=["Payments"])
 app.include_router(webhooks.router, prefix="/api/webhook", tags=["Webhooks"])
+app.include_router(models.router, prefix="/api", tags=["Models"])
 
 if __name__ == "__main__":
     import uvicorn

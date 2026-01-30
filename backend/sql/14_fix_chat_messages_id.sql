@@ -1,11 +1,11 @@
 -- 14_fix_chat_messages_id.sql
--- 修复：AI SDK 生成的消息 ID 是字符串（如 nanoid），不是 UUID。
--- 我们需要将 id 列的类型从 UUID 更改为 TEXT，否则插入操作会失败。
+-- Fix: AI SDK message IDs are strings (e.g. nanoid), not UUIDs.
+-- Change the id column type from UUID to TEXT to avoid insert failures.
 
--- 1. 修改列类型
+-- 1. Change column type
 ALTER TABLE public.chat_messages 
   ALTER COLUMN id TYPE TEXT;
 
--- 2. 移除默认值（因为我们会提供客户端生成的 ID）
+-- 2. Drop default (client provides generated IDs)
 ALTER TABLE public.chat_messages 
   ALTER COLUMN id DROP DEFAULT;

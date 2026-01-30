@@ -180,7 +180,7 @@ class SupadataClient:
                         end = seg["end"]
 
                         if is_cjk:
-                            # For CJK, Supadata/Whisper might output spaces we don't want (e.g. "东 京")
+                            # For CJK, Supadata/Whisper may insert unwanted spaces between characters.
                             text = text.replace(" ", "")
 
                         if not current_parts:

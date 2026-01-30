@@ -1,10 +1,21 @@
+import os
+import sys
+from pathlib import Path
+from typing import AsyncGenerator
+
 import pytest
 from httpx import AsyncClient, ASGITransport
+
+backend_root = Path(__file__).resolve().parents[1]
+if str(backend_root) not in sys.path:
+    sys.path.insert(0, str(backend_root))
+
+if os.getenv("SKIP_DB_TESTS") == "1":
+    pytest.skip("DB tests disabled via SKIP_DB_TESTS=1", allow_module_level=True)
+
 from main import app
 from db_client import DBClient
 from dependencies import get_db_client
-from typing import AsyncGenerator
-import os
 from sqlalchemy import create_engine, text
 
 

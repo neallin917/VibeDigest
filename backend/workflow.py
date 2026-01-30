@@ -18,6 +18,7 @@ from services.summarizer import Summarizer
 from services.comprehension import ComprehensionAgent
 from services.transcriber import Transcriber
 from services.video_processor import VideoProcessor
+from services.event_bus import event_bus
 from utils.url import normalize_video_url
 
 # Setup logger
@@ -75,6 +76,7 @@ class VideoProcessingState(TypedDict):
 
 async def check_cache(state: VideoProcessingState) -> Dict:
     """Checks DB for existing completed tasks (deduplication)."""
+    task_id = state["task_id"]
     logger.info(f"Node: check_cache for {state['video_url']}")
     normalized_url = normalize_video_url(state["video_url"])
     updates = {
@@ -82,6 +84,14 @@ async def check_cache(state: VideoProcessingState) -> Dict:
         "errors": [],
         "is_youtube": "youtube.com" in normalized_url or "youtu.be" in normalized_url,
     }
+
+    # Emit SSE progress event
+    await event_bus.publish_progress(
+        task_id=task_id,
+        progress=5,
+        stage="check_cache",
+        message="Checking for cached results...",
+    )
 
     try:
         # Improved Cache Strategy: Look for ANY task with a valid script, not just fully completed ones.
@@ -167,9 +177,21 @@ async def check_cache(state: VideoProcessingState) -> Dict:
 async def _ingest_supadata(video_url: str, task_id: str) -> Optional[Dict]:
     try:
         db_client.update_task_status(task_id, status=TaskStatus.PROCESSING, progress=15)
+        await event_bus.publish_progress(
+            task_id=task_id,
+            progress=15,
+            stage="ingest",
+            message="Trying Supadata API for transcript...",
+        )
         md, raw, lang = await supadata_client.get_transcript_async(video_url)
         if md and raw:
             logger.info("Strategy 1 (Supadata): Success")
+            await event_bus.publish_progress(
+                task_id=task_id,
+                progress=20,
+                stage="ingest",
+                message="Supadata transcript retrieved successfully",
+            )
             return {
                 "transcript_text": summarizer.fast_clean_transcript(md),
                 "transcript_raw": raw,
@@ -184,11 +206,23 @@ async def _ingest_supadata(video_url: str, task_id: str) -> Optional[Dict]:
 async def _ingest_vtt(video_url: str, task_id: str) -> Optional[Dict]:
     try:
         db_client.update_task_status(task_id, status=TaskStatus.PROCESSING, progress=25)
+        await event_bus.publish_progress(
+            task_id=task_id,
+            progress=25,
+            stage="ingest",
+            message="Trying direct VTT caption extraction...",
+        )
         logger.info("Attempting Strategy 2 (Direct VTT)...")
         res = await video_processor.extract_captions(video_url)
         if res:
             md, raw, lang = res
             logger.info("Strategy 2 (Direct VTT): Success")
+            await event_bus.publish_progress(
+                task_id=task_id,
+                progress=30,
+                stage="ingest",
+                message="VTT captions extracted successfully",
+            )
             return {
                 "transcript_text": summarizer.fast_clean_transcript(md),
                 "transcript_raw": raw,
@@ -206,6 +240,12 @@ async def _ingest_whisper(state: VideoProcessingState) -> Optional[Dict]:
 
     try:
         db_client.update_task_status(task_id, status=TaskStatus.PROCESSING, progress=30)
+        await event_bus.publish_progress(
+            task_id=task_id,
+            progress=30,
+            stage="ingest",
+            message="Downloading audio for transcription...",
+        )
         logger.info("Attempting Strategy 3 (Download + Whisper)...")
 
         # 1. Download
@@ -230,6 +270,12 @@ async def _ingest_whisper(state: VideoProcessingState) -> Optional[Dict]:
 
         # 2. Transcribe
         db_client.update_task_status(task_id, status=TaskStatus.PROCESSING, progress=50)
+        await event_bus.publish_progress(
+            task_id=task_id,
+            progress=50,
+            stage="ingest",
+            message="Transcribing audio with Whisper...",
+        )
         (
             script_text_with_timestamps,
             raw_json,
@@ -241,6 +287,12 @@ async def _ingest_whisper(state: VideoProcessingState) -> Optional[Dict]:
 
         # 3. LLM Optimization
         db_client.update_task_status(task_id, status=TaskStatus.PROCESSING, progress=70)
+        await event_bus.publish_progress(
+            task_id=task_id,
+            progress=70,
+            stage="ingest",
+            message="Optimizing transcript with LLM...",
+        )
         trace_meta = {
             "session_id": str(task_id),
             "user_id": str(state["user_id"]),
@@ -253,10 +305,24 @@ async def _ingest_whisper(state: VideoProcessingState) -> Optional[Dict]:
         updates["transcript_text"] = cleaned
         updates["transcript_source"] = "whisper"
 
+        await event_bus.publish_progress(
+            task_id=task_id,
+            progress=75,
+            stage="ingest",
+            message="Transcript ready",
+        )
+
         return updates
 
     except Exception as e:
         logger.error(f"Strategy 3 (Whisper) failed: {e}")
+        await event_bus.publish_progress(
+            task_id=task_id,
+            progress=0,
+            stage="ingest",
+            message=f"Transcription failed: {str(e)}",
+            status=TaskStatus.ERROR,
+        )
         return {"error": str(e)}  # Special key to indicate failure inside helper
 
 
@@ -292,7 +358,7 @@ async def ingest(state: VideoProcessingState) -> Dict:
     if host.replace("www.", "").endswith(("xiaoyuzhoufm.com", "apple.com")):
         required_outputs.append(OutputKind.AUDIO)
 
-    db_client.ensure_task_outputs(task_id, user_id, [str(k) for k in required_outputs])
+    db_client.ensure_task_outputs(task_id, user_id, [k.value for k in required_outputs])
 
     # --- Step 2: Metadata Extraction ---
     try:
@@ -342,14 +408,14 @@ async def ingest(state: VideoProcessingState) -> Dict:
         # Persist finalized script
         db_client.update_task_output_by_kind(
             task_id,
-            str(OutputKind.SCRIPT_RAW),
+            OutputKind.SCRIPT_RAW.value,
             content=str(updates.get("transcript_raw") or ""),
             status=TaskStatus.COMPLETED,
             progress=100,
         )
         db_client.update_task_output_by_kind(
             task_id,
-            str(OutputKind.SCRIPT),
+            OutputKind.SCRIPT.value,
             content=str(updates.get("transcript_text") or ""),
             status=TaskStatus.COMPLETED,
             progress=100,
@@ -371,14 +437,14 @@ async def ingest(state: VideoProcessingState) -> Dict:
 
     # Update Audio Logic
     if updates.get("direct_audio_url"):
-        db_client.ensure_task_outputs(task_id, user_id, [str(OutputKind.AUDIO)])
+        db_client.ensure_task_outputs(task_id, user_id, [OutputKind.AUDIO.value])
         payload = {
             "audioUrl": updates["direct_audio_url"],
             "coverUrl": updates.get("thumbnail_url"),
         }
         db_client.update_task_output_by_kind(
             task_id,
-            str(OutputKind.AUDIO),
+            OutputKind.AUDIO.value,
             content=json.dumps(payload, ensure_ascii=False),
             status=TaskStatus.COMPLETED,
             progress=100,
@@ -393,10 +459,16 @@ async def ingest(state: VideoProcessingState) -> Dict:
 async def _run_classify(transcript_text: str, task_id: str, video_url: str, user_id: str):
     try:
         logger.info("Cognition: Starting classification...")
-        
+        await event_bus.publish_progress(
+            task_id=task_id,
+            progress=82,
+            stage="cognition",
+            message="Classifying content type...",
+        )
+
         # Ensure Output Exists (in case Ingest was skipped via Cache Hit)
-        db_client.ensure_task_outputs(task_id, user_id, [OutputKind.CLASSIFICATION])
-        
+        db_client.ensure_task_outputs(task_id, user_id, [OutputKind.CLASSIFICATION.value])
+
         trace_meta = {
             "session_id": str(task_id),
             "metadata": {"video_url": video_url},
@@ -405,20 +477,37 @@ async def _run_classify(transcript_text: str, task_id: str, video_url: str, user
             transcript_text, trace_metadata=trace_meta
         )
 
+        if not classification:
+            raise ValueError("Classification returned empty payload")
+
         if isinstance(classification, dict):
             import json
 
             content_str = json.dumps(classification, ensure_ascii=False)
-        else:
+        elif hasattr(classification, "model_dump_json"):
             content_str = classification.model_dump_json()
+        else:
+            import json
+
+            content_str = json.dumps(classification, ensure_ascii=False)
 
         db_client.update_task_output_by_kind(
             task_id,
-            str(OutputKind.CLASSIFICATION),
+            OutputKind.CLASSIFICATION.value,
             content=content_str,
             status=TaskStatus.COMPLETED,
             progress=100,
         )
+
+        # Emit output event
+        await event_bus.publish_output(
+            task_id=task_id,
+            output_id="",  # Will be filled by DB
+            output_kind=OutputKind.CLASSIFICATION,
+            status=TaskStatus.COMPLETED,
+            content=content_str,
+        )
+
         return classification
     except Exception as e:
         logger.error(f"Cognition: Classification failed: {e}")
@@ -429,36 +518,188 @@ async def _run_summarize(
     transcript_text: str,
     task_id: str,
     user_id: str,
+    summary_language: Optional[str],
+    transcript_language: Optional[str],
     classification_result: Optional[Dict[str, Any]] = None,
 ):
+    def _parse_summary_payload(summary: Any) -> Dict[str, Any]:
+        if summary is None:
+            raise ValueError("Empty summary payload")
+        if hasattr(summary, "model_dump"):
+            payload = summary.model_dump()
+        elif isinstance(summary, dict):
+            payload = summary
+        elif isinstance(summary, str):
+            payload = json.loads(summary)
+        else:
+            raise ValueError("Unsupported summary payload type")
+
+        if not isinstance(payload, dict):
+            raise ValueError("Summary payload must be a JSON object")
+
+        overview = payload.get("overview")
+        keypoints = payload.get("keypoints")
+        if not isinstance(overview, str) or not overview.strip():
+            raise ValueError("Summary payload missing overview")
+        if not isinstance(keypoints, list):
+            raise ValueError("Summary payload missing keypoints")
+
+        return payload
+
     try:
         logger.info("Cognition: Starting summarization...")
+        await event_bus.publish_progress(
+            task_id=task_id,
+            progress=85,
+            stage="cognition",
+            message="Generating summary...",
+        )
+
         trace_meta = {
             "session_id": str(task_id),
             "user_id": str(user_id),
             "metadata": {"node": "cognition_summarize"},
         }
+        source_language = (transcript_language or summary_language or "zh").lower()
+        requested_language = (summary_language or source_language or "zh").lower()
+
         summary = await summarizer.summarize(
             transcript_text,
+            target_language=source_language,
             trace_metadata=trace_meta,
             existing_classification=classification_result,
         )
 
-        content = (
-            summary.model_dump_json()
-            if hasattr(summary, "model_dump_json")
-            else json.dumps(summary)
-        )
+        payload = _parse_summary_payload(summary)
+        source_content = json.dumps(payload, ensure_ascii=False)
         db_client.update_task_output_by_kind(
             task_id,
-            str(OutputKind.SUMMARY_SOURCE),
-            content=content,
+            OutputKind.SUMMARY_SOURCE.value,
+            content=source_content,
             status=TaskStatus.COMPLETED,
             progress=100,
         )
-        return summary
+
+        summary_content = source_content
+        summary_payload = payload
+        if requested_language != source_language:
+            summary_content = await summarizer.translate_summary_json(
+                source_content,
+                target_language=requested_language,
+                trace_metadata=trace_meta,
+            )
+            summary_payload = _parse_summary_payload(summary_content)
+
+        db_client.update_task_output_by_kind(
+            task_id,
+            OutputKind.SUMMARY.value,
+            content=summary_content,
+            status=TaskStatus.COMPLETED,
+            progress=100,
+        )
+
+        await event_bus.publish_progress(
+            task_id=task_id,
+            progress=92,
+            stage="cognition",
+            message="Summary generated successfully",
+        )
+
+        # Emit output event
+        await event_bus.publish_output(
+            task_id=task_id,
+            output_id="",
+            output_kind=OutputKind.SUMMARY_SOURCE,
+            status=TaskStatus.COMPLETED,
+            content=source_content,
+        )
+
+        await event_bus.publish_output(
+            task_id=task_id,
+            output_id="",
+            output_kind=OutputKind.SUMMARY,
+            status=TaskStatus.COMPLETED,
+            content=summary_content,
+        )
+
+        return summary_payload
     except Exception as e:
         logger.error(f"Cognition: Summarization failed: {e}")
+        db_client.update_task_output_by_kind(
+            task_id,
+            OutputKind.SUMMARY_SOURCE.value,
+            status=TaskStatus.ERROR,
+            progress=100,
+            content="",
+            error=str(e),
+        )
+        db_client.update_task_output_by_kind(
+            task_id,
+            OutputKind.SUMMARY.value,
+            status=TaskStatus.ERROR,
+            progress=100,
+            content="",
+            error=str(e),
+        )
+        return e
+
+
+async def _run_comprehension(
+    transcript_text: str,
+    task_id: str,
+    user_id: str,
+    summary_language: Optional[str],
+    transcript_language: Optional[str],
+):
+    try:
+        logger.info("Cognition: Starting comprehension brief...")
+        await event_bus.publish_progress(
+            task_id=task_id,
+            progress=90,
+            stage="cognition",
+            message="Generating comprehension brief...",
+        )
+
+        trace_meta = {
+            "session_id": str(task_id),
+            "user_id": str(user_id),
+            "metadata": {"node": "cognition_comprehension"},
+        }
+
+        target_language = (summary_language or transcript_language or "zh").lower()
+        brief = await comprehension_agent.generate_comprehension_brief(
+            transcript_text,
+            target_language=target_language,
+            trace_config=trace_meta,
+        )
+
+        db_client.update_task_output_by_kind(
+            task_id,
+            OutputKind.COMPREHENSION_BRIEF.value,
+            content=brief,
+            status=TaskStatus.COMPLETED,
+            progress=100,
+        )
+
+        await event_bus.publish_output(
+            task_id=task_id,
+            output_id="",
+            output_kind=OutputKind.COMPREHENSION_BRIEF,
+            status=TaskStatus.COMPLETED,
+            content=brief,
+        )
+
+        return brief
+    except Exception as e:
+        logger.error(f"Cognition: Comprehension brief failed: {e}")
+        db_client.update_task_output_by_kind(
+            task_id,
+            OutputKind.COMPREHENSION_BRIEF.value,
+            status=TaskStatus.ERROR,
+            progress=100,
+            content="",
+            error=str(e),
+        )
         return e
 
 
@@ -467,7 +708,14 @@ async def cognition(state: VideoProcessingState) -> Dict:
     logger.info("Node: cognition")
 
     transcript_text = state.get("transcript_text")
+    task_id = state["task_id"]
+
     if not transcript_text:
+        await event_bus.publish_error(
+            task_id=task_id,
+            error="No transcript text available for cognition",
+            recoverable=False,
+        )
         return {"errors": ["No transcript text available for cognition"]}
 
     # Smart Skip
@@ -475,7 +723,13 @@ async def cognition(state: VideoProcessingState) -> Dict:
         logger.info("Transcript too short (<50 chars), skipping cognition.")
         return {"errors": ["Transcript too short for analysis"]}
 
-    task_id = state["task_id"]
+    # Emit SSE progress event
+    await event_bus.publish_progress(
+        task_id=task_id,
+        progress=80,
+        stage="cognition",
+        message="Starting content analysis...",
+    )
 
     # Debug Log for Verification (Print for Docker visibility)
     mode_msg = f"Cognition Execution Mode: Sequential={settings.COGNITION_SEQUENTIAL}, Delay={settings.COGNITION_DELAY}"
@@ -496,23 +750,52 @@ async def cognition(state: VideoProcessingState) -> Dict:
 
         # 2. Summarize
         # PASS CLASSIFICATION RESULT TO AVOID REDUNDANT LLM CALLS
+        classification_input = (
+            classification_res if not isinstance(classification_res, Exception) else None
+        )
         summary_res = await _run_summarize(
-            transcript_text, task_id, state["user_id"], classification_result=classification_res
+            transcript_text,
+            task_id,
+            state["user_id"],
+            summary_language=state.get("summary_lang"),
+            transcript_language=state.get("transcript_lang"),
+            classification_result=classification_input,
+        )
+
+        comprehension_res = await _run_comprehension(
+            transcript_text,
+            task_id,
+            state["user_id"],
+            summary_language=state.get("summary_lang"),
+            transcript_language=state.get("transcript_lang"),
         )
 
         # Unify results format for processing below
-        results: List[Any] = [classification_res, summary_res]
+        results: List[Any] = [classification_res, summary_res, comprehension_res]
     else:
         # Default: Parallel
         results_tuple = await asyncio.gather(
             _run_classify(transcript_text, task_id, state["video_url"], state["user_id"]),
-            _run_summarize(transcript_text, task_id, state["user_id"]),
+            _run_summarize(
+                transcript_text,
+                task_id,
+                state["user_id"],
+                summary_language=state.get("summary_lang"),
+                transcript_language=state.get("transcript_lang"),
+            ),
+            _run_comprehension(
+                transcript_text,
+                task_id,
+                state["user_id"],
+                summary_language=state.get("summary_lang"),
+                transcript_language=state.get("transcript_lang"),
+            ),
             return_exceptions=True,
         )
         results = list(results_tuple)
 
     updates = {}
-    classification_res, summary_res = results[0], results[1]
+    classification_res, summary_res, comprehension_res = results[0], results[1], results[2]
 
     # Process Classification
     if isinstance(classification_res, Exception):
@@ -539,12 +822,31 @@ async def cognition(state: VideoProcessingState) -> Dict:
             else summary_res
         )
 
+    # Process Comprehension Brief
+    if isinstance(comprehension_res, Exception):
+        logger.error(f"Comprehension Error: {comprehension_res}")
+        err = str(comprehension_res)
+        if "errors" not in updates:
+            updates["errors"] = []
+        updates["errors"].append(err)
+    elif comprehension_res:
+        updates["comprehension_brief_json"] = comprehension_res
+
     return updates
 
 
 async def cleanup(state: VideoProcessingState) -> Dict:
     """Cleanup temp files and finalize task."""
+    task_id = state["task_id"]
     audio_path = state.get("audio_path")
+
+    await event_bus.publish_progress(
+        task_id=task_id,
+        progress=95,
+        stage="cleanup",
+        message="Cleaning up temporary files...",
+    )
+
     if audio_path:
         try:
             path = Path(audio_path)
@@ -557,7 +859,22 @@ async def cleanup(state: VideoProcessingState) -> Dict:
     # Final Task Status Update
     if not state.get("errors"):
         db_client.update_task_status(
-            state["task_id"], status=TaskStatus.COMPLETED, progress=100
+            task_id, status=TaskStatus.COMPLETED, progress=100
+        )
+        # Emit completion event
+        await event_bus.publish_complete(
+            task_id=task_id,
+            video_title=state.get("video_title"),
+            thumbnail_url=state.get("thumbnail_url"),
+            duration=state.get("duration"),
+        )
+    else:
+        # Emit error event if there were errors
+        error_msg = "; ".join(state.get("errors", ["Unknown error"]))
+        await event_bus.publish_error(
+            task_id=task_id,
+            error=error_msg,
+            recoverable=True,
         )
 
     return {}

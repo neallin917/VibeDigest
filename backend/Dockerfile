@@ -13,7 +13,7 @@ RUN pip install --upgrade pip uv
 
 # Install Dependencies
 # Layer 1: Heavy Core Dependencies (Cached)
-COPY requirements.core.txt .
+COPY backend/requirements.core.txt .
 RUN uv pip install --system --no-cache-dir -r requirements.core.txt
 
 # Layer 2: Frequent Updates
@@ -24,7 +24,7 @@ RUN uv pip install --system --no-cache-dir -r requirements.txt
 RUN mkdir -p temp downloads
 
 # Copy source code (required for production mode without volume mounts)
-COPY . .
+COPY backend/ .
 
 # Command
 # Note: This is overriden by docker-compose for dev mode, but good default for prod.

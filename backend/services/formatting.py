@@ -314,7 +314,7 @@ def _serialize_raw_segments(all_segments: List[Any]) -> List[Dict[str, Any]]:
 
 def format_time(seconds: float) -> str:
     """
-    将秒数转换为时分秒格式 MM:SS 或 HH:MM:SS
+    Convert seconds to MM:SS or HH:MM:SS.
     """
     seconds = int(seconds)
     hours = seconds // 3600

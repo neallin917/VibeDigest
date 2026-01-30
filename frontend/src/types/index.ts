@@ -1,3 +1,15 @@
+/**
+ * Type definitions for VibeDigest frontend.
+ *
+ * This file re-exports generated types from backend Pydantic models
+ * and defines frontend-specific types.
+ */
+
+// Re-export all generated types from Pydantic models
+export * from './generated';
+
+// Frontend-specific types (not generated from backend)
+
 export interface Task {
     id: string
     video_url: string
@@ -12,3 +24,15 @@ export interface Thread {
     title: string
     updated_at: string
 }
+
+// Re-export hook types for convenience
+export type {
+    TaskProgressEvent,
+    TaskOutputEvent,
+    TaskCompleteEvent,
+    TaskErrorEvent,
+    HeartbeatEvent,
+    SSEEvent,
+    TaskStatus,
+    OutputKind,
+} from './generated';

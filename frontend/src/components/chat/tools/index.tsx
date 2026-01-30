@@ -18,7 +18,6 @@ import {
   CheckCircle,
   AlertCircle,
   Play,
-  Video,
   FileText,
   Search,
   Sparkles,
@@ -26,7 +25,8 @@ import {
   ExternalLink
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import Image from 'next/image'
+import { createClient } from '@/lib/supabase'
+import { useEffect, useMemo, useState } from 'react'
 
 // ============================================================================
 // Type Definitions
@@ -73,6 +73,64 @@ export function GetTaskStatusTool({
   errorText,
   onViewClick
 }: GetTaskStatusToolProps) {
+  const [liveTask, setLiveTask] = useState<TaskStatusOutput | null>(null)
+  const supabase = useMemo(() => createClient(), [])
+
+  useEffect(() => {
+    if (!output?.taskId || output?.error) return
+
+    let isActive = true
+
+    const fetchTask = async () => {
+      const { data } = await supabase
+        .from('tasks')
+        .select('id,status,progress,video_title,thumbnail_url,video_url,error_message,updated_at')
+        .eq('id', output.taskId)
+        .single()
+
+      if (data && isActive) {
+        setLiveTask({
+          taskId: data.id,
+          status: data.status,
+          progress: data.progress || 0,
+          video_title: data.video_title || undefined,
+          thumbnail_url: data.thumbnail_url || undefined,
+          video_url: data.video_url || undefined,
+          error_message: data.error_message || undefined
+        })
+      }
+    }
+
+    fetchTask()
+
+    const channel = supabase
+      .channel(`task_status_${output.taskId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'tasks',
+        filter: `id=eq.${output.taskId}`
+      }, (payload) => {
+        const next = payload.new as any
+        if (!next || !isActive) return
+        setLiveTask({
+          taskId: next.id,
+          status: next.status,
+          progress: next.progress || 0,
+          video_title: next.video_title || undefined,
+          thumbnail_url: next.thumbnail_url || undefined,
+          video_url: next.video_url || undefined,
+          error_message: next.error_message || undefined
+        })
+      })
+      .subscribe()
+
+    return () => {
+      isActive = false
+      supabase.removeChannel(channel)
+    }
+  }, [output?.taskId, output?.error, supabase])
+
   switch (state) {
     case 'input-streaming':
     case 'input-available':
@@ -93,45 +151,72 @@ export function GetTaskStatusTool({
         )
       }
 
-      const status = output?.status || 'unknown'
-      const progress = output?.progress || 0
+      const effectiveOutput = liveTask || output
+      const status = effectiveOutput?.status || 'unknown'
+      const progress = effectiveOutput?.progress || 0
+      const rawTitle = effectiveOutput?.video_title?.trim()
+      const displayTitle = rawTitle && rawTitle.toLowerCase() !== 'unknown'
+        ? rawTitle
+        : effectiveOutput?.video_url
+          ? (() => {
+              try {
+                return new URL(effectiveOutput.video_url).hostname
+              } catch {
+                return 'Video task'
+              }
+            })()
+          : 'Video task'
+      const planSteps = [
+        {
+          key: 'queued',
+          label: 'Queued',
+          description: 'We verified the URL and prepared the workflow.',
+          minProgress: 0
+        },
+        {
+          key: 'ingest',
+          label: 'Fetch source data',
+          description: 'Collect metadata and pull the best available transcript.',
+          minProgress: 15
+        },
+        {
+          key: 'transcribe',
+          label: 'Transcribe audio',
+          description: 'Generate a clean, timestamped transcript for analysis.',
+          minProgress: 30
+        },
+        {
+          key: 'summarize',
+          label: 'Summarize content',
+          description: 'Create an accurate, structured summary for quick reading.',
+          minProgress: 70
+        },
+        {
+          key: 'finalize',
+          label: 'Finalize outputs',
+          description: 'Prepare the final assets and make them ready to view.',
+          minProgress: 90
+        }
+      ]
+      const resolvedProgress = status === 'completed' ? 100 : progress
+      const activeStepIndex = status === 'failed'
+        ? -1
+        : planSteps.reduce((acc, step, idx) => (resolvedProgress >= step.minProgress ? idx : acc), 0)
+      const completedCount = status === 'completed'
+        ? planSteps.length
+        : Math.max(activeStepIndex, 0)
+      const progressValue = Math.round((completedCount / planSteps.length) * 100)
 
       return (
         <Card className={cn(
-          "w-full max-w-sm overflow-hidden my-3 border transition-all",
-          "bg-white/50 border-white/40 shadow-sm",
-          "dark:bg-white/5 dark:border-white/10"
+          "w-full max-w-none overflow-hidden my-3 border transition-all",
+          "bg-white/60 border-white/50 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.1)]",
+          "dark:bg-zinc-900/60 dark:border-white/10 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.3)]"
         )}>
-          {/* Thumbnail */}
-          <div className="relative aspect-video bg-black/50">
-            {output?.thumbnail_url ? (
-              <Image
-                src={output.thumbnail_url}
-                alt={output.video_title || "Video"}
-                fill
-                unoptimized
-                className="object-cover opacity-80"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                <Video className="w-8 h-8 opacity-20" />
-              </div>
-            )}
-
-            {/* Status Overlay */}
-            {status === 'processing' && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                <div className="bg-black/60 backdrop-blur-sm rounded-full p-3">
-                  <Loader2 className="w-6 h-6 animate-spin text-white" />
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Content */}
           <div className="p-4 space-y-3">
             <h3 className="font-medium text-sm line-clamp-2 leading-snug text-slate-800 dark:text-slate-200">
-              {output?.video_title || output?.video_url || 'Untitled Video'}
+              {displayTitle}
             </h3>
 
             {/* Status Indicator */}
@@ -139,14 +224,13 @@ export function GetTaskStatusTool({
               {status === 'processing' && (
                 <>
                   <Clock className="w-3 h-3 text-blue-500 animate-pulse" />
-                  <span className="text-blue-500">Processing...</span>
-                  <span className="text-muted-foreground">{progress}%</span>
+                  <span className="text-blue-500">Processing</span>
                 </>
               )}
               {status === 'pending' && (
                 <>
                   <Clock className="w-3 h-3 text-amber-500" />
-                  <span className="text-amber-500">Pending</span>
+                  <span className="text-amber-500">Queued</span>
                 </>
               )}
               {status === 'completed' && (
@@ -163,10 +247,58 @@ export function GetTaskStatusTool({
               )}
             </div>
 
-            {/* Progress Bar */}
-            {status === 'processing' && (
-              <Progress value={progress} className="h-1 bg-slate-200 dark:bg-white/10" />
-            )}
+            {/* Plan Steps */}
+            <div className="rounded-md border border-white/40 bg-white/30 dark:border-white/10 dark:bg-white/5">
+              <div className="px-3 py-2 border-b border-white/30 dark:border-white/10">
+                <div className="text-sm font-semibold text-slate-800 dark:text-zinc-100">Processing Plan</div>
+                <div className="text-xs text-slate-500 dark:text-zinc-400">Step-by-step progress for this task</div>
+                {status !== 'failed' && (
+                  <div className="mt-2 space-y-1">
+                    <div className="text-xs text-slate-500 dark:text-zinc-400">
+                      {completedCount} of {planSteps.length} complete
+                    </div>
+                    <Progress value={progressValue} className="h-1 bg-slate-200/80 dark:bg-white/10" />
+                  </div>
+                )}
+              </div>
+              <div className="px-3 py-2">
+                <div className="relative">
+                  <div className="absolute left-2.5 top-2 bottom-2 w-px bg-slate-200/70 dark:bg-white/10" />
+                  <div className="space-y-3">
+                    {planSteps.map((step, index) => {
+                      const isDone = status === 'completed' || (activeStepIndex > index)
+                      const isActive = status !== 'failed' && activeStepIndex === index && status !== 'completed'
+                      const circleClassName = cn(
+                        "relative z-10 w-5 h-5 rounded-full flex items-center justify-center border text-[10px] bg-white/90 dark:bg-black/40",
+                        isDone && "bg-emerald-500 border-emerald-500 text-white",
+                        isActive && "border-emerald-400 text-emerald-400",
+                        !isDone && !isActive && "border-slate-300 text-slate-400 dark:border-white/15 dark:text-zinc-500"
+                      )
+                      const labelClassName = cn(
+                        "text-xs",
+                        isDone && "text-slate-800 dark:text-zinc-200",
+                        isActive && "text-emerald-400",
+                        !isDone && !isActive && "text-slate-500 dark:text-zinc-400"
+                      )
+
+                      return (
+                        <div key={step.key} className="flex items-start gap-3">
+                          <div className={circleClassName}>
+                            {isDone ? <CheckCircle className="w-3 h-3" /> : <span>{index + 1}</span>}
+                          </div>
+                          <div className="space-y-0.5">
+                            <div className={labelClassName}>{step.label}</div>
+                            <div className="text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed">
+                              {step.description}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* Action Button */}
             {status === 'completed' && onViewClick && output?.taskId && (
@@ -369,8 +501,8 @@ export function PreviewVideoTool({
       return (
         <Card className={cn(
           "w-full max-w-sm overflow-hidden my-3 border transition-all",
-          "bg-white/50 border-white/40 shadow-sm",
-          "dark:bg-white/5 dark:border-white/10"
+          "bg-white/60 border-white/50 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.1)]",
+          "dark:bg-zinc-900/60 dark:border-white/10 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.3)]"
         )}>
           {/* Thumbnail */}
           <div className="relative aspect-video bg-black/50">

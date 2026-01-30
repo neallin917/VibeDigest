@@ -306,6 +306,11 @@ export async function POST(req: Request) {
             }
         }
 
+        const messageText = message
+            ? (getTextFromUIMessage(message) || (message as any).content || '')
+            : '';
+        const detectedUrl = extractUrl(messageText || '');
+
         // 3. Build System Prompt
         let systemPrompt = `You are VibeDigest Assistant, an AI helper for video content analysis.
 
@@ -317,8 +322,9 @@ When a taskId is provided:
 - Use this real data to answer questions about the video content
 
 When users provide video URLs:
-- Use preview_video to show them what will be processed
-- Use create_task if they want to proceed with processing
+- ALWAYS call preview_video first to show the video metadata
+- THEN call create_task to start processing immediately (no confirmation needed)
+- THEN call get_task_status to display the progress plan card
 - If you do not have a valid URL, DO NOT call these tools. Ask the user for the URL first.
 
 === CRITICAL: TOOL PARAMETER FORMAT ===
@@ -347,9 +353,22 @@ Never make up information about video content. Always use tools to get real data
             systemPrompt += `\n\nNo specific task context. Use tools when users mention videos or ask about processing status.`;
         }
 
+        if (detectedUrl) {
+            systemPrompt += `\n\nAUTO-PROCESS: The user provided a valid video URL (${detectedUrl}). You MUST call preview_video with that URL, then create_task, then get_task_status. Do not ask for confirmation.`;
+        }
+
+        let previewCache: { url: string; title?: string; thumbnail?: string } | null = null;
+
         // 4. Generate Response
         console.log('[API/Chat] Converting to model messages...');
-        const coreMessages = await convertToModelMessages(messages);
+        const messagesForModel = messages
+            .map((msg) => {
+                const textParts = (msg.parts || []).filter((part: any) => part.type === 'text');
+                if (!textParts.length) return null;
+                return { ...msg, parts: textParts } as UIMessage;
+            })
+            .filter((msg): msg is UIMessage => Boolean(msg));
+        const coreMessages = await convertToModelMessages(messagesForModel);
         console.log('[API/Chat] Core messages count:', coreMessages.length);
 
         console.log('[API/Chat] Starting streamText...');
@@ -376,12 +395,22 @@ Never make up information about video content. Always use tools to get real data
                         if (data.user_id !== user?.id && !data.is_demo) {
                             return { error: 'Access denied', taskId };
                         }
+                        const normalizedTaskUrl = extractUrl(data.video_url || '')
+                        const canUsePreview = Boolean(
+                            previewCache && normalizedTaskUrl && previewCache.url === normalizedTaskUrl
+                        )
+                        const previewTitle = canUsePreview ? previewCache?.title : undefined
+                        const previewThumbnail = canUsePreview ? previewCache?.thumbnail : undefined
+                        const normalizedTitle = data.video_title && data.video_title !== 'Unknown'
+                            ? data.video_title
+                            : previewTitle
+
                         return {
                             taskId: data.id,
                             status: data.status,
                             progress: data.progress,
-                            video_title: data.video_title,
-                            thumbnail_url: data.thumbnail_url,
+                            video_title: normalizedTitle,
+                            thumbnail_url: data.thumbnail_url || previewThumbnail,
                             video_url: data.video_url,
                             error_message: data.error_message,
                             created_at: data.created_at,
@@ -527,6 +556,13 @@ Never make up information about video content. Always use tools to get real data
                             const data = await response.json();
                             if (!response.ok) {
                                 return { error: 'Failed to preview video', details: data.detail || 'Unknown error', status: response.status };
+                            }
+                            if (data?.title || data?.thumbnail) {
+                                previewCache = {
+                                    url: cleanUrl,
+                                    title: data.title,
+                                    thumbnail: data.thumbnail
+                                };
                             }
                             return data;
                         } catch (error) {

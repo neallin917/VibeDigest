@@ -14,7 +14,7 @@ export function TopHeader({ onMobileMenuClick, className }: TopHeaderProps) {
   return (
     <header className={cn(
       "h-14 flex items-center justify-between px-4 md:px-6 shrink-0 z-30",
-      "bg-white/60 dark:bg-zinc-900/60",
+      "bg-slate-100/90 dark:bg-zinc-900/80",
       "backdrop-blur-xl",
       "border-b border-slate-200/60 dark:border-white/10",
       className
