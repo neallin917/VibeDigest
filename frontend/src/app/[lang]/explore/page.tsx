@@ -39,10 +39,7 @@ export default function ExplorePage() {
                     <p className="text-base text-slate-600 dark:text-gray-400">
                         Discover what others are watching and summarizing with AI. Browse through thousands of processed videos.
                     </p>
-                    <p className="text-sm text-slate-500 dark:text-gray-500 mt-4 flex items-center justify-center gap-2">
-                        <span className="inline-block w-2 h-2 rounded-full bg-indigo-500/50 dark:bg-emerald-500/50"></span>
-                        These are curated public demos. Your personal tasks are private by default.
-                    </p>
+
                 </div>
 
                 <Suspense fallback={<TemplatesSkeleton />}>

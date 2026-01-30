@@ -87,7 +87,7 @@ export function LandingUserButton() {
         <div className="flex items-center gap-2">
             {/* Direct Dashboard Button */}
             <Link href="/chat">
-                <Button variant="outline" size="sm" className="gap-2 bg-primary/10 border-primary/30 hover:bg-primary/20 hover:border-primary/40 text-primary">
+                <Button variant="outline" size="sm" className="gap-2 backdrop-blur-md bg-white/30 dark:bg-white/10 border-white/40 dark:border-white/10 shadow-sm hover:shadow-md hover:bg-white/50 dark:hover:bg-white/20 transition-all text-primary font-medium">
                     {t("auth.goToDashboard")}
                 </Button>
             </Link>
