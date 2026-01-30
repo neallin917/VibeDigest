@@ -911,9 +911,30 @@ class Summarizer:
                     fallback_model,
                     e,
                 )
-                classification_data = await _classify_with_model(fallback_model)
+                try:
+                    classification_data = await _classify_with_model(fallback_model)
+                except Exception as fallback_e:
+                    logger.error(
+                        "Classification fallback also failed: %s. Returning defaults.",
+                        fallback_e,
+                    )
+                    return {
+                        "content_form": "casual",
+                        "info_structure": "thematic",
+                        "cognitive_goal": "digest",
+                        "confidence": 0.0,
+                    }
             else:
-                raise
+                logger.error(
+                    "Classification failed and no fallback available: %s. Returning defaults.",
+                    e,
+                )
+                return {
+                    "content_form": "casual",
+                    "info_structure": "thematic",
+                    "cognitive_goal": "digest",
+                    "confidence": 0.0,
+                }
 
         # Convert back to dict for compatibility
         result = {
