@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, AsyncMock, patch
 @pytest.mark.asyncio
 async def test_generate_comprehension_brief():
     agent = ComprehensionAgent()
+    agent.use_response_format_json = False
     transcript = """
     In this video, we are going to talk about the future of AI. 
     AI is moving from narrow tasks to general reasoning. 
@@ -40,12 +41,11 @@ async def test_generate_comprehension_brief():
     }
 
     # Create a mock for the structured LLM result
-    # The ainvoke method needs to return an object that has a model_dump_json method
-    # or be the Pydantic model itself. 
-    # Since the code calls `brief_obj.model_dump_json()`, we need to mock that.
+    # The ainvoke method needs to return an object that has a model_dump method
+    # or be the Pydantic model itself.
     
     mock_brief_obj = MagicMock()
-    mock_brief_obj.model_dump_json.return_value = json.dumps(mock_data)
+    mock_brief_obj.model_dump.return_value = mock_data
     
     # Mock the LLM chain
     mock_structured_llm = MagicMock()

@@ -251,13 +251,27 @@ class TestSummarizeWithMockedLLM:
     @pytest.mark.asyncio
     async def test_summarize_no_api_key(self):
         # Test fallback when API key is missing
-        with patch.dict(os.environ, {"OPENAI_API_KEY": ""}, clear=False):
+        with patch.dict(
+            os.environ, {"OPENAI_API_KEY": "", "OPENAI_SUMMARY_FALLBACK": "true"}, clear=False
+        ):
             # Need to clear cached value by recreating instance
             sum_no_key = Summarizer()
             sum_no_key.api_key = None  # Force no API key
             result = await sum_no_key.summarize("Some transcript", "zh")
             data = json.loads(result)
             assert data["version"] == 2
+            assert data["language"] == "zh"
+
+    @pytest.mark.asyncio
+    async def test_summarize_no_api_key_without_fallback(self):
+        # Test failure when fallback is disabled
+        with patch.dict(
+            os.environ, {"OPENAI_API_KEY": "", "OPENAI_SUMMARY_FALLBACK": "false"}, clear=False
+        ):
+            sum_no_key = Summarizer()
+            sum_no_key.api_key = None
+            with pytest.raises(RuntimeError):
+                await sum_no_key.summarize("Some transcript", "zh")
 
 
 class TestClassifyContentWithMockedLLM:
@@ -265,6 +279,7 @@ class TestClassifyContentWithMockedLLM:
 
     @pytest.mark.asyncio
     async def test_classify_returns_dict(self, summarizer):
+        summarizer.use_response_format_json = False
         mock_classification = MagicMock()
         mock_classification.content_form = "tutorial"
         mock_classification.info_structure = "sequential"
@@ -285,6 +300,7 @@ class TestClassifyContentWithMockedLLM:
 
     @pytest.mark.asyncio
     async def test_classify_fallback_on_error(self, summarizer):
+        summarizer.use_response_format_json = False
         with patch.object(summarizer, '_get_llm', side_effect=Exception("API Error")):
             result = await summarizer.classify_content("Test")
             # Should fallback to defaults
