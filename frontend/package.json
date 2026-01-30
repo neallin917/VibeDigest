@@ -11,8 +11,7 @@
     "lint": "eslint",
     "test": "vitest",
     "test:cov": "vitest run --coverage",
-    "generate-types": "python3 ../scripts/generate_types.py",
-    "prebuild": "npm run generate-types"
+    "generate-types": "python3 ../scripts/generate_types.py"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.12",
