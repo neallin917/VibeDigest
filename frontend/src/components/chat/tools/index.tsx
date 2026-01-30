@@ -507,12 +507,11 @@ export function PreviewVideoTool({
           {/* Thumbnail */}
           <div className="relative aspect-video bg-black/50">
             {output?.thumbnail ? (
-              <Image
+              <img
                 src={output.thumbnail}
                 alt={output.title || "Video"}
-                fill
-                unoptimized
-                className="object-cover"
+                loading="lazy"
+                className="absolute inset-0 h-full w-full object-cover"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground">
