@@ -148,7 +148,7 @@ export function WelcomeScreen({ onSelectExample, onSubmit, isLoading }: WelcomeS
           <span className="text-sm">Loading examples...</span>
         </div>
       ) : examples.length > 0 ? (
-        <div className="w-full max-w-4xl">
+        <div className="w-full max-w-4xl @container">
           {/* Section Header */}
           <div className="flex items-center gap-2 mb-4 px-1">
             <span className={cn(
