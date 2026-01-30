@@ -33,6 +33,28 @@ LANGUAGE_MAP = {
     "hi": "हिन्दी"
 }
 
+
+
+def parse_bool_env(name: str, default: bool = False) -> bool:
+    """
+    Parse a boolean environment variable with common truthy/falsy values.
+    
+    Truthy: "1", "true", "t", "yes", "y", "on" (case-insensitive)
+    Falsy: "0", "false", "f", "no", "n", "off" (case-insensitive)
+    
+    Returns the default if the env var is not set or has an unrecognized value.
+    """
+    import os
+    raw = os.getenv(name)
+    if raw is None:
+        return bool(default)
+    s = str(raw).strip().lower()
+    if s in ("1", "true", "t", "yes", "y", "on"):
+        return True
+    if s in ("0", "false", "f", "no", "n", "off"):
+        return False
+    return bool(default)
+
 def get_language_name(code: str) -> str:
     """Get the display name for a language code, or return the code itself."""
     if not code:
@@ -149,15 +171,15 @@ def find_late_punctuation_split(text: str) -> int:
 # Formatting helpers
 
 def ensure_markdown_paragraphs(text: str) -> str:
-    """确保Markdown段落空行、标题后空行、压缩多余空行。"""
+    """Ensure Markdown paragraph spacing and collapse extra blank lines."""
     if not text:
         return text
     formatted = text.replace("\r\n", "\n")
-    # 标题后加空行
+    # Add a blank line after headings
     formatted = re.sub(r"(^#{1,6}\s+.*)\n([^\n#])", r"\1\n\n\2", formatted, flags=re.M)
-    # 压缩≥3个换行为2个
+    # Collapse 3+ newlines to 2
     formatted = re.sub(r"\n{3,}", "\n\n", formatted)
-    # 去首尾空行
+    # Trim leading/trailing blank lines
     formatted = re.sub(r"^\n+", "", formatted)
     formatted = re.sub(r"\n+$", "", formatted)
     return formatted
@@ -169,7 +191,7 @@ def is_cjk_language(lang: str) -> bool:
     s = str(lang).lower()
     return any(k in s for k in ("zh", "chinese", "ja", "japanese", "ko", "korean"))
 def remove_timestamps_and_meta(text: str) -> str:
-    """仅移除时间戳行与明显元信息（标题、检测语言等），保留原文口语/重复。"""
+    """Remove timestamp lines and obvious metadata while preserving original speech."""
     if not text:
         return ""
     import re
@@ -178,7 +200,7 @@ def remove_timestamps_and_meta(text: str) -> str:
     kept = []
     for line in lines:
         s = line.strip()
-        # 跳过时间戳与元信息
+        # Skip timestamps and metadata
         if s.startswith('**[') and ']**' in s:
             # New format: timestamp-only line like "**[00:12]**"
             if s.endswith(']**') and len(s) <= 14:
@@ -188,25 +210,25 @@ def remove_timestamps_and_meta(text: str) -> str:
             if not line:
                 continue
         if s.startswith('# '):
-            # 跳过顶级标题（通常是视频标题，可在最终加回）
+            # Skip top-level heading (usually the video title; can be added back later)
             continue
         
         # Robust metadata check
-        # Matches: **检测语言:**, **检测语言: zh**, **Detected Language:**, etc.
+        # Matches detected language markers like **Detected Language:** and localized equivalents.
         if re.match(r"^\*\*?(检测语言|语言概率|Detected Language|Language Probability)[:：]", s, flags=re.IGNORECASE):
             continue
             
         kept.append(line)
-    # 规范空行
+    # Normalize blank lines
     cleaned = '\n'.join(kept)
     return cleaned
 
 def remove_transcript_heading(text: str) -> str:
-    """移除开头或段落中的以 Transcript 为标题的行（任意级别#），不改变正文。"""
+    """Remove Transcript headings (any level) without changing body text."""
     if not text:
         return text
     import re
-    # 移除形如 '## Transcript'、'# Transcript Text'、'### transcript' 的标题行
+    # Remove headings like '## Transcript', '# Transcript Text', '### transcript'
     lines = text.split('\n')
     filtered = []
     for line in lines:
@@ -216,8 +238,21 @@ def remove_transcript_heading(text: str) -> str:
         filtered.append(line)
     return '\n'.join(filtered)
 
+def extract_first_json_object(text: str) -> str | None:
+    """Best-effort extraction of the first JSON object from a text response."""
+    if not text:
+        return None
+    s = text.strip()
+    s = re.sub(r"^```(?:json)?\s*", "", s, flags=re.IGNORECASE)
+    s = re.sub(r"\s*```$", "", s)
+    start = s.find("{")
+    end = s.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        return None
+    return s[start : end + 1]
+
 def enforce_paragraph_max_chars(text: str, max_chars: int = 400) -> str:
-    """按段落拆分并确保每段不超过max_chars，必要时按句子边界拆为多段。"""
+    """Split by paragraph and keep each within max_chars, using sentence splits if needed."""
     if not text:
         return text
     import re
@@ -228,7 +263,7 @@ def enforce_paragraph_max_chars(text: str, max_chars: int = 400) -> str:
         if len(para) <= max_chars:
             new_paragraphs.append(para)
             continue
-        # 句子切分
+        # Split into sentences
         parts = re.split(r"([。！？\.!?]+\s*)", para)
         sentences = []
         buf = ""
@@ -256,7 +291,7 @@ def enforce_paragraph_max_chars(text: str, max_chars: int = 400) -> str:
 
 def extract_pure_text(raw_transcript: str) -> str:
     """
-    从原始转录中提取纯文本，移除时间戳和元数据
+    Extract plain text from a raw transcript, removing timestamps and metadata.
     """
     import re
     ts_prefix = re.compile(r"^\*\*\[[0-9:]{2,8}\]\*\*\s*")
@@ -265,7 +300,7 @@ def extract_pure_text(raw_transcript: str) -> str:
     
     for line in lines:
         line = line.strip()
-        # 跳过时间戳、标题、元数据
+        # Skip timestamps, headings, metadata
         if not line:
             continue
         if line.startswith('**[') and ']**' in line:
@@ -286,14 +321,14 @@ def extract_pure_text(raw_transcript: str) -> str:
 
 def split_into_sentences(text: str) -> list[str]:
     """
-    按句子分割文本，考虑中英文差异
+    Split text into sentences, accounting for CJK punctuation.
     """
     import re
     
-    # 中英文句子结束符
+    # Sentence terminators for CJK/Latin
     sentence_endings = r'[.!?。！？;；]+'
     
-    # 分割句子，保留句号
+    # Split sentences while keeping punctuation
     parts = re.split(f'({sentence_endings})', text)
     
     sentences = []
@@ -301,16 +336,16 @@ def split_into_sentences(text: str) -> list[str]:
     
     for i, part in enumerate(parts):
         if re.match(sentence_endings, part):
-            # 这是句子结束符，加到当前句子
+            # Sentence terminator; append to current sentence
             current += part
             if current.strip():
                 sentences.append(current.strip())
             current = ""
         else:
-            # 这是句子内容
+            # Sentence content
             current += part
     
-    # 处理最后没有句号的部分
+    # Handle trailing text without terminator
     if current.strip():
         sentences.append(current.strip())
     
@@ -318,12 +353,12 @@ def split_into_sentences(text: str) -> list[str]:
 
 def join_sentences(sentences: list[str]) -> str:
     """
-    重新组合句子为段落
+    Recombine sentences into a paragraph.
     """
     return ' '.join(sentences)
 
 def detect_language(text: str) -> str:
-    """检测文本的主要语言 (en, zh, ja, ko)"""
+    """Detect primary language of text (en, zh, ja, ko)."""
     if not text:
         return "en"
         
@@ -363,7 +398,7 @@ def detect_language(text: str) -> str:
         return "en"
 
 def smart_chunk_text(text: str, max_chars: int = 4000) -> list[str]:
-    """智能分块（先段落后句子），按字符上限切分。"""
+    """Smart chunking (paragraphs then sentences) under a character limit."""
     if not text:
         return []
     import re
