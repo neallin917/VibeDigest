@@ -63,7 +63,7 @@ export function QuickTemplateCard({ task, onSelect }: QuickTemplateCardProps) {
 
         {/* Platform Badge */}
         <span className={cn(
-          "absolute top-2 left-2 rounded-full px-2 py-0.5 text-[10px] font-medium backdrop-blur-md",
+          "hidden @md:block absolute top-2 left-2 rounded-full px-2 py-0.5 text-[10px] font-medium backdrop-blur-md",
           "bg-white/80 text-slate-700 border border-slate-200/50",
           "dark:bg-black/60 dark:text-white/80 dark:border-white/10"
         )}>
@@ -72,7 +72,7 @@ export function QuickTemplateCard({ task, onSelect }: QuickTemplateCardProps) {
       </div>
 
       {/* Title */}
-      <div className="p-3">
+      <div className="hidden @md:block p-3">
         <h4 className="text-xs font-medium text-slate-700 dark:text-slate-200 line-clamp-2 leading-snug">
           {task.video_title || 'Untitled'}
         </h4>

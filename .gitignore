@@ -97,3 +97,13 @@ out/
 .worktrees/
 .security-key
 logs/security/
+
+# AI / Agent workspace artifacts
+/.opencode/
+/.shared/
+/.reports/
+/.claude/
+
+# Python Testing & Linting Caches
+.pytest_cache/
+.ruff_cache/
