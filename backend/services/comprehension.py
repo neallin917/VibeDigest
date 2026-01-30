@@ -7,7 +7,8 @@ from config import settings
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from prompts import COMPREHENSION_BRIEF_SYSTEM, COMPREHENSION_BRIEF_USER
-from utils.text_utils import get_language_name
+from utils.text_utils import get_language_name, extract_first_json_object, parse_bool_env
+from utils.openai_client import ainvoke_structured_json
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ class ComprehensionAgent:
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
         # Higher-level reasoning models prioritized for deep comprehension (Learning Tab)
         self.comprehension_models = settings.OPENAI_COMPREHENSION_MODELS
+        self.use_response_format_json = parse_bool_env("OPENAI_USE_RESPONSE_FORMAT_JSON", True)
 
     def _get_llm(self, model_name: str, max_tokens: Optional[int] = None):
         from utils.openai_client import create_chat_model
@@ -89,8 +91,23 @@ class ComprehensionAgent:
                         **{k: v for k, v in trace_config.items() if k not in ["name", "metadata"]}
                     }
 
-                brief_obj: ComprehensionBriefResponse = await structured_llm.ainvoke(messages, config=lc_config)
-                return brief_obj.model_dump_json()
+                if self.use_response_format_json:
+                    raw = await llm.ainvoke(messages, config=lc_config)
+                    raw_text = getattr(raw, "content", None) or str(raw)
+                    json_text = extract_first_json_object(raw_text) or raw_text
+                    parsed = ComprehensionBriefResponse(**json.loads(json_text))
+                    if hasattr(parsed, "model_dump"):
+                        obj = parsed.model_dump()
+                    else:
+                        obj = parsed.dict()
+                else:
+                    obj = await ainvoke_structured_json(
+                        llm,
+                        ComprehensionBriefResponse,
+                        messages,
+                        config=lc_config,
+                    )
+                return json.dumps(obj, ensure_ascii=False)
             except Exception as e:
                 last_exception = e
                 logger.warning(f"Comprehension Brief with model {model} failed: {e}")
