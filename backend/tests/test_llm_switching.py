@@ -5,24 +5,20 @@ from utils.openai_client import create_chat_model
 class TestLLMSwitching:
 
     @patch('utils.openai_client.RateLimitAwareChatLiteLLM')
-    @patch('langchain_openai.ChatOpenAI')
-    def test_provider_switching(self, mock_chat_openai, mock_rate_limit_llm):
-        """Verify factory chooses correct class based on LLM_PROVIDER"""
+    def test_provider_switching(self, mock_rate_limit_llm):
+        """Verify factory ALWAYS uses RateLimitAwareChatLiteLLM regardless of provider"""
 
-        # Case 1: Default (OpenAI)
+        # Case 1: Default (OpenAI) - Now uses LiteLLM unified
         with patch.object(settings, 'LLM_PROVIDER', 'openai'):
             create_chat_model("gpt-4o")
-            mock_chat_openai.assert_called()
-            mock_rate_limit_llm.assert_not_called()
+            mock_rate_limit_llm.assert_called()
 
-        mock_chat_openai.reset_mock()
         mock_rate_limit_llm.reset_mock()
 
         # Case 2: Custom Provider (e.g. Ollama)
         with patch.object(settings, 'LLM_PROVIDER', 'ollama'):
             create_chat_model("gpt-4o")
             mock_rate_limit_llm.assert_called()
-            mock_chat_openai.assert_not_called()
 
     @patch('utils.openai_client.RateLimitAwareChatLiteLLM')
     def test_model_alias_mapping(self, mock_rate_limit_llm):
