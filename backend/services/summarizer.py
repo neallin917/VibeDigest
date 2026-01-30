@@ -232,7 +232,7 @@ class Summarizer:
         ).strip() or settings.OPENAI_HELPER_MODEL
         self.classifier_model = (
             os.getenv("OPENAI_CLASSIFIER_MODEL") or ""
-        ).strip() or "gpt-5-mini"
+        ).strip() or settings.OPENAI_HELPER_MODEL
         self.use_response_format_json = self._read_bool_env(
             "OPENAI_USE_RESPONSE_FORMAT_JSON", True
         )
@@ -324,6 +324,8 @@ class Summarizer:
             **{k: v for k, v in trace_metadata.items() if k != "metadata"},
         }
 
+        raw = ""
+        raw = ""
         try:
             if not self.api_key:
                 logger.warning("OpenAI API unavailable, returning improved transcript")
@@ -450,6 +452,8 @@ class Summarizer:
             system_prompt = OPTIMIZE_TRANSCRIPT_SYSTEM_EN
             prompt = OPTIMIZE_TRANSCRIPT_USER_EN.format(text=chunk_text)
 
+        raw = ""
+        raw = ""
         try:
             response = await self._ainvoke_with_fallback(
                 models=[self.transcript_model],
@@ -849,7 +853,7 @@ class Summarizer:
             transcript_sample=transcript_sample
         )
 
-        try:
+        async def _classify_with_model(model_name: str) -> Dict[str, Any]:
             trace_config = None
             if trace_metadata:
                 trace_config = {
@@ -858,9 +862,7 @@ class Summarizer:
                     **{k: v for k, v in trace_metadata.items() if k != "metadata"},
                 }
 
-            llm = self._get_llm(
-                self.classifier_model, max_tokens=settings.SHORT_TASK_MAX_TOKENS
-            )
+            llm = self._get_llm(model_name, max_tokens=settings.SHORT_TASK_MAX_TOKENS)
 
             messages = [
                 SystemMessage(content=system_prompt),
@@ -877,7 +879,7 @@ class Summarizer:
             }
 
             if self.use_response_format_json or not self._supports_structured_output(
-                self.classifier_model
+                model_name
             ):
                 raw = await llm.ainvoke(messages, config=lc_config)
                 raw_text = getattr(raw, "content", None) or str(raw)
@@ -896,55 +898,63 @@ class Summarizer:
                     config=lc_config,
                 )
 
-            # Convert back to dict for compatibility
-            result = {
-                "content_form": classification_data.get("content_form"),
-                "info_structure": classification_data.get("info_structure"),
-                "cognitive_goal": classification_data.get("cognitive_goal"),
-                "confidence": classification_data.get("confidence", 0.0),
-            }
+            return classification_data
 
-            # Normalize defaults (Fallback validation is technically handled by Pydantic but we ensure safe strings)
-            valid_forms = {
-                "tutorial",
-                "interview",
-                "monologue",
-                "news",
-                "review",
-                "finance",
-                "narrative",
-                "casual",
-            }
-            valid_structures = {
-                "hierarchical",
-                "sequential",
-                "argumentative",
-                "comparative",
-                "narrative_arc",
-                "thematic",
-                "qa_format",
-                "data_driven",
-            }
-            valid_goals = {"understand", "decide", "execute", "inspire", "digest"}
-
-            if result["content_form"] not in valid_forms:
-                result["content_form"] = "casual"
-            if result["info_structure"] not in valid_structures:
-                result["info_structure"] = "thematic"
-            if result["cognitive_goal"] not in valid_goals:
-                result["cognitive_goal"] = "digest"
-
-            logger.info(f"Classification result (Structured): {result}")
-            return result
-
+        try:
+            classification_data = await _classify_with_model(self.classifier_model)
         except Exception as e:
-            logger.warning(f"Classification failed, using defaults: {e}")
-            return {
-                "content_form": "casual",
-                "info_structure": "thematic",
-                "cognitive_goal": "digest",
-                "confidence": 0.0,
-            }
+            fallback_model = settings.OPENAI_HELPER_MODEL
+            if fallback_model and fallback_model != self.classifier_model:
+                logger.warning(
+                    "Classification failed with %s, retrying with %s: %s",
+                    self.classifier_model,
+                    fallback_model,
+                    e,
+                )
+                classification_data = await _classify_with_model(fallback_model)
+            else:
+                raise
+
+        # Convert back to dict for compatibility
+        result = {
+            "content_form": classification_data.get("content_form"),
+            "info_structure": classification_data.get("info_structure"),
+            "cognitive_goal": classification_data.get("cognitive_goal"),
+            "confidence": classification_data.get("confidence", 0.0),
+        }
+
+        # Normalize defaults (Fallback validation is technically handled by Pydantic but we ensure safe strings)
+        valid_forms = {
+            "tutorial",
+            "interview",
+            "monologue",
+            "news",
+            "review",
+            "finance",
+            "narrative",
+            "casual",
+        }
+        valid_structures = {
+            "hierarchical",
+            "sequential",
+            "argumentative",
+            "comparative",
+            "narrative_arc",
+            "thematic",
+            "qa_format",
+            "data_driven",
+        }
+        valid_goals = {"understand", "decide", "execute", "inspire", "digest"}
+
+        if result["content_form"] not in valid_forms:
+            result["content_form"] = "casual"
+        if result["info_structure"] not in valid_structures:
+            result["info_structure"] = "thematic"
+        if result["cognitive_goal"] not in valid_goals:
+            result["cognitive_goal"] = "digest"
+
+        logger.info(f"Classification result (Structured): {result}")
+        return result
 
     def _build_v2_dynamic_prompt(
         self, classification: Dict[str, Any], language_name: str, target_language: str
@@ -986,6 +996,14 @@ class Summarizer:
             classification = await self.classify_content(
                 transcript, trace_metadata=trace_metadata
             )
+
+        if not classification:
+            classification = {
+                "content_form": "casual",
+                "info_structure": "thematic",
+                "cognitive_goal": "digest",
+                "confidence": 0.0,
+            }
 
         system_prompt = self._build_v2_dynamic_prompt(
             classification, language_name, target_language
@@ -1060,6 +1078,10 @@ class Summarizer:
                         raise ValueError("Structured summary payload is not a dict")
                     if "content_type" in obj:
                         obj["content_type"] = classification
+
+                    # CRITICAL: Force the language field to match our target_language
+                    # LLM may hallucinate different language codes (e.g., 'ar' for Arabic)
+                    obj["language"] = target_language
 
                     return json.dumps(obj, ensure_ascii=False)
                 except Exception as e:
@@ -1423,7 +1445,8 @@ class Summarizer:
         if not isinstance(obj, dict):
             raise ValueError("Summary JSON must be an object")
         version = int(obj.get("version", 2))
-        language = str(obj.get("language", target_language))
+        # CRITICAL: Force language to match target_language, don't trust LLM output
+        language = target_language
         overview = str(obj.get("overview", "") or "").strip()
         keypoints = obj.get("keypoints", [])
         normalized_kps = []
@@ -1534,6 +1557,7 @@ class Summarizer:
                 **{k: v for k, v in trace_metadata.items() if k != "metadata"},
             }
 
+        raw = ""
         try:
             response = await self._ainvoke_with_fallback(
                 models=self.summary_models,
@@ -1669,6 +1693,7 @@ class Summarizer:
                 **{k: v for k, v in trace_metadata.items() if k != "metadata"},
             }
 
+        raw = ""
         try:
             response = await self._ainvoke_with_fallback(
                 models=self.summary_models,

@@ -3,21 +3,71 @@ import { streamText, convertToModelMessages, generateText, UIMessage, tool, crea
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
+const AI_SDK_DEBUG = process.env.AI_SDK_DEBUG === '1';
+
+const debugFetch: typeof fetch = async (input, init) => {
+    if (AI_SDK_DEBUG) {
+        try {
+            const url = typeof input === 'string' ? input : input.toString();
+            console.log('[AI SDK] Request URL:', url);
+            if (init?.body) {
+                console.log('[AI SDK] Request body:', init.body.toString());
+            }
+        } catch (e) {
+            console.warn('[AI SDK] Failed to log request:', e);
+        }
+    }
+    const response = await fetch(input, init);
+    if (AI_SDK_DEBUG && !response.ok) {
+        try {
+            const text = await response.clone().text();
+            console.log('[AI SDK] Response status:', response.status);
+            console.log('[AI SDK] Response body:', text);
+        } catch (e) {
+            console.warn('[AI SDK] Failed to log response:', e);
+        }
+    }
+    return response;
+};
+
 // Create OpenAI-compatible provider with custom baseURL (for local LLM)
 const openai = createOpenAI({
     baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
     apiKey: process.env.OPENAI_API_KEY || '',
+    fetch: AI_SDK_DEBUG ? debugFetch : undefined,
 });
 
-// Model name from environment (default to gemini-3-flash for custom LLM)
-const MODEL_NAME = process.env.OPENAI_MODEL || 'gemini-3-flash';
+const MODEL_CACHE_TTL_MS = 5 * 60 * 1000;
+let cachedModelName: string | null = null;
+let cachedModelAt = 0;
 
 // Backend API URL (must match BACKEND_API_URL in .env.local)
 const API_BASE_URL = process.env.BACKEND_API_URL || 'http://127.0.0.1:8000';
 
+// AI SDK v6: Use Zod schemas for tool parameters
+const taskStatusSchema = z.object({
+    taskId: z.string().describe('The ID of the task to check'),
+});
+
+const taskOutputsSchema = z.object({
+    taskId: z.string().describe('The ID of the task'),
+    kinds: z.array(z.enum(['script', 'summary', 'summary_source', 'audio']))
+        .optional()
+        .describe('Specific output kinds to retrieve. If not provided, returns all completed outputs.'),
+});
+
+const createTaskSchema = z.object({
+    video_url: z.string().describe('REQUIRED: Complete YouTube URL. Example: https://www.youtube.com/watch?v=dQw4w9WgXcQ'),
+    summaryLanguage: z.string().optional().describe("Language code: 'zh'=Chinese, 'en'=English"),
+});
+
+const previewVideoSchema = z.object({
+    video_url: z.string().describe('REQUIRED: Complete YouTube URL. Example: https://www.youtube.com/watch?v=dQw4w9WgXcQ'),
+});
+
 // --- Startup Logging ---
 console.log('>>> [API/Chat] Route Initialized <<<');
-console.log(`    Model:    ${MODEL_NAME}`);
+console.log(`    Model:    ${process.env.OPENAI_MODEL || 'dynamic (from backend)'}`);
 console.log(`    Base URL: ${process.env.OPENAI_BASE_URL || 'Default'}`);
 console.log(`    Backend:  ${API_BASE_URL}`);
 console.log('>>> ---------------------------- <<<');
@@ -35,13 +85,77 @@ function getTextFromUIMessage(message: UIMessage): string {
 // Helper to sanitize and validate URLs (Fix for "Invalid video URL" 400 errors)
 function extractUrl(text: string): string | null {
     if (!text || typeof text !== 'string' || text === 'undefined' || text === 'null') return null;
-    // Extract first valid http/https URL, ignoring surrounding markdown or whitespace
+
+    // 1. Extract first valid http/https URL, ignoring surrounding markdown or whitespace
     const match = text.match(/(https?:\/\/[^\s<>"')\]]+)/);
-    return match ? match[0] : null;
+    if (match) return match[0];
+
+    // 2. Fallback: Check if it is a raw YouTube Video ID (11 chars)
+    // Only accept if the text is JUST the ID (trimmed), to avoid matching random 11-char words in sentences
+    const idMatch = text.trim().match(/^([a-zA-Z0-9_-]{11})$/);
+    if (idMatch) {
+        return `https://www.youtube.com/watch?v=${idMatch[1]}`;
+    }
+
+    return null;
+}
+
+// Helper to find the most recent URL in the conversation history
+function findLastUrlInMessages(messages: UIMessage[]): string | null {
+    // Search backwards from the most recent message
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (msg.role === 'user') {
+            // Check parts
+            if (msg.parts) {
+                for (const part of msg.parts) {
+                    if (part.type === 'text') {
+                        const url = extractUrl(part.text);
+                        if (url) return url;
+                    }
+                }
+            }
+            // Check legacy content string
+            if (typeof (msg as any).content === 'string') {
+                const url = extractUrl((msg as any).content);
+                if (url) return url;
+            }
+        }
+    }
+    return null;
+}
+
+async function resolveModelName(): Promise<string> {
+    if (process.env.OPENAI_MODEL) return process.env.OPENAI_MODEL;
+
+    const now = Date.now();
+    if (cachedModelName && now - cachedModelAt < MODEL_CACHE_TTL_MS) {
+        return cachedModelName;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/models/providers`);
+        if (!response.ok) {
+            throw new Error(`Failed to load providers (${response.status})`);
+        }
+        const data = await response.json();
+        const activeProvider = data?.active_provider;
+        const providers = Array.isArray(data?.providers) ? data.providers : [];
+        const selected = providers.find((p: any) => p.provider === activeProvider) || providers[0];
+        const modelName = selected?.defaults?.smart || 'gpt-4o';
+
+        cachedModelName = modelName;
+        cachedModelAt = now;
+        return modelName;
+    } catch (error) {
+        console.warn('[API/Chat] Failed to resolve model from backend:', error);
+        return 'gpt-4o';
+    }
 }
 
 export async function POST(req: Request) {
     try {
+        const modelName = await resolveModelName();
         // Parse request body - V6 DefaultChatTransport sends { message, threadId, taskId } in body
         const jsonBody = await req.json();
         console.log('[API/Chat] Request Body:', JSON.stringify(jsonBody, null, 2));
@@ -171,7 +285,7 @@ export async function POST(req: Request) {
                     const summarySource = completedOutputs.find(o => o.kind === 'summary_source');
                     const script = completedOutputs.find(o => o.kind === 'script');
 
-                    const summaryContent = summary?.content || summarySource?.content || '';
+                    const summaryContent = summarySource?.content || summary?.content || '';
                     const scriptContent = script?.content || '';
 
                     if (summaryContent) {
@@ -203,9 +317,19 @@ When a taskId is provided:
 - Use this real data to answer questions about the video content
 
 When users provide video URLs:
-- Use preview_video to show them what will be processed. Pass ONLY the raw URL string (no markdown, no XML tags).
-- Use create_task if they want to proceed with processing.
-- If you do not have a valid URL, DO NOT call these tools with "undefined" or placeholder strings. Ask the user for the URL first.
+- Use preview_video to show them what will be processed
+- Use create_task if they want to proceed with processing
+- If you do not have a valid URL, DO NOT call these tools. Ask the user for the URL first.
+
+=== CRITICAL: TOOL PARAMETER FORMAT ===
+For preview_video, use EXACTLY: {"video_url": "https://www.youtube.com/watch?v=VIDEO_ID"}
+For create_task, use EXACTLY: {"video_url": "https://www.youtube.com/watch?v=VIDEO_ID", "summaryLanguage": "zh"}
+
+WRONG (NEVER USE):
+- {"reason": "..."} - use "video_url" not "reason"
+- {"url": "..."} - use "video_url" not "url"
+- {"query": "..."} - use "video_url" not "query"
+=== END CRITICAL ===
 
 Your available tools:
 - get_task_status: Check current processing status and progress
@@ -230,20 +354,16 @@ Never make up information about video content. Always use tools to get real data
 
         console.log('[API/Chat] Starting streamText...');
         const result = streamText({
-            model: openai.chat(MODEL_NAME),
+            model: openai.chat(modelName),
             system: systemPrompt,
             messages: coreMessages,
             stopWhen: stepCountIs(5), // V6 helper
-            toolChoice: 'auto',
             tools: {
                 // ... (Tools remain same) ...
                 get_task_status: tool({
                     description: "Get the current processing status and progress of a video task",
-                    parameters: z.object({
-                        taskId: z.string().describe("The ID of the task to check"),
-                    }),
-                    // @ts-ignore
-                    execute: async ({ taskId }: { taskId: string }) => {
+                    inputSchema: taskStatusSchema,
+                    execute: async ({ taskId }: z.infer<typeof taskStatusSchema>) => {
                         const { data, error } = await supabase
                             .from('tasks')
                             .select('*')
@@ -271,13 +391,8 @@ Never make up information about video content. Always use tools to get real data
                 }),
                 get_task_outputs: tool({
                     description: "Get the processed content (transcript, summary) for a specific task",
-                    parameters: z.object({
-                        taskId: z.string().describe("The ID of the task"),
-                        kinds: z.array(z.enum(['script', 'summary', 'summary_source', 'audio'])).optional()
-                            .describe("Specific output kinds to retrieve. If not provided, returns all completed outputs."),
-                    }),
-                    // @ts-ignore
-                    execute: async ({ taskId, kinds }: { taskId: string, kinds?: string[] }) => {
+                    inputSchema: taskOutputsSchema,
+                    execute: async ({ taskId, kinds }: z.infer<typeof taskOutputsSchema>) => {
                         const { data: task, error: taskError } = await supabase
                             .from('tasks')
                             .select('user_id, is_demo')
@@ -313,22 +428,32 @@ Never make up information about video content. Always use tools to get real data
                     },
                 }),
                 create_task: tool({
-                    description: "Start processing a new video URL (transcribe and summarize)",
-                    parameters: z.object({
-                        video_url: z.string().url().describe("The video URL to process"),
-                        summaryLanguage: z.string().default('zh').describe("Target language for summary (default: zh)"),
-                    }),
-                    // @ts-ignore
-                    execute: async (args: { video_url: string, summaryLanguage: string, [key: string]: any }) => {
+                    description: "Start video processing (transcribe+summarize). IMPORTANT: Pass URL in 'video_url' parameter ONLY.",
+                    inputSchema: createTaskSchema,
+                    execute: async (args: z.infer<typeof createTaskSchema>) => {
                         console.log('[API/Chat] create_task args:', JSON.stringify(args));
-                        // Support video_url (schema), videoUrl (legacy/LLM hallucination), and url (old schema)
-                        const rawUrl = args.video_url || args.videoUrl || args.url;
-                        const summaryLanguage = args.summaryLanguage || 'zh';
 
-                        const cleanUrl = extractUrl(rawUrl);
+                        const summaryLanguage = args.summaryLanguage || 'zh';
+                        let fallbackSource: string | null = null;
+
+                        // Zod schema ensures video_url is present - extract clean URL
+                        let cleanUrl = extractUrl(args.video_url);
+
+                        // Fallback: Look in conversation history if URL extraction failed
+                        if (!cleanUrl) {
+                             console.log('[API/Chat] No valid URL in args, checking history...');
+                             cleanUrl = findLastUrlInMessages(messages);
+                             if (cleanUrl) fallbackSource = 'message_history';
+                        }
+
+                        // Log fallback usage for monitoring
+                        if (fallbackSource) {
+                            console.warn(`[API/Chat] URL fallback: source=${fallbackSource}, tool=create_task, args=${JSON.stringify(args)}`);
+                        }
+
                         if (!cleanUrl) {
                             console.error('[API/Chat] Invalid URL in create_task:', JSON.stringify(args));
-                            return { error: "No valid URL found in input. Please provide a valid YouTube URL." };
+                            return { error: "No valid URL found in input or history. Please provide a valid YouTube URL." };
                         }
 
                         if (!user?.id) {
@@ -363,20 +488,31 @@ Never make up information about video content. Always use tools to get real data
                     },
                 }),
                 preview_video: tool({
-                    description: "Get video metadata (title, thumbnail, duration) without processing the video",
-                    parameters: z.object({
-                        video_url: z.string().describe("The video URL to preview"),
-                    }),
-                    // @ts-ignore
-                    execute: async (args: { video_url: string, [key: string]: any }) => {
+                    description: "Fetch video metadata (title, thumbnail, duration). IMPORTANT: Pass URL in 'video_url' parameter ONLY.",
+                    inputSchema: previewVideoSchema,
+                    execute: async (args: z.infer<typeof previewVideoSchema>) => {
                         console.log('[API/Chat] preview_video args:', JSON.stringify(args));
-                        // Support video_url (schema), videoUrl (legacy/LLM hallucination), and url (old schema)
-                        const rawUrl = args.video_url || args.videoUrl || args.url;
 
-                        const cleanUrl = extractUrl(rawUrl);
+                        let fallbackSource: string | null = null;
+
+                        // Zod schema ensures video_url is present - extract clean URL
+                        let cleanUrl = extractUrl(args.video_url);
+
+                        // Fallback: Look in conversation history if URL extraction failed
+                        if (!cleanUrl) {
+                             console.log('[API/Chat] No valid URL in args, checking history...');
+                             cleanUrl = findLastUrlInMessages(messages);
+                             if (cleanUrl) fallbackSource = 'message_history';
+                        }
+
+                        // Log fallback usage for monitoring
+                        if (fallbackSource) {
+                            console.warn(`[API/Chat] URL fallback: source=${fallbackSource}, tool=preview_video, args=${JSON.stringify(args)}`);
+                        }
+
                         if (!cleanUrl) {
                             console.error('[API/Chat] Invalid URL in preview_video:', JSON.stringify(args));
-                            return { error: "No valid URL found in input. Please provide a valid YouTube URL." };
+                            return { error: "No valid URL found in input or history. Please provide a valid YouTube URL." };
                         }
 
                         try {
@@ -454,7 +590,7 @@ Never make up information about video content. Always use tools to get real data
                         if (assistantText) {
                             try {
                                 const { text: title } = await generateText({
-                                    model: openai.chat(MODEL_NAME),
+                                    model: openai.chat(modelName),
                                     system: 'Generate a very concise title (3-6 words) for this chat conversation based on the first message. Do not use quotes.',
                                     prompt: `User message: ${getTextFromUIMessage(message)}\nAssistant response: ${assistantText}`,
                                 });

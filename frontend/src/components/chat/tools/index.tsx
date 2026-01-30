@@ -345,7 +345,13 @@ export function PreviewVideoTool({
       return (
         <div className="flex items-center gap-2 my-2 text-sm text-slate-500 dark:text-slate-400">
           <Search className="w-4 h-4 animate-pulse text-blue-500" />
-          <span>Fetching video info{displayUrl ? ` from ${new URL(displayUrl).hostname}...` : '...'}</span>
+          <span>Fetching video info{displayUrl ? (() => {
+            try {
+              return ` from ${new URL(displayUrl).hostname}...`;
+            } catch {
+              return '...';
+            }
+          })() : '...'}</span>
         </div>
       )
 
