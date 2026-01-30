@@ -1,0 +1,14 @@
+provider: custom
+display_name: Custom (OpenAI-compatible)
+base_url_env: OPENAI_BASE_URL
+api_key_env: OPENAI_API_KEY
+defaults:
+  smart: gemini-3.0-pro
+  fast: gemini-3.0-flash
+models:
+  - id: gemini-3.0-pro
+    label: Gemini 3.0 Pro
+    capabilities: [chat, structured]
+  - id: gemini-3.0-flash
+    label: Gemini 3.0 Flash
+    capabilities: [chat, structured]

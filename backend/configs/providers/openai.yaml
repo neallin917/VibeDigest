@@ -1,0 +1,17 @@
+provider: openai
+display_name: OpenAI
+base_url_env: OPENAI_BASE_URL
+api_key_env: OPENAI_API_KEY
+defaults:
+  smart: gpt-4o
+  fast: gpt-4o-mini
+models:
+  - id: gpt-4o
+    label: GPT-4o
+    capabilities: [chat, structured]
+  - id: gpt-4o-mini
+    label: GPT-4o-mini
+    capabilities: [chat, structured]
+  - id: whisper-1
+    label: Whisper-1
+    capabilities: [transcription]
