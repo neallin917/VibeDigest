@@ -224,29 +224,17 @@ class TestSummarizeWithMockedLLM:
 
     @pytest.mark.asyncio
     async def test_summarize_short_text(self, summarizer):
-        # Mock the LLM response
-        mock_response = MagicMock()
-        mock_response.content = json.dumps({
-            "version": 2,
-            "language": "en",
-            "overview": "This is a summary.",
-            "keypoints": [{"title": "Key 1", "detail": "Details", "evidence": "Quote"}]
+        # Mock the summary engine's summarize method directly
+        mock_result = json.dumps({
+            "version": 2, "language": "en", "overview": "Test", "keypoints": []
         })
-        
-        with patch.object(summarizer, '_ainvoke_with_fallback', new=AsyncMock(return_value=mock_response)):
-            # Skip classification mock for simpler test
-            with patch.object(summarizer, 'classify_content', new=AsyncMock(return_value={
-                "content_form": "casual", "info_structure": "thematic", "cognitive_goal": "digest", "confidence": 0.9
-            })):
-                # Also need to mock the structured output path
-                with patch.object(summarizer, '_summarize_v2_classified', new=AsyncMock(return_value=json.dumps({
-                    "version": 2, "language": "en", "overview": "Test", "keypoints": []
-                }))):
-                    result = await summarizer.summarize("Test transcript", "en")
-                    assert isinstance(result, str)
-                    # Should be valid JSON
-                    data = json.loads(result)
-                    assert "version" in data
+
+        with patch.object(summarizer._summary_engine, 'summarize', new=AsyncMock(return_value=mock_result)):
+            result = await summarizer.summarize("Test transcript", "en")
+            assert isinstance(result, str)
+            # Should be valid JSON
+            data = json.loads(result)
+            assert "version" in data
 
     @pytest.mark.asyncio
     async def test_summarize_no_api_key(self):
@@ -279,29 +267,27 @@ class TestClassifyContentWithMockedLLM:
 
     @pytest.mark.asyncio
     async def test_classify_returns_dict(self, summarizer):
-        summarizer.use_response_format_json = False
-        mock_classification = MagicMock()
-        mock_classification.content_form = "tutorial"
-        mock_classification.info_structure = "sequential"
-        mock_classification.cognitive_goal = "execute"
-        mock_classification.confidence = 0.85
-        
-        with patch.object(summarizer, '_get_llm') as mock_get_llm:
-            mock_llm = MagicMock()
-            mock_structured = MagicMock()
-            mock_structured.ainvoke = AsyncMock(return_value=mock_classification)
-            mock_llm.with_structured_output.return_value = mock_structured
-            mock_get_llm.return_value = mock_llm
-            
+        # Mock the classifier's classify_content directly
+        mock_result = {
+            "content_form": "tutorial",
+            "info_structure": "sequential",
+            "cognitive_goal": "execute",
+            "confidence": 0.85,
+        }
+
+        with patch.object(summarizer._classifier, 'classify_content', new=AsyncMock(return_value=mock_result)):
             result = await summarizer.classify_content("Test transcript")
             assert isinstance(result, dict)
-            assert result["content_form"] in ["tutorial", "casual"]
-            assert result["info_structure"] in ["sequential", "thematic"]
+            assert result["content_form"] == "tutorial"
+            assert result["info_structure"] == "sequential"
 
     @pytest.mark.asyncio
     async def test_classify_fallback_on_error(self, summarizer):
-        summarizer.use_response_format_json = False
-        with patch.object(summarizer, '_get_llm', side_effect=Exception("API Error")):
+        # Test that the classifier returns defaults when an error occurs
+        # Mock the classifier's internal call to raise an exception
+        from services.summarizer.config import get_llm
+
+        with patch('services.summarizer.classifier.get_llm', side_effect=Exception("API Error")):
             result = await summarizer.classify_content("Test")
             # Should fallback to defaults
             assert result["content_form"] == "casual"

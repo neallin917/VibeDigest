@@ -6,6 +6,8 @@ from typing import Optional
 
 from loguru import logger
 
+from utils.env_utils import parse_bool_env
+
 
 class InterceptHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
@@ -33,13 +35,6 @@ class InterceptHandler(logging.Handler):
 _configured = False
 
 
-def _parse_bool_env(name: str, default: bool = False) -> bool:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    return str(raw).strip().lower() in {"1", "true", "t", "yes", "y", "on"}
-
-
 def configure_logging() -> None:
     global _configured
     if _configured:
@@ -47,9 +42,9 @@ def configure_logging() -> None:
 
     _configured = True
     level = os.getenv("LOG_LEVEL", "INFO").upper()
-    log_json = _parse_bool_env("LOG_JSON", False)
-    backtrace = _parse_bool_env("LOG_BACKTRACE", False)
-    diagnose = _parse_bool_env("LOG_DIAGNOSE", False)
+    log_json = parse_bool_env("LOG_JSON", False)
+    backtrace = parse_bool_env("LOG_BACKTRACE", False)
+    diagnose = parse_bool_env("LOG_DIAGNOSE", False)
 
     logging.root.handlers = [InterceptHandler()]
     logging.root.setLevel(level)
