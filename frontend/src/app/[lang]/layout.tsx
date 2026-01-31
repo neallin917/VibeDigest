@@ -46,7 +46,7 @@ export async function generateMetadata({
   params: Promise<{ lang: string }>;
 }): Promise<Metadata> {
   const { lang } = await params;
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://vibedigest.neallin.xyz";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://vibedigest.io";
 
   // Simple mapping for common locales, default to en_US
   const localeMap: Record<string, string> = {
@@ -183,14 +183,14 @@ export default async function RootLayout({
                 "@type": "WebSite",
                 "name": "VibeDigest",
                 "alternateName": ["Vibe Digest", "AI Video Summarizer"],
-                "url": "https://vibedigest.neallin.xyz"
+                "url": "https://vibedigest.io"
               },
               {
                 "@context": "https://schema.org",
                 "@type": "Organization",
                 "name": "VibeDigest",
-                "url": "https://vibedigest.neallin.xyz",
-                "logo": "https://vibedigest.neallin.xyz/icon.png",
+                "url": "https://vibedigest.io",
+                "logo": "https://vibedigest.io/icon.png",
                 "sameAs": [
                   "https://twitter.com/vibedigest"
                 ]

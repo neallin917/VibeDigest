@@ -156,7 +156,7 @@ export default async function FAQPage(props: Props) {
                             {isZh ? "关于我们" : "About Us"}
                         </a>
                         <a
-                            href="mailto:support@vibedigest.neallin.xyz"
+                            href="mailto:support@vibedigest.io"
                             className="inline-flex items-center justify-center px-6 py-3 rounded-full bg-indigo-600 dark:bg-white text-white dark:text-black font-medium hover:bg-indigo-700 dark:hover:bg-gray-200 transition-colors"
                         >
                             {isZh ? "联系支持" : "Contact Support"}

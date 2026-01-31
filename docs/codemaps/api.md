@@ -4,7 +4,7 @@
 
 ## Base URL
 
-- **Production**: `https://api.vibedigest.neallin.xyz`
+- **Production**: `https://api.vibedigest.io`
 - **Local**: `http://localhost:16080`
 
 ## Authentication

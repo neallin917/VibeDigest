@@ -99,8 +99,8 @@ export default async function AboutPage(props: Props) {
         "@context": "https://schema.org",
         "@type": "Organization",
         "name": "VibeDigest",
-        "url": "https://vibedigest.neallin.xyz",
-        "logo": "https://vibedigest.neallin.xyz/icon.png",
+        "url": "https://vibedigest.io",
+        "logo": "https://vibedigest.io/icon.png",
         "founder": {
             "@type": "Person",
             "name": "Neal Lin"
