@@ -5,7 +5,7 @@ const locales = ["en", "zh", "es", "ar", "fr", "ru", "pt", "hi", "ja", "ko"];
 const defaultLocale = "en";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://vibedigest.neallin.xyz'
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://vibedigest.io'
   const supabase = supabasePublic
 
   // Static routes

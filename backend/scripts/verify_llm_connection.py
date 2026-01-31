@@ -11,6 +11,25 @@ logger = logging.getLogger(__name__)
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(backend_dir)
 
+# Load environment variables for local testing
+try:
+    from dotenv import load_dotenv
+    # backend_dir is .../backend, so project root is one level up
+    project_root = os.path.dirname(backend_dir)
+    env_path = os.path.join(project_root, '.env')
+    env_local_path = os.path.join(project_root, '.env.local')
+    
+    if os.path.exists(env_path):
+        load_dotenv(env_path)
+        print(f"✅ Loaded .env from {project_root}")
+    
+    if os.path.exists(env_local_path):
+        load_dotenv(env_local_path, override=True)
+        print(f"✅ Loaded .env.local from {project_root} (overriding defaults)")
+        
+except ImportError:
+    print("⚠️  python-dotenv not installed. Skipping .env loading.")
+
 try:
     from config import settings
     from utils.openai_client import create_chat_model

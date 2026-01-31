@@ -309,7 +309,7 @@ Demo tasks are featured content visible to all users (including anonymous visito
     *   Exposed via `cloudflared` -> Traefik -> Docker Container.
 
 ### 7.3 Environment Separation
-*   **Production**: `vibedigest.neallin.xyz` (Prod DB).
+*   **Production**: `vibedigest.io` (Prod DB).
 *   **Development**: `localhost` or Preview URL (Dev DB).
 *   **Rule**: "Prod is Sacred". Never test against Prod DB.
 

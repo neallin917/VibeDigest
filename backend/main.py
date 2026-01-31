@@ -60,7 +60,12 @@ async def startup_event():
 
 # CORS Configuration
 # Default to production and localhost
-DEFAULT_ORIGINS = ["https://vibedigest.neallin.xyz", "http://localhost:3000"]
+DEFAULT_ORIGINS = [
+    "https://vibedigest.io",
+    "https://www.vibedigest.io",
+    "https://vibedigest.neallin.xyz",
+    "http://localhost:3000",
+]
 # Allow override via env (comma-separated), fallback to defaults if not set.
 env_origins = os.getenv("ALLOWED_ORIGINS", "")
 ALLOWED_ORIGINS = [
