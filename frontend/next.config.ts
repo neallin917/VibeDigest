@@ -1,5 +1,3 @@
-console.error('[Debug] NEXT_DIST_DIR:', process.env.NEXT_DIST_DIR);
-console.error('[Debug] NODE_ENV:', process.env.NODE_ENV);
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 import withBundleAnalyzer from '@next/bundle-analyzer';
@@ -10,6 +8,9 @@ const bundleAnalyzer = withBundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
+  // Allow cross-origin requests from localhost during development
+  // Required for Next.js 15+ security updates
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
   // Allow custom build directory for testing to avoid lock conflicts
   distDir: process.env.NEXT_DIST_DIR || '.next',
   // Keep workspace root anchored to the frontend folder for module resolution.
@@ -71,6 +72,11 @@ export default (process.env.NEXT_DIST_DIR === '.next-test' || process.env.NODE_E
     org: "personal-haoran",
     project: "vibedigest-frontend",
 
-    // Automatically tree-shake Sentry logger statements to reduce bundle size
-    disableLogger: true,
+    // Tree-shake Sentry debug logging statements to reduce bundle size
+    // Replaces deprecated `disableLogger` option
+    webpack: {
+      treeshake: {
+        removeDebugLogging: true,
+      },
+    },
   });
