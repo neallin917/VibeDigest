@@ -49,10 +49,11 @@ class ModelRegistry:
         merged["base_url"] = os.getenv(base_url_env) if base_url_env else None
         merged["has_api_key"] = bool(os.getenv(api_key_env)) if api_key_env else False
 
-        # Active provider defaults can be overridden by env aliases.
         if merged.get("provider") == settings.LLM_PROVIDER:
-            defaults["smart"] = settings.MODEL_ALIAS_SMART
-            defaults["fast"] = settings.MODEL_ALIAS_FAST
+            if settings.MODEL_ALIAS_SMART:
+                defaults["smart"] = settings.MODEL_ALIAS_SMART
+            if settings.MODEL_ALIAS_FAST:
+                defaults["fast"] = settings.MODEL_ALIAS_FAST
 
         merged["defaults"] = defaults
         return merged

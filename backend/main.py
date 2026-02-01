@@ -38,13 +38,19 @@ app = FastAPI(title="VibeDigest API (v2)", version="2.0.0")
 
 @app.on_event("startup")
 async def startup_event():
+    from utils.model_registry import get_model_registry
+    registry = get_model_registry()
+    provider_cfg = registry.get_provider(settings.LLM_PROVIDER)
+    resolved_smart = provider_cfg.get("defaults", {}).get("smart") if provider_cfg else settings.MODEL_ALIAS_SMART
+    resolved_fast = provider_cfg.get("defaults", {}).get("fast") if provider_cfg else settings.MODEL_ALIAS_FAST
+
     logger.info(">>> VibeDigest Backend Starting <<<")
     logger.info(f"LLM Provider:  {settings.LLM_PROVIDER}")
     logger.info(
-        f"Smart Model:   {settings.MODEL_ALIAS_SMART} (Temp: {settings.REASONING_TEMPERATURE})"
+        f"Smart Model:   {resolved_smart} (Temp: {settings.REASONING_TEMPERATURE})"
     )
     logger.info(
-        f"Fast Model:    {settings.MODEL_ALIAS_FAST} (Temp: {settings.DEFAULT_TEMPERATURE})"
+        f"Fast Model:    {resolved_fast} (Temp: {settings.DEFAULT_TEMPERATURE})"
     )
     logger.info(f"OpenAI Base:   {settings.OPENAI_BASE_URL or 'Default'}")
     logger.info(">>> --------------------------- <<<")

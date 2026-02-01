@@ -404,7 +404,45 @@ All port configurations are defined in the **root `.env`** file. Other `.env` fi
 
 ---
 
-## 11. Roadmap
+## 13. Configuration & Model Management (SSOT)
+
+VibeDigest uses a **Single Source of Truth (SSOT)** architecture for LLM configuration to prevent "Shadow Configs".
+
+### 13.1 Model Definitions (YAML-First)
+*   **Source**: `backend/configs/providers/*.yaml` (e.g., `openai.yaml`, `custom.yaml`).
+*   **Role**: Defines available models, labels, and **default models** for each provider.
+*   **Rule**: **NEVER hardcode model names in Python.** Always read from the active provider's YAML config via `ModelRegistry`.
+
+### 13.2 Provider Selection
+*   **Control**: `LLM_PROVIDER` in root `.env` (e.g., `openai`, `custom`).
+*   **Effect**:
+    *   **Backend**: Automatically loads the corresponding YAML file and uses its `defaults` (smart/fast).
+    *   **Frontend**: Automatically syncs via `GET /api/models/providers` (Read-only API). **No frontend config required.**
+
+### 13.3 Environment Overrides (Dev Only)
+You can override defaults without changing YAML files by setting these in `.env`:
+*   `MODEL_ALIAS_SMART`: Override the "Smart" tier model (e.g., `gpt-4o`, `gemini-3-pro`).
+*   `MODEL_ALIAS_FAST`: Override the "Fast" tier model (e.g., `gpt-4o-mini`, `gemini-3-flash`).
+
+### 13.4 Developer Experience (DevDX) - Network Auto-Swap
+To support hybrid development (Docker + Local Shell) without constant `.env` edits:
+
+*   **Scenario**: Your `.env` uses `OPENAI_BASE_URL=http://host.docker.internal:8045/v1` (for Docker).
+*   **Problem**: This fails when running scripts locally on macOS/Linux.
+*   **Solution**: `backend/config.py` automatically detects if it's running outside Docker.
+    *   If detected, it temporarily swaps `host.docker.internal` → `127.0.0.1`.
+    *   **Action**: Keep your `.env` optimized for Docker. Local scripts just work.
+
+### 13.5 Verification Tool
+Always use the built-in script to verify connectivity and configuration:
+```bash
+# Auto-detects provider from .env and tests connection
+uv run backend/scripts/verify_llm_config.py --connect
+```
+
+---
+
+## 14. Roadmap
 
 *   [x] **Next.js Migration**
 *   [x] **OpenAI Backend Migration**
