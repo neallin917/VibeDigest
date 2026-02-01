@@ -151,6 +151,15 @@ def create_chat_model(model_name: str, temperature: Optional[float] = None, **kw
 
     litellm.drop_params = True # Fix for gpt-5 or other provider unsupported params
 
+    # Logic for Custom (OpenAI-compatible) providers:
+    # If the provider is 'custom', we need to tell LiteLLM to use the 'openai' adapter,
+    # but keep the model name as-is so it matches the proxy's expectation.
+    if settings.LLM_PROVIDER == "custom" and "/" not in model_name:
+        kwargs.setdefault("custom_llm_provider", "openai")
+        # Ensure base_url is passed if using custom provider
+        if settings.OPENAI_BASE_URL:
+            kwargs.setdefault("api_base", settings.OPENAI_BASE_URL)
+
     # Use our RateLimitAware wrapper
     return RateLimitAwareChatLiteLLM(
         model=model_name,

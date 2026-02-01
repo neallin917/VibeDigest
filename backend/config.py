@@ -61,29 +61,57 @@ class Settings:
     OPENAI_BASE_URL: Optional[str] = os.getenv("OPENAI_BASE_URL")
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
 
-    # Provider-specific default models (change LLM_PROVIDER to switch all at once)
-    _PROVIDER_DEFAULTS = {
-        "openai": {"smart": "gpt-4o", "fast": "gpt-4o-mini"},
-        "custom": {"smart": "gemini-3.0-pro", "fast": "gemini-3.0-flash"}
-    }
-
-    # Model Aliases: Auto-select based on provider, or override via .env
-    _defaults = _PROVIDER_DEFAULTS.get(LLM_PROVIDER, _PROVIDER_DEFAULTS["openai"])
-    MODEL_ALIAS_SMART: str = os.getenv("MODEL_ALIAS_SMART") or _defaults["smart"]
-    MODEL_ALIAS_FAST: str = os.getenv("MODEL_ALIAS_FAST") or _defaults["fast"]
+    MODEL_ALIAS_SMART: Optional[str] = os.getenv("MODEL_ALIAS_SMART")
+    MODEL_ALIAS_FAST: Optional[str] = os.getenv("MODEL_ALIAS_FAST")
 
     # --- Functional Mappings ---
     
-    # Chat: Use Smart
-    OPENAI_MODEL: str = MODEL_ALIAS_SMART
+    @property
+    def OPENAI_MODEL(self) -> str:
+        if self.MODEL_ALIAS_SMART:
+            return self.MODEL_ALIAS_SMART
+        from utils.model_registry import get_model_registry
+        registry = get_model_registry()
+        provider = registry.get_provider(self.LLM_PROVIDER)
+        return (provider or {}).get("defaults", {}).get("smart") or "gpt-4o"
     
-    # Comprehension: Use Smart (List format for fallback support)
-    OPENAI_COMPREHENSION_MODELS: list[str] = [MODEL_ALIAS_SMART]
+    @property
+    def OPENAI_COMPREHENSION_MODELS(self) -> list[str]:
+        if self.MODEL_ALIAS_SMART:
+            return [self.MODEL_ALIAS_SMART]
+        from utils.model_registry import get_model_registry
+        registry = get_model_registry()
+        provider = registry.get_provider(self.LLM_PROVIDER)
+        smart = (provider or {}).get("defaults", {}).get("smart")
+        return [smart] if smart else []
 
-    # Sub-tasks: Use Fast
-    OPENAI_SUMMARY_MODELS: list[str] = [MODEL_ALIAS_FAST]
-    OPENAI_TRANSLATION_MODEL: str = MODEL_ALIAS_FAST
-    OPENAI_HELPER_MODEL: str = MODEL_ALIAS_FAST
+    @property
+    def OPENAI_SUMMARY_MODELS(self) -> list[str]:
+        if self.MODEL_ALIAS_FAST:
+            return [self.MODEL_ALIAS_FAST]
+        from utils.model_registry import get_model_registry
+        registry = get_model_registry()
+        provider = registry.get_provider(self.LLM_PROVIDER)
+        fast = (provider or {}).get("defaults", {}).get("fast")
+        return [fast] if fast else []
+
+    @property
+    def OPENAI_TRANSLATION_MODEL(self) -> str:
+        if self.MODEL_ALIAS_FAST:
+            return self.MODEL_ALIAS_FAST
+        from utils.model_registry import get_model_registry
+        registry = get_model_registry()
+        provider = registry.get_provider(self.LLM_PROVIDER)
+        return (provider or {}).get("defaults", {}).get("fast") or "gpt-4o-mini"
+
+    @property
+    def OPENAI_HELPER_MODEL(self) -> str:
+        if self.MODEL_ALIAS_FAST:
+            return self.MODEL_ALIAS_FAST
+        from utils.model_registry import get_model_registry
+        registry = get_model_registry()
+        provider = registry.get_provider(self.LLM_PROVIDER)
+        return (provider or {}).get("defaults", {}).get("fast") or "gpt-4o-mini"
     
     # --- LLM Generation Defaults ---
     DEFAULT_TEMPERATURE: float = 0.1  # Default for most tasks
@@ -97,14 +125,17 @@ class Settings:
     # Feature Flags
     USE_JSON_MODE: bool = True # Global flag to enable JSON mode where applicable
 
-    def get_temperature(self, model_name: str) -> float:
+    def get_temperature(self, model_name: Optional[str]) -> float:
         """
         Smart routing for temperature.
         Reasoning models (Smart tier) often require temp=1.0.
         Utility models (Fast tier) usually prefer low temp for stability.
         """
+        if not model_name:
+            return self.DEFAULT_TEMPERATURE
+
         # If it's the Smart model, or explicitly an o1/gpt-5 variant
-        if model_name == self.MODEL_ALIAS_SMART or "gpt-5" in model_name or "o1-" in model_name:
+        if model_name == self.MODEL_ALIAS_SMART or "gpt-5" in model_name or "o1-" in model_name or "gpt-4o" == model_name or ("gemini" in model_name and "flash" not in model_name):
             return self.REASONING_TEMPERATURE
         return self.DEFAULT_TEMPERATURE
 
@@ -120,6 +151,37 @@ class Settings:
     def __init__(self):
         # Log strategy on init to confirm loading
         logging.info(f"Config Loaded. SUMMARY_STRATEGY='{self.SUMMARY_STRATEGY}'")
+        self._fix_docker_host_for_local_dev()
+
+    def _fix_docker_host_for_local_dev(self):
+        """
+        Developer Experience Improvement:
+        If running locally (not in Docker) but config points to 'host.docker.internal',
+        automatically swap it to '127.0.0.1' so scripts/tests work out of the box.
+        """
+        if not self.OPENAI_BASE_URL or "host.docker.internal" not in self.OPENAI_BASE_URL:
+            return
+
+        # Detection: Check if we are inside a Docker container
+        # 1. Check for /.dockerenv file
+        # 2. Check /proc/1/cgroup for 'docker' (Linux only)
+        is_docker = os.path.exists("/.dockerenv")
+        if not is_docker and os.path.exists("/proc/1/cgroup"):
+            try:
+                with open("/proc/1/cgroup", "rt") as f:
+                    if "docker" in f.read():
+                        is_docker = True
+            except Exception:
+                pass
+
+        if not is_docker:
+            # We are likely running on the host machine (Mac/Linux/Windows)
+            original = self.OPENAI_BASE_URL
+            self.OPENAI_BASE_URL = self.OPENAI_BASE_URL.replace("host.docker.internal", "127.0.0.1")
+            logging.warning(
+                f"[DevDX] Detected local execution. Swapped OpenAI Base URL: "
+                f"'{original}' -> '{self.OPENAI_BASE_URL}'"
+            )
 
     # Pricing / Plans (Creem Product IDs)
     PRICES: Dict[str, PriceConfig] = {
