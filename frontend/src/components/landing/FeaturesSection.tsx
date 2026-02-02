@@ -7,11 +7,13 @@ import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import {
     FileText,
-    AlignLeft,
     Share2,
     Languages,
     MessageSquare,
     Download,
+    Smartphone,
+    Zap,
+    Layout,
     LucideIcon
 } from "lucide-react"
 
@@ -49,13 +51,18 @@ function FeatureCard({ icon: Icon, title, desc, gradient, iconColor, delay, comi
             <div className={`absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br ${gradient} opacity-[0.1] dark:opacity-[0.15] blur-3xl rounded-full group-hover:scale-150 transition-transform duration-700 ease-out`} />
 
             <div className="relative z-10 flex flex-col h-full">
-                <div className="flex items-start justify-between mb-4">
-                    <div className={cn(
-                        "w-12 h-12 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-500 shadow-sm",
-                        "bg-white border border-white/50",
-                        "dark:bg-white/5 dark:border-white/10"
-                    )}>
-                        <Icon className={cn("w-6 h-6", iconColor)} />
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                        <div className={cn(
+                            "w-10 h-10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-500 shadow-sm",
+                            "bg-white border border-white/50",
+                            "dark:bg-white/5 dark:border-white/10"
+                        )}>
+                            <Icon className={cn("w-5 h-5", iconColor)} />
+                        </div>
+                        <Heading as="h3" className="text-base font-bold text-slate-900 dark:text-white group-hover:translate-x-1 transition-transform duration-300">
+                            {title}
+                        </Heading>
                     </div>
                     
                     {comingSoon && (
@@ -64,10 +71,6 @@ function FeatureCard({ icon: Icon, title, desc, gradient, iconColor, delay, comi
                         </Badge>
                     )}
                 </div>
-
-                <Heading as="h3" className="text-lg font-bold text-slate-900 dark:text-white mb-2 group-hover:translate-x-1 transition-transform duration-300">
-                    {title}
-                </Heading>
                 
                 <Text className="text-slate-600 dark:text-zinc-400 leading-relaxed text-sm font-medium">
                     {desc}
@@ -87,12 +90,18 @@ export function FeaturesSection() {
             desc: t("landing.smartSummarizationDesc"),
             gradient: "from-emerald-500/20 to-teal-600/20",
             iconColor: "text-emerald-700",
-            className: "md:col-span-2 lg:col-span-2" // Large card
         },
         {
-            icon: AlignLeft,
-            title: t("landing.interactiveTranscript"),
-            desc: t("landing.interactiveTranscriptDesc"),
+            icon: MessageSquare,
+            title: t("landing.chatWithVideo"),
+            desc: t("landing.chatWithVideoDesc"),
+            gradient: "from-cyan-500/20 to-blue-600/20",
+            iconColor: "text-cyan-700",
+        },
+        {
+            icon: Layout,
+            title: t("landing.dynamicTemplates"),
+            desc: t("landing.dynamicTemplatesDesc"),
             gradient: "from-sky-500/20 to-blue-600/20",
             iconColor: "text-sky-700",
         },
@@ -104,28 +113,18 @@ export function FeaturesSection() {
             iconColor: "text-amber-700",
         },
         {
-            icon: Share2,
-            title: t("landing.visualMindMaps"),
-            desc: t("landing.visualMindMapsDesc"),
-            gradient: "from-teal-500/20 to-cyan-600/20",
-            iconColor: "text-teal-700",
-            className: "md:col-span-2 lg:col-span-2" // Large card
+            icon: Smartphone,
+            title: t("landing.mobileFirst"),
+            desc: t("landing.mobileFirstDesc"),
+            gradient: "from-violet-500/20 to-purple-600/20",
+            iconColor: "text-violet-700",
         },
         {
-            icon: MessageSquare,
-            title: t("landing.chatWithVideo"),
-            desc: t("landing.chatWithVideoDesc"),
-            gradient: "from-cyan-500/20 to-blue-600/20",
-            iconColor: "text-cyan-700",
-            comingSoon: true
-        },
-        {
-            icon: Download,
-            title: t("landing.seamlessExport"),
-            desc: t("landing.seamlessExportDesc"),
-            gradient: "from-blue-500/20 to-sky-600/20",
-            iconColor: "text-blue-700",
-            comingSoon: true
+            icon: Zap,
+            title: t("landing.fastProcessing"),
+            desc: t("landing.fastProcessingDesc"),
+            gradient: "from-rose-500/20 to-red-600/20",
+            iconColor: "text-rose-700",
         }
     ]
 

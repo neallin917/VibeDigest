@@ -104,7 +104,6 @@ export type OutputKind =
   | 'script_raw'
   | 'audio'
   | 'classification'
-  | 'summary_source'
   | 'summary'
   | 'comprehension_brief';
 

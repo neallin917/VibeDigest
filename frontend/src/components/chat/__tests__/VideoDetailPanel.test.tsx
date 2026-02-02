@@ -123,6 +123,55 @@ describe('VideoDetailPanel', () => {
     })
   })
 
+  it('renders V4 summary fields and dynamic sections', async () => {
+    const summaryContent = {
+      version: 4,
+      tl_dr: "Short take for V4.",
+      overview: "V4 overview text.",
+      keypoints: [
+        {
+          title: "Key Insight 1",
+          detail: "Detail 1",
+          why_it_matters: "Why this matters.",
+          evidence: "Evidence quote."
+        }
+      ],
+      sections: [
+        {
+          section_type: "insights",
+          title: "Insights",
+          description: "Section description.",
+          items: [
+            {
+              content: "Item A",
+              metadata: { speaker: "Alice", originality: "novel" }
+            }
+          ]
+        }
+      ]
+    }
+
+    mockIn.mockResolvedValue({
+      data: [{
+        kind: 'summary',
+        status: 'completed',
+        content: JSON.stringify(summaryContent)
+      }]
+    })
+
+    render(<VideoDetailPanel taskId="task-123" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('TL;DR')).toBeInTheDocument()
+      expect(screen.getByText('Short take for V4.')).toBeInTheDocument()
+      expect(screen.getByText('Why this matters.')).toBeInTheDocument()
+      expect(screen.getByText('"Evidence quote."')).toBeInTheDocument()
+      expect(screen.getByText('Insights')).toBeInTheDocument()
+      expect(screen.getByText('Item A')).toBeInTheDocument()
+      expect(screen.getByText('Alice')).toBeInTheDocument()
+    })
+  })
+
   it('handles non-JSON text summary (Markdown fallback)', async () => {
     const markdownSummary = "# Video Summary\nThis is a markdown summary."
 

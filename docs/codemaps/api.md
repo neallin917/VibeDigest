@@ -28,7 +28,6 @@ Start a new video processing task.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `video_url` | string | ✅ | Video URL (YouTube, etc.) |
-| `summary_language` | string | ❌ | Summary language (default: `zh`) |
 
 **Response** `200`:
 ```json

@@ -195,33 +195,57 @@ async def ainvoke_structured_json(
         json.JSONDecodeError: If JSON parsing fails
     """
     import json
+    import logging
     from utils.text_utils import extract_first_json_object
     
-    structured_llm = llm.with_structured_output(schema)
-    result = await structured_llm.ainvoke(messages, config=config)
+    logger = logging.getLogger(__name__)
+    
+    raw = await llm.ainvoke(messages, config=config)
+    
+    logger.debug(f"[ainvoke_structured_json] raw type: {type(raw)}")
+    logger.debug(f"[ainvoke_structured_json] raw.content: {getattr(raw, 'content', 'N/A')!r}")
+    if hasattr(raw, "additional_kwargs"):
+        logger.debug(f"[ainvoke_structured_json] raw.additional_kwargs: {raw.additional_kwargs}")
+    
+    raw_text = _extract_text_from_response(raw)
+    logger.debug(f"[ainvoke_structured_json] extracted raw_text: {raw_text[:500] if raw_text else 'EMPTY'}...")
+    
+    if not raw_text or raw_text == "{}":
+        raise ValueError(f"LLM returned empty response. Raw: {raw}")
+    
+    json_text = extract_first_json_object(raw_text) or raw_text
+    obj = json.loads(json_text)
+    parsed = schema(**obj)
+    
+    if hasattr(parsed, "model_dump"):
+        return parsed.model_dump()
+    return parsed.dict()
 
-    if result is None:
-        # Fallback: invoke without structured output and parse JSON manually
-        raw = await llm.ainvoke(messages, config=config)
-        raw_text = getattr(raw, "content", None) or str(raw)
-        json_text = extract_first_json_object(raw_text) or raw_text
-        obj = json.loads(json_text)
-        parsed = schema(**obj)
-        if hasattr(parsed, "model_dump"):
-            return parsed.model_dump()
-        return parsed.dict()
 
-    if hasattr(result, "model_dump"):
-        return result.model_dump()
-    if hasattr(result, "dict"):
-        return result.dict()
-    if isinstance(result, dict):
-        return result
-    if isinstance(result, str):
-        obj = json.loads(result)
-        parsed = schema(**obj)
-        if hasattr(parsed, "model_dump"):
-            return parsed.model_dump()
-        return parsed.dict()
-
-    raise ValueError(f"Unexpected structured output type: {type(result)!r}")
+def _extract_text_from_response(raw) -> str:
+    """Extract text content from LangChain response, handling various response formats."""
+    import json
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    if hasattr(raw, "content") and raw.content:
+        logger.info(f"[_extract_text] Found content: {raw.content[:200]}...")
+        return raw.content
+    
+    if hasattr(raw, "additional_kwargs"):
+        kwargs = raw.additional_kwargs or {}
+        logger.info(f"[_extract_text] additional_kwargs keys: {list(kwargs.keys())}")
+        if "parsed" in kwargs and kwargs["parsed"]:
+            result = json.dumps(kwargs["parsed"])
+            logger.info(f"[_extract_text] Found parsed: {result[:200]}...")
+            return result
+        if "tool_calls" in kwargs and kwargs["tool_calls"]:
+            first_call = kwargs["tool_calls"][0]
+            if isinstance(first_call, dict) and "function" in first_call:
+                result = json.dumps(first_call["function"].get("arguments", {}))
+                logger.info(f"[_extract_text] Found tool_calls: {result[:200]}...")
+                return result
+    
+    fallback = str(raw)
+    logger.warning(f"[_extract_text] Using fallback str(raw): {fallback[:300]}...")
+    return fallback

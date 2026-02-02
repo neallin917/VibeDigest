@@ -1,6 +1,7 @@
 import asyncio
 import sys
 import logging
+from typing import cast
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -42,7 +43,6 @@ async def test_workflow_mocked():
             {"id": "out-script", "kind": "script", "status": "pending", "locale": "en"},
             {"id": "out-raw", "kind": "script_raw", "status": "pending", "locale": "en"},
             {"id": "out-class", "kind": "classification", "status": "pending", "locale": "en"},
-            {"id": "out-sum-src", "kind": "summary_source", "status": "pending", "locale": "en"},
             {"id": "out-sum", "kind": "summary", "status": "pending", "locale": "en"},
             {"id": "out-audio", "kind": "audio", "status": "pending", "locale": "en"},
         ]
@@ -75,30 +75,27 @@ async def test_workflow_mocked():
         # Workflow calls .summarize() which internally might call others, but we should mock the entry point used by workflow.py
         mock_summarizer.summarize = AsyncMock(return_value={"overview": "Mock summary", "keypoints": []})
         mock_summarizer.summarize_in_language_with_anchors = AsyncMock(return_value='{"overview": "Mock summary"}')
-        mock_summarizer.translate_summary_json = AsyncMock(return_value='{"overview": "Mock summary translated"}')
 
         # --- Initial State ---
-        initial_state = VideoProcessingState(
-            task_id="test-task-123",
-            user_id="test-user-456",
-            video_url="https://youtube.com/watch?v=mock",
-            summary_lang="en",
-            video_title="",
-            thumbnail_url="",
-            author="",
-            duration=0.0,
-            audio_path=None,
-            direct_audio_url=None,
-            transcript_text=None,
-            transcript_raw=None,
-            transcript_lang="",
-            classification_result=None,
-            source_summary_json=None,
-            final_summary_json=None,
-            cache_hit=False,
-            is_youtube=True,
-            errors=[]
-        )
+        initial_state = cast(VideoProcessingState, {
+            "task_id": "test-task-123",
+            "user_id": "test-user-456",
+            "video_url": "https://youtube.com/watch?v=mock",
+            "video_title": "",
+            "thumbnail_url": "",
+            "author": "",
+            "duration": 0.0,
+            "audio_path": None,
+            "direct_audio_url": None,
+            "transcript_text": None,
+            "transcript_raw": None,
+            "transcript_lang": "",
+            "classification_result": None,
+            "final_summary_json": None,
+            "cache_hit": False,
+            "is_youtube": True,
+            "errors": [],
+        })
 
         print(f"Running workflow for: {initial_state['video_url']}")
         

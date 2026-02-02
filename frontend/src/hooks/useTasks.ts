@@ -33,7 +33,7 @@ export function useTasks(shouldFetch: boolean = true) {
             setTasks(data || [])
         } catch (err) {
             console.error('Error fetching tasks:', err)
-            setError(err instanceof Error ? err.message : 'Failed to fetch tasks')
+            setError(err instanceof Error ? err.message : (err as any)?.message || 'Failed to fetch tasks')
         } finally {
             setLoading(false)
         }

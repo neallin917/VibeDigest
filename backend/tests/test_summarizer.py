@@ -126,33 +126,14 @@ class TestNormalizeLangCode:
 
 
 class TestFallbackSummaryJson:
-    """Test the fallback summary generation (no LLM)."""
+    """Test V4 summary generation - no fallback since V4 always uses LLM."""
 
-    def test_fallback_creates_valid_json(self, summarizer):
-        transcript = "This is paragraph one.\n\nThis is paragraph two.\n\nThis is paragraph three."
-        result = summarizer._fallback_summary_json_v1(transcript, "en")
-        
-        # Should be valid JSON
-        data = json.loads(result)
-        assert data["version"] == 2
-        assert data["language"] == "en"
-        assert "overview" in data
-        assert "keypoints" in data
-        assert isinstance(data["keypoints"], list)
-
-    def test_fallback_truncates_long_overview(self, summarizer):
-        # Overview should be capped
-        transcript = "A" * 2000
-        result = summarizer._fallback_summary_json_v1(transcript, "zh")
-        data = json.loads(result)
-        # Max 900 chars + ellipsis
-        assert len(data["overview"]) <= 903
-
-    def test_fallback_empty_transcript(self, summarizer):
-        result = summarizer._fallback_summary_json_v1("", "en")
-        data = json.loads(result)
-        assert data["overview"] == ""
-        assert data["keypoints"] == []
+    @pytest.mark.asyncio
+    async def test_summarize_no_api_key_raises_error(self, summarizer):
+        # V4 requires API key - no fallback available
+        summarizer.config.api_key = None  # Set on config, not summarizer
+        with pytest.raises(RuntimeError, match="OpenAI API unavailable"):
+            await summarizer.summarize("Some transcript", "zh")
 
 
 class TestApplyBasicFormatting:
@@ -238,27 +219,20 @@ class TestSummarizeWithMockedLLM:
 
     @pytest.mark.asyncio
     async def test_summarize_no_api_key(self):
-        # Test fallback when API key is missing
-        with patch.dict(
-            os.environ, {"OPENAI_API_KEY": "", "OPENAI_SUMMARY_FALLBACK": "true"}, clear=False
-        ):
-            # Need to clear cached value by recreating instance
+        # V4 requires API key - no fallback available
+        with patch.dict(os.environ, {"OPENAI_API_KEY": ""}, clear=False):
             sum_no_key = Summarizer()
-            sum_no_key.api_key = None  # Force no API key
-            result = await sum_no_key.summarize("Some transcript", "zh")
-            data = json.loads(result)
-            assert data["version"] == 2
-            assert data["language"] == "zh"
+            sum_no_key.config.api_key = None  # Set on config
+            with pytest.raises(RuntimeError, match="OpenAI API unavailable"):
+                await sum_no_key.summarize("Some transcript", "zh")
 
     @pytest.mark.asyncio
     async def test_summarize_no_api_key_without_fallback(self):
-        # Test failure when fallback is disabled
-        with patch.dict(
-            os.environ, {"OPENAI_API_KEY": "", "OPENAI_SUMMARY_FALLBACK": "false"}, clear=False
-        ):
+        # V4 always requires API key - no fallback option
+        with patch.dict(os.environ, {"OPENAI_API_KEY": ""}, clear=False):
             sum_no_key = Summarizer()
-            sum_no_key.api_key = None
-            with pytest.raises(RuntimeError):
+            sum_no_key.config.api_key = None
+            with pytest.raises(RuntimeError, match="OpenAI API unavailable"):
                 await sum_no_key.summarize("Some transcript", "zh")
 
 
@@ -320,11 +294,12 @@ class TestPydanticModels:
         assert kp.title == "Test Title"
 
     def test_summary_response_model(self):
-        from services.summarizer import SummaryResponse, KeyPoint
-        sr = SummaryResponse(
+        from services.summarizer import SummaryResponseV4, KeyPoint
+        sr = SummaryResponseV4(
             language="en",
+            tl_dr="Test TL;DR",
             overview="Test Overview",
             keypoints=[KeyPoint(title="T", detail="D", evidence="E")]
         )
-        assert sr.version == 2
+        assert sr.version == 4
         assert len(sr.keypoints) == 1

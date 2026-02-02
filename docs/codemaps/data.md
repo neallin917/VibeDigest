@@ -66,7 +66,7 @@ CREATE TABLE task_outputs (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     task_id         UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
     user_id         UUID NOT NULL REFERENCES auth.users(id),
-    kind            TEXT NOT NULL,  -- script|script_raw|summary|summary_source|...
+    kind            TEXT NOT NULL,  -- script|script_raw|summary|...
     content         TEXT,
     locale          TEXT,           -- zh|en|es|...
     status          TEXT DEFAULT 'pending',
@@ -119,8 +119,7 @@ class TaskStatus:
 class OutputKind:
     SCRIPT = "script"           # Cleaned transcript
     SCRIPT_RAW = "script_raw"   # Raw JSON with segments
-    SUMMARY = "summary"         # Translated summary
-    SUMMARY_SOURCE = "summary_source"  # Source language summary
+    SUMMARY = "summary"         # Source language summary
     CLASSIFICATION = "classification"  # Content classification
     AUDIO = "audio"             # Audio URL (podcasts)
     COMPREHENSION_BRIEF = "comprehension_brief"
@@ -178,7 +177,6 @@ class VideoProcessingState(TypedDict):
     task_id: str
     user_id: str
     video_url: str
-    summary_lang: str
 
     # Metadata (persisted to DB)
     video_title: str
@@ -196,7 +194,6 @@ class VideoProcessingState(TypedDict):
 
     # AI Outputs
     classification_result: Optional[Dict]
-    source_summary_json: Optional[str]
     final_summary_json: Optional[str]
     comprehension_brief_json: Optional[str]
 
@@ -216,8 +213,7 @@ class VideoProcessingState(TypedDict):
 **Request:**
 ```json
 {
-    "video_url": "https://youtube.com/watch?v=...",
-    "summary_language": "zh"
+    "video_url": "https://youtube.com/watch?v=..."
 }
 ```
 

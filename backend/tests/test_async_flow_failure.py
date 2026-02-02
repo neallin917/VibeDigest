@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, patch
+from typing import cast
 from workflow import ingest, cognition, VideoProcessingState
 from constants import TaskStatus
 
@@ -9,7 +10,7 @@ async def test_ingest_failure_handling():
     Test that ingest node handles exceptions by updating task status to 'error'.
     """
     # Setup State
-    state: VideoProcessingState = {
+    state = cast(VideoProcessingState, {
         "task_id": "test-task-failure",
         "user_id": "test-user",
         "video_url": "http://test.com/video",
@@ -26,13 +27,11 @@ async def test_ingest_failure_handling():
         "transcript_raw": None,
         "transcript_lang": "en",
         "classification_result": None,
-        "source_summary_json": None,
         "final_summary_json": None,
         "comprehension_brief_json": None,
-        "summary_lang": "en",
         "transcript_source": None,
         "ingest_error": None
-    }
+    })
 
     # Mock DBClient
     with patch('workflow.db_client') as mock_db:
@@ -95,14 +94,13 @@ async def test_cognition_failure_handling():
     """
     Test that cognition node handles exceptions by returning them in errors list.
     """
-    state: VideoProcessingState = {
+    state = cast(VideoProcessingState, {
         "task_id": "test-task-sum-fail",
         "user_id": "test-user",
         "video_url": "http://test.com/video",
         "transcript_text": "Some text content that is long enough for analysis so it does not get skipped.",
         "video_title": "Test Video",
         "errors": [],
-        "summary_lang": "en",
         "is_youtube": False,
         "cache_hit": False,
         "audio_path": None,
@@ -113,12 +111,11 @@ async def test_cognition_failure_handling():
         "transcript_raw": None,
         "transcript_lang": "en",
         "classification_result": None,
-        "source_summary_json": None,
         "final_summary_json": None,
         "comprehension_brief_json": None,
         "transcript_source": None,
         "ingest_error": None
-    }
+    })
 
     with patch('workflow.db_client') as mock_db, \
          patch('workflow.summarizer') as mock_summarizer, \

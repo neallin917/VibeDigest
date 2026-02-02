@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "python3 ../scripts/workspace_dev.py",
-    "dev:test": "NEXT_DIST_DIR=.next-test next dev -p 3001",
+    "dev:test": "NEXT_PUBLIC_E2E_MOCK=1 NEXT_DIST_DIR=.next-test next dev -p 3001",
     "dev:next": "next dev",
     "build": "next build",
     "start": "next start",

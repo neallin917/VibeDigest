@@ -67,7 +67,6 @@ class VideoProcessingState(TypedDict):
     task_id: str
     user_id: str
     video_url: str
-    summary_lang: str
 
     # === Metadata ===
     video_title: str
@@ -85,7 +84,6 @@ class VideoProcessingState(TypedDict):
 
     # === AI Outputs ===
     classification_result: Optional[Dict]
-    source_summary_json: Optional[str]
     final_summary_json: Optional[str]
 
     # === Control ===

@@ -129,7 +129,6 @@ const app = {
         const url = document.getElementById('videoUrl').value;
         if (!url) return alert("Enter URL");
 
-        const summaryLang = document.getElementById('summaryLang').value;
         const transTargets = Array.from(document.querySelectorAll('input[name="transTarget"]:checked')).map(cb => cb.value);
 
         // Get Token
@@ -137,7 +136,6 @@ const app = {
 
         const formData = new FormData();
         formData.append('video_url', url);
-        formData.append('summary_language', summaryLang);
         formData.append('translate_targets', JSON.stringify(transTargets));
 
         try {

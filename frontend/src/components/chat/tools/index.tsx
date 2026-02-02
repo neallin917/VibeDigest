@@ -334,7 +334,6 @@ interface CreateTaskInput {
   video_url?: string
   videoUrl?: string
   url?: string
-  summaryLanguage?: string
 }
 
 interface CreateTaskOutput {

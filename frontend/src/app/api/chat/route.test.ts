@@ -191,7 +191,7 @@ describe('POST /api/chat', () => {
                         eq: vi.fn().mockReturnValue({
                             in: vi.fn().mockResolvedValue({
                                 data: [
-                                    { kind: 'summary_source', content: 'This is a summary.', status: 'completed' },
+                                    { kind: 'summary', content: 'This is a summary.', status: 'completed' },
                                     { kind: 'script', content: 'This is a transcript.', status: 'completed' }
                                 ],
                                 error: null

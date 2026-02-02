@@ -64,7 +64,6 @@ async def main():
         "task_id": task_id,
         "user_id": user_id,
         "video_url": video_url,
-        "summary_lang": "en", # Force English
         "is_youtube": True,
         "cache_hit": False,
         "errors": [],
@@ -103,7 +102,7 @@ async def main():
         kinds = [o['kind'] for o in outputs]
         print(f"💾 Saved Outputs: {kinds}")
         
-        expected = {'script', 'classification', 'summary_source'}
+        expected = {'script', 'classification', 'summary'}
         if expected.issubset(set(kinds)):
              print("✅ DB Persistence Verified (All Expected Outputs Found)")
         else:

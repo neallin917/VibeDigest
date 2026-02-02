@@ -7,7 +7,7 @@ import remarkGfm from 'remark-gfm'
 import { ChatInput } from './ChatInput'
 import { WelcomeScreen } from './WelcomeScreen'
 import { cn } from '@/lib/utils'
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useMemo, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 
 // AI SDK v6: Import typed Tool UI components
@@ -21,6 +21,7 @@ import {
 
 import { Loader2, XCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useI18n } from '@/components/i18n/I18nProvider'
 
 interface ChatContainerProps {
   activeTaskId?: string | null
@@ -123,6 +124,34 @@ function renderToolPart(
   }
 }
 
+function isAuthRequiredError(err: unknown) {
+  if (!err) return false
+
+  const status = (err as { status?: number })?.status
+  if (status === 401) return true
+
+  const responseStatus = (err as { response?: { status?: number } })?.response?.status
+  if (responseStatus === 401) return true
+
+  const causeStatus = (err as { cause?: { status?: number } })?.cause?.status
+  if (causeStatus === 401) return true
+
+  const message = err instanceof Error ? err.message : typeof err === 'string' ? err : ''
+  const details =
+    (err as { details?: string })?.details ||
+    (err as { data?: { details?: string } })?.data?.details ||
+    (err as { body?: { details?: string } })?.body?.details ||
+    (err as { cause?: { details?: string } })?.cause?.details ||
+    (err as { cause?: { data?: { details?: string } } })?.cause?.data?.details
+  const errorText =
+    (err as { error?: string })?.error ||
+    (err as { data?: { error?: string } })?.data?.error ||
+    (err as { body?: { error?: string } })?.body?.error
+
+  const combined = [message, details, errorText].filter(Boolean).join(' ')
+  return /unauthorized|auth session missing/i.test(combined)
+}
+
 export function ChatContainer({
   activeTaskId,
   threadId,
@@ -131,6 +160,8 @@ export function ChatContainer({
   onSelectExample,
   onChatStarted
 }: ChatContainerProps) {
+
+  const { t, locale } = useI18n()
 
   // Ensure we always have a valid UUID for the thread ID to satisfy DB requirements
   // Use lazy state initialization to generate once per component mount
@@ -192,6 +223,14 @@ export function ChatContainer({
     regenerate,
     stop
   } = chat
+
+  const requiresAuth = useMemo(() => isAuthRequiredError(error), [error])
+
+  const handleLogin = () => {
+    const nextPath = `${window.location.pathname}${window.location.search}`
+    const loginUrl = `/${locale}/login?next=${encodeURIComponent(nextPath)}`
+    window.location.href = loginUrl
+  }
 
   /* 
    * wrapper for sending messages that matches the previous append signature if needed,
@@ -432,14 +471,25 @@ export function ChatContainer({
                 <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 px-4 py-3 rounded-xl flex items-center gap-3">
                   <XCircle className="w-4 h-4 text-red-500" />
                   <div className="text-sm text-red-600 dark:text-red-400">
-                    Something went wrong.
+                    {requiresAuth
+                      ? t('auth.signInToContinue', { appName: t('brand.appName') })
+                      : 'Something went wrong.'}
                   </div>
-                  <button
-                    onClick={() => regenerate()}
-                    className="text-xs bg-white dark:bg-white/10 px-2 py-1 rounded border border-red-100 dark:border-red-500/20 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                  >
-                    Retry
-                  </button>
+                  {requiresAuth ? (
+                    <button
+                      onClick={handleLogin}
+                      className="text-xs bg-white dark:bg-white/10 px-2 py-1 rounded border border-red-100 dark:border-red-500/20 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                      {t('auth.signIn')}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => regenerate()}
+                      className="text-xs bg-white dark:bg-white/10 px-2 py-1 rounded border border-red-100 dark:border-red-500/20 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                      Retry
+                    </button>
+                  )}
                 </div>
               </motion.div>
             )}
