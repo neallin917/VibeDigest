@@ -1,49 +1,88 @@
 # VibeDigest
+🔗 [vibedigest.io](https://vibedigest.io)
 
-[中文版](./README_zh-CN.md)
 
-**VibeDigest** is a modern, full-stack application designed to seamlessly download videos, transcribe audio, and generate AI-powered summaries. Engineered for performance and aesthetics, it leverages the power of OpenAI and the speed of Next.js.
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](backend)
+[![Next.js](https://img.shields.io/badge/next.js-14+-black.svg)](frontend)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](docker-compose.yml)
 
-## ⚡️ Quick Links
+<p align="center">
+  <img src="frontend/public/ai-video-summarizer-transcriber-og.png" alt="VibeDigest Banner" width="100%">
+</p>
 
-*   **For Developers**: [Contribution Guide](docs/CONTRIB.md) - Setup, installation, testing, and workflow.
-*   **For Deployment**: [Runbook](docs/RUNBOOK.md) - Production deployment, monitoring, and troubleshooting.
-*   **Full Documentation**: [docs/](docs/)
+[中文版](./README.zh-CN.md)
 
-## ✨ Key Highlights (v3)
+**VibeDigest** is a modern, full-stack application designed to **download videos**, **transcribe audio**, and **generate AI-powered summaries**. Engineered for performance and aesthetics, it utilizes the power of OpenAI/LangChain and the speed of Next.js for a premium user experience.
 
-- **Next-Gen Frontend**: Built with **Next.js 14+ (App Router)** and **TailwindCSS** for a responsive, fluid experience.
-- **Premium UX**: A dark-mode-first design featuring "Supabase-style" glassmorphism and refined animations.
-- **Advanced Backend**: Powered by **FastAPI** and the official **OpenAI API** for industry-leading transcription accuracy.
-- **Robust Workflow**: Orchestrated by **LangGraph** for resilient, stateful task execution and error handling.
-- **Real-time Updates**: Instant feedback on task progress via **Supabase Realtime**.
+---
 
-## 🚀 Features
+## ✨ Key Features
 
-- **Universal Video Support**: robust video downloading capabilities via `yt-dlp`.
-- **Smart Processing**: Automatic audio extraction and intelligent chunking for large files.
-- **Live Dashboard**: Watch your tasks progress from queue to completion in real-time.
-- **Onboarding Demo**: New users see a live demo task to instantly understand the platform's capabilities.
-- **Browser Notifications**: Get instant alerts when your tasks complete, even in the background.
-- **Secure Authentication**: Integrated email and Google login support via Supabase Auth.
-- **Multi-language UI (i18n)**: Built-in UI language switcher with RTL support for Arabic.
-- **Flexible Pricing**: Hybrid model (Subscription + Pay-as-you-go) with Annual billing options and transparent usage tracking.
-- **Payments (Optional)**: Card payments via Creem (no company registration required), and crypto checkout via Coinbase Commerce.
+- **Standard Video Support**: Robust downloading via `yt-dlp` for broad compatibility.
+- **Smart Transcription**: Automatic audio extraction and intelligent chunking for large files using OpenAI Whisper.
+- **Live Dashboard**: Real-time task progress updates via **Supabase Realtime**.
+- **Modern UI/UX**: Dark-mode-first design with glassmorphism, powered by TailwindCSS and Framer Motion.
+- **Secure Auth**: Integrated email and Google login support via Supabase Auth.
+- **Internationalization**: Full i18n support including RTL layouts for Arabic.
 
-## 🛠 Technology Stack
+## 🚀 Getting Started
 
-### Frontend (The Thick Client)
-- **Framework**: Next.js 14
-- **Language**: TypeScript
-- **Styling**: TailwindCSS, Framer Motion, Lucide React
-- **Data**: Supabase Client & Custom API Client
+Follow these steps to set up the project locally.
 
-### Backend (The Service Worker)
-- **Core**: FastAPI (Python 3.10+)
-- **Orchestration**: **LangGraph** (Stateful Graphs) + **LangChain** (LLM Interface)
-- **AI Engine**: OpenAI API (Whisper)
-- **Processing**: `yt-dlp` (Download), `pydub` (Audio manipulation)
-- **Manager**: `uv` for fast Python package management
+### Prerequisites
+
+- **Node.js** (v20+)
+- **Python** (3.10+)
+- **Docker & Docker Compose**
+- **Make** (standard on macOS/Linux)
+
+### Installation
+
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/yourusername/VibeDigest.git
+    cd VibeDigest
+    ```
+
+2.  **Configure Environment**:
+    Create the local environment files.
+    ```bash
+    cp .env.example .env.local
+    cp frontend/.env.production frontend/.env.local
+    ```
+    > **Note**: You will need to fill in `OPENAI_API_KEY`, `SUPABASE_URL`, etc., in `.env.local`.
+
+3.  **Install Dependencies**:
+    ```bash
+    make install
+    ```
+
+### Running the App
+
+Start the development services:
+
+1.  **Start Backend** (Dockerized):
+    ```bash
+    make start-dev
+    ```
+
+2.  **Start Frontend** (Local):
+    ```bash
+    make start-frontend
+    ```
+
+Visit `http://localhost:3000` to see the app running.
+
+## 🛠 Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| **Frontend** | Next.js 14, TypeScript, TailwindCSS, Framer Motion |
+| **Backend** | Python 3.10+, FastAPI, LangGraph, LangChain |
+| **Database** | PostgreSQL, Supabase (Realtime, Auth) |
+| **AI/ML** | OpenAI API (Whisper, GPT-4), yt-dlp, pydub |
+| **DevOps** | Docker, Make, uv (Python package manager) |
 
 ## 📖 Architecture Overview
 
@@ -58,9 +97,19 @@ For detailed architecture docs, see [docs/architecture/](docs/architecture/).
 
 To provide instant results and save computation resources, VibeDigest implements an advanced deduplication and "Smart Resume" mechanism:
 
-1.  **URL Normalization**: Strips noisy parameters to ensure cache hits.
-2.  **Task Deduplication (Cache Hit)**: Instantly "clones" existing results if the video has ever been processed by any user.
-3.  **Smart Resume**: Reuses existing transcripts when requesting new summaries in different languages, reducing processing time from minutes to seconds.
+1.  **URL Normalization**:
+    *   Automatically strips noisy tracking parameters (e.g., `utm_source`) to ensure cache hits.
+    *   Treats `youtu.be/xyz` and `youtube.com/watch?v=xyz` as the same resource.
+
+2.  **Task Deduplication (Cache Hit)**:
+    *   Checks if the video has been processed by **any** user.
+    *   **Instant Results**: If found, instantly "clones" existing scripts, summaries, and audio to the current user without re-processing.
+
+3.  **Smart Resume**:
+    *   If you request a processed video but want a **different language** summary (e.g., have English, want Chinese):
+        *   Skips expensive [Download] and [Transcription] steps.
+        *   Only executes the lightweight [Translation/Summarization] step.
+    *   Reduces processing time from minutes to seconds.
 
 ## 🌍 i18n (UI Languages)
 
@@ -69,6 +118,43 @@ To provide instant results and save computation resources, VibeDigest implements
 - **RTL**: Arabic (`ar`) automatically sets `<html dir="rtl">`
 - **Configuration**: See `frontend/src/lib/i18n.ts`.
 
+
+## 📚 Additional Resources
+
+- **[Contribution Guide](docs/CONTRIB.md)**: Detailed workflow, coding standards, and testing procedures.
+- **[Runbook](docs/RUNBOOK.md)**: Production deployment and monitoring.
+
+## 🧱 Database Migrations (Supabase)
+
+- **Pricing Schema**: `backend/sql/01_pricing_schema.sql`
+- **Payment Orders (Creem + Coinbase)**: `backend/sql/02_payment_orders.sql`
+- **Stripe to Creem Migration**: `backend/sql/03_stripe_to_creem_migration.sql`
+
+## 🧪 Running Tests
+
+### Full Suite (Recommended)
+```bash
+make test
+```
+
+### Backend Tests (Pytest)
+Run `pytest` with mocked external services (safe & free).
+```bash
+# Run from project root
+export PYTHONPATH=backend
+pytest -c backend/pytest.ini backend
+```
+
+### Frontend Tests (Vitest)
+Run component integration tests.
+```bash
+cd frontend
+npm test
+```
+
 ## 📄 License
 
 This project is licensed under the terms found in the [LICENSE](LICENSE) file.
+
+---
+*For architecture details and contribution guidelines, developers should refer to [AGENTS.md](AGENTS.md).*

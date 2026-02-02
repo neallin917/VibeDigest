@@ -20,6 +20,7 @@ from services.transcriber import Transcriber
 from services.video_processor import VideoProcessor
 from services.event_bus import event_bus
 from utils.url import normalize_video_url
+from utils.language_utils import normalize_lang_code
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -40,7 +41,6 @@ class VideoProcessingState(TypedDict):
     task_id: str
     user_id: str
     video_url: str
-    summary_lang: str
 
     # Metadata
     video_title: str
@@ -56,7 +56,6 @@ class VideoProcessingState(TypedDict):
     transcript_lang: str
 
     classification_result: Optional[Dict]
-    source_summary_json: Optional[str]
     final_summary_json: Optional[str]
     comprehension_brief_json: Optional[str]
 
@@ -127,7 +126,6 @@ async def check_cache(state: VideoProcessingState) -> Dict:
                 if k in [
                     OutputKind.SCRIPT,
                     OutputKind.SCRIPT_RAW,
-                    OutputKind.SUMMARY_SOURCE,
                     OutputKind.AUDIO,
                 ]:
                     try:
@@ -138,20 +136,36 @@ async def check_cache(state: VideoProcessingState) -> Dict:
                             updates["transcript_text"] = val
                         elif k == OutputKind.SCRIPT_RAW:
                             updates["transcript_raw"] = val
+                            try:
+                                raw_payload = json.loads(val or "{}")
+                                if isinstance(raw_payload, dict):
+                                    detected_lang = raw_payload.get("language")
+                                    if detected_lang:
+                                        updates["transcript_lang"] = str(detected_lang)
+                            except Exception:
+                                pass
                         elif k == OutputKind.CLASSIFICATION:
                             updates["classification_result"] = (
                                 json.loads(val) if val else None
                             )
-                        elif k == OutputKind.SUMMARY_SOURCE:
-                            updates["source_summary_json"] = val
                     except Exception as e:
                         logger.warning(f"Failed to copy output {k}: {e}")
 
-                # Copy match summary
+                # Copy summary if it matches source language
                 if k == OutputKind.SUMMARY:
-                    cached_locale = (loc or "zh").lower()
-                    requested_locale = (state["summary_lang"] or "zh").lower()
-                    if cached_locale == requested_locale:
+                    summary_lang = None
+                    try:
+                        summary_payload = json.loads(val or "{}")
+                        if isinstance(summary_payload, dict):
+                            summary_lang = summary_payload.get("language")
+                    except Exception:
+                        summary_lang = None
+
+                    transcript_lang = updates.get("transcript_lang")
+                    summary_lang_norm = normalize_lang_code(summary_lang)
+                    transcript_lang_norm = normalize_lang_code(transcript_lang)
+
+                    if transcript_lang_norm == "unknown" or summary_lang_norm == transcript_lang_norm:
                         db_client.upsert_completed_task_output(
                             state["task_id"], state["user_id"], str(k), str(val), locale=loc
                         )
@@ -350,7 +364,7 @@ async def ingest(state: VideoProcessingState) -> Dict:
     required_outputs = [
         OutputKind.SCRIPT,
         OutputKind.SCRIPT_RAW,
-        OutputKind.SUMMARY_SOURCE,
+        OutputKind.SUMMARY,
         OutputKind.CLASSIFICATION,
     ]
 
@@ -518,7 +532,6 @@ async def _run_summarize(
     transcript_text: str,
     task_id: str,
     user_id: str,
-    summary_language: Optional[str],
     transcript_language: Optional[str],
     classification_result: Optional[Dict[str, Any]] = None,
 ):
@@ -560,8 +573,7 @@ async def _run_summarize(
             "user_id": str(user_id),
             "metadata": {"node": "cognition_summarize"},
         }
-        source_language = (transcript_language or summary_language or "zh").lower()
-        requested_language = (summary_language or source_language or "zh").lower()
+        source_language = normalize_lang_code(transcript_language or "unknown")
 
         summary = await summarizer.summarize(
             transcript_text,
@@ -571,24 +583,8 @@ async def _run_summarize(
         )
 
         payload = _parse_summary_payload(summary)
-        source_content = json.dumps(payload, ensure_ascii=False)
-        db_client.update_task_output_by_kind(
-            task_id,
-            OutputKind.SUMMARY_SOURCE.value,
-            content=source_content,
-            status=TaskStatus.COMPLETED,
-            progress=100,
-        )
-
-        summary_content = source_content
+        summary_content = json.dumps(payload, ensure_ascii=False)
         summary_payload = payload
-        if requested_language != source_language:
-            summary_content = await summarizer.translate_summary_json(
-                source_content,
-                target_language=requested_language,
-                trace_metadata=trace_meta,
-            )
-            summary_payload = _parse_summary_payload(summary_content)
 
         db_client.update_task_output_by_kind(
             task_id,
@@ -609,14 +605,6 @@ async def _run_summarize(
         await event_bus.publish_output(
             task_id=task_id,
             output_id="",
-            output_kind=OutputKind.SUMMARY_SOURCE,
-            status=TaskStatus.COMPLETED,
-            content=source_content,
-        )
-
-        await event_bus.publish_output(
-            task_id=task_id,
-            output_id="",
             output_kind=OutputKind.SUMMARY,
             status=TaskStatus.COMPLETED,
             content=summary_content,
@@ -625,14 +613,6 @@ async def _run_summarize(
         return summary_payload
     except Exception as e:
         logger.error(f"Cognition: Summarization failed: {e}")
-        db_client.update_task_output_by_kind(
-            task_id,
-            OutputKind.SUMMARY_SOURCE.value,
-            status=TaskStatus.ERROR,
-            progress=100,
-            content="",
-            error=str(e),
-        )
         db_client.update_task_output_by_kind(
             task_id,
             OutputKind.SUMMARY.value,
@@ -648,7 +628,6 @@ async def _run_comprehension(
     transcript_text: str,
     task_id: str,
     user_id: str,
-    summary_language: Optional[str],
     transcript_language: Optional[str],
 ):
     try:
@@ -666,7 +645,7 @@ async def _run_comprehension(
             "metadata": {"node": "cognition_comprehension"},
         }
 
-        target_language = (summary_language or transcript_language or "zh").lower()
+        target_language = normalize_lang_code(transcript_language or "unknown")
         brief = await comprehension_agent.generate_comprehension_brief(
             transcript_text,
             target_language=target_language,
@@ -757,7 +736,6 @@ async def cognition(state: VideoProcessingState) -> Dict:
             transcript_text,
             task_id,
             state["user_id"],
-            summary_language=state.get("summary_lang"),
             transcript_language=state.get("transcript_lang"),
             classification_result=classification_input,
         )
@@ -766,7 +744,6 @@ async def cognition(state: VideoProcessingState) -> Dict:
             transcript_text,
             task_id,
             state["user_id"],
-            summary_language=state.get("summary_lang"),
             transcript_language=state.get("transcript_lang"),
         )
 
@@ -780,14 +757,12 @@ async def cognition(state: VideoProcessingState) -> Dict:
                 transcript_text,
                 task_id,
                 state["user_id"],
-                summary_language=state.get("summary_lang"),
                 transcript_language=state.get("transcript_lang"),
             ),
             _run_comprehension(
                 transcript_text,
                 task_id,
                 state["user_id"],
-                summary_language=state.get("summary_lang"),
                 transcript_language=state.get("transcript_lang"),
             ),
             return_exceptions=True,

@@ -196,17 +196,57 @@ def remove_transcript_heading(text: str) -> str:
     return '\n'.join(filtered)
 
 def extract_first_json_object(text: str) -> str | None:
-    """Best-effort extraction of the first JSON object from a text response."""
+    """Extract first complete JSON object using brace matching (handles nested braces and escaped strings)."""
     if not text:
         return None
+    
     s = text.strip()
     s = re.sub(r"^```(?:json)?\s*", "", s, flags=re.IGNORECASE)
     s = re.sub(r"\s*```$", "", s)
+    s = s.strip()
+    
     start = s.find("{")
-    end = s.rfind("}")
-    if start == -1 or end == -1 or end <= start:
+    if start == -1:
         return None
-    return s[start : end + 1]
+    
+    depth = 0
+    in_string = False
+    escape_next = False
+    
+    for i, char in enumerate(s[start:], start=start):
+        if escape_next:
+            escape_next = False
+            continue
+        
+        if char == '\\' and in_string:
+            escape_next = True
+            continue
+        
+        if char == '"' and not escape_next:
+            in_string = not in_string
+            continue
+        
+        if in_string:
+            continue
+        
+        if char == '{':
+            depth += 1
+        elif char == '}':
+            depth -= 1
+            if depth == 0:
+                return s[start:i + 1]
+    
+    end = s.rfind("}")
+    if end > start:
+        candidate = s[start:end + 1]
+        try:
+            import json
+            json.loads(candidate)
+            return candidate
+        except json.JSONDecodeError:
+            pass
+    
+    return None
 
 def enforce_paragraph_max_chars(text: str, max_chars: int = 400) -> str:
     """Split by paragraph and keep each within max_chars, using sentence splits if needed."""

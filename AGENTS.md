@@ -220,8 +220,7 @@ docker-compose -f docker-compose.test.yml up -d
 *   `task_id` (UUID): FK to `tasks`.
 *   `kind` (Text/Enum): Output type.
     *   `script`: Transcript markdown (read-only content).
-    *   `summary`: AI summary markdown/text.
-    *   `summary_source`: Stable summary in transcript/source language (used for time-anchored keypoints + bilingual toggle).
+    *   `summary`: AI summary markdown/text (always source language).
     *   `translation`: Translated transcript/summary.
     *   `audio` (Xiaoyuzhou only): JSON payload in `content` with:
         *   `audioUrl`: Direct playable audio URL (no Supabase Storage usage).
@@ -246,6 +245,12 @@ Demo tasks are featured content visible to all users (including anonymous visito
 - Authenticated users: Can view own tasks OR tasks where `is_demo = true`.
 
 **SQL Migration**: `backend/sql/09_multiple_demo_tasks.sql` sets up the field and policies.
+
+### 4.5 UX & Localization Philosophy (Chat-First)
+
+*   **Context Panel (Right Sidebar)**: ALWAYS displays content in the **Source Language** (e.g., English video → English Summary). This ensures 100% reusability across all users (SSOT).
+*   **Chat**: Handles all localization/translation needs dynamically based on User Locale.
+*   **No "Pre-computed" Translations**: We do not store translated summaries in the database to keep the architecture simple and storage efficient.
 
 ---
 

@@ -1,34 +1,53 @@
 import asyncio
 import json
 import logging
-from typing import Any
-from contextlib import nullcontext, contextmanager
+import importlib
+from typing import Any, cast
+from contextlib import nullcontext
 
-from config import settings
-from db_client import DBClient
-from .summarizer import Summarizer
-from workflow import app as workflow_app
+from workflow import app as workflow_app, VideoProcessingState
 from .transcriber import format_markdown_from_raw_segments
 from dependencies import get_db_client, get_summarizer
 
 logger = logging.getLogger(__name__)
 
-# Langfuse V3 setup
-try:
-    from langfuse import get_client as get_langfuse_client, propagate_attributes
-except ImportError:
-    def get_langfuse_client(*args: Any, **kwargs: Any) -> Any:
+def get_langfuse_client(*args: Any, **kwargs: Any) -> Any:
+    try:
+        langfuse = importlib.import_module("langfuse")
+        return langfuse.get_client(*args, **kwargs)
+    except Exception:
         return None
 
-    @contextmanager
-    def propagate_attributes(**kwargs):
-        yield
+
+def propagate_langfuse_attributes(
+    *,
+    user_id: str | None = None,
+    session_id: str | None = None,
+    metadata: dict[str, str] | None = None,
+    version: str | None = None,
+    tags: list[str] | None = None,
+    trace_name: str | None = None,
+    as_baggage: bool = False,
+):
+    try:
+        langfuse = importlib.import_module("langfuse")
+        return cast(Any, langfuse.propagate_attributes)(
+            user_id=user_id,
+            session_id=session_id,
+            metadata=metadata,
+            version=version,
+            tags=tags,
+            trace_name=trace_name,
+            as_baggage=as_baggage,
+        )
+    except Exception:
+        return nullcontext()
 
 # Concurrency Control
 MAX_CONCURRENT_JOBS = 4
 processing_limiter = asyncio.Semaphore(MAX_CONCURRENT_JOBS)
 
-async def run_pipeline(task_id: str, video_url: str, summary_lang: str, user_id: str):
+async def run_pipeline(task_id: str, video_url: str, user_id: str):
     """
     Main orchestration pipeline.
     Wrapped in a Semaphore to limit concurrency.
@@ -46,34 +65,33 @@ async def run_pipeline(task_id: str, video_url: str, summary_lang: str, user_id:
             langfuse.start_as_current_observation(
                 as_type="span",
                 name="Video Processing Pipeline",
-                input={"video_url": video_url, "summary_lang": summary_lang},
+                input={"video_url": video_url},
             )
             if langfuse
             else nullcontext()
         )
 
         with observation_ctx:
-            with propagate_attributes(
+            with propagate_langfuse_attributes(
                 session_id=str(task_id), user_id=str(user_id), tags=["pipeline"]
             ):
                 logger.info(
-                    f"[Pipeline Start] Task={task_id}, URL={video_url}, Lang={summary_lang}"
+                    f"[Pipeline Start] Task={task_id}, URL={video_url}"
                 )
 
                 try:
                     # Initialize input state
-                    initial_state = {
+                    initial_state: VideoProcessingState = {
                         "task_id": task_id,
                         "user_id": user_id,
                         "video_url": video_url,
-                        "summary_lang": summary_lang,
                         "errors": [],
                         "cache_hit": False,
                         "is_youtube": False,
                     }
 
                     # Invoke Graph
-                    await workflow_app.ainvoke(initial_state)
+                    await workflow_app.ainvoke(cast(Any, initial_state))
 
                 except Exception as e:
                     logger.error(f"Pipeline crashed: {e}")
@@ -100,7 +118,6 @@ async def handle_retry_output(output_id: str, user_id: str):
 
         task_id = out.get("task_id")
         kind = out.get("kind")
-        locale = out.get("locale")
         if not task_id or not kind:
             db_client.update_output_status(
                 output_id, status="error", error="Invalid output"
@@ -154,14 +171,13 @@ async def handle_retry_output(output_id: str, user_id: str):
         except Exception:
             pass
 
-        if kind == "summary" or kind == "summary_source":
+        if kind == "summary":
             task = db_client.get_task(task_id)
             video_title = (task or {}).get("video_title") or ""
             try:
                 db_client.update_output_status(
                     output_id, status="processing", progress=30, error=""
                 )
-                # Always regenerate source-language summary first (stable, anchored).
                 script_raw_json = None
                 transcript_language = "unknown"
                 try:
@@ -172,59 +188,12 @@ async def handle_retry_output(output_id: str, user_id: str):
                 except Exception:
                     script_raw_json = script_raw_json
 
-                source_summary_json = (
-                    await summarizer.summarize_in_language_with_anchors(
-                        script_text,
-                        summary_language=transcript_language,
-                        video_title=video_title,
-                        script_raw_json=script_raw_json,
-                    )
+                summary_json = await summarizer.summarize_in_language_with_anchors(
+                    script_text,
+                    summary_language=transcript_language,
+                    video_title=video_title,
+                    script_raw_json=script_raw_json,
                 )
-
-                # Ensure summary_source output exists (old tasks may not have it).
-                summary_source_out = next(
-                    (o for o in outputs if o.get("kind") == "summary_source"), None
-                )
-                if not summary_source_out:
-                    try:
-                        summary_source_out = db_client.create_task_output(
-                            task_id, user_id, kind="summary_source"
-                        )
-                        # Refresh outputs list for downstream lookups
-                        outputs = db_client.get_task_outputs(task_id)
-                    except Exception as e:
-                        logger.warning(
-                            f"Failed to create summary_source output for task={task_id}: {e}"
-                        )
-
-                if summary_source_out:
-                    db_client.update_output_status(
-                        summary_source_out["id"],
-                        status="completed",
-                        progress=100,
-                        content=source_summary_json,
-                        error="",
-                    )
-
-                # Now fulfill the requested output.
-                if kind == "summary_source":
-                    db_client.update_output_status(
-                        output_id,
-                        status="completed",
-                        progress=100,
-                        content=source_summary_json,
-                        error="",
-                    )
-                    return
-
-                # kind == "summary": translate to requested locale if needed, preserving anchors.
-                requested_lang = locale or transcript_language or "zh"
-                if str(requested_lang).lower() != str(transcript_language).lower():
-                    summary_json = await summarizer.translate_summary_json(
-                        source_summary_json, target_language=requested_lang
-                    )
-                else:
-                    summary_json = source_summary_json
 
                 db_client.update_output_status(
                     output_id,

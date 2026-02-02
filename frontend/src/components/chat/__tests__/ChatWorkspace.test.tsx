@@ -1,29 +1,13 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { ChatWorkspace } from '../ChatWorkspace'
 
-// Mock next/navigation
-vi.mock('next/navigation', () => ({
-  useSearchParams: () => ({
-    get: vi.fn(),
-  }),
-  useRouter: () => ({
-    push: vi.fn(),
-  }),
-  usePathname: vi.fn(),
-}))
-
-// Mock next-themes
-vi.mock('next-themes', () => ({
-  useTheme: () => ({
-    theme: 'light',
-    setTheme: vi.fn(),
-  }),
-}))
-
-// Mock child components to isolate the layout test
 vi.mock('../TopHeader', () => ({
-  TopHeader: () => <div data-testid="top-header">TopHeader</div>
+  TopHeader: ({ onMobileMenuClick }: any) => (
+    <div data-testid="top-header">
+      <button onClick={onMobileMenuClick}>Menu</button>
+    </div>
+  )
 }))
 
 vi.mock('../ChatContainer', () => ({
@@ -31,14 +15,28 @@ vi.mock('../ChatContainer', () => ({
 }))
 
 vi.mock('../VideoDetailPanel', () => ({
-  VideoDetailPanel: () => <div data-testid="video-panel">VideoDetailPanel</div>
+  VideoDetailPanel: ({ onClose }: any) => (
+    <div data-testid="video-panel">
+      VideoDetailPanel
+      <button onClick={onClose}>Close</button>
+    </div>
+  )
 }))
 
-vi.mock('../LibrarySidebar', () => ({
-  LibrarySidebar: () => <div data-testid="library-sidebar">LibrarySidebar</div>
+vi.mock('../MobileMenuDrawer', () => ({
+  MobileMenuDrawer: ({ isOpen, onOpenChange }: any) => (
+    <div data-testid="mobile-menu" data-open={isOpen}>
+      <button onClick={() => onOpenChange(false)}>Close Menu</button>
+    </div>
+  )
 }))
 
-// Mock I18n
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ open, children }: any) => open ? <div data-testid="sheet">{children}</div> : null,
+  SheetContent: ({ children }: any) => <div>{children}</div>,
+  SheetTitle: () => <div>Title</div>
+}))
+
 vi.mock('@/components/i18n/I18nProvider', () => ({
   useI18n: () => ({
     t: (key: string) => key,
@@ -46,26 +44,93 @@ vi.mock('@/components/i18n/I18nProvider', () => ({
   })
 }))
 
-describe('ChatWorkspace', () => {
-  it('renders the 3-column layout structure', () => {
-    const mockProps = {
-      activeThreadId: null,
-      activeTaskId: null,
-      initialMessages: [],
-      onNewChat: vi.fn(),
-      onSelectThread: vi.fn(),
-      onSelectTask: vi.fn(),
-      onChatStarted: vi.fn(),
-    }
-    render(<ChatWorkspace {...mockProps} />)
+const localStorageMock = (function() {
+  let store: any = {}
+  return {
+    getItem: vi.fn((key) => store[key] || null),
+    setItem: vi.fn((key, value) => { store[key] = value.toString() }),
+    clear: vi.fn(() => { store = {} })
+  }
+})()
+Object.defineProperty(window, 'localStorage', { value: localStorageMock })
 
-    // Check for main layout containers
+describe('ChatWorkspace', () => {
+  const defaultProps = {
+    activeThreadId: null,
+    activeTaskId: null,
+    initialMessages: [],
+    onNewChat: vi.fn(),
+    onSelectThread: vi.fn(),
+    onSelectTask: vi.fn(),
+    onChatStarted: vi.fn(),
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1200 })
+    window.dispatchEvent(new Event('resize'))
+  })
+
+  it('renders desktop layout correctly', () => {
+    render(<ChatWorkspace {...defaultProps} />)
     expect(screen.getByTestId('top-header')).toBeInTheDocument()
     expect(screen.getByTestId('chat-container')).toBeInTheDocument()
+    expect(screen.queryByTestId('video-panel')).not.toBeInTheDocument()
+  })
 
-    // The panel might be hidden initially if no task is selected, but the container exists in DOM
-    // Check if main wrapper exists
-    const main = screen.getByTestId('chat-container').closest('main')
-    expect(main).toHaveClass('flex-1')
+  it('renders video panel when task is selected (desktop)', async () => {
+    render(<ChatWorkspace {...defaultProps} activeTaskId="task-1" />)
+    expect(await screen.findByTestId('video-panel')).toBeInTheDocument()
+    expect(screen.queryByTestId('sheet')).not.toBeInTheDocument()
+  })
+
+  it('renders sheet on mobile when task is selected', async () => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 500 })
+    window.dispatchEvent(new Event('resize'))
+
+    render(<ChatWorkspace {...defaultProps} activeTaskId="task-1" />)
+    expect(await screen.findByTestId('sheet')).toBeInTheDocument()
+    // Both panels exist in DOM, but desktop is hidden via CSS class
+    expect(screen.getAllByTestId('video-panel')).toHaveLength(2)
+  })
+
+  it('handles panel closing', async () => {
+    render(<ChatWorkspace {...defaultProps} activeTaskId="task-1" />)
+    
+    // There might be multiple Close buttons (desktop + mobile)
+    const closeBtns = await screen.findAllByText('Close')
+    fireEvent.click(closeBtns[0])
+    
+    expect(defaultProps.onSelectTask).toHaveBeenCalledWith(null)
+  })
+
+  it('opens mobile menu', () => {
+    render(<ChatWorkspace {...defaultProps} />)
+    
+    const menuBtn = screen.getByText('Menu')
+    fireEvent.click(menuBtn)
+    
+    const menu = screen.getByTestId('mobile-menu')
+    expect(menu).toHaveAttribute('data-open', 'true')
+  })
+
+  it('handles resizing', () => {
+    render(<ChatWorkspace {...defaultProps} activeTaskId="task-1" />)
+    
+    const resizer = document.querySelector('.cursor-col-resize') as Element
+    expect(resizer).toBeInTheDocument()
+
+    fireEvent.mouseDown(resizer)
+
+    act(() => {
+        const moveEvent = new MouseEvent('mousemove', { clientX: 600 })
+        window.dispatchEvent(moveEvent)
+    })
+
+    act(() => {
+        window.dispatchEvent(new MouseEvent('mouseup'))
+    })
+
+    expect(localStorageMock.setItem).toHaveBeenCalledWith('vibe_panel_width', expect.any(String))
   })
 })

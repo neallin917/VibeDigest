@@ -105,14 +105,18 @@ const messages: Record<Locale, Messages> = {
       footer: "© 2024 VibeDigest. Built with Next.js & Supabase.",
       smartSummarization: "Smart Summarization",
       smartSummarizationDesc: "Our AI engine doesn't just shorten content. It transforms how you consume information with a suite of intelligent tools designed for deep understanding.",
-      interactiveTranscript: "Interactive Transcript",
-      interactiveTranscriptDesc: "Read videos like browser text documents. Click any sentence to instantly jump to that specific moment in the video.",
+      dynamicTemplates: "Dynamic Podcast Templates",
+      dynamicTemplatesDesc: "Elevate your reading experience. Diverse, tailored formats—from debate matrices to narrative arcs—make digesting complex podcasts fun and effective.",
       visualMindMaps: "Visual Mind Maps",
       visualMindMapsDesc: "Visualizes complex concepts via auto-generated knowledge graphs. See how concepts interconnect visually.",
       crossLanguageAI: "Cross-Language AI",
       crossLanguageAIDesc: "Native language barrier? No problem. Absorb videos in any language into your native tongue via our translation layer.",
       chatWithVideo: "Chat with Video",
-      chatWithVideoDesc: "Have specific questions? Ask the AI anything about the video content and get answers with timestamp citations.",
+      chatWithVideoDesc: "Have specific questions? Ask the AI anything about the video content and get instant answers.",
+      mobileFirst: "Mobile Optimized",
+      mobileFirstDesc: "Fully responsive design with a dedicated mobile experience. Learn anywhere, anytime, on any device.",
+      fastProcessing: "Lightning Fast",
+      fastProcessingDesc: "Powered by advanced pipelines. Get summaries and transcripts in seconds, not minutes.",
       seamlessExport: "Seamless Export",
       seamlessExportDesc: "Your notes belong everywhere. One-click export your summaries to Notion, Obsidian, PDF, or Markdown.",
       howItWorks: "How It Works",
@@ -261,7 +265,6 @@ const messages: Record<Locale, Messages> = {
       pleaseLogin: "Please login first!",
       features: "Features",
       translateTo: "Output language",
-      summaryLanguage: "Output language",
       quotaExceeded: {
         title: "Quota Exceeded",
         description: "You have reached your plan limit or have insufficient credits. Please upgrade your plan or top up credits to continue.",
@@ -522,14 +525,18 @@ const messages: Record<Locale, Messages> = {
       footer: "© 2024 VibeDigest. Built with Next.js & Supabase.",
       smartSummarization: "智能摘要",
       smartSummarizationDesc: "我们的 AI 引擎不仅是缩短内容，更提供一系列智能工具，改变您获取信息的方式，助您深度理解。",
-      interactiveTranscript: "交互式逐字稿",
-      interactiveTranscriptDesc: "像阅读浏览器文档一样阅读视频。点击任意句子即可瞬间跳转到视频的对应时刻。",
+      dynamicTemplates: "动态播客模板",
+      dynamicTemplatesDesc: "提升阅读趣味与理解力。针对不同播客类型提供定制化视图——无论是激烈辩论还是深度叙事，都有完美呈现。",
       visualMindMaps: "可视化思维导图",
       visualMindMapsDesc: "通过自动生成的知识图谱可视化复杂概念。直观地看到概念之间的相互联系。",
       crossLanguageAI: "跨语言 AI",
       crossLanguageAIDesc: "有语言障碍？没问题。通过我们的翻译层，将任何语言的视频转化为您的母语。",
       chatWithVideo: "与视频对话",
-      chatWithVideoDesc: "有具体问题？向 AI 询问关于视频内容的任何问题，并获得带有时间戳引用的答案。",
+      chatWithVideoDesc: "有具体问题？向 AI 询问关于视频内容的任何问题，获取即时解答。",
+      mobileFirst: "移动端优化",
+      mobileFirstDesc: "完全响应式设计，配备专属移动端体验。随时随地，在任何设备上学习。",
+      fastProcessing: "极速处理",
+      fastProcessingDesc: "由先进的流水线驱动。几秒钟内即可获取摘要和逐字稿，无需漫长等待。",
       seamlessExport: "无缝导出",
       seamlessExportDesc: "您的笔记应该随处可用。一键将摘要导出到 Notion、Obsidian、PDF 或 Markdown。",
       howItWorks: "工作原理",
@@ -697,7 +704,6 @@ const messages: Record<Locale, Messages> = {
       pleaseLogin: "请先登录以使用功能",
       features: "功能设定",
       translateTo: "翻译目标",
-      summaryLanguage: "输出语言",
       quotaExceeded: {
         title: "额度不足",
         description: "您的免费额度已用完或点数不足。请升级方案或充值点数以继续使用。",
@@ -1095,7 +1101,6 @@ const messages: Record<Locale, Messages> = {
       processing: "Procesando...",
       generate: "Generar",
       pleaseLogin: "¡Inicia sesión primero!",
-      summaryLanguage: "Idioma de salida",
       quotaExceeded: {
         title: "Cuota Excedida",
         description: "Has alcanzado el límite de tu plan o tienes créditos insuficientes. Por favor actualiza tu plan o recarga créditos para continuar.",
@@ -1339,7 +1344,6 @@ const messages: Record<Locale, Messages> = {
       processing: "جاري المعالجة...",
       generate: "إنشاء",
       pleaseLogin: "يرجى تسجيل الدخول أولاً!",
-      summaryLanguage: "لغة الإخراج",
     },
     tasks: {
       urlPlaceholder: "أدخل رابط YouTube, Apple Podcasts, Bilibili, Xiaoyuzhou...",
@@ -1569,7 +1573,6 @@ const messages: Record<Locale, Messages> = {
       processing: "Traitement...",
       generate: "Générer",
       pleaseLogin: "Veuillez vous connecter d’abord !",
-      summaryLanguage: "Langue de sortie",
     },
     tasks: {
       urlPlaceholder: "Entrez un lien YouTube, Apple Podcasts, Bilibili, Xiaoyuzhou...",
@@ -1799,7 +1802,6 @@ const messages: Record<Locale, Messages> = {
       processing: "Обработка...",
       generate: "Сгенерировать",
       pleaseLogin: "Пожалуйста, войдите!",
-      summaryLanguage: "Язык вывода",
     },
     tasks: {
       urlPlaceholder: "Введите ссылку на YouTube, Apple Podcasts, Bilibili, Xiaoyuzhou...",
@@ -2029,7 +2031,6 @@ const messages: Record<Locale, Messages> = {
       processing: "Processando...",
       generate: "Gerar",
       pleaseLogin: "Faça login primeiro!",
-      summaryLanguage: "Idioma de saída",
     },
     tasks: {
       urlPlaceholder: "Cole o link do YouTube, Apple Podcasts, Bilibili, Xiaoyuzhou...",
@@ -2259,7 +2260,6 @@ const messages: Record<Locale, Messages> = {
       processing: "प्रोसेसिंग...",
       generate: "जनरेट करें",
       pleaseLogin: "कृपया पहले लॉगिन करें!",
-      summaryLanguage: "आउटपुट भाषा",
     },
     tasks: {
       urlPlaceholder: "YouTube, Apple Podcasts, Bilibili, Xiaoyuzhou लिंक पेस्ट करें...",
@@ -2532,7 +2532,6 @@ const messages: Record<Locale, Messages> = {
       processing: "処理中...",
       generate: "生成",
       pleaseLogin: "先にログインしてください！",
-      summaryLanguage: "出力言語",
     },
     tasks: {
       urlPlaceholder: "YouTube, Apple Podcasts, Bilibili, Xiaoyuzhouのリンクを入力...",
@@ -2805,7 +2804,6 @@ const messages: Record<Locale, Messages> = {
       processing: "처리 중...",
       generate: "생성",
       pleaseLogin: "먼저 로그인하세요!",
-      summaryLanguage: "출력 언어",
     },
     tasks: {
       urlPlaceholder: "YouTube, Apple Podcasts, Bilibili, Xiaoyuzhou 링크 입력...",
@@ -2950,5 +2948,4 @@ export function createTranslator(locale: Locale) {
     return key
   }
 }
-
 

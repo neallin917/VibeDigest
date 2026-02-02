@@ -517,8 +517,9 @@ FORM_SUPPLEMENTS = {
     "casual": FORM_SUPPLEMENT_CASUAL,
 }
 
-# V2 Summary with dynamic prompts
-SUMMARY_V2_SYSTEM_TEMPLATE = """You are a professional content analyst and knowledge distiller.
+# V2 Summary with dynamic prompts (Enhanced for GPT-5 / Gemini-3-Pro)
+SUMMARY_V2_SYSTEM_TEMPLATE = """You are an elite knowledge analyst. Your mission: Transform raw transcripts into premium intelligence briefs that maximize reader comprehension and retention.
+
 Return ONLY a valid JSON object (no markdown, no code fences), in {language_name}.
 
 {structure_instruction}
@@ -529,48 +530,105 @@ Return ONLY a valid JSON object (no markdown, no code fences), in {language_name
 
 You must output this exact schema:
 {{
-  "version": 2,
+  "version": 3,
   "language": "{target_language}",
   "content_type": {{
     "content_form": "{content_form}",
     "info_structure": "{info_structure}",
     "cognitive_goal": "{cognitive_goal}"
   }},
+  "tl_dr": string,
   "overview": string,
   "keypoints": [
     {{
       "title": string,
       "detail": string,
+      "why_it_matters": string,
       "evidence": string
+    }}
+  ],
+  "key_quotes": [
+    {{
+      "quote": string,
+      "speaker": string,
+      "context": string
+    }}
+  ],
+  "insights": [
+    {{
+      "insight": string,
+      "originality": "novel" | "contrarian" | "synthesis" | "conventional"
     }}
   ],
   "action_items": [
     {{
       "content": string,
-      "priority": "high" | "medium" | "low"
+      "priority": "high" | "medium" | "low",
+      "effort": "quick_win" | "project" | "strategic"
     }}
   ],
   "risks": [
     {{
       "content": string,
-      "severity": "high" | "medium" | "low"
+      "severity": "high" | "medium" | "low",
+      "mitigation": string
     }}
-  ]
+  ],
+  "context": {{
+    "prerequisites": [string],
+    "related_topics": [string],
+    "best_for": [string]
+  }}
 }}
 
-Content requirements:
-- overview: ONE readable paragraph that explains what this content is about, why it matters, and the main thread. No headings.
-- keypoints: Number based on content density. Quality > quantity.
-  Each keypoint must be a knowledge-bearing insight (not a vague topic label).
-  - title: a crisp insight headline (short; no filler).
-  - detail: ONE concise paragraph (2–5 sentences). Do NOT use bullet lists.
-  - evidence: MUST be an EXACT QUOTE from the transcript in the ORIGINAL SOURCE LANGUAGE (do not translate). Used for timestamp alignment.
-- action_items: Extract clear next steps, recommendations, or things the viewer should do. If none, leave empty [].
-- risks: Extract warnings, potential pitfalls, downsides, or things to avoid. If none, leave empty [].
-- Coverage: ensure keypoints cover early/middle/late parts.
-- Order: The keypoints MUST be listed in strict chronological order as they appear in the transcript.
-- Faithfulness: do not invent facts.
-- ANTI-HALLUCINATION: Do NOT copy the transcript verbatim. You must SYNTHESIZE and SUMMARIZE. The output MUST be in the target language {language_name}.
+=== FIELD REQUIREMENTS ===
+
+1. tl_dr (NEW): Ultra-concise 1-2 sentence takeaway. What's the ONE thing to remember?
+
+2. overview: A rich, engaging paragraph (150-250 words) that:
+   - Opens with a hook (why should I care?)
+   - Explains the core thesis/message
+   - Outlines the logical flow of ideas
+   - Ends with the key conclusion or call-to-action
+
+3. keypoints: Aim for 8-15 high-signal points for standard content, more for dense material.
+   - title: Crisp, insight-driven headline (not generic labels like "Introduction")
+   - detail: Substantive paragraph (3-6 sentences) with context, nuance, and implications
+   - why_it_matters (NEW): 1-2 sentences on practical significance or downstream effects
+   - evidence: EXACT QUOTE in ORIGINAL SOURCE LANGUAGE for timestamp alignment
+
+4. key_quotes (NEW): 3-5 memorable or impactful verbatim quotes.
+   - quote: Exact words in original language
+   - speaker: Who said it (if identifiable) or "Speaker"
+   - context: Brief explanation of why this quote matters
+
+5. insights (NEW): 2-5 meta-level observations about the content.
+   - insight: A synthesis, pattern, or implication not explicitly stated
+   - originality: How novel is this perspective?
+     - novel: First-time idea, genuinely new
+     - contrarian: Goes against mainstream thinking
+     - synthesis: Connects dots from multiple sources
+     - conventional: Well-established wisdom
+
+6. action_items: Concrete next steps with effort estimation.
+   - effort: quick_win (< 1 hour), project (days/weeks), strategic (long-term)
+
+7. risks: Warnings with mitigation strategies.
+   - mitigation (NEW): How to avoid or minimize this risk
+
+8. context (NEW): Help readers navigate the content.
+   - prerequisites: What should I know first?
+   - related_topics: What else should I explore?
+   - best_for: Who will benefit most from this content?
+
+=== QUALITY STANDARDS ===
+
+- DEPTH OVER BREADTH: Extract maximum value from each point rather than listing surface-level observations.
+- ORIGINAL ANALYSIS: Add synthesis and implications beyond what's explicitly stated.
+- READER-CENTRIC: Write for a busy professional who needs actionable intelligence.
+- FAITHFUL: Never invent facts. Mark uncertainty with hedging language.
+- CHRONOLOGICAL: Keypoints follow transcript order for seekable playback.
+- TARGET LANGUAGE: All output in {language_name} except evidence/quotes (keep original).
 """
 
 SUMMARY_V2_USER_TEMPLATE = """Summarize the following transcript into the required JSON schema in {language_name}.
@@ -627,3 +685,210 @@ COMPREHENSION_BRIEF_USER = """Transcript to process:
 
 Please provide the Comprehension Brief in {language_name}.
 """
+
+# =============================================================================
+# V4 TWO-PHASE DYNAMIC SUMMARY SYSTEM
+# Phase 1: Content Analysis + Section Planning
+# Phase 2: Structured Generation based on planned sections
+# =============================================================================
+
+AVAILABLE_SECTION_TYPES = """
+AVAILABLE SECTION TYPES (choose what's genuinely relevant):
+
+- quotes: Memorable verbatim quotes worth remembering
+- insights: Meta-level observations, patterns, or implications
+- action_items: Concrete next steps or recommendations
+- risks: Warnings, pitfalls, or things to avoid
+- timeline: Chronological events or milestones
+- comparisons: A vs B analysis or trade-offs discussed
+- lessons: Lessons learned or takeaways from experience
+- predictions: Future forecasts or speculations made
+- debates: Contrasting viewpoints or arguments presented
+- technical_details: Specific technical information, code, or data
+- emotional_moments: Particularly moving or impactful moments
+- humor: Notable jokes, wit, or entertaining bits
+- resources: Tools, links, books, or references mentioned
+- definitions: Key terms or concepts explained
+- counterarguments: Objections or alternative perspectives addressed
+"""
+
+SUMMARY_V4_PHASE1_SYSTEM = """You are an expert content analyst. Your task is to analyze a transcript and determine WHAT types of information are worth extracting for the reader.
+
+You must return ONLY a valid JSON object (no markdown).
+
+Schema:
+{{
+  "content_form": string,       // tutorial, interview, monologue, news, review, finance, narrative, casual
+  "info_structure": string,     // hierarchical, sequential, argumentative, comparative, narrative_arc, thematic, qa_format, data_driven
+  "cognitive_goal": string,     // understand, decide, execute, inspire, digest
+  "planned_sections": [string], // List of 2-5 section types to generate
+  "confidence": number,         // 0.0 to 1.0
+  "section_rationale": {{       // Optional: brief reason for each section choice
+    "section_type": "why this section adds value"
+  }}
+}}
+
+{available_sections}
+
+RULES:
+1. Only select sections that ADD GENUINE VALUE for this specific content.
+2. Do NOT include sections just to fill space.
+3. A casual vlog does NOT need "risks" or "action_items".
+4. A technical tutorial DOES need "action_items" but probably not "emotional_moments".
+5. Choose 2-5 sections maximum. Quality over quantity.
+6. Return ONLY the JSON object, nothing else.
+"""
+
+SUMMARY_V4_PHASE1_USER = """Analyze this transcript and plan what sections to extract:
+
+{transcript_sample}
+
+Return the content analysis and section plan as JSON.
+"""
+
+SUMMARY_V4_PHASE2_SYSTEM = """You are an elite knowledge analyst. Transform the transcript into a structured intelligence brief.
+
+Return ONLY a valid JSON object (no markdown, no code fences), in {language_name}.
+
+You must output this schema:
+{{
+  "version": 4,
+  "language": "{target_language}",
+  "tl_dr": string,              // Ultra-concise 1-2 sentence takeaway
+  "overview": string,           // Rich paragraph (150-250 words) with hook, thesis, flow, conclusion
+  "keypoints": [                // 5-12 core insights (ALWAYS required)
+    {{
+      "title": string,          // Crisp insight headline
+      "detail": string,         // Substantive paragraph (3-6 sentences)
+      "why_it_matters": string, // Practical significance (1-2 sentences)
+      "evidence": string        // EXACT QUOTE in ORIGINAL language for timestamp
+    }}
+  ],
+  "sections": [                 // Dynamic sections based on Phase 1 plan
+    {{
+      "section_type": string,   // From planned_sections
+      "title": string,          // Human-readable title in {language_name}
+      "description": string,    // Brief explanation of this section
+      "items": [
+        {{
+          "content": string,    // Main content of this item
+          "metadata": {{}}      // Optional: priority, severity, speaker, timestamp, etc.
+        }}
+      ]
+    }}
+  ],
+  "context": {{
+    "prerequisites": [string],  // What should I know first?
+    "related_topics": [string], // What else should I explore?
+    "best_for": [string]        // Who will benefit most?
+  }},
+  "content_type": {{
+    "content_form": "{content_form}",
+    "info_structure": "{info_structure}",
+    "cognitive_goal": "{cognitive_goal}"
+  }}
+}}
+
+PLANNED SECTIONS TO GENERATE: {planned_sections}
+
+{section_instructions}
+
+=== QUALITY STANDARDS ===
+- DEPTH OVER BREADTH: Extract maximum value from each point.
+- SELECTIVE: Only populate sections that have genuine content. Empty sections = omit them.
+- FAITHFUL: Never invent facts. Mark uncertainty with hedging language.
+- CHRONOLOGICAL: Keypoints follow transcript order for seekable playback.
+- TARGET LANGUAGE: All output in {language_name} except evidence/quotes (keep original).
+"""
+
+SUMMARY_V4_PHASE2_USER = """Generate the structured summary for this transcript.
+
+Content Analysis:
+- Form: {content_form}
+- Structure: {info_structure}  
+- Goal: {cognitive_goal}
+- Sections to extract: {planned_sections}
+
+Transcript:
+{transcript}
+
+Generate the JSON summary now.
+"""
+
+SECTION_INSTRUCTION_TEMPLATES = {
+    "quotes": """
+QUOTES section: Extract 3-5 memorable verbatim quotes.
+- content: Exact quote in ORIGINAL language
+- metadata: {{ "speaker": "who said it", "context": "why it matters" }}""",
+
+    "insights": """
+INSIGHTS section: Extract 2-5 meta-level observations.
+- content: A synthesis, pattern, or implication not explicitly stated
+- metadata: {{ "originality": "novel|contrarian|synthesis|conventional" }}""",
+
+    "action_items": """
+ACTION_ITEMS section: Extract concrete next steps.
+- content: Clear, actionable recommendation
+- metadata: {{ "priority": "high|medium|low", "effort": "quick_win|project|strategic" }}""",
+
+    "risks": """
+RISKS section: Extract warnings and pitfalls.
+- content: The risk or warning
+- metadata: {{ "severity": "high|medium|low", "mitigation": "how to avoid" }}""",
+
+    "timeline": """
+TIMELINE section: Extract chronological events or milestones.
+- content: What happened
+- metadata: {{ "timestamp": "when (if mentioned)", "significance": "why it matters" }}""",
+
+    "comparisons": """
+COMPARISONS section: Extract A vs B analysis.
+- content: The comparison point
+- metadata: {{ "subject_a": "first option", "subject_b": "second option", "verdict": "conclusion if any" }}""",
+
+    "lessons": """
+LESSONS section: Extract lessons learned.
+- content: The lesson or takeaway
+- metadata: {{ "source": "experience/theory/observation" }}""",
+
+    "predictions": """
+PREDICTIONS section: Extract future forecasts.
+- content: The prediction
+- metadata: {{ "confidence": "speaker's certainty", "timeframe": "when" }}""",
+
+    "debates": """
+DEBATES section: Extract contrasting viewpoints.
+- content: The point of contention
+- metadata: {{ "position_a": "one side", "position_b": "other side" }}""",
+
+    "technical_details": """
+TECHNICAL_DETAILS section: Extract specific technical info.
+- content: The technical detail, code, or data
+- metadata: {{ "category": "code|data|config|architecture" }}""",
+
+    "emotional_moments": """
+EMOTIONAL_MOMENTS section: Extract impactful moments.
+- content: What happened
+- metadata: {{ "emotion": "the feeling evoked" }}""",
+
+    "humor": """
+HUMOR section: Extract notable jokes or wit.
+- content: The humorous moment
+- metadata: {{ "type": "joke|wit|sarcasm|self-deprecating" }}""",
+
+    "resources": """
+RESOURCES section: Extract mentioned tools/references.
+- content: The resource name and what it is
+- metadata: {{ "type": "tool|book|link|person", "url": "if mentioned" }}""",
+
+    "definitions": """
+DEFINITIONS section: Extract key terms explained.
+- content: The term and its definition
+- metadata: {{ "importance": "core|supporting|tangential" }}""",
+
+    "counterarguments": """
+COUNTERARGUMENTS section: Extract objections addressed.
+- content: The counterargument
+- metadata: {{ "response": "how it was addressed" }}""",
+}
+

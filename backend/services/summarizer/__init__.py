@@ -11,9 +11,16 @@ This package provides:
 from services.summarizer.models import (
     ContentClassification,
     KeyPoint,
+    KeyQuote,
+    Insight,
     ActionItem,
     Risk,
+    ContentContext,
     SummaryResponse,
+    SectionItem,
+    DynamicSection,
+    ContentPlan,
+    SummaryResponseV4,
 )
 from services.summarizer.facade import Summarizer
 
@@ -21,7 +28,14 @@ __all__ = [
     "Summarizer",
     "ContentClassification",
     "KeyPoint",
+    "KeyQuote",
+    "Insight",
     "ActionItem",
     "Risk",
+    "ContentContext",
     "SummaryResponse",
+    "SectionItem",
+    "DynamicSection",
+    "ContentPlan",
+    "SummaryResponseV4",
 ]

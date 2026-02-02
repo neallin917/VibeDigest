@@ -74,8 +74,16 @@ export function I18nProvider({ children, locale: initialLocale }: { children: Re
       // ignore
     }
 
-    // 3. Force Reload to trigger Middleware Rewrite
-    window.location.reload()
+    // 3. Navigate to locale-prefixed route
+    const { pathname, search, hash } = window.location
+    const segments = pathname.split("/")
+    if (segments.length > 1 && isLocale(segments[1])) {
+      segments[1] = next
+    } else {
+      segments.splice(1, 0, next)
+    }
+    const nextPath = segments.join("/") || "/"
+    window.location.assign(`${nextPath}${search}${hash}`)
   }, [])
 
   const t = useMemo(() => createTranslator(locale), [locale])
@@ -90,5 +98,4 @@ export function useI18n() {
   if (!ctx) throw new Error("useI18n must be used within <I18nProvider>")
   return ctx
 }
-
 

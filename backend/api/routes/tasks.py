@@ -3,7 +3,6 @@ import asyncio
 import os
 from fastapi import APIRouter, Depends, Form, HTTPException, BackgroundTasks, Body
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 
 from dependencies import get_current_user, get_db_client, get_video_processor
 from db_client import DBClient
@@ -11,7 +10,7 @@ from services.video_processor import VideoProcessor
 from utils.url import normalize_video_url
 from services.background_tasks import run_pipeline, handle_retry_output
 from services.event_bus import event_bus
-from utils.sse import format_sse_event, SSEStream
+from utils.sse import SSEStream
 from schemas.events import TaskProgressEvent, HeartbeatEvent
 from constants import TaskStatus
 
@@ -61,7 +60,6 @@ async def preview_video(
 async def process_video(
     background_tasks: BackgroundTasks,
     video_url: str = Form(...),
-    summary_language: str = Form(default="zh"),
     user_id: str = Depends(get_current_user),
     db: DBClient = Depends(get_db_client)
 ):
@@ -103,12 +101,8 @@ async def process_video(
         # 1.1 Create Essential Placeholders (Synchronous)
         # This ensures UI has something to show immediately and satisfies integration tests.
         db.create_task_output(task_id, user_id, kind="script")
-        db.create_task_output(
-            task_id, user_id, kind="summary", locale=summary_language
-        )
-        db.create_task_output(
-            task_id, user_id, kind="comprehension_brief", locale=summary_language
-        )
+        db.create_task_output(task_id, user_id, kind="summary")
+        db.create_task_output(task_id, user_id, kind="comprehension_brief")
 
         logger.info(
             f"Created task {task_id} for user {user_id}. Queuing background pipeline..."
@@ -116,7 +110,7 @@ async def process_video(
 
         # 2. Start Background Processing (pass user_id for output creation)
         background_tasks.add_task(
-            run_pipeline, task_id, video_url, summary_language, user_id
+            run_pipeline, task_id, video_url, user_id
         )
 
         return {"task_id": task_id, "message": "Task started"}

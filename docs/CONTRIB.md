@@ -41,14 +41,15 @@ We use a **shared config + local secrets** pattern:
 - `.env.local` — Secrets/API keys (never committed)
 
 ```bash
-# 1. Clone will get .env.production automatically (from Git)
+# 1. Clone will get .env.production automatically (from Git) if available
 
 # 2. Create local secrets file (root - for backend/docker)
 cp .env.example .env.local
 # Fill in: OPENAI_API_KEY, SUPABASE_SERVICE_KEY, DATABASE_URL, etc.
 
 # 3. Create local secrets file (frontend)
-cp frontend/.env.production frontend/.env.local
+# Note: Check frontend/.env for reference of required keys
+cp frontend/.env frontend/.env.local
 # Fill in: OPENAI_API_KEY, TEST_USER_PASSWORD, etc.
 ```
 

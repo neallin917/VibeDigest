@@ -1,0 +1,119 @@
+{
+  "timestamp": "2026-02-02T14:32:25.858758",
+  "strategy": "v4_dynamic",
+  "models": [
+    "gemini-3-pro"
+  ],
+  "results": [
+    {
+      "id": "beab3acd-0ee6-4765-9532-b3ee98eb7a86",
+      "status": "success",
+      "version": 4,
+      "elapsed_seconds": 50.113609,
+      "transcript_chars": 15447,
+      "keypoints_count": 5,
+      "section_types": [
+        "insights",
+        "quotes",
+        "counterarguments"
+      ],
+      "expected_type": "presentation",
+      "description": "TEDx Talk - Impactful VC (formal presentation, 15min)",
+      "metadata": {
+        "task_id": "beab3acd-0ee6-4765-9532-b3ee98eb7a86",
+        "title": "[TEDx Talks] Impactful Venture Capital | Oliver Bonallack | TExUniversityofBris",
+        "url": "https://www.bilibili.com/video/BV1hC41187Vv/?spm_id_from=333.337.search-card.all.click&vd_source=611693ad7bb7f963795a4edbe9c7179c",
+        "duration": 915,
+        "slug": "tedx_talks_impactful_venture_capital_oliver_bonallack_texuniversityofbris"
+      }
+    },
+    {
+      "id": "7cf9c626-6b7d-4aaa-9c50-c9065540bf2d",
+      "status": "success",
+      "version": 4,
+      "elapsed_seconds": 57.433329,
+      "transcript_chars": 16943,
+      "keypoints_count": 5,
+      "section_types": [
+        "insights",
+        "predictions",
+        "risks"
+      ],
+      "expected_type": "interview",
+      "description": "Elon Musk: Build the Future (tech interview, 20min)",
+      "metadata": {
+        "task_id": "7cf9c626-6b7d-4aaa-9c50-c9065540bf2d",
+        "title": "Elon Musk : How to Build the Future",
+        "url": "https://youtube.com/watch?v=tnBQmEqBCY0",
+        "duration": 1173,
+        "slug": "elon_musk_how_to_build_the_future"
+      }
+    },
+    {
+      "id": "b4b714a5-99ed-4aa0-b8d6-7f2a8b9210f1",
+      "status": "success",
+      "version": 4,
+      "elapsed_seconds": 75.337453,
+      "transcript_chars": 116600,
+      "keypoints_count": 7,
+      "section_types": [
+        "humor",
+        "insights",
+        "quotes"
+      ],
+      "expected_type": "interview",
+      "description": "Joe Rogan + Jensen Huang (long podcast, 2.5hr)",
+      "metadata": {
+        "task_id": "b4b714a5-99ed-4aa0-b8d6-7f2a8b9210f1",
+        "title": "Joe Rogan Experience #2422 - Jensen Huang",
+        "url": "https://youtube.com/watch?v=3hptKYix4X8",
+        "duration": 8906,
+        "slug": "joe_rogan_experience_2422_jensen_huang"
+      }
+    },
+    {
+      "id": "4bd44e42-40ea-4b01-a2ee-b738c3423a6a",
+      "status": "success",
+      "version": 4,
+      "elapsed_seconds": 76.773619,
+      "transcript_chars": 93335,
+      "keypoints_count": 6,
+      "section_types": [
+        "insights",
+        "technical_details",
+        "quotes"
+      ],
+      "expected_type": "tutorial",
+      "description": "Claude Agent SDK Workshop (technical tutorial, 1.9hr)",
+      "metadata": {
+        "task_id": "4bd44e42-40ea-4b01-a2ee-b738c3423a6a",
+        "title": "Claude Agent SDK [Full Workshop] — Thariq Shihipar, Anthropic",
+        "url": "https://youtube.com/watch?v=TqC1qOfiVcQ",
+        "duration": 6745,
+        "slug": "claude_agent_sdk_full_workshop_thariq_shihipar_anthropic"
+      }
+    },
+    {
+      "id": "52279e1a-6f25-44c3-98d6-e3f7de84c798",
+      "status": "success",
+      "version": 4,
+      "elapsed_seconds": 60.830168,
+      "transcript_chars": 95875,
+      "keypoints_count": 7,
+      "section_types": [
+        "insights",
+        "action_items",
+        "quotes"
+      ],
+      "expected_type": "monologue",
+      "description": "Dan Koe: Get Ahead 99% (motivational, 1.6hr)",
+      "metadata": {
+        "task_id": "52279e1a-6f25-44c3-98d6-e3f7de84c798",
+        "title": "Dan Koe: How To Get Ahead Of 99% Of People in 2026",
+        "url": "https://youtube.com/watch?v=EVDQ1MijHbk",
+        "duration": 5716,
+        "slug": "dan_koe_how_to_get_ahead_of_99_of_people_in_2026"
+      }
+    }
+  ]
+}

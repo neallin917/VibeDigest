@@ -51,14 +51,13 @@ const taskStatusSchema = z.object({
 
 const taskOutputsSchema = z.object({
     taskId: z.string().describe('The ID of the task'),
-    kinds: z.array(z.enum(['script', 'summary', 'summary_source', 'audio']))
+    kinds: z.array(z.enum(['script', 'summary', 'audio']))
         .optional()
         .describe('Specific output kinds to retrieve. If not provided, returns all completed outputs.'),
 });
 
 const createTaskSchema = z.object({
     video_url: z.string().describe('REQUIRED: Complete YouTube URL. Example: https://www.youtube.com/watch?v=dQw4w9WgXcQ'),
-    summaryLanguage: z.string().optional().describe("Language code: 'zh'=Chinese, 'en'=English"),
 });
 
 const previewVideoSchema = z.object({
@@ -175,18 +174,26 @@ export async function POST(req: Request) {
         const supabase = await createClient();
 
         // Verify authentication using getUser() (Secure)
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) {
-            console.error('[API/Chat] Auth Error:', authError);
-            return new Response(JSON.stringify({ error: 'Unauthorized', details: authError?.message }), {
-                status: 401,
-                headers: { 'Content-Type': 'application/json' },
-            });
-        }
+        // Bypass for E2E testing
+        let user;
+        let accessToken;
 
-        // Get session for access token (needed for external API calls)
-        const { data: { session } } = await supabase.auth.getSession();
-        const accessToken = session?.access_token;
+        if (process.env.NEXT_PUBLIC_E2E_MOCK === '1') {
+            user = { id: 'test-user-id', email: 'tester@vibedigest.io' };
+            accessToken = 'mock-access-token';
+        } else {
+            const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+            if (authError || !authUser) {
+                console.error('[API/Chat] Auth Error:', authError);
+                return new Response(JSON.stringify({ error: 'Unauthorized', details: authError?.message }), {
+                    status: 401,
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            }
+            user = authUser;
+            const { data: { session } } = await supabase.auth.getSession();
+            accessToken = session?.access_token;
+        }
 
         // 1. Load Conversation History
         let messages: UIMessage[] = [];
@@ -268,7 +275,7 @@ export async function POST(req: Request) {
                 .from('task_outputs')
                 .select('kind, content, status')
                 .eq('task_id', taskId)
-                .in('kind', ['script', 'summary', 'summary_source']);
+                .in('kind', ['script', 'summary']);
 
             const completedOutputs = outputs?.filter(o => o.status === 'completed') || [];
 
@@ -282,10 +289,9 @@ export async function POST(req: Request) {
                 if (completedOutputs.length > 0) {
                     console.log(`[API/Chat] Found ${completedOutputs.length} completed outputs`);
                     const summary = completedOutputs.find(o => o.kind === 'summary');
-                    const summarySource = completedOutputs.find(o => o.kind === 'summary_source');
                     const script = completedOutputs.find(o => o.kind === 'script');
 
-                    const summaryContent = summarySource?.content || summary?.content || '';
+                    const summaryContent = summary?.content || '';
                     const scriptContent = script?.content || '';
 
                     if (summaryContent) {
@@ -329,7 +335,7 @@ When users provide video URLs:
 
 === CRITICAL: TOOL PARAMETER FORMAT ===
 For preview_video, use EXACTLY: {"video_url": "https://www.youtube.com/watch?v=VIDEO_ID"}
-For create_task, use EXACTLY: {"video_url": "https://www.youtube.com/watch?v=VIDEO_ID", "summaryLanguage": "zh"}
+For create_task, use EXACTLY: {"video_url": "https://www.youtube.com/watch?v=VIDEO_ID"}
 
 WRONG (NEVER USE):
 - {"reason": "..."} - use "video_url" not "reason"
@@ -462,7 +468,6 @@ Never make up information about video content. Always use tools to get real data
                     execute: async (args: z.infer<typeof createTaskSchema>) => {
                         console.log('[API/Chat] create_task args:', JSON.stringify(args));
 
-                        const summaryLanguage = args.summaryLanguage || 'zh';
                         let fallbackSource: string | null = null;
 
                         // Zod schema ensures video_url is present - extract clean URL
@@ -497,7 +502,6 @@ Never make up information about video content. Always use tools to get real data
                                 },
                                 body: new URLSearchParams({
                                     video_url: cleanUrl,
-                                    summary_language: summaryLanguage,
                                 }),
                             });
                             const data = await response.json();
@@ -509,7 +513,6 @@ Never make up information about video content. Always use tools to get real data
                                 status: 'started',
                                 message: data.message || 'Task created successfully',
                                 videoUrl: cleanUrl,
-                                summaryLanguage,
                             };
                         } catch (error) {
                             return { error: 'Failed to create task', details: error instanceof Error ? error.message : 'Unknown error' };

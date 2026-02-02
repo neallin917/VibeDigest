@@ -51,7 +51,8 @@ def setup_test_data(async_client): # Require async_client to ensure DB override 
         conn.commit()
 
 @pytest.mark.asyncio
-async def test_process_video_endpoint_real_db(async_client: AsyncClient):
+async def test_process_video_endpoint_real_db(async_client: AsyncClient, monkeypatch):
+    monkeypatch.setenv("DEV_AUTH_BYPASS", "false")
     """
     Test creating a video task using REAL DB (Postgres Container).
     We still Mock `run_pipeline` to avoid executing actual video processing logic
@@ -62,7 +63,6 @@ async def test_process_video_endpoint_real_db(async_client: AsyncClient):
 
         payload = {
             "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-            "summary_language": "zh"
         }
 
         response = await async_client.post("/api/process-video", data=payload)
@@ -98,7 +98,8 @@ async def test_process_video_endpoint_real_db(async_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_process_video_quota_exceeded_real_db(async_client: AsyncClient):
+async def test_process_video_quota_exceeded_real_db(async_client: AsyncClient, monkeypatch):
+    monkeypatch.setenv("DEV_AUTH_BYPASS", "false")
     """
     Test behavior when user has no credits (Real DB).
     """
@@ -110,7 +111,6 @@ async def test_process_video_quota_exceeded_real_db(async_client: AsyncClient):
 
     payload = {
         "video_url": "https://example.com/nofunds",
-        "summary_language": "en"
     }
 
     response = await async_client.post("/api/process-video", data=payload)

@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import MagicMock, AsyncMock
+from typing import cast
 import sys
 import os
 from uuid import uuid4
@@ -12,7 +13,7 @@ sys.path.append(os.path.join(os.getcwd(), "backend"))
 # Since workflow imports instances, we patch them in setUp
 
 import workflow
-from workflow import ingest, cognition, build_graph
+from workflow import ingest, cognition, build_graph, VideoProcessingState
 
 class TestWorkflow(unittest.IsolatedAsyncioTestCase):
     
@@ -46,14 +47,14 @@ class TestWorkflow(unittest.IsolatedAsyncioTestCase):
         self.mock_supadata.get_transcript_async.return_value = ("MD Content", "JSON Raw", "en")
         self.mock_vp.extract_info_only.return_value = {"title": "Test Video", "thumbnail": "url"}
         
-        state = {
+        state = cast(VideoProcessingState, {
             "task_id": str(uuid4()),
             "user_id": str(uuid4()),
             "video_url": "https://www.youtube.com/watch?v=test",
             "is_youtube": True,
             "video_title": "",
             "thumbnail_url": ""
-        }
+        })
         
         updates = await ingest(state)
         
@@ -74,14 +75,14 @@ class TestWorkflow(unittest.IsolatedAsyncioTestCase):
         self.mock_transcriber.transcribe_with_raw.return_value = ("Whisper Text", "Raw", "en")
         self.mock_summarizer.optimize_transcript.return_value = "Cleaned Whisper Test"
         
-        state = {
+        state = cast(VideoProcessingState, {
             "task_id": str(uuid4()),
             "user_id": str(uuid4()),
             "video_url": "https://example.com/video",
             "is_youtube": False,
             "video_title": "",
             "thumbnail_url": ""
-        }
+        })
         
         updates = await ingest(state)
         
@@ -100,12 +101,12 @@ class TestWorkflow(unittest.IsolatedAsyncioTestCase):
         self.mock_summarizer.classify_content.return_value = self.MockModel({"category": "Tech"})
         self.mock_summarizer.summarize.return_value = self.MockModel({"overview": "Summary", "keypoints": []})
         
-        state = {
+        state = cast(VideoProcessingState, {
             "task_id": str(uuid4()),
             "user_id": str(uuid4()),
             "video_url": "http://test",
             "transcript_text": "Long enough transcript for analysis to proceed execution." * 10
-        }
+        })
         
         updates = await cognition(state)
         
@@ -128,11 +129,10 @@ class TestWorkflow(unittest.IsolatedAsyncioTestCase):
         
         app = build_graph()
         
-        inputs = {
+        inputs = cast(VideoProcessingState, {
             "task_id": str(uuid4()),
             "user_id": str(uuid4()),
             "video_url": "https://youtube.com/graph_test",
-            "summary_lang": "en",
             "is_youtube": True,
             "cache_hit": False,
             "errors": [],
@@ -140,7 +140,7 @@ class TestWorkflow(unittest.IsolatedAsyncioTestCase):
             "thumbnail_url": "",
             "author": "",
             "duration": 0
-        }
+        })
 
         # We need to mock 'check_cache' effectively. 
         # workflow.check_cache uses db_client.find... which we mocked.

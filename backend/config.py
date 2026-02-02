@@ -87,13 +87,14 @@ class Settings:
 
     @property
     def OPENAI_SUMMARY_MODELS(self) -> list[str]:
-        if self.MODEL_ALIAS_FAST:
-            return [self.MODEL_ALIAS_FAST]
+        # Summary now uses SMART tier for higher quality output (gpt-5/gemini-3-pro)
+        if self.MODEL_ALIAS_SMART:
+            return [self.MODEL_ALIAS_SMART]
         from utils.model_registry import get_model_registry
         registry = get_model_registry()
         provider = registry.get_provider(self.LLM_PROVIDER)
-        fast = (provider or {}).get("defaults", {}).get("fast")
-        return [fast] if fast else []
+        smart = (provider or {}).get("defaults", {}).get("smart")
+        return [smart] if smart else []
 
     @property
     def OPENAI_TRANSLATION_MODEL(self) -> str:
@@ -144,9 +145,8 @@ class Settings:
     OPENAI_TRANSCRIPTION_MODEL: str = os.getenv("OPENAI_TRANSCRIPTION_MODEL", "whisper-1")
 
     # Summary Strategy
-    # 'legacy' - Use the original generic prompt (default)
-    # 'v2_classified' - Use 3-layer classification system (content_form, info_structure, cognitive_goal)
-    SUMMARY_STRATEGY: str = os.getenv("SUMMARY_STRATEGY", "legacy")
+    # 'v4_dynamic' - Two-phase dynamic summary with content-aware section generation (default)
+    SUMMARY_STRATEGY: str = os.getenv("SUMMARY_STRATEGY", "v4_dynamic")
 
     def __init__(self):
         # Log strategy on init to confirm loading

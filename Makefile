@@ -98,9 +98,9 @@ test-frontend:
 
 verify:
 	@echo "Verifying LLM connection..."
-	export PYTHONPATH=$$(pwd)/backend && backend/venv/bin/python3 backend/scripts/verify_llm_connection.py
+	export PYTHONPATH=$$(pwd)/backend && backend/venv/bin/python3 backend/scripts/llm/verify_connection.py
 	@echo "Verifying Workflow..."
-	export PYTHONPATH=$$(pwd)/backend && backend/venv/bin/python3 backend/scripts/manual_test_workflow.py
+	export PYTHONPATH=$$(pwd)/backend && backend/venv/bin/python3 backend/scripts/tasks/test_workflow.py
 
 # --- Quality Control ---
 lint:

@@ -5,7 +5,6 @@ class OutputKind(str, Enum):
     SCRIPT_RAW = "script_raw"
     AUDIO = "audio"
     CLASSIFICATION = "classification"
-    SUMMARY_SOURCE = "summary_source"
     SUMMARY = "summary"
     COMPREHENSION_BRIEF = "comprehension_brief"
     
