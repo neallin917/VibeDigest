@@ -325,6 +325,8 @@ const messages: Record<Locale, Messages> = {
       openOriginalLink: "Open original link",
       originalScriptLanguage: "Original script language: {language}",
       summaryStructured: {
+        tldrTitle: "Brief",
+        sectionsTitle: "Sections",
         overviewTitle: "Overview",
         keypointsTitle: "Key Points",
         evidenceLabel: "Evidence",
@@ -772,6 +774,8 @@ const messages: Record<Locale, Messages> = {
       openOriginalLink: "点击打开原链接",
       originalScriptLanguage: "原文语言：{language}",
       summaryStructured: {
+        tldrTitle: "一句话总结",
+        sectionsTitle: "章节",
         overviewTitle: "简介",
         keypointsTitle: "要点",
         evidenceLabel: "依据",
@@ -1156,6 +1160,8 @@ const messages: Record<Locale, Messages> = {
       confirm: "Sí",
       originalScriptLanguage: "Idioma del original: {language}",
       summaryStructured: {
+        tldrTitle: "Resumen Breve",
+        sectionsTitle: "Secciones",
         overviewTitle: "Resumen",
         keypointsTitle: "Puntos clave",
         evidenceLabel: "Evidencia",
@@ -1386,6 +1392,8 @@ const messages: Record<Locale, Messages> = {
       confirm: "نعم",
       originalScriptLanguage: "لغة النص الأصلي: {language}",
       summaryStructured: {
+        tldrTitle: "موجز",
+        sectionsTitle: "أقسام",
         overviewTitle: "نظرة عامة",
         keypointsTitle: "أهم النقاط",
         evidenceLabel: "أدلة",
@@ -1615,6 +1623,8 @@ const messages: Record<Locale, Messages> = {
       confirm: "Oui",
       originalScriptLanguage: "Langue de l’original : {language}",
       summaryStructured: {
+        tldrTitle: "En Bref",
+        sectionsTitle: "Sections",
         overviewTitle: "Aperçu",
         keypointsTitle: "Points clés",
         evidenceLabel: "Preuves",
@@ -1844,6 +1854,8 @@ const messages: Record<Locale, Messages> = {
       confirm: "Да",
       originalScriptLanguage: "Язык оригинала: {language}",
       summaryStructured: {
+        tldrTitle: "Кратко",
+        sectionsTitle: "Разделы",
         overviewTitle: "Обзор",
         keypointsTitle: "Ключевые пункты",
         evidenceLabel: "Доказательства",
@@ -2073,6 +2085,8 @@ const messages: Record<Locale, Messages> = {
       confirm: "Sim",
       originalScriptLanguage: "Idioma do original: {language}",
       summaryStructured: {
+        tldrTitle: "Resumo Breve",
+        sectionsTitle: "Seções",
         overviewTitle: "Visão geral",
         keypointsTitle: "Pontos‑chave",
         evidenceLabel: "Evidências",
@@ -2302,7 +2316,9 @@ const messages: Record<Locale, Messages> = {
       confirm: "हाँ",
       originalScriptLanguage: "मूल भाषा: {language}",
       summaryStructured: {
-        overviewTitle: "परिचय",
+        tldrTitle: "संक्षेप",
+        sectionsTitle: "अनुभाग",
+        overviewTitle: "अवलोकन",
         keypointsTitle: "मुख्य बिंदु",
         evidenceLabel: "साक्ष्य",
         showOriginal: "मूल भाषा",
@@ -2574,6 +2590,8 @@ const messages: Record<Locale, Messages> = {
       confirm: "はい",
       originalScriptLanguage: "原文の言語：{language}",
       summaryStructured: {
+        tldrTitle: "要約",
+        sectionsTitle: "セクション",
         overviewTitle: "概要",
         keypointsTitle: "要点",
         evidenceLabel: "根拠",
@@ -2846,6 +2864,8 @@ const messages: Record<Locale, Messages> = {
       confirm: "예",
       originalScriptLanguage: "원문 언어: {language}",
       summaryStructured: {
+        tldrTitle: "요약",
+        sectionsTitle: "섹션",
         overviewTitle: "개요",
         keypointsTitle: "핵심 포인트",
         evidenceLabel: "근거",
