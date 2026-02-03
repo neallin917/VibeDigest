@@ -76,12 +76,12 @@ export default async function LandingPage({ params }: { params: Promise<{ lang: 
 
       <footer className="py-8 text-center text-slate-500 dark:text-gray-600 text-xs border-t border-slate-200 dark:border-white/5 relative z-10 bg-white/50 dark:bg-[#0A0A0A] backdrop-blur-sm">
         <p>© 2024 VibeDigest. All rights reserved.</p>
-        <div className="mt-3 flex justify-center gap-5">
-          <a href="/about" className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '关于我们' : 'About'}</a>
-          <a href="/faq" className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '常见问题' : 'FAQ'}</a>
-          <a href="/privacy" className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '隐私政策' : 'Privacy Policy'}</a>
-          <a href="/terms" className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '服务条款' : 'Terms of Service'}</a>
-        </div>
+          <div className="mt-3 flex justify-center gap-5">
+            <Link href="/about" className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '关于我们' : 'About'}</Link>
+            <Link href="/faq" className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '常见问题' : 'FAQ'}</Link>
+            <Link href="/privacy" className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '隐私政策' : 'Privacy Policy'}</Link>
+            <Link href="/terms" className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '服务条款' : 'Terms of Service'}</Link>
+          </div>
       </footer>
     </div>
   )

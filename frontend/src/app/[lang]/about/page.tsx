@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { LandingNav } from "@/components/landing/LandingNav"
 
 type Props = {
@@ -180,12 +181,12 @@ export default async function AboutPage(props: Props) {
                         <p className="text-slate-600 dark:text-muted-foreground mb-8">
                             {isZh ? "准备好提升您的效率了吗？" : "Ready to boost your efficiency?"}
                         </p>
-                        <a
+                        <Link
                             href="/login"
                             className="inline-flex items-center justify-center px-10 py-4 rounded-full bg-indigo-600 dark:bg-primary text-white dark:text-primary-foreground font-bold text-lg hover:scale-105 active:scale-95 transition-all shadow-lg shadow-indigo-500/20 dark:shadow-primary/20"
                         >
                             {isZh ? "立即开始使用" : "Get Started Now"}
-                        </a>
+                        </Link>
                     </div>
                 </div>
             </main>

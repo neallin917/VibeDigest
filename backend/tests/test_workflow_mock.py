@@ -69,6 +69,8 @@ class TestWorkflow(unittest.IsolatedAsyncioTestCase):
         # Fail others
         self.mock_supadata.get_transcript_async.return_value = (None, None, None)
         self.mock_vp.extract_captions.return_value = None
+        # Mock extract_info_only to return a dict (avoid AsyncMock return which causes warnings)
+        self.mock_vp.extract_info_only.return_value = {"title": "Whisper Video", "thumbnail": "thumb"}
         
         # Whisper Success
         self.mock_vp.download_and_convert.return_value = ("audio.mp3", "Whisper Title", "thumb", None, {})

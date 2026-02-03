@@ -190,6 +190,8 @@ export function useTaskStream(
     setIsConnected(false);
   }, []);
 
+  const connectRef = useRef<() => void>(() => {});
+
   const connect = useCallback(() => {
     if (!taskId) return;
 
@@ -331,13 +333,17 @@ export function useTaskStream(
         setError(`Connection lost. Reconnecting in ${delay / 1000}s...`);
 
         reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
+          connectRef.current();
         }, delay);
       } else if (reconnectAttempts >= maxReconnectAttempts) {
         setError('Connection failed after multiple attempts. Please refresh.');
       }
     };
   }, [taskId, baseUrl, autoReconnect, maxReconnectAttempts, reconnectAttempts]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   const reconnect = useCallback(() => {
     isTerminalRef.current = false;
