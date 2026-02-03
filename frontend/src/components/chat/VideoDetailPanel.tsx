@@ -9,6 +9,7 @@ import { X, StickyNote, PlayCircle, Quote, ChevronDown, ChevronUp, Sparkles } fr
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { formatSeconds } from '@/components/tasks/transcript'
+import { useI18n } from '@/components/i18n/I18nProvider'
 
 interface VideoDetailPanelProps {
   taskId: string
@@ -75,47 +76,51 @@ function KeypointCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: idx * 0.1 }}
       className={cn(
-        "rounded-[26px] p-5 group relative overflow-hidden transition-all duration-300 backdrop-blur-xl border",
-        // Light: Active Glass Gradient
-        "bg-gradient-to-br from-white/90 to-white/60 shadow-glass border-white/80 hover:shadow-xl",
-        // Dark: Dark Glass
-        "dark:bg-none dark:bg-zinc-900/50 dark:border-white/5 dark:shadow-none dark:hover:bg-zinc-800/50"
+        "rounded-2xl py-4 pr-4 pl-6 group relative overflow-hidden transition-all duration-300 border backdrop-blur-2xl shadow-glass",
+        "bg-white/70 border-white/60 hover:shadow-[0_12px_30px_-18px_rgba(16,185,129,0.55)] hover:-translate-y-0.5",
+        "dark:bg-zinc-900/60 dark:border-white/10 dark:hover:bg-zinc-900/70",
+        "before:content-[''] before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.12),transparent_55%)] dark:before:bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.18),transparent_60%)] before:pointer-events-none"
       )}
     >
-      <div className="absolute inset-y-3 left-3 w-[3px] rounded-full bg-gradient-to-b from-emerald-500/80 via-emerald-300/50 to-transparent dark:from-emerald-400/80 dark:via-emerald-500/30" />
-      
-      {/* Header & Title */}
-      <div 
-        className="flex items-start justify-between gap-3 mb-3 cursor-pointer"
-        onClick={() => kp.startSeconds !== undefined && onSeek(kp.startSeconds)}
-      >
-        <h5 className="text-[15px] font-bold text-slate-800 dark:text-slate-100 leading-snug">
-          {kp.title}
-        </h5>
-        {kp.startSeconds !== undefined && (
-          <span className="shrink-0 text-[11px] font-mono font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-2 py-1 rounded-md backdrop-blur-sm flex items-center gap-1.5 transition-colors group-hover:bg-emerald-100/50 dark:group-hover:bg-emerald-500/20">
-            <PlayCircle className="w-3.5 h-3.5" />
-            {formatSeconds(kp.startSeconds)}
-          </span>
+      <div className="flex-1 min-w-0">
+        {/* Header & Title */}
+        <div
+          className="flex items-start justify-between gap-3 mb-2 cursor-pointer"
+          onClick={() => kp.startSeconds !== undefined && onSeek(kp.startSeconds)}
+        >
+          <div className="flex items-start gap-3 min-w-0">
+            <span className="shrink-0 h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-400/30 dark:border-emerald-400/20 flex items-center justify-center text-[11px] font-semibold shadow-[inset_0_0_0_1px_rgba(16,185,129,0.08)]">
+              {idx + 1}
+            </span>
+            <h5 className="text-[15px] font-semibold text-slate-900 dark:text-slate-100 leading-snug">
+              {kp.title}
+            </h5>
+          </div>
+          {kp.startSeconds !== undefined && (
+            <span className="shrink-0 text-[11px] font-mono font-medium text-slate-700 dark:text-slate-300 bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 px-2 py-1 rounded-md backdrop-blur-sm flex items-center gap-1.5 transition-colors group-hover:bg-white dark:group-hover:bg-white/10 shadow-[0_6px_18px_-14px_rgba(15,23,42,0.35)]">
+              <PlayCircle className="w-3.5 h-3.5" />
+              {formatSeconds(kp.startSeconds)}
+            </span>
+          )}
+        </div>
+
+        {/* Main Detail */}
+        <p
+          className="text-[14px] text-slate-700 dark:text-slate-200 leading-relaxed cursor-pointer"
+          onClick={() => kp.startSeconds !== undefined && onSeek(kp.startSeconds)}
+        >
+          {kp.detail}
+        </p>
+
+        {kp.why_it_matters && (
+          <div className="mt-3 pt-3 flex items-start gap-2.5 border-t border-slate-100/80 dark:border-white/5">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-500/80 mt-[3px] shrink-0" />
+            <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed italic">
+              {kp.why_it_matters}
+            </p>
+          </div>
         )}
       </div>
-
-      {/* Main Detail */}
-      <p 
-        className="text-[14px] text-slate-600 dark:text-slate-300 leading-relaxed cursor-pointer"
-        onClick={() => kp.startSeconds !== undefined && onSeek(kp.startSeconds)}
-      >
-        {kp.detail}
-      </p>
-
-      {kp.why_it_matters && (
-        <div className="mt-3 pt-3 flex items-start gap-2.5 border-t border-slate-100 dark:border-white/5">
-          <Sparkles className="w-3.5 h-3.5 text-emerald-500/80 mt-[3px] shrink-0" />
-          <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed italic">
-            {kp.why_it_matters}
-          </p>
-        </div>
-      )}
 
       {/* Collapsible Evidence (Grounding) */}
       {kp.evidence && (
@@ -125,10 +130,10 @@ function KeypointCard({
               e.stopPropagation()
               setShowEvidence(!showEvidence)
             }}
-            className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors uppercase tracking-wide select-none"
+            className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors uppercase tracking-[0.18em] select-none"
           >
             <Quote className="w-3 h-3" />
-            <span>Source Evidence</span>
+            <span>Evidence</span>
             {showEvidence ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
           
@@ -142,8 +147,8 @@ function KeypointCard({
                 className="overflow-hidden"
               >
                 <div className="pt-2">
-                  <div className="rounded-xl border border-slate-200/60 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 px-4 py-3 relative">
-                    {/* Decorative quote mark */}
+                    <div className="rounded-xl border border-white/60 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 relative shadow-[inset_0_0_0_1px_rgba(255,255,255,0.35)]">
+                      {/* Decorative quote mark */}
                     <Quote className="absolute top-2 left-2 w-4 h-4 text-slate-200 dark:text-white/5 rotate-180" />
                     <p className="text-[13px] italic text-slate-600 dark:text-slate-400 leading-relaxed pl-2 relative z-10">
                       "{kp.evidence}"
@@ -165,6 +170,7 @@ export function VideoDetailPanel({
   className
 }: VideoDetailPanelProps) {
   const [task, setTask] = useState<Task | null>(null)
+  const { t } = useI18n()
   const [summary, setSummary] = useState<StructuredSummary | null>(null)
   const [mediaController, setMediaController] = useState<MediaController | null>(null)
   const [audioData, setAudioData] = useState<{ audioUrl: string, coverUrl?: string } | null>(null)
@@ -252,13 +258,15 @@ export function VideoDetailPanel({
       .replace(/_/g, ' ')
       .replace(/\b\w/g, (char) => char.toUpperCase())
 
-  const getMetadataTags = (metadata?: Record<string, unknown>) => {
-    if (!metadata) return []
-    return Object.values(metadata).flatMap((value) => {
-      if (typeof value === 'string' && value.trim()) return [value]
-      if (typeof value === 'number' || typeof value === 'boolean') return [String(value)]
-      return []
-    })
+  const splitOverview = (text: string): string[] => {
+    const normalized = text.replace(/\s+/g, ' ').trim()
+    if (!normalized) return []
+    const matches = normalized.match(/[^。！？.!?]+[。！？.!?]?/g)
+    const parts = (matches ?? [normalized])
+      .map((part) => part.trim())
+      .filter(Boolean)
+    if (parts.length <= 1) return [normalized]
+    return parts.slice(0, 5)
   }
 
   const parseAudioContent = (content: string | null | undefined): { audioUrl: string, coverUrl?: string } | null => {
@@ -294,9 +302,14 @@ export function VideoDetailPanel({
         .select('*')
         .eq('task_id', taskId)
         .in('kind', ['summary', 'audio'])
+        .order('created_at', { ascending: false })
 
       if (outputs) {
-        const summaryOut = outputs.find(o => o.kind === 'summary' && o.status === 'completed')
+        // Prioritize source language (locale=null) which represents the canonical V4 summary
+        // Fallback to any latest summary for backward compatibility
+        const summaryOut = outputs.find(o => o.kind === 'summary' && o.status === 'completed' && o.locale === null) 
+                        || outputs.find(o => o.kind === 'summary' && o.status === 'completed')
+
         if (summaryOut) {
           const parsed = parseSummaryContent(summaryOut.content)
           setSummary(parsed)
@@ -364,6 +377,8 @@ export function VideoDetailPanel({
 
   if (!task) return null
 
+  const overviewParts = summary?.overview ? splitOverview(summary.overview) : []
+
   return (
     <div className={cn("h-full flex flex-col gap-5 overflow-hidden px-2 pt-2 pb-4", className)}>
 
@@ -398,40 +413,52 @@ export function VideoDetailPanel({
         />
 
         {summary?.tl_dr && (
-          <div className="rounded-2xl px-5 py-4 border border-white/60 dark:border-white/10 bg-white/70 dark:bg-zinc-900/40 shadow-glass backdrop-blur-xl">
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-base font-bold text-slate-800 dark:text-slate-100 tracking-wide">
-                TL;DR
+          <div className="relative rounded-3xl px-5 py-5 border border-white/60 dark:border-white/10 bg-white/75 dark:bg-zinc-900/60 shadow-glass backdrop-blur-2xl overflow-hidden">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_58%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.22),transparent_60%)]" />
+            <div className="relative z-10 flex items-center gap-3 mb-3">
+              <span className="h-5 w-1 rounded-full bg-emerald-400/80 dark:bg-emerald-400/70" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-400/30 dark:border-emerald-400/20 px-2 py-1 rounded-full">
+                {t("tasks.summaryStructured.tldrTitle")}
               </span>
-              <div className="h-px flex-1 bg-gradient-to-r from-emerald-200 to-transparent dark:from-emerald-500/30" />
+              <div className="h-px flex-1 bg-gradient-to-r from-emerald-300/50 to-transparent dark:from-emerald-500/30" />
             </div>
-            <p className="text-[15px] font-medium text-slate-700 dark:text-slate-200 leading-relaxed text-balance">
+            <p className="relative z-10 text-[20px] font-semibold text-slate-900 dark:text-slate-100 leading-snug text-balance">
               {summary.tl_dr}
             </p>
           </div>
         )}
 
         {summary?.overview && (
-          <div className="rounded-2xl px-5 py-4 border border-white/60 dark:border-white/10 bg-white/70 dark:bg-zinc-900/40 shadow-glass backdrop-blur-xl">
+          <div className="rounded-3xl px-5 py-4 border border-white/60 dark:border-white/10 bg-white/75 dark:bg-zinc-900/60 shadow-glass backdrop-blur-2xl">
             <div className="flex items-center gap-3 mb-3">
-              <span className="text-base font-bold text-slate-800 dark:text-slate-100 tracking-wide">
-                Summary
+              <span className="h-5 w-1 rounded-full bg-emerald-400/80 dark:bg-emerald-400/70" />
+              <span className="text-[12px] font-semibold uppercase tracking-[0.28em] text-slate-700 dark:text-slate-200">
+                {t("tasks.summaryStructured.overviewTitle")}
               </span>
-              <div className="h-px flex-1 bg-gradient-to-r from-emerald-200 to-transparent dark:from-emerald-500/30" />
+              <div className="h-px flex-1 bg-gradient-to-r from-emerald-300/50 to-transparent dark:from-emerald-500/30" />
             </div>
-            <p className="text-[15px] text-slate-700 dark:text-slate-300 leading-relaxed text-balance">
-              {summary.overview}
-            </p>
+            <div className="space-y-3">
+              {overviewParts.map((part, index) => (
+                <div key={`overview-${index}`} className="flex items-start gap-3">
+                  <span className="mt-0.5 h-6 w-6 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-400/30 dark:border-emerald-400/20 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 flex items-center justify-center">
+                    {index + 1}
+                  </span>
+                  <p className="text-[16px] text-slate-800 dark:text-slate-300 leading-[1.7] text-balance">
+                    {part}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         {/* Divider for Key Insights */}
         <div className="flex items-center gap-3 px-2 pt-2">
-          <span data-testid="header-key-insights" className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">
-            Key Insights
+          <span data-testid="header-key-insights" className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-[0.32em]">
+            {t("tasks.summaryStructured.keypointsTitle")}
           </span>
           {summary?.keypoints?.length ? (
-            <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-200 bg-emerald-100/80 dark:bg-emerald-500/15 border border-emerald-200/80 dark:border-emerald-500/30 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-400/30 dark:border-emerald-400/20 px-2 py-0.5 rounded-full uppercase tracking-[0.2em]">
               {summary.keypoints.length}
             </span>
           ) : null}
@@ -454,23 +481,25 @@ export function VideoDetailPanel({
         )}
 
         {/* Insights Cards */}
-        {summary?.keypoints?.map((kp, idx) => (
-          <KeypointCard 
-            key={idx} 
-            kp={kp} 
-            idx={idx} 
-            onSeek={(seconds) => mediaController?.seek(seconds)} 
-          />
-        ))}
+        {summary?.keypoints?.length ? (
+          <div className="relative pl-8 space-y-3">
+            <div className="absolute left-2 top-2 bottom-2 w-px bg-gradient-to-b from-emerald-400/60 via-emerald-400/20 to-transparent dark:from-emerald-400/40 dark:via-emerald-400/20" />
+            {summary.keypoints.map((kp, idx) => (
+              <KeypointCard 
+                key={idx} 
+                kp={kp} 
+                idx={idx} 
+                onSeek={(seconds) => mediaController?.seek(seconds)} 
+              />
+            ))}
+          </div>
+        ) : null}
 
         {summary?.sections?.length ? (
           <>
             <div className="flex items-center gap-3 px-2 pt-2">
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">
-                Sections
-              </span>
-              <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-200 bg-emerald-100/80 dark:bg-emerald-500/15 border border-emerald-200/80 dark:border-emerald-500/30 px-2 py-0.5 rounded-full">
-                {summary.sections.length}
+              <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-[0.32em]">
+                {t("tasks.summaryStructured.sectionsTitle")}
               </span>
               <div className="h-px flex-1 bg-gradient-to-r from-slate-200 to-transparent dark:from-slate-700" />
             </div>
@@ -480,48 +509,36 @@ export function VideoDetailPanel({
                 return (
                   <div
                     key={`${section.section_type}-${sectionIndex}`}
-                    className="rounded-2xl border border-white/60 dark:border-white/10 bg-white/70 dark:bg-zinc-900/40 shadow-glass backdrop-blur-xl overflow-hidden flex flex-col"
+                    className="rounded-3xl border border-white/60 dark:border-white/10 bg-white/75 dark:bg-zinc-900/60 shadow-glass backdrop-blur-2xl overflow-hidden flex flex-col"
                   >
-                    <div className="sticky top-0 z-10 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md px-5 py-4 border-b border-white/20 dark:border-white/5 flex items-center justify-between gap-3">
-                      <h4 className="text-[16px] font-bold text-slate-800 dark:text-slate-100">
-                        {title}
-                      </h4>
-                      <span className="shrink-0 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-500/15 border border-emerald-200/80 dark:border-emerald-500/30 px-2 py-0.5 rounded-full uppercase tracking-wide">
+                    <div className="sticky top-0 z-10 bg-white/80 dark:bg-zinc-900/70 backdrop-blur-md px-5 py-4 border-b border-white/40 dark:border-white/10 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <span className="h-5 w-1 rounded-full bg-emerald-400/80 dark:bg-emerald-400/70" />
+                        <h4 className="text-[16px] font-semibold text-slate-900 dark:text-slate-100">
+                          {title}
+                        </h4>
+                      </div>
+                      <span className="shrink-0 text-[10px] font-semibold text-slate-600 dark:text-slate-400 bg-white/70 dark:bg-white/5 border border-white/50 dark:border-white/10 px-2 py-0.5 rounded-full uppercase tracking-widest">
                         {section.section_type}
                       </span>
                     </div>
                     
                     <div className="p-5 pt-4">
                       {section.description && (
-                        <p className="text-[13.5px] text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+                        <p className="text-[13.5px] text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
                           {section.description}
                         </p>
                       )}
                       <div className="space-y-3">
                       {section.items.map((item, itemIndex) => {
-                        const metadataTags = getMetadataTags(item.metadata)
                         return (
                           <div
                             key={`${section.section_type}-${sectionIndex}-${itemIndex}`}
-                            className="rounded-xl border border-white/70 dark:border-white/10 bg-white/80 dark:bg-white/5 px-4 py-3"
+                            className="pl-3 border-l-2 border-emerald-400/40 dark:border-emerald-400/30"
                           >
-                            <div className="flex items-start gap-3">
-                              <span className="mt-2 h-1.5 w-1.5 rounded-full bg-emerald-400/80 dark:bg-emerald-400 shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[14px] text-slate-700 dark:text-slate-200 leading-relaxed">
-                                  {item.content}
-                                </p>
-                                {metadataTags.length > 0 && (
-                                  <div className="flex flex-wrap gap-2 mt-2">
-                                    {metadataTags.map((tag, i) => (
-                                      <span key={i} className="text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/5">
-                                        {tag}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                            <p className="text-[14px] text-slate-700 dark:text-slate-200 leading-relaxed">
+                              {item.content}
+                            </p>
                           </div>
                         )
                       })}
