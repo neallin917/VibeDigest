@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { LandingNav } from "@/components/landing/LandingNav"
 
 type Props = {
@@ -149,12 +150,12 @@ export default async function FAQPage(props: Props) {
                         <p className="text-slate-600 dark:text-muted-foreground mb-8 text-sm">
                             {isZh ? "我们随时为您提供帮助。发送邮件给我们。" : "We're here to help. Send us an email."}
                         </p>
-                        <a
+                        <Link
                             href="/about"
                             className="inline-flex items-center justify-center px-6 py-3 rounded-full bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white font-medium hover:bg-slate-200 dark:hover:bg-white/20 transition-colors mr-4"
                         >
                             {isZh ? "关于我们" : "About Us"}
-                        </a>
+                        </Link>
                         <a
                             href="mailto:support@vibedigest.io"
                             className="inline-flex items-center justify-center px-6 py-3 rounded-full bg-indigo-600 dark:bg-white text-white dark:text-black font-medium hover:bg-indigo-700 dark:hover:bg-gray-200 transition-colors"

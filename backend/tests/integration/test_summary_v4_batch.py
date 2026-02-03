@@ -46,7 +46,7 @@ TEST_CASES = [
 ]
 
 
-async def test_single(case: dict, summarizer: Summarizer) -> dict:
+async def process_single_case(case: dict, summarizer: Summarizer) -> dict:
     task_id = case["id"]
     transcript_file = FIXTURES_DIR / f"{task_id}.txt"
     metadata_file = FIXTURES_DIR / f"{task_id}.json"
@@ -130,7 +130,7 @@ async def main():
     results = []
     
     for case in TEST_CASES:
-        result = await test_single(case, summarizer)
+        result = await process_single_case(case, summarizer)
         results.append(result)
     
     print("\n" + "=" * 70)
