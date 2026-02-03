@@ -51,8 +51,12 @@ async def test_generate_comprehension_brief():
     mock_structured_llm = MagicMock()
     mock_structured_llm.ainvoke = AsyncMock(return_value=mock_brief_obj)
 
+    mock_message = MagicMock()
+    mock_message.content = json.dumps(mock_data)
+    
     mock_llm = MagicMock()
     mock_llm.with_structured_output.return_value = mock_structured_llm
+    mock_llm.ainvoke = AsyncMock(return_value=mock_message)
 
     # Patch _get_llm to return our mock_llm
     with patch.object(agent, '_get_llm', return_value=mock_llm):

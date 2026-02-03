@@ -42,31 +42,35 @@ export function WelcomeScreen({ onSelectExample, onSubmit, isLoading }: WelcomeS
 
     const limit = offset === 0 ? PAGINATION_CONFIG.initialCount : PAGINATION_CONFIG.loadMoreCount
 
-    const { data, count } = await supabase
-      .from('tasks')
-      .select('id, video_url, video_title, thumbnail_url', { count: 'exact' })
-      .eq('is_demo', true)
-      .eq('status', 'completed')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
+    try {
+      const { data, count } = await supabase
+        .from('tasks')
+        .select('id, video_url, video_title, thumbnail_url', { count: 'exact' })
+        .eq('is_demo', true)
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1)
 
-    if (data) {
-      if (append) {
-        setExamples(prev => {
-          const existingIds = new Set(prev.map(t => t.id))
-          const newItems = data.filter(t => !existingIds.has(t.id))
-          return [...prev, ...newItems]
-        })
-      } else {
-        setExamples(data)
+      if (data) {
+        if (append) {
+          setExamples(prev => {
+            const existingIds = new Set(prev.map(t => t.id))
+            const newItems = data.filter(t => !existingIds.has(t.id))
+            return [...prev, ...newItems]
+          })
+        } else {
+          setExamples(data)
+        }
+        // Check if there are more items to load
+        const totalLoaded = append ? examples.length + data.length : data.length
+        setHasMore(count !== null && totalLoaded < count)
       }
-      // Check if there are more items to load
-      const totalLoaded = append ? examples.length + data.length : data.length
-      setHasMore(count !== null && totalLoaded < count)
+    } catch (error) {
+      console.error('Failed to fetch examples:', error)
+    } finally {
+      setLoading(false)
+      setLoadingMore(false)
     }
-
-    setLoading(false)
-    setLoadingMore(false)
   }, [supabase, examples.length])
 
   const observerTarget = useRef<HTMLDivElement>(null)
