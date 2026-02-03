@@ -254,9 +254,35 @@ export function VideoDetailPanel({
   const splitOverview = (text: string): string[] => {
     const normalized = text.replace(/\s+/g, ' ').trim()
     if (!normalized) return []
-    const matches = normalized.match(/[^。！？.!?]+[。！？.!?]?/g)
-    const parts = (matches ?? [normalized])
-      .map((part) => part.trim())
+
+    if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
+      try {
+        const segmenter = new Intl.Segmenter(undefined, { granularity: 'sentence' })
+        const parts = Array.from(segmenter.segment(normalized))
+          .map((segment) => segment.segment.trim())
+          .filter(Boolean)
+        if (parts.length <= 1) return [normalized]
+        return parts.slice(0, 5)
+      } catch {
+        // Fall through to regex-based split.
+      }
+    }
+
+    const protectDots = (value: string) => {
+      const protectedDecimals = value.replace(/\b(\d)\.(\d)\b/g, '$1∎$2')
+      const protectedAbbrev = protectedDecimals.replace(
+        /\b(?:e\.g|i\.e|etc|vs|mr|mrs|ms|dr|prof|sr|jr)\./gi,
+        (match) => match.replace(/\./g, '∎')
+      )
+      return protectedAbbrev.replace(/\b(?:[A-Z]\.){2,}/g, (match) => match.replace(/\./g, '∎'))
+    }
+
+    const restoreDots = (value: string) => value.replace(/∎/g, '.')
+
+    const protectedText = protectDots(normalized)
+    const matches = protectedText.match(/[^。！？.!?]+[。！？.!?]?/g)
+    const parts = (matches ?? [protectedText])
+      .map((part) => restoreDots(part.trim()))
       .filter(Boolean)
     if (parts.length <= 1) return [normalized]
     return parts.slice(0, 5)

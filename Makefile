@@ -26,7 +26,7 @@ install: install-backend install-frontend
 
 install-backend:
 	@echo "Installing backend dependencies..."
-	pip install -r requirements.txt
+	uv pip install -r requirements.txt
 
 install-frontend:
 	@echo "Installing frontend dependencies..."
@@ -36,7 +36,7 @@ install-frontend:
 # --- Execution ---
 start-backend:
 	@echo "Starting backend..."
-	cd backend && uvicorn main:app --reload --port 8000
+	cd backend && uv run uvicorn main:app --reload --port 16081
 
 start-frontend:
 	@echo "Starting frontend..."
@@ -54,7 +54,7 @@ PROJ_PROD=vibedigest-prod
 start-prod:
 	@echo "Starting Docker (Prod Mode)... [Project: $(PROJ_PROD)]"
 	@echo "ℹ️  Using image: transcriber-backend:prod"
-	COMPOSE_PROJECT_NAME=$(PROJ_PROD) docker-compose -f docker-compose.prod.yml up -d
+	COMPOSE_PROJECT_NAME=$(PROJ_PROD) docker-compose --env-file .env.local -f docker-compose.prod.yml up -d
 
 # Release: Explicitly builds the production image
 release-prod:
@@ -82,15 +82,15 @@ rebuild-dev:
 
 restart-prod:
 	@echo "Restarting Docker (Prod Mode)..."
-	COMPOSE_PROJECT_NAME=$(PROJ_PROD) docker-compose -f docker-compose.prod.yml down
-	COMPOSE_PROJECT_NAME=$(PROJ_PROD) docker-compose -f docker-compose.prod.yml up -d
+	COMPOSE_PROJECT_NAME=$(PROJ_PROD) docker-compose --env-file .env.local -f docker-compose.prod.yml down
+	COMPOSE_PROJECT_NAME=$(PROJ_PROD) docker-compose --env-file .env.local -f docker-compose.prod.yml up -d
 
 # --- Testing ---
 test: test-backend test-frontend
 
 test-backend:
 	@echo "Running backend tests..."
-	export PYTHONPATH=$$(pwd)/backend && pytest -c backend/pytest.ini backend
+	uv run pytest
 
 test-frontend:
 	@echo "Running frontend tests..."
@@ -98,9 +98,9 @@ test-frontend:
 
 verify:
 	@echo "Verifying LLM connection..."
-	export PYTHONPATH=$$(pwd)/backend && backend/venv/bin/python3 backend/scripts/llm/verify_connection.py
+	uv run backend/scripts/llm/verify_connection.py
 	@echo "Verifying Workflow..."
-	export PYTHONPATH=$$(pwd)/backend && backend/venv/bin/python3 backend/scripts/tasks/test_workflow.py
+	uv run backend/scripts/tasks/test_workflow.py
 
 # --- Quality Control ---
 lint:
