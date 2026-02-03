@@ -109,13 +109,13 @@ class TestTaskOutputEvent:
         event = TaskOutputEvent(
             task_id="task-123",
             output_id="out-456",
-            output_kind=OutputKind.SUMMARY_SOURCE,
+            output_kind=OutputKind.SUMMARY,
             status=TaskStatus.COMPLETED,
             content='{"overview": "test"}',
             locale="zh",
         )
         assert event.event_type == "output"
-        assert event.output_kind == OutputKind.SUMMARY_SOURCE
+        assert event.output_kind == OutputKind.SUMMARY
 
     def test_optional_fields(self):
         """Test optional fields."""

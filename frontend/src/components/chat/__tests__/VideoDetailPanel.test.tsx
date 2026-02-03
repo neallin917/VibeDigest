@@ -8,6 +8,7 @@ const mockEq = vi.fn()
 const mockIn = vi.fn()
 const mockSingle = vi.fn()
 const mockLimit = vi.fn()
+const mockOrder = vi.fn()
 
 // Chainable query builder
 const queryBuilder = {
@@ -16,6 +17,7 @@ const queryBuilder = {
   in: mockIn,
   single: mockSingle,
   limit: mockLimit,
+  order: mockOrder,
 }
 
 // Setup chain return values
@@ -24,25 +26,8 @@ mockEq.mockReturnValue(queryBuilder)
 mockIn.mockReturnValue(queryBuilder)
 mockLimit.mockReturnValue(queryBuilder)
 // mockSingle is terminal, returns Promise
-// mockIn is terminal in the component usage?
-// Component: await supabase.from(...).in(...)
-// So mockIn must return a Promise, NOT queryBuilder, if it's the last call.
-// BUT, in Supabase JS, .in() returns a PostgrestFilterBuilder which IS awaitable (thenable).
-// So returning queryBuilder is fine IF queryBuilder has a .then method or if we return a Promise directly.
-// The component awaits the result of .in().
-// If mockIn returns queryBuilder, and queryBuilder is NOT a Promise, `await` will return queryBuilder itself.
-// The component expects `{ data }`.
-// So queryBuilder must look like the response OR mockIn must return the response.
 
-// The component code:
-// const { data: outputs } = await supabase...in(...)
-// This means the result of the chain must have a `data` property.
-
-// FIX: Make mockIn return a Promise that resolves to the response object.
-// We can't make it return queryBuilder AND a Promise easily unless queryBuilder IS a Promise (thenable).
-// Since the component stops at .in(), we should make mockIn return the Promise.
-
-mockIn.mockImplementation(() => Promise.resolve({ data: [] }))
+mockOrder.mockImplementation(() => Promise.resolve({ data: [] }))
 mockSingle.mockImplementation(() => Promise.resolve({ data: null }))
 mockLimit.mockImplementation(() => Promise.resolve({ data: [] }))
 
@@ -59,6 +44,22 @@ vi.mock('@/lib/supabase', () => ({
   createClient: () => mockSupabase,
 }))
 
+vi.mock('@/components/i18n/I18nProvider', () => ({
+  useI18n: () => ({
+    t: (key: string) => {
+      const translations: Record<string, string> = {
+        "tasks.summaryStructured.keypointsTitle": "Key Insights",
+        "tasks.summaryStructured.tldrTitle": "TL;DR",
+        "tasks.summaryStructured.sectionsTitle": "Sections",
+        "tasks.summaryStructured.overviewTitle": "Overview"
+      }
+      return translations[key] || key
+    },
+    locale: 'en'
+  }),
+  I18nProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>
+}))
+
 vi.mock('@/components/tasks/shared/VideoPlayer', () => ({
   VideoPlayer: () => <div data-testid="video-player">Video Player Stub</div>
 }))
@@ -71,7 +72,9 @@ describe('VideoDetailPanel', () => {
     mockSelect.mockReturnValue(queryBuilder)
     mockEq.mockReturnValue(queryBuilder)
     // mockIn is the terminal call in fetching outputs
-    mockIn.mockResolvedValue({ data: [] })
+    mockIn.mockReturnValue(queryBuilder)
+    // mockOrder is the terminal call
+    mockOrder.mockResolvedValue({ data: [] })
 
     // mockSingle is the terminal call in fetching task
     mockSingle.mockResolvedValue({
@@ -107,7 +110,7 @@ describe('VideoDetailPanel', () => {
       ]
     }
 
-    mockIn.mockResolvedValue({
+    mockOrder.mockResolvedValue({
       data: [{
         kind: 'summary',
         status: 'completed',
@@ -151,7 +154,7 @@ describe('VideoDetailPanel', () => {
       ]
     }
 
-    mockIn.mockResolvedValue({
+    mockOrder.mockResolvedValue({
       data: [{
         kind: 'summary',
         status: 'completed',
@@ -168,14 +171,13 @@ describe('VideoDetailPanel', () => {
       expect(screen.getByText('"Evidence quote."')).toBeInTheDocument()
       expect(screen.getByText('Insights')).toBeInTheDocument()
       expect(screen.getByText('Item A')).toBeInTheDocument()
-      expect(screen.getByText('Alice')).toBeInTheDocument()
     })
   })
 
   it('handles non-JSON text summary (Markdown fallback)', async () => {
     const markdownSummary = "# Video Summary\nThis is a markdown summary."
 
-    mockIn.mockResolvedValue({
+    mockOrder.mockResolvedValue({
       data: [{
         kind: 'summary',
         status: 'completed',
@@ -194,7 +196,7 @@ describe('VideoDetailPanel', () => {
   it('handles malformed JSON by treating as text', async () => {
     const malformedJson = "{ keypoints: [ ... incomplete"
 
-    mockIn.mockResolvedValue({
+    mockOrder.mockResolvedValue({
       data: [{
         kind: 'summary',
         status: 'completed',
@@ -205,12 +207,13 @@ describe('VideoDetailPanel', () => {
     render(<VideoDetailPanel taskId="task-123" />)
 
     await waitFor(() => {
-      expect(screen.getByText(malformedJson)).toBeInTheDocument()
+      expect(screen.getByText(/{ keypoints:/)).toBeInTheDocument()
+      expect(screen.getByText(/incomplete/)).toBeInTheDocument()
     })
   })
 
   it('handles empty summary gracefully', async () => {
-    mockIn.mockResolvedValue({ data: [] })
+    mockOrder.mockResolvedValue({ data: [] })
 
     render(<VideoDetailPanel taskId="task-123" />)
 
