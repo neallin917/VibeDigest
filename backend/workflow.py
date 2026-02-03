@@ -21,6 +21,7 @@ from services.video_processor import VideoProcessor
 from services.event_bus import event_bus
 from utils.url import normalize_video_url
 from utils.language_utils import normalize_lang_code
+from utils.text_utils import detect_language, is_cjk_language
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -418,6 +419,28 @@ async def ingest(state: VideoProcessingState) -> Dict:
 
     # Merge results
     if result:
+        # Enforce SSOT: Source language is determined solely by the transcript text content.
+        # This overrides potentially hallucinated metadata from providers.
+        if result.get("transcript_text"):
+            try:
+                real_lang = detect_language(result["transcript_text"])
+                original_claim = result.get("transcript_lang")
+
+                # Only hard-enforce for CJK where char-set detection is reliable.
+                if is_cjk_language(real_lang):
+                    if original_claim and normalize_lang_code(original_claim) != real_lang:
+                        logger.info(
+                            f"Language Corrected: Provider claimed '{original_claim}', "
+                            f"but text analysis says '{real_lang}'. Enforcing '{real_lang}'."
+                        )
+                    result["transcript_lang"] = real_lang
+                else:
+                    # For non-CJK languages, only fill when provider didn't supply.
+                    if not original_claim:
+                        result["transcript_lang"] = real_lang
+            except Exception as e:
+                logger.warning(f"Language detection failed, falling back to provider metadata: {e}")
+
         updates.update(result)
         # Persist finalized script
         db_client.update_task_output_by_kind(
