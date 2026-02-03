@@ -5,10 +5,9 @@ import { createClient } from '@/lib/supabase'
 import { VideoPlayer } from '@/components/tasks/shared/VideoPlayer'
 import { supportsVideoEmbed } from '@/components/tasks/VideoEmbed'
 import { Button } from '@/components/ui/button'
-import { X, StickyNote, PlayCircle, Quote, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
+import { X, StickyNote, Quote, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { formatSeconds } from '@/components/tasks/transcript'
 import { useI18n } from '@/components/i18n/I18nProvider'
 
 interface VideoDetailPanelProps {
@@ -96,12 +95,6 @@ function KeypointCard({
               {kp.title}
             </h5>
           </div>
-          {kp.startSeconds !== undefined && (
-            <span className="shrink-0 text-[11px] font-mono font-medium text-slate-700 dark:text-slate-300 bg-white/80 dark:bg-white/5 border border-white/60 dark:border-white/10 px-2 py-1 rounded-md backdrop-blur-sm flex items-center gap-1.5 transition-colors group-hover:bg-white dark:group-hover:bg-white/10 shadow-[0_6px_18px_-14px_rgba(15,23,42,0.35)]">
-              <PlayCircle className="w-3.5 h-3.5" />
-              {formatSeconds(kp.startSeconds)}
-            </span>
-          )}
         </div>
 
         {/* Main Detail */}
@@ -440,10 +433,12 @@ export function VideoDetailPanel({
             <div className="space-y-3">
               {overviewParts.map((part, index) => (
                 <div key={`overview-${index}`} className="flex items-start gap-3">
-                  <span className="mt-0.5 h-6 w-6 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-400/30 dark:border-emerald-400/20 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 flex items-center justify-center">
+                  {/* Keep the badge a fixed circle. Without shrink-0, long lines can squeeze it into an oval/line. */}
+                  <span className="mt-0.5 h-6 w-6 flex-none rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-400/30 dark:border-emerald-400/20 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 flex items-center justify-center leading-none tabular-nums">
                     {index + 1}
                   </span>
-                  <p className="text-[16px] text-slate-800 dark:text-slate-300 leading-[1.7] text-balance">
+                  {/* Use an integer px line-height to avoid subpixel drift that makes tiny numerals look inconsistently bold. */}
+                  <p className="min-w-0 flex-1 text-[16px] text-slate-800 dark:text-slate-300 leading-7 text-balance">
                     {part}
                   </p>
                 </div>
@@ -457,11 +452,6 @@ export function VideoDetailPanel({
           <span data-testid="header-key-insights" className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-[0.32em]">
             {t("tasks.summaryStructured.keypointsTitle")}
           </span>
-          {summary?.keypoints?.length ? (
-            <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-400/30 dark:border-emerald-400/20 px-2 py-0.5 rounded-full uppercase tracking-[0.2em]">
-              {summary.keypoints.length}
-            </span>
-          ) : null}
           <div className="h-px flex-1 bg-gradient-to-r from-slate-200 to-transparent dark:from-slate-700" />
         </div>
 
