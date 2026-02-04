@@ -244,6 +244,27 @@ export default function ChatPage() {
 
     }, [activeThreadId, pathname, router, searchParams, loadTaskContext])
 
+    // Handle Demo Selection from Welcome Screen
+    const handleSelectExample = useCallback(async (taskId: string) => {
+        const params = new URLSearchParams(searchParams.toString())
+
+        let nextThreadId = activeThreadId
+        if (!nextThreadId) {
+            const newId = uuidv4()
+            newThreadIdsRef.current.add(newId)
+            setActiveThreadId(newId)
+            nextThreadId = newId
+        }
+
+        setActiveTaskId(taskId)
+        params.set('task', taskId)
+        params.set('threadId', nextThreadId)
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+
+        // Show the context assistant message for demo selection
+        loadTaskContext(taskId)
+    }, [activeThreadId, pathname, router, searchParams, loadTaskContext])
+
     // Handle Chat Started (first message sent)
     const handleChatStarted = useCallback((threadId: string) => {
         // Remove from new threads set since it now has messages
@@ -278,6 +299,7 @@ export default function ChatPage() {
                     onNewChat={handleNewChat}
                     onSelectThread={handleSelectThread}
                     onSelectTask={handleSelectTask}
+                    onSelectExample={handleSelectExample}
                     onThreadCreated={fetchThreads}
                     onChatStarted={handleChatStarted}
                     threads={threads}

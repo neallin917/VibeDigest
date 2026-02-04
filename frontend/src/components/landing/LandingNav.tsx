@@ -33,7 +33,7 @@ const navItems: NavItem[] = [
 ]
 
 export function LandingNav() {
-    const { locale } = useI18n()
+    const { locale, t } = useI18n()
     const [activeSection] = useState<string>("hero")
     const [isScrolled, setIsScrolled] = useState(false)
 
@@ -132,8 +132,6 @@ export function LandingNav() {
 
                     {/* Mobile Menu Trigger */}
                     <div className="md:hidden flex items-center gap-2">
-                        <LanguageInlineSelect />
-                        <ThemeToggle className="h-8 w-8 rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/10" />
                         <LandingUserButton />
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -142,6 +140,25 @@ export function LandingNav() {
                                 </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48 bg-white/90 dark:bg-black/90 border-slate-200 dark:border-white/10 backdrop-blur-xl">
+                                <div className="px-3 py-2 border-b border-slate-200 dark:border-white/10 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-white/50">
+                                            {locale === "zh" ? "语言" : "Language"}
+                                        </span>
+                                    </div>
+                                    <LanguageInlineSelect className="w-full" />
+                                    <div className="flex items-center justify-between pt-1">
+                                        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-white/50">
+                                            {locale === "zh" ? "主题" : "Theme"}
+                                        </span>
+                                        <ThemeToggle className="h-8 w-8 rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/10" />
+                                    </div>
+                                </div>
+                                <DropdownMenuItem asChild>
+                                    <Link href="/chat" className="cursor-pointer text-slate-700 dark:text-white/70 w-full">
+                                        {t("auth.goToDashboard")}
+                                    </Link>
+                                </DropdownMenuItem>
                                 {navItems.slice(1).map((item) => (
                                     item.href ? (
                                         <DropdownMenuItem

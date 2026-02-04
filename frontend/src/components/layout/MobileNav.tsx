@@ -26,7 +26,7 @@ function isActiveNav(pathname: string, href: string) {
 export function MobileHeader() {
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const supabase = createClient()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUserEmail(user?.email || null))
@@ -35,7 +35,7 @@ export function MobileHeader() {
   return (
     <div className="md:hidden sticky top-0 z-40 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-black/40 backdrop-blur-md">
       <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
+        <Link href={`/${locale}`} className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
           <BrandLogo />
         </Link>
 
@@ -83,7 +83,7 @@ export function MobileHeader() {
                       window.google.accounts.id.disableAutoSelect()
                     }
                     await supabase.auth.signOut()
-                    window.location.href = '/'
+                    window.location.href = `/${locale}`
                   }}
                   className="w-full justify-start gap-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
                 >
@@ -126,5 +126,4 @@ export function MobileBottomNav() {
     </nav>
   )
 }
-
 

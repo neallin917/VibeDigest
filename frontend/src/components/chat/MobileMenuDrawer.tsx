@@ -58,6 +58,7 @@ export function MobileMenuDrawer({
   const [isTasksOpen, setIsTasksOpen] = useState(true)
 
   const isNewChatActive = pathname?.endsWith('/chat') && !searchParams?.get('task') && !activeThreadId
+  const isCommunityActive = pathname?.includes('/explore')
   
   const handleNewChat = () => {
     onOpenChange(false)
@@ -94,9 +95,14 @@ export function MobileMenuDrawer({
         {/* Header */}
         <SheetHeader className="p-5 border-b border-slate-200/60 dark:border-white/10">
           <SheetTitle asChild>
-             <div className="flex items-center gap-2.5">
-               <BrandLogo showText={true} />
-             </div>
+            <Link
+              href={`/${locale}`}
+              onClick={() => onOpenChange(false)}
+              className="flex items-center gap-2.5"
+              aria-label="Go to home"
+            >
+              <BrandLogo showText={true} />
+            </Link>
           </SheetTitle>
         </SheetHeader>
 
@@ -115,7 +121,7 @@ export function MobileMenuDrawer({
             icon={Library}
             label={t('chat.community') || 'Community'}
             onClick={handleCommunityClick}
-            isActive={false} 
+            isActive={isCommunityActive}
           />
 
           <div className="h-px bg-slate-200/60 dark:bg-white/10 my-3" />
@@ -248,4 +254,3 @@ function MenuButton({
     </button>
   )
 }
-
