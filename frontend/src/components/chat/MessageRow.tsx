@@ -99,6 +99,11 @@ function MessageRowComponent({ message, isStreaming, enableMotion, onOpenPanel }
     const name = p.type === 'dynamic-tool' ? p.toolName : p.type.replace('tool-', '')
     return name === 'get_task_status'
   })
+  const hasGetTaskOutputs = toolParts.some((p) => {
+    const name = p.type === 'dynamic-tool' ? p.toolName : p.type.replace('tool-', '')
+    return name === 'get_task_outputs'
+  })
+  const suppressAssistantText = message.role === 'assistant' && hasGetTaskStatus && !hasGetTaskOutputs
 
   const Wrapper: React.ElementType = enableMotion ? motion.div : 'div'
   const wrapperProps = enableMotion
@@ -133,6 +138,7 @@ function MessageRowComponent({ message, isStreaming, enableMotion, onOpenPanel }
             {message.parts && message.parts.length > 0
               ? message.parts.map((part, index) => {
                   if (part.type === 'text') {
+                    if (suppressAssistantText) return null
                     return (
                       <div
                         key={index}

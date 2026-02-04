@@ -389,6 +389,11 @@ const messages: Record<Locale, Messages> = {
       inputPlaceholder: "Paste a video URL or ask anything...",
       loadMore: "Load More",
       loadingMore: "Loading...",
+      taskCompleteGuide: {
+        line1: "Video summary is ready.",
+        line2: "The summary is generated from the video's audio content and includes: overview, key points, and conclusions.",
+        line3: "It's available in the right panel. Feel free to ask more questions.",
+      },
       welcome: {
         title: "What would you like to digest today?",
         subtitle: "Paste a video or podcast URL to get AI-powered insights",
@@ -838,6 +843,11 @@ const messages: Record<Locale, Messages> = {
       inputPlaceholder: "粘贴视频链接或提问...",
       loadMore: "加载更多",
       loadingMore: "加载中...",
+      taskCompleteGuide: {
+        line1: "视频总结已完成。",
+        line2: "摘要基于该视频的内容音频生成，包含：主题概览、重点信息、结论要点。",
+        line3: "已放在右侧面板，欢迎继续提问。",
+      },
       welcome: {
         title: "今天想总结什么内容？",
         subtitle: "粘贴视频或播客链接，获取 AI 洞察",
@@ -2968,4 +2978,3 @@ export function createTranslator(locale: Locale) {
     return key
   }
 }
-

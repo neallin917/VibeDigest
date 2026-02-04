@@ -323,9 +323,9 @@ export async function POST(req: Request) {
 IMPORTANT: You MUST use tools proactively to provide accurate, up-to-date information. 
 
 When a taskId is provided:
-- ALWAYS call get_task_status first to check current progress
-- If processing is complete, call get_task_outputs to retrieve the transcript and summary
-- Use this real data to answer questions about the video content
+- ONLY call get_task_status if the user asks about status/progress/completion (e.g. "status", "progress", "done?", "still processing?")
+- If you need transcript/summary content and it is NOT already present in CURRENT VIDEO CONTEXT, call get_task_outputs
+- If the user is asking a general question (e.g. translation, clarification) and CURRENT VIDEO CONTEXT already contains the needed info, answer directly without calling tools
 
 When users provide video URLs:
 - ALWAYS call preview_video first to show the video metadata
