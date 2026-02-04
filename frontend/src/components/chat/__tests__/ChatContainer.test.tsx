@@ -82,7 +82,7 @@ describe('ChatContainer', () => {
 
   it('renders ChatInput and Messages when there are messages', () => {
     const messages: UIMessage[] = [
-      { id: '1', role: 'user', content: 'Hello', parts: [{ type: 'text', text: 'Hello' }] }
+      { id: '1', role: 'user', parts: [{ type: 'text', text: 'Hello' }] }
     ]
     mockUseChat.mockReturnValue({
       messages,
@@ -100,7 +100,7 @@ describe('ChatContainer', () => {
 
   it('sends message via ChatInput', async () => {
     const messages: UIMessage[] = [
-      { id: '1', role: 'user', content: 'Prev', parts: [{ type: 'text', text: 'Prev' }] }
+      { id: '1', role: 'user', parts: [{ type: 'text', text: 'Prev' }] }
     ]
     mockUseChat.mockReturnValue({
         messages,
@@ -122,7 +122,7 @@ describe('ChatContainer', () => {
 
   it('renders pending/loading state', () => {
     const messages: UIMessage[] = [
-        { id: '1', role: 'user', content: 'Hi', parts: [{ type: 'text', text: 'Hi' }] }
+        { id: '1', role: 'user', parts: [{ type: 'text', text: 'Hi' }] }
     ]
     mockUseChat.mockReturnValue({
         messages,
@@ -138,7 +138,7 @@ describe('ChatContainer', () => {
   it('handles auth error', () => {
     const authError = { status: 401 }
     const messages: UIMessage[] = [
-        { id: '1', role: 'user', content: 'Hi', parts: [{ type: 'text', text: 'Hi' }] }
+        { id: '1', role: 'user', parts: [{ type: 'text', text: 'Hi' }] }
     ]
     mockUseChat.mockReturnValue({
         messages,
@@ -155,7 +155,7 @@ describe('ChatContainer', () => {
   it('handles generic error', () => {
     const genericError = new Error('Random error')
     const messages: UIMessage[] = [
-        { id: '1', role: 'user', content: 'Hi', parts: [{ type: 'text', text: 'Hi' }] }
+        { id: '1', role: 'user', parts: [{ type: 'text', text: 'Hi' }] }
     ]
     mockUseChat.mockReturnValue({
         messages,
@@ -177,7 +177,6 @@ describe('ChatContainer', () => {
       { 
         id: '2', 
         role: 'assistant', 
-        content: '', 
         parts: [
             { type: 'text', text: 'Checking status...' },
             { 

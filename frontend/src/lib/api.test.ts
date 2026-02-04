@@ -69,7 +69,7 @@ describe('ApiClient', () => {
                 ok: false,
                 statusText: 'Gateway Timeout',
                 json: async () => { throw new Error('Invalid JSON') },
-            } as Response)
+            } as unknown as Response)
 
             const formData = new FormData()
             await expect(ApiClient.processVideo(formData, mockToken))
