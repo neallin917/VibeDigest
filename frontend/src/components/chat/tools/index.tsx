@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase'
+import { useI18n } from '@/components/i18n/I18nProvider'
 import { useEffect, useMemo, useState } from 'react'
 
 // ============================================================================
@@ -73,6 +74,7 @@ export function GetTaskStatusTool({
   errorText,
   onViewClick
 }: GetTaskStatusToolProps) {
+  const { t } = useI18n()
   const [liveTask, setLiveTask] = useState<TaskStatusOutput | null>(null)
   const supabase = useMemo(() => createClient(), [])
 
@@ -208,6 +210,7 @@ export function GetTaskStatusTool({
       const progressValue = Math.round((completedCount / planSteps.length) * 100)
 
       return (
+        <>
         <Card className={cn(
           "w-full max-w-full min-w-0 overflow-hidden my-3 border transition-all break-words",
           "bg-white/60 border-white/50 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.1)]",
@@ -311,6 +314,14 @@ export function GetTaskStatusTool({
             )}
           </div>
         </Card>
+        {status === 'completed' && (
+          <div className="mt-3 rounded-md border border-emerald-200/70 bg-emerald-50/70 p-3 text-xs text-emerald-900/90 dark:border-emerald-900/40 dark:bg-emerald-900/15 dark:text-emerald-100/90">
+            <p>{t("chat.taskCompleteGuide.line1")}</p>
+            <p className="mt-1">{t("chat.taskCompleteGuide.line2")}</p>
+            <p className="mt-1">{t("chat.taskCompleteGuide.line3")}</p>
+          </div>
+        )}
+      </>
       )
 
     case 'output-error':

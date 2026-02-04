@@ -8,6 +8,13 @@ import {
   UnknownTool
 } from './index'
 
+vi.mock('@/components/i18n/I18nProvider', () => ({
+  useI18n: () => ({
+    t: (key: string) => key,
+    locale: 'en',
+  }),
+}))
+
 const mockSelect = vi.fn()
 const mockEq = vi.fn()
 const mockSingle = vi.fn()
