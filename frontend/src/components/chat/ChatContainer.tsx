@@ -315,12 +315,12 @@ export function ChatContainer({
   }, [messages, onOpenPanel, activeTaskId])
 
   return (
-    <div className="flex flex-col h-full relative">
+    <div className="flex flex-col h-full min-h-0 relative">
       <div
         ref={scrollRef}
         className={cn(
-          'flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar scroll-smooth',
-          messages.length > 0 ? 'pb-36' : '',
+          'flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 md:px-8 py-6 custom-scrollbar scroll-smooth',
+          messages.length > 0 ? 'pb-44 md:pb-56' : '',
         )}
       >
         {messages.length === 0 ? (
@@ -341,13 +341,13 @@ export function ChatContainer({
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, ease: 'easeOut' }}
-                    className={cn('flex w-full group', m.role === 'user' ? 'ml-auto flex-row-reverse' : '')}
+                    className={cn('flex w-full min-w-0 group', m.role === 'user' ? 'ml-auto flex-row-reverse' : '')}
                   >
                     {/* Content Bubble */}
-                    <div className={cn('flex flex-col gap-1 max-w-[85%]', m.role === 'user' ? 'items-end' : 'items-start w-full')}>
+                    <div className={cn('flex flex-col gap-1 max-w-[85%] min-w-0', m.role === 'user' ? 'items-end' : 'items-start w-full')}>
                       <div
                         className={cn(
-                          'px-6 py-5 text-[15.5px] leading-7 relative overflow-hidden backdrop-blur-md',
+                          'px-6 py-5 text-[15.5px] leading-7 relative overflow-hidden min-w-0 backdrop-blur-md',
                           m.role === 'user'
                             ? 'rounded-[20px] rounded-tr-sm bg-emerald-600/10 dark:bg-emerald-500/10 border border-emerald-600/10 dark:border-emerald-500/20 text-slate-800 dark:text-zinc-200'
                             : 'rounded-[20px] rounded-tl-sm bg-white/60 dark:bg-zinc-900/60 border border-white/50 dark:border-white/10 text-slate-800 dark:text-zinc-200 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.3)]',
@@ -382,9 +382,15 @@ export function ChatContainer({
                                                 <div className="w-2.5 h-2.5 rounded-full bg-green-500/20" />
                                               </div>
                                             </div>
-                                            <div className="p-4 overflow-x-auto custom-scrollbar">
-                                              <pre {...props} className="bg-transparent p-0 m-0 font-mono text-sm leading-relaxed" />
-                                            </div>
+                                        <div className="p-4 overflow-x-auto custom-scrollbar">
+                                              <pre
+                                                {...props}
+                                                className={cn(
+                                                  "bg-transparent p-0 m-0 font-mono text-sm leading-relaxed whitespace-pre-wrap break-words",
+                                                  (props as any)?.className
+                                                )}
+                                              />
+                                        </div>
                                           </div>
                                         ),
                                         code: ({ node, className, children, ...props }) => {
@@ -432,7 +438,7 @@ export function ChatContainer({
                               // Handle Tool parts
                                if (part.type.startsWith('tool-') || part.type === 'dynamic-tool') {
                                  return (
-                                   <div key={index}>
+                                   <div key={index} className="w-full min-w-0 max-w-full">
                                     {renderToolPart(part, index, onOpenPanel, { hasGetTaskStatus })}
                                    </div>
                                  )

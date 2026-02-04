@@ -209,13 +209,13 @@ export function GetTaskStatusTool({
 
       return (
         <Card className={cn(
-          "w-full max-w-none overflow-hidden my-3 border transition-all",
+          "w-full max-w-full min-w-0 overflow-hidden my-3 border transition-all break-words",
           "bg-white/60 border-white/50 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.1)]",
           "dark:bg-zinc-900/60 dark:border-white/10 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.3)]"
         )}>
           {/* Content */}
-          <div className="p-4 space-y-3">
-            <h3 className="font-medium text-sm line-clamp-2 leading-snug text-slate-800 dark:text-slate-200">
+          <div className="p-4 space-y-3 min-w-0">
+            <h3 className="font-medium text-sm line-clamp-2 leading-snug text-slate-800 dark:text-slate-200 break-words">
               {displayTitle}
             </h3>
 
@@ -499,7 +499,7 @@ export function PreviewVideoTool({
 
       return (
         <Card className={cn(
-          "w-full max-w-sm overflow-hidden my-3 border transition-all",
+          "w-full max-w-sm min-w-0 overflow-hidden my-3 border transition-all break-words",
           "bg-white/60 border-white/50 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.1)]",
           "dark:bg-zinc-900/60 dark:border-white/10 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.3)]"
         )}>
@@ -525,8 +525,8 @@ export function PreviewVideoTool({
           </div>
 
           {/* Content */}
-          <div className="p-4 space-y-2">
-            <h3 className="font-medium text-sm line-clamp-2 leading-snug text-slate-800 dark:text-slate-200">
+          <div className="p-4 space-y-2 min-w-0">
+            <h3 className="font-medium text-sm line-clamp-2 leading-snug text-slate-800 dark:text-slate-200 break-words">
               {output?.title || 'Untitled Video'}
             </h3>
             {output?.channel && (
