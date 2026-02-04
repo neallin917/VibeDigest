@@ -3,7 +3,6 @@
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { ChatInput } from "@/components/chat/ChatInput"
 import { useRouter } from "next/navigation"
-import { motion } from "framer-motion"
 import { ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -33,14 +32,12 @@ export function HeroSection() {
             <div className="space-y-6 max-w-4xl relative">
 
                 {/* Badge/Pill */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, ease: "easeOut" }}
+                <div
                     className={cn(
                         "inline-flex items-center gap-2 px-4 py-1.5 rounded-full backdrop-blur-md shadow-sm mb-6 transition-all hover:scale-105 cursor-default",
                         "bg-white/40 border border-white/60",
-                        "dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:shadow-[0_0_15px_-3px_rgba(16,185,129,0.2)]"
+                        "dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:shadow-[0_0_15px_-3px_rgba(16,185,129,0.2)]",
+                        "animate-in fade-in slide-in-from-bottom-4 duration-1000 ease-out"
                     )}
                 >
                     <span className="relative flex h-2 w-2">
@@ -48,35 +45,26 @@ export function HeroSection() {
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
                     </span>
                     <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 tracking-wide uppercase">AI-Powered Video Companion</span>
-                </motion.div>
+                </div>
 
-                <motion.h1
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
-                    className="font-display text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 dark:text-white leading-[1.1] md:leading-[1.1]"
+                <h1
+                    className="font-display text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 dark:text-white leading-[1.1] md:leading-[1.1] animate-in fade-in slide-in-from-bottom-8 duration-1000 ease-out fill-mode-backwards delay-100"
                 >
                     {t("landing.titlePrefix")}{" "}
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-700 via-teal-600 to-emerald-600 dark:from-emerald-400 dark:via-teal-300 dark:to-cyan-300 animate-pulse-glow">
                         {t("landing.titleEmphasis")}
                     </span>
-                </motion.h1>
+                </h1>
 
-                <motion.p
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-                    className="max-w-xl mx-auto text-base md:text-lg leading-relaxed text-slate-600 dark:text-zinc-400 font-light"
+                <p
+                    className="max-w-xl mx-auto text-base md:text-lg leading-relaxed text-slate-600 dark:text-zinc-400 font-light animate-in fade-in slide-in-from-bottom-8 duration-1000 ease-out fill-mode-backwards delay-200"
                 >
                     {renderWithBold(t("landing.smartSummarizationDesc"))}
-                </motion.p>
+                </p>
             </div>
 
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
-                className="w-full max-w-2xl z-20 mt-12 px-4"
+            <div
+                className="w-full max-w-2xl z-20 mt-12 px-4 animate-in fade-in slide-in-from-bottom-8 zoom-in-95 duration-1000 ease-out fill-mode-backwards delay-300"
             >
                 <div className="relative group perspective-1000">
                     {/* Glow Effect */}
@@ -96,20 +84,14 @@ export function HeroSection() {
                 <p className="mt-5 text-xs text-slate-500 dark:text-zinc-500">
                     Trusted by 10,000+ happy learners
                 </p>
-            </motion.div>
+            </div>
 
             {/* Scroll Indicator */}
-            <motion.div
-                className="absolute bottom-8 left-1/2 -translate-x-1/2"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1, y: [0, 8, 0] }}
-                transition={{
-                    opacity: { delay: 1, duration: 0.5 },
-                    y: { repeat: Infinity, duration: 1.5, ease: "easeInOut" }
-                }}
+            <div
+                className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-in fade-in delay-1000 duration-1000"
             >
-                <ChevronDown className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
-            </motion.div>
+                <ChevronDown className="w-6 h-6 text-slate-400 dark:text-zinc-500 animate-bounce" />
+            </div>
         </section>
     )
 }

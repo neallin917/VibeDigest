@@ -95,13 +95,25 @@
 /* Light Mode Background - Professional Day */
 body:not(.dark) {
   /* Subtle, sophisticated gradient - ultra light grey/blue tint */
-  background: 
-    radial-gradient(circle at 15% 50%, rgba(240, 245, 255, 0.8) 0%, transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(240, 255, 245, 0.6) 0%, transparent 25%),
+  background:
+    radial-gradient(
+      circle at 15% 50%,
+      rgba(240, 245, 255, 0.8) 0%,
+      transparent 25%
+    ),
+    radial-gradient(
+      circle at 85% 30%,
+      rgba(240, 255, 245, 0.6) 0%,
+      transparent 25%
+    ),
     linear-gradient(to bottom, #f8fafc, #f1f5f9),
     radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.03) 1px, transparent 0); /* Subtle grid dots */
   background-attachment: fixed;
-  background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px; /* Grid spacing */
+  background-size:
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    40px 40px; /* Grid spacing */
   color: #27272a;
 }
 
@@ -110,8 +122,14 @@ body:not(.dark) {
   background-color: #050505; /* Deeper black */
   background-image:
     radial-gradient(circle at 50% 0%, #121212 0%, #050505 60%),
-    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.02) 1px, transparent 0); /* Fainter dots */
-  background-size: 100% 100%, 40px 40px; /* Larger grid spacing */
+    radial-gradient(
+      circle at 1px 1px,
+      rgba(255, 255, 255, 0.02) 1px,
+      transparent 0
+    ); /* Fainter dots */
+  background-size:
+    100% 100%,
+    40px 40px; /* Larger grid spacing */
   color: #e2e8f0;
   color-scheme: dark;
 }
@@ -119,22 +137,18 @@ body:not(.dark) {
 /* Blob Animations (Light Mode Only) - Subtler Professional */
 @keyframes morph {
   0% {
-    border-radius: 40% 60% 60% 40% / 60% 30% 70% 40%;
     transform: translate(0, 0) rotate(0deg);
   }
 
   33% {
-    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
     transform: translate(2%, 2%) rotate(2deg);
   }
 
   66% {
-    border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
     transform: translate(-2%, -2%) rotate(-2deg);
   }
 
   100% {
-    border-radius: 40% 60% 60% 40% / 60% 30% 70% 40%;
     transform: translate(0, 0) rotate(0deg);
   }
 }
@@ -197,7 +211,6 @@ body:not(.dark) {
   --font-sans: var(--font-jakarta), sans-serif;
   /* Override font-sans */
 
-
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -230,7 +243,7 @@ body:not(.dark) {
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --color-xiaoyuzhou: #3D9DE1;
+  --color-xiaoyuzhou: #3d9de1;
   --color-apple: #10b981;
 
   --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
@@ -264,7 +277,7 @@ body:not(.dark) {
     @apply bg-white/20 backdrop-blur-lg border border-white/10;
     @apply dark:bg-white/5 dark:border-white/5;
   }
-  
+
   /* Premium Glass: Used for main structural panels */
   .glass-premium {
     @apply bg-white/50 backdrop-blur-3xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.04)];
@@ -273,13 +286,13 @@ body:not(.dark) {
 
   /* Premium Panel: Floating effect */
   .glass-panel {
-     @apply rounded-[2.5rem] overflow-hidden;
-     /* Light Mode: Ultra soft white glass */
-     @apply bg-white/40 backdrop-blur-2xl border border-white/40 shadow-sm ring-1 ring-white/60;
-     /* Dark Mode: Deep dark glass */
-     @apply dark:bg-[#121212]/60 dark:backdrop-blur-3xl dark:border-white/5 dark:ring-white/5 dark:shadow-none;
-     
-     transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+    @apply rounded-[2.5rem] overflow-hidden;
+    /* Light Mode: Ultra soft white glass */
+    @apply bg-white/40 backdrop-blur-2xl border border-white/40 shadow-sm ring-1 ring-white/60;
+    /* Dark Mode: Deep dark glass */
+    @apply dark:bg-[#121212]/60 dark:backdrop-blur-3xl dark:border-white/5 dark:ring-white/5 dark:shadow-none;
+
+    transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
   }
 
   .text-gradient-primary {
@@ -304,13 +317,18 @@ body:not(.dark) {
     inset: 0;
     z-index: -1;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
-    mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+    mask-image: linear-gradient(
+      to bottom,
+      transparent,
+      black 10%,
+      black 90%,
+      transparent
+    );
     @apply opacity-20 mix-blend-overlay pointer-events-none;
   }
 
   /* Animations */
   @keyframes float-slow {
-
     0%,
     100% {
       transform: translateY(0);
@@ -326,7 +344,6 @@ body:not(.dark) {
   }
 
   @keyframes pulse-glow {
-
     0%,
     100% {
       box-shadow: 0 0 0 0 rgba(var(--primary), 0);
@@ -371,14 +388,12 @@ body:not(.dark) {
     @apply dark:bg-[#1A1A1A]/50 dark:ring-white/5 dark:shadow-none;
   }
 
-
   .landing-glass-nav {
     @apply bg-white/80 backdrop-blur-xl rounded-full shadow-lg ring-1 ring-white/70;
     @apply dark:bg-[#1A1A1A]/80 dark:ring-white/10 dark:shadow-none;
   }
 
   @media (prefers-reduced-motion: reduce) {
-
     *,
     ::before,
     ::after {
