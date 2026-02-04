@@ -13,16 +13,16 @@ const normalizePath = (path: string) => {
 
 export const buildLocalizedPath = (locale: string, path: string) => {
   const suffix = normalizePath(path)
-  return `/${locale}${suffix}`
+  return `${SITE_URL}/${locale}${suffix}`
 }
 
 export const buildAlternateLanguages = (path: string) => {
   const suffix = normalizePath(path)
   const languages = Object.fromEntries(
-    SUPPORTED_LOCALES.map((locale) => [locale, `/${locale}${suffix}`])
+    SUPPORTED_LOCALES.map((locale) => [locale, `${SITE_URL}/${locale}${suffix}`])
   ) as Record<string, string>
 
-  languages["x-default"] = `/${DEFAULT_LOCALE}${suffix}`
+  languages["x-default"] = `${SITE_URL}/${DEFAULT_LOCALE}${suffix}`
   return languages
 }
 
