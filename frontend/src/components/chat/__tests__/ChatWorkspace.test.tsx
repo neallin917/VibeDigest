@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
 import { ChatWorkspace } from '../ChatWorkspace'
 
 vi.mock('next/navigation', () => ({
@@ -104,12 +104,15 @@ describe('ChatWorkspace', () => {
 
   it('handles panel closing', async () => {
     render(<ChatWorkspace {...defaultProps} activeTaskId="task-1" />)
-    
+
     // There might be multiple Close buttons (desktop + mobile)
     const closeBtns = await screen.findAllByText('Close')
     fireEvent.click(closeBtns[0])
-    
-    expect(defaultProps.onSelectTask).toHaveBeenCalledWith(null)
+
+    expect(defaultProps.onSelectTask).not.toHaveBeenCalled()
+    await waitFor(() => {
+      expect(screen.queryByTestId('video-panel')).not.toBeInTheDocument()
+    })
   })
 
   it('opens mobile menu', () => {

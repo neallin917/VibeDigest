@@ -6,7 +6,6 @@ import {
   MessageSquarePlus,
   Library,
   MessageSquare,
-  Loader2,
   ChevronDown,
   ChevronRight
 } from 'lucide-react'
@@ -14,8 +13,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/components/i18n/I18nProvider'
 import { BrandLogo } from '@/components/layout/BrandLogo'
-import { useTasks } from '@/hooks/useTasks'
-import { TaskItem } from '@/components/layout/sidebar/TaskItem'
 import { useState } from 'react'
 
 interface Thread {
@@ -32,7 +29,6 @@ interface MobileMenuDrawerProps {
   threads?: Thread[]
   activeThreadId?: string | null
   onSelectThread?: (threadId: string) => void
-  onSelectTask?: (taskId: string) => void
 }
 
 export function MobileMenuDrawer({ 
@@ -42,20 +38,14 @@ export function MobileMenuDrawer({
   onOpenLibrary,
   threads = [],
   activeThreadId,
-  onSelectThread,
-  onSelectTask
+  onSelectThread
 }: MobileMenuDrawerProps) {
   const { t, locale } = useI18n()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  // Tasks hook
-  const { tasks, loading, deleteTask } = useTasks(isOpen)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
-
   // Collapse state
   const [isChatsOpen, setIsChatsOpen] = useState(true)
-  const [isTasksOpen, setIsTasksOpen] = useState(true)
 
   const isNewChatActive = pathname?.endsWith('/chat') && !searchParams?.get('task') && !activeThreadId
   const isCommunityActive = pathname?.includes('/explore')
@@ -68,18 +58,6 @@ export function MobileMenuDrawer({
   const handleCommunityClick = () => {
     onOpenChange(false)
     onOpenLibrary() // This prop was named onOpenLibrary but effectively handles navigation/action
-  }
-
-  const handleTaskSelect = (taskId: string) => {
-    onOpenChange(false)
-    onSelectTask?.(taskId)
-  }
-
-  const handleDeleteTask = async (e: React.MouseEvent, taskId: string) => {
-    e.stopPropagation()
-    setDeletingId(taskId)
-    await deleteTask(taskId)
-    setDeletingId(null)
   }
 
   return (
@@ -172,48 +150,6 @@ export function MobileMenuDrawer({
             )}
           </div>
 
-          <div className="h-px bg-slate-200/60 dark:bg-white/10 my-3" />
-
-          {/* Tasks Section */}
-          <div className="mb-2">
-            <button
-              onClick={() => setIsTasksOpen(!isTasksOpen)}
-              className={cn(
-                "flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-xl w-full text-left",
-                "text-slate-500 hover:text-slate-700 hover:bg-slate-50",
-                "dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-white/5"
-              )}
-            >
-              {isTasksOpen ? (
-                <ChevronDown className="w-4 h-4" />
-              ) : (
-                <ChevronRight className="w-4 h-4" />
-              )}
-              <span className="uppercase tracking-wider text-xs">{t("chat.tasks") || "Tasks"}</span>
-            </button>
-
-            {isTasksOpen && (
-              <div className="space-y-0.5 mt-1">
-                {loading ? (
-                  <div className="flex justify-center py-4">
-                    <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
-                  </div>
-                ) : tasks.length === 0 ? (
-                  <div className="px-3 py-2 text-xs text-slate-400">No recent tasks</div>
-                ) : (
-                  tasks.map(task => (
-                    <TaskItem
-                      key={task.id}
-                      task={task}
-                      onSelect={() => handleTaskSelect(task.id)}
-                      onDelete={(e) => handleDeleteTask(e, task.id)}
-                      isDeleting={deletingId === task.id}
-                    />
-                  ))
-                )}
-              </div>
-            )}
-          </div>
         </nav>
 
         {/* Footer - Simplified hint */}
