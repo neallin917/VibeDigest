@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { LandingNav } from "@/components/landing/LandingNav"
+import { buildAlternateLanguages, buildLocalizedPath } from "@/lib/seo"
 
 type Props = {
     params: Promise<{
@@ -67,6 +68,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
     const params = await props.params;
     const { lang } = params
     const isZh = lang === "zh"
+    const path = "/faq"
 
     return {
         title: isZh ? "常见问题 (FAQ) - VibeDigest AI 视频摘要助手" : "Frequently Asked Questions (FAQ) - VibeDigest AI Video Summarizer",
@@ -74,12 +76,24 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
             ? "关于 VibeDigest 的常见问题解答。了解如何使用 AI 快速摘要 YouTube 和 Bilibili 视频，以及我们的定价和功能详情。"
             : "Answers to common questions about VibeDigest. Learn how to summarize YouTube videos with AI, pricing details, and supported platforms.",
         alternates: {
-            languages: {
-                'en': '/en/faq',
-                'zh': '/zh/faq',
-            }
-        }
+            canonical: buildLocalizedPath(lang, path),
+            languages: buildAlternateLanguages(path),
+        },
+        openGraph: {
+            title: isZh ? "VibeDigest FAQ" : "VibeDigest FAQ",
+            description: isZh
+                ? "了解 VibeDigest 的常见问题与功能支持。"
+                : "Common questions about VibeDigest features, pricing, and supported platforms.",
+            url: buildLocalizedPath(lang, path),
+        },
+        twitter: {
+            title: isZh ? "VibeDigest FAQ" : "VibeDigest FAQ",
+            description: isZh
+                ? "了解 VibeDigest 的常见问题与功能支持。"
+                : "Common questions about VibeDigest features, pricing, and supported platforms.",
+        },
     }
+}
 }
 
 export default async function FAQPage(props: Props) {

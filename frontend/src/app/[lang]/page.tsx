@@ -10,6 +10,48 @@ import { ServerCommunityTemplates } from "@/components/templates/ServerCommunity
 import { TemplatesSkeleton } from "@/components/templates/TemplatesSkeleton"
 import { Suspense } from "react"
 import Link from "next/link"
+import type { Metadata } from "next"
+import { buildAlternateLanguages, buildLocalizedPath } from "@/lib/seo"
+
+const SEO_COPY: Record<string, { title: string; description: string }> = {
+  en: {
+    title: "VibeDigest - AI Video Summarizer & Transcriber for YouTube",
+    description:
+      "Summarize YouTube videos, podcasts, and lectures in seconds. Get AI transcripts, structured notes, and searchable highlights with VibeDigest.",
+  },
+  zh: {
+    title: "VibeDigest - AI 视频摘要与转写工具",
+    description:
+      "秒级生成 YouTube 和播客的摘要与逐字稿。用 VibeDigest 获取结构化笔记与可搜索要点。",
+  },
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ lang: string }>
+}): Promise<Metadata> {
+  const { lang } = await params
+  const meta = SEO_COPY[lang] ?? SEO_COPY.en
+
+  return {
+    title: meta.title,
+    description: meta.description,
+    alternates: {
+      canonical: buildLocalizedPath(lang, ""),
+      languages: buildAlternateLanguages(""),
+    },
+    openGraph: {
+      title: meta.title,
+      description: meta.description,
+      url: buildLocalizedPath(lang, ""),
+    },
+    twitter: {
+      title: meta.title,
+      description: meta.description,
+    },
+  }
+}
 
 export default async function LandingPage({ params }: { params: Promise<{ lang: string }> }) {
   const { lang } = await params;

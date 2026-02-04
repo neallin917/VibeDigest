@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { LandingNav } from "@/components/landing/LandingNav"
+import { buildAlternateLanguages, buildLocalizedPath } from "@/lib/seo"
 
 type Props = {
     params: Promise<{
@@ -76,15 +77,23 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
     const description = isZh
         ? "了解 VibeDigest 及其背后的故事。我们的使命是利用 AI 帮助用户高效吸收长视频和音频内容中的知识。"
         : "Learn about VibeDigest and the story behind it. Our mission is to help users efficiently absorb knowledge from long-form video and audio content using AI."
+    const path = "/about"
 
     return {
         title,
         description,
         alternates: {
-            languages: {
-                'en': '/en/about',
-                'zh': '/zh/about',
-            }
+            canonical: buildLocalizedPath(lang, path),
+            languages: buildAlternateLanguages(path),
+        },
+        openGraph: {
+            title,
+            description,
+            url: buildLocalizedPath(lang, path),
+        },
+        twitter: {
+            title,
+            description,
         }
     }
 }

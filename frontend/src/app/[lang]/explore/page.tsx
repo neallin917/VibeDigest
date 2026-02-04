@@ -1,16 +1,50 @@
 
-import { Metadata } from 'next'
 import { ServerCommunityTemplates } from "@/components/templates/ServerCommunityTemplates"
 import { Suspense } from 'react'
 import { LandingNav } from "@/components/landing/LandingNav"
 import { TemplatesSkeleton } from "@/components/templates/TemplatesSkeleton"
 import Link from "next/link"
+import type { Metadata } from "next"
+import { buildAlternateLanguages, buildLocalizedPath } from "@/lib/seo"
 
-export const metadata: Metadata = {
-    title: 'Explore AI Video Summaries | VibeDigest',
-    description: 'Browse our extensive collection of AI-generated video summaries. Discover insights from tutorials, news, tech reviews, and more.',
-    alternates: {
-        canonical: '/en/explore',
+const SEO_COPY: Record<string, { title: string; description: string }> = {
+    en: {
+        title: "Explore AI Video Summaries | VibeDigest",
+        description:
+            "Browse a curated library of AI-generated video summaries. Discover insights from tutorials, news, tech reviews, and more.",
+    },
+    zh: {
+        title: "探索 AI 视频摘要 | VibeDigest",
+        description:
+            "浏览精选的 AI 视频摘要库，快速获取教程、新闻、评测等内容的核心要点。",
+    },
+}
+
+export async function generateMetadata({
+    params,
+}: {
+    params: Promise<{ lang: string }>
+}): Promise<Metadata> {
+    const { lang } = await params
+    const meta = SEO_COPY[lang] ?? SEO_COPY.en
+    const path = "/explore"
+
+    return {
+        title: meta.title,
+        description: meta.description,
+        alternates: {
+            canonical: buildLocalizedPath(lang, path),
+            languages: buildAlternateLanguages(path),
+        },
+        openGraph: {
+            title: meta.title,
+            description: meta.description,
+            url: buildLocalizedPath(lang, path),
+        },
+        twitter: {
+            title: meta.title,
+            description: meta.description,
+        },
     }
 }
 

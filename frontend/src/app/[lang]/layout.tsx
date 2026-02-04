@@ -8,6 +8,7 @@ import "../globals.css";
 import { cn } from "@/lib/utils";
 import { Providers } from "@/components/providers";
 import { Vignette } from "@/components/ui/vignette";
+import { buildLocalizedPath, getOpenGraphLocale, SITE_URL } from "@/lib/seo";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -46,27 +47,10 @@ export async function generateMetadata({
   params: Promise<{ lang: string }>;
 }): Promise<Metadata> {
   const { lang } = await params;
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://vibedigest.io";
-
-  // Simple mapping for common locales, default to en_US
-  const localeMap: Record<string, string> = {
-    en: "en_US",
-    zh: "zh_CN",
-    es: "es_ES",
-    fr: "fr_FR",
-    de: "de_DE",
-    it: "it_IT",
-    pt: "pt_BR",
-    ja: "ja_JP",
-    ko: "ko_KR",
-    ru: "ru_RU",
-  };
-
-  const locale = localeMap[lang] || "en_US";
 
   return {
     applicationName: "VibeDigest",
-    metadataBase: new URL(baseUrl),
+    metadataBase: new URL(SITE_URL),
     formatDetection: {
       telephone: false,
     },
@@ -77,15 +61,6 @@ export async function generateMetadata({
     },
     alternates: {
       canonical: "./",
-      languages: {
-        'en': '/en',
-        'zh': '/zh',
-        'es': '/es',
-        'fr': '/fr',
-        'de': '/de',
-        'ja': '/ja',
-        'x-default': '/en',
-      },
     },
     title: {
       default: "VibeDigest - AI Video Summarizer & Transcriber for YouTube",
@@ -106,8 +81,8 @@ export async function generateMetadata({
     creator: "VibeDigest",
     openGraph: {
       type: "website",
-      locale: locale,
-      url: baseUrl,
+      locale: getOpenGraphLocale(lang),
+      url: buildLocalizedPath(lang, ""),
       title: "VibeDigest - Transform Video & Audio into Structured Knowledge",
       description: "Efficiently absorb long content. Get AI-powered structured summaries, interactive transcripts, and translations for efficient learning.",
       siteName: "VibeDigest",
@@ -123,6 +98,7 @@ export async function generateMetadata({
       title: "VibeDigest - AI Video Summarizer & Transcriber",
       description: "Free AI Video Summarizer & YouTube to Text Converter. Get instant summaries and transcripts from YouTube videos.",
       creator: "@vibedigest",
+      site: "@vibedigest",
       images: ["/ai-video-summarizer-transcriber-og.png"],
     },
     verification: {

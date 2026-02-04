@@ -2,6 +2,7 @@
 import { createClient } from "@/lib/supabase-server"
 import type { Metadata, ResolvingMetadata } from "next"
 import { redirect } from "next/navigation"
+import { buildAlternateLanguages, buildLocalizedPath } from "@/lib/seo"
 
 type Props = {
     params: Promise<{
@@ -60,6 +61,9 @@ export async function generateMetadata(
     // We assume the current slug is correct (validity checked in Page component, but for metadata we should use the "correct" one ideally)
     const currentSlug = generateSlug(task.video_title);
 
+    const path = `/tasks/${id}/${currentSlug}`
+    const shouldIndex = task.is_demo === true && task.status === "completed"
+
     return {
         title: task.video_title || "Processed Video",
         description: `View the AI-generated summary and transcript for "${task.video_title || 'this video'}".`,
@@ -67,15 +71,15 @@ export async function generateMetadata(
             title: task.video_title,
             description: `AI-powered summary and insights for ${task.video_title}`,
             images: task.thumbnail_url ? [task.thumbnail_url, ...previousImages] : previousImages,
-            url: `/tasks/${id}/${currentSlug}`,
+            url: buildLocalizedPath(lang, path),
         },
         alternates: {
-            canonical: `/tasks/${id}/${currentSlug}`,
-            languages: {
-                'en': `/en/tasks/${id}/${currentSlug}`,
-                'zh': `/zh/tasks/${id}/${currentSlug}`, // Add more as needed
-            }
-        }
+            canonical: buildLocalizedPath(lang, path),
+            languages: buildAlternateLanguages(path),
+        },
+        robots: shouldIndex
+            ? { index: true, follow: true }
+            : { index: false, follow: false },
     }
 }
 
