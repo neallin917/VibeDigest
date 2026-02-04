@@ -28,6 +28,7 @@ export default function ChatPage() {
     const [activeThreadId, setActiveThreadId] = useState<string | null>(queryThreadId)
     const [activeTaskId, setActiveTaskId] = useState<string | null>(queryTaskId)
     const [initialMessages, setInitialMessages] = useState<UIMessage[]>([])
+    const [taskSelectionNonce, setTaskSelectionNonce] = useState(0)
     const supabase = createClient()
 
     // Track newly created thread IDs to skip loading
@@ -214,6 +215,7 @@ export default function ChatPage() {
         }
 
         // Case: Selecting a task (History or Demo or Auto-open)
+        setTaskSelectionNonce((prev) => prev + 1)
         setActiveTaskId(taskId)
         params.set('task', taskId)
 
@@ -257,6 +259,7 @@ export default function ChatPage() {
         }
 
         setActiveTaskId(taskId)
+        setTaskSelectionNonce((prev) => prev + 1)
         params.set('task', taskId)
         params.set('threadId', nextThreadId)
         router.replace(`${pathname}?${params.toString()}`, { scroll: false })
@@ -288,13 +291,13 @@ export default function ChatPage() {
                     activeThreadId={activeThreadId}
                     onNewChat={handleNewChat}
                     onSelectThread={handleSelectThread}
-                    onSelectTask={handleSelectTask}
                 />
 
                 {/* Workspace */}
                 <ChatWorkspace
                     activeThreadId={activeThreadId}
                     activeTaskId={activeTaskId}
+                    taskSelectionNonce={taskSelectionNonce}
                     initialMessages={initialMessages}
                     onNewChat={handleNewChat}
                     onSelectThread={handleSelectThread}

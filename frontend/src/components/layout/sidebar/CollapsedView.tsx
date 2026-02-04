@@ -22,7 +22,7 @@ export function CollapsedView({ onNewChat, onCommunityClick, t }: CollapsedViewP
                         "text-slate-500 hover:text-slate-700 hover:bg-slate-100",
                         "dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/10"
                     )}
-                    aria-label={t("chat.newChat") || "New task"}
+                    aria-label={t("chat.newChat") || "New chat"}
                 >
                     <Plus className="w-5 h-5" />
                 </button>
@@ -33,7 +33,7 @@ export function CollapsedView({ onNewChat, onCommunityClick, t }: CollapsedViewP
                         "group-hover:opacity-100 group-hover:translate-x-0"
                     )}
                 >
-                    {t("chat.newChat") || "New task"}
+                    {t("chat.newChat") || "New chat"}
                 </span>
             </div>
 

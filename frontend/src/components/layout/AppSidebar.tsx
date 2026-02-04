@@ -9,21 +9,17 @@ import {
   ChevronRight,
   Menu,
   Sparkles,
-  MessageSquare,
-  Loader2
+  MessageSquare
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 // import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip" // Removed unused import
 import { useAppSidebar } from "./AppSidebarContext"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { Thread } from "@/types"
-import { TaskItem } from "./sidebar/TaskItem"
 import { CollapsedView } from "./sidebar/CollapsedView"
-import { useTasks } from "@/hooks/useTasks"
 
 interface AppSidebarProps {
   onNewChat?: () => void
-  onSelectTask?: (taskId: string) => void
   className?: string
   threads?: Thread[]
   activeThreadId?: string | null
@@ -32,7 +28,6 @@ interface AppSidebarProps {
 
 export function AppSidebar({
   onNewChat,
-  onSelectTask,
   className,
   threads = [],
   activeThreadId,
@@ -47,31 +42,8 @@ export function AppSidebar({
   const isNewChatActive = pathname?.endsWith('/chat') && !searchParams?.get('task') && !activeThreadId
   const isCommunityActive = pathname?.includes('/explore')
 
-  // Hook for tasks
-  // Only fetch when sidebar is expanded
-  const { tasks, loading, deleteTask } = useTasks(!isCollapsed)
-
   // Local UI States
-  const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [isTasksOpen, setIsTasksOpen] = useState(true)
   const [isChatsOpen, setIsChatsOpen] = useState(true)
-
-  // Handle task selection
-  const handleTaskSelect = (taskId: string) => {
-    if (onSelectTask) {
-      onSelectTask(taskId)
-    } else {
-      router.push(`/${locale}/chat?task=${taskId}`)
-    }
-  }
-
-  // Handle delete
-  const handleDelete = async (e: React.MouseEvent, taskId: string) => {
-    e.stopPropagation()
-    setDeletingId(taskId)
-    await deleteTask(taskId)
-    setDeletingId(null)
-  }
 
   // Handle new chat
   const handleNewChat = () => {
@@ -154,7 +126,7 @@ export function AppSidebar({
             )}
           >
             <Plus className={cn("w-5 h-5", isNewChatActive && "text-emerald-600 dark:text-emerald-400")} />
-            <span className="text-sm font-medium">{t("chat.newChat") || "New task"}</span>
+            <span className="text-sm font-medium">{t("chat.newChat") || "New chat"}</span>
           </button>
 
           {/* Community Button */}
@@ -175,7 +147,7 @@ export function AppSidebar({
           <div className="h-px mx-3 mb-3 bg-slate-200/60 dark:bg-white/10" />
 
           {/* Chats Section */}
-          <div className="flex-none flex flex-col mb-2">
+          <div className="flex-1 min-h-0 flex flex-col mb-2">
             <button
               onClick={() => setIsChatsOpen(!isChatsOpen)}
               className={cn(
@@ -193,7 +165,7 @@ export function AppSidebar({
             </button>
 
             {isChatsOpen && (
-              <div className="overflow-y-auto max-h-[30vh] custom-scrollbar mt-1 px-1 space-y-0.5">
+              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar mt-1 px-1 space-y-0.5">
                 {threads.length === 0 ? (
                   <div className="text-center py-4 px-4">
                     <p className="text-xs text-slate-400">No chats yet</p>
@@ -225,54 +197,7 @@ export function AppSidebar({
             )}
           </div>
 
-          {/* Tasks Section */}
-          <div className="flex-1 overflow-hidden flex flex-col">
-            {/* Tasks Header */}
-            <button
-              onClick={() => setIsTasksOpen(!isTasksOpen)}
-              className={cn(
-                "flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-xl mx-1",
-                "text-slate-500 hover:text-slate-700 hover:bg-slate-50",
-                "dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-white/5"
-              )}
-            >
-              {isTasksOpen ? (
-                <ChevronDown className="w-4 h-4" />
-              ) : (
-                <ChevronRight className="w-4 h-4" />
-              )}
-              <span>{t("chat.tasks") || "Tasks"}</span>
-            </button>
-
-            {/* Tasks List */}
-            {isTasksOpen && (
-              <div className="flex-1 overflow-y-auto custom-scrollbar mt-1">
-                {loading ? (
-                  <div className="flex justify-center py-6">
-                    <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
-                  </div>
-                ) : tasks.length === 0 ? (
-                  <div className="text-center py-6 px-4">
-                    <p className="text-sm text-slate-400">
-                      No recent tasks
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-0.5 px-1">
-                    {tasks.map(task => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        onSelect={() => handleTaskSelect(task.id)}
-                        onDelete={(e) => handleDelete(e, task.id)}
-                        isDeleting={deletingId === task.id}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <div className="h-2" />
         </>
       )}
     </aside>

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { ChatContainer } from "./ChatContainer"
 import dynamic from "next/dynamic"
-import { Loader2, GripVertical } from "lucide-react"
+import { Loader2 } from "lucide-react"
 
 const VideoDetailPanel = dynamic(
   () => import("./VideoDetailPanel").then((mod) => mod.VideoDetailPanel),
@@ -32,6 +32,7 @@ interface Thread {
 interface ChatWorkspaceProps {
   activeThreadId: string | null
   activeTaskId: string | null
+  taskSelectionNonce?: number
   initialMessages: UIMessage[]
   onNewChat: () => void
   onSelectThread: (threadId: string) => void
@@ -46,6 +47,7 @@ interface ChatWorkspaceProps {
 export function ChatWorkspace({
   activeThreadId,
   activeTaskId,
+  taskSelectionNonce = 0,
   initialMessages,
   onNewChat,
   onSelectThread,
@@ -64,6 +66,8 @@ export function ChatWorkspace({
   const [panelWidth, setPanelWidth] = useState(420)
   const [isResizing, setIsResizing] = useState(false)
   const sidebarRef = useRef<HTMLElement>(null)
+  const [isPanelOpen, setIsPanelOpen] = useState(Boolean(activeTaskId))
+  const prevTaskIdRef = useRef<string | null>(null)
 
   // Load width from localStorage or set default to 60%
   useEffect(() => {
@@ -92,9 +96,33 @@ export function ChatWorkspace({
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
+  useEffect(() => {
+    if (!activeTaskId) {
+      setIsPanelOpen(false)
+      prevTaskIdRef.current = null
+      return
+    }
+
+    if (activeTaskId !== prevTaskIdRef.current) {
+      setIsPanelOpen(true)
+      prevTaskIdRef.current = activeTaskId
+    }
+  }, [activeTaskId])
+
+  useEffect(() => {
+    if (activeTaskId) {
+      setIsPanelOpen(true)
+    }
+  }, [taskSelectionNonce, activeTaskId])
+
   const setTaskParam = useCallback((nextTaskId: string | null) => {
     onSelectTask(nextTaskId)
   }, [onSelectTask])
+
+  const openPanelForTask = useCallback((taskId: string) => {
+    setIsPanelOpen(true)
+    setTaskParam(taskId)
+  }, [setTaskParam])
 
   const startResizing = useCallback(() => {
     setIsResizing(true)
@@ -163,9 +191,6 @@ export function ChatWorkspace({
           onSelectThread(id)
           setIsMobileMenuOpen(false)
         }}
-        onSelectTask={(taskId) => {
-          setTaskParam(taskId)
-        }}
       />
 
       {/* Main Layout: Chat + Details */}
@@ -182,15 +207,15 @@ export function ChatWorkspace({
               threadId={activeThreadId}
               initialMessages={initialMessages}
               activeTaskId={activeTaskId}
-              onOpenPanel={setTaskParam}
-              onSelectExample={onSelectExample || setTaskParam}
+              onOpenPanel={openPanelForTask}
+              onSelectExample={onSelectExample || openPanelForTask}
               onChatStarted={onChatStarted}
             />
           </div>
         </div>
 
         {/* Resizer Handle (Desktop Only) */}
-        {activeTaskId && (
+        {activeTaskId && isPanelOpen && (
           <div
             className="hidden lg:flex w-4 cursor-col-resize items-center justify-center hover:bg-white/5 transition-colors z-20"
             onMouseDown={startResizing}
@@ -204,21 +229,21 @@ export function ChatWorkspace({
           ref={sidebarRef}
           className={cn(
             "hidden lg:flex flex-col glass-panel overflow-hidden",
-            activeTaskId
+            activeTaskId && isPanelOpen
               ? "opacity-100 ml-0 translate-x-0"
               : "w-0 opacity-0 ml-0 border-none translate-x-10",
             // Disable transition during resize to avoid lag/rubber-banding
             !isResizing && "transition-all duration-700 cubic-bezier(0.19, 1, 0.22, 1)"
           )}
           style={{
-            width: activeTaskId ? panelWidth : 0
+            width: activeTaskId && isPanelOpen ? panelWidth : 0
           }}
         >
-          {activeTaskId && (
+          {activeTaskId && isPanelOpen && (
             <VideoDetailPanel
               key={activeTaskId}
               taskId={activeTaskId}
-              onClose={() => setTaskParam(null)}
+              onClose={() => setIsPanelOpen(false)}
             />
           )}
         </aside>
@@ -227,20 +252,18 @@ export function ChatWorkspace({
 
       {/* Mobile Context Panel */}
       <Sheet
-        open={!!(isMobile && activeTaskId)}
+        open={!!(isMobile && activeTaskId && isPanelOpen)}
         onOpenChange={(open) => {
-          if (isMobile && !open) {
-            setTaskParam(null)
-          }
+          if (isMobile && !open) setIsPanelOpen(false)
         }}
       >
         <SheetContent side="bottom" className="h-[90vh] p-0 rounded-t-[2rem] border-t border-slate-200 dark:border-white/20 bg-white dark:bg-zinc-900 [&>button]:hidden">
           <SheetTitle className="sr-only">Video Details</SheetTitle>
-          {activeTaskId && (
+          {activeTaskId && isPanelOpen && (
             <VideoDetailPanel
               key={activeTaskId}
               taskId={activeTaskId}
-              onClose={() => setTaskParam(null)}
+              onClose={() => setIsPanelOpen(false)}
             />
           )}
         </SheetContent>

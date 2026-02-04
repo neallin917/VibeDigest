@@ -168,10 +168,48 @@ export function ChatContainer({
       })
     })
   }, [messages])
+  const hasTaskStatusForActiveTask = useMemo(() => {
+    if (!activeTaskId) return false
+    return messages.some((message) => {
+      return (message.parts || []).some((part: any) => {
+        const toolName = part.type === 'dynamic-tool'
+          ? part.toolName
+          : part.type?.startsWith('tool-')
+            ? part.type.replace('tool-', '')
+            : ''
+        const taskId = part?.output?.taskId || part?.input?.taskId
+        if (!taskId) return false
+        return (toolName === 'get_task_status' || toolName === 'create_task') && taskId === activeTaskId
+      })
+    })
+  }, [messages, activeTaskId])
+  const forcedTaskStatusMessage = useMemo<UIMessage | null>(() => {
+    if (!activeTaskId || hasTaskStatusForActiveTask) return null
+    const toolCallId = `task-status-${activeTaskId}`
+    return {
+      id: toolCallId,
+      role: 'assistant',
+      parts: [
+        {
+          type: 'tool-get_task_status',
+          toolCallId,
+          state: 'output-available',
+          output: {
+            taskId: activeTaskId,
+            status: 'pending',
+            progress: 0
+          }
+        }
+      ]
+    }
+  }, [activeTaskId, hasTaskStatusForActiveTask])
   const lastMessage = messages[messages.length - 1]
   const streamingMessage =
     status === 'streaming' && lastMessage?.role === 'assistant' ? lastMessage : null
   const historyMessages = streamingMessage ? messages.slice(0, -1) : messages
+  const renderMessages = forcedTaskStatusMessage
+    ? [forcedTaskStatusMessage, ...historyMessages]
+    : historyMessages
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -240,7 +278,7 @@ export function ChatContainer({
           messages.length > 0 ? 'pb-44 md:pb-56' : '',
         )}
       >
-        {messages.length === 0 ? (
+        {messages.length === 0 && !activeTaskId ? (
           <WelcomeScreen
             onSelectExample={onSelectExample || (() => { })}
             onSubmit={handleSubmit}
@@ -249,12 +287,12 @@ export function ChatContainer({
         ) : (
           <div className="max-w-3xl mx-auto w-full space-y-8">
             <AnimatePresence initial={false}>
-              {historyMessages.map((m, index) => (
+              {renderMessages.map((m, index) => (
                 <MessageRow
                   key={m.id}
                   message={m}
                   isStreaming={false}
-                  enableMotion={index === historyMessages.length - 1}
+                  enableMotion={index === renderMessages.length - 1}
                   onOpenPanel={onOpenPanel}
                 />
               ))}
@@ -316,16 +354,14 @@ export function ChatContainer({
         )}
       </div>
 
-      {
-        messages.length > 0 && (
-          <ChatInput
-            variant="floating"
-            onSubmit={handleSubmit}
-            isLoading={isLoading}
-            onStop={status === 'streaming' ? stop : undefined}
-          />
-        )
-      }
+      {(messages.length > 0 || activeTaskId) && (
+        <ChatInput
+          variant="floating"
+          onSubmit={handleSubmit}
+          isLoading={isLoading}
+          onStop={status === 'streaming' ? stop : undefined}
+        />
+      )}
     </div >
   )
 }
