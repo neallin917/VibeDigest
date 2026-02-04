@@ -9,6 +9,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from prompts import COMPREHENSION_BRIEF_SYSTEM, COMPREHENSION_BRIEF_USER
 from utils.text_utils import get_language_name, extract_first_json_object, parse_bool_env
 from utils.openai_client import ainvoke_structured_json
+from utils.trace_utils import build_trace_config
 
 logger = logging.getLogger(__name__)
 
@@ -85,11 +86,11 @@ class ComprehensionAgent:
                 
                 lc_config = {}
                 if trace_config:
-                    lc_config = {
-                        "run_name": trace_config.get("name"),
-                        "metadata": trace_config.get("metadata", {}),
-                        **{k: v for k, v in trace_config.items() if k not in ["name", "metadata"]}
-                    }
+                    lc_config = build_trace_config(
+                        base=trace_config,
+                        run_name="Cognition/Comprehension",
+                        stage="cognition",
+                    )
 
                 if self.use_response_format_json:
                     raw = await llm.ainvoke(messages, config=lc_config)

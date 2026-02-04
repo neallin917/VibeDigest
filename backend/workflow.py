@@ -22,6 +22,7 @@ from services.event_bus import event_bus
 from utils.url import normalize_video_url
 from utils.language_utils import normalize_lang_code
 from utils.text_utils import detect_language, is_cjk_language
+from utils.trace_utils import build_trace_config
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -33,6 +34,19 @@ summarizer = Summarizer()
 comprehension_agent = ComprehensionAgent()
 db_client = DBClient()
 supadata_client = SupadataClient()
+
+# --- Progress Helpers ---
+
+
+def _advance_task_progress(task_id: str, progress: int) -> None:
+    """Only move task progress forward to avoid regression from parallel steps."""
+    try:
+        task = db_client.get_task(task_id)
+        current = int(task.get("progress") or 0) if task else 0
+        if progress > current:
+            db_client.update_task_status(task_id, status=TaskStatus.PROCESSING, progress=progress)
+    except Exception as e:
+        logger.warning(f"Failed to advance progress for {task_id}: {e}")
 
 # --- State Definition ---
 
@@ -308,11 +322,14 @@ async def _ingest_whisper(state: VideoProcessingState) -> Optional[Dict]:
             stage="ingest",
             message="Optimizing transcript with LLM...",
         )
-        trace_meta = {
-            "session_id": str(task_id),
-            "user_id": str(state["user_id"]),
-            "metadata": {"video_url": video_url, "source": "whisper"},
-        }
+        trace_meta = build_trace_config(
+            run_name="Ingest/Optimize",
+            task_id=str(task_id),
+            user_id=str(state["user_id"]),
+            stage="ingest",
+            source="whisper",
+            metadata={"video_url": video_url},
+        )
         cleaned = await summarizer.optimize_transcript(
             script_text_with_timestamps, trace_metadata=trace_meta
         )
@@ -493,9 +510,16 @@ async def ingest(state: VideoProcessingState) -> Dict:
 # --- Cognition Helpers ---
 
 
-async def _run_classify(transcript_text: str, task_id: str, video_url: str, user_id: str):
+async def _run_classify(
+    transcript_text: str,
+    task_id: str,
+    video_url: str,
+    user_id: str,
+    transcript_source: Optional[str],
+):
     try:
         logger.info("Cognition: Starting classification...")
+        _advance_task_progress(task_id, 82)
         await event_bus.publish_progress(
             task_id=task_id,
             progress=82,
@@ -506,10 +530,14 @@ async def _run_classify(transcript_text: str, task_id: str, video_url: str, user
         # Ensure Output Exists (in case Ingest was skipped via Cache Hit)
         db_client.ensure_task_outputs(task_id, user_id, [OutputKind.CLASSIFICATION.value])
 
-        trace_meta = {
-            "session_id": str(task_id),
-            "metadata": {"video_url": video_url},
-        }  # Simplified trace
+        trace_meta = build_trace_config(
+            run_name="Task Process",
+            task_id=str(task_id),
+            user_id=str(user_id),
+            stage="cognition",
+            source=str(transcript_source or "unknown"),
+            metadata={"video_url": video_url},
+        )
         classification = await summarizer.classify_content(
             transcript_text, trace_metadata=trace_meta
         )
@@ -556,6 +584,7 @@ async def _run_summarize(
     task_id: str,
     user_id: str,
     transcript_language: Optional[str],
+    transcript_source: Optional[str],
     classification_result: Optional[Dict[str, Any]] = None,
 ):
     def _parse_summary_payload(summary: Any) -> Dict[str, Any]:
@@ -584,6 +613,7 @@ async def _run_summarize(
 
     try:
         logger.info("Cognition: Starting summarization...")
+        _advance_task_progress(task_id, 85)
         await event_bus.publish_progress(
             task_id=task_id,
             progress=85,
@@ -591,11 +621,14 @@ async def _run_summarize(
             message="Generating summary...",
         )
 
-        trace_meta = {
-            "session_id": str(task_id),
-            "user_id": str(user_id),
-            "metadata": {"node": "cognition_summarize"},
-        }
+        trace_meta = build_trace_config(
+            run_name="Task Process",
+            task_id=str(task_id),
+            user_id=str(user_id),
+            stage="cognition",
+            source=str(transcript_source or "unknown"),
+            metadata={"node": "cognition_summarize"},
+        )
         source_language = normalize_lang_code(transcript_language or "unknown")
 
         summary = await summarizer.summarize(
@@ -617,6 +650,7 @@ async def _run_summarize(
             progress=100,
         )
 
+        _advance_task_progress(task_id, 92)
         await event_bus.publish_progress(
             task_id=task_id,
             progress=92,
@@ -652,9 +686,11 @@ async def _run_comprehension(
     task_id: str,
     user_id: str,
     transcript_language: Optional[str],
+    transcript_source: Optional[str],
 ):
     try:
         logger.info("Cognition: Starting comprehension brief...")
+        _advance_task_progress(task_id, 90)
         await event_bus.publish_progress(
             task_id=task_id,
             progress=90,
@@ -662,11 +698,14 @@ async def _run_comprehension(
             message="Generating comprehension brief...",
         )
 
-        trace_meta = {
-            "session_id": str(task_id),
-            "user_id": str(user_id),
-            "metadata": {"node": "cognition_comprehension"},
-        }
+        trace_meta = build_trace_config(
+            run_name="Task Process",
+            task_id=str(task_id),
+            user_id=str(user_id),
+            stage="cognition",
+            source=str(transcript_source or "unknown"),
+            metadata={"node": "cognition_comprehension"},
+        )
 
         target_language = normalize_lang_code(transcript_language or "unknown")
         brief = await comprehension_agent.generate_comprehension_brief(
@@ -726,6 +765,7 @@ async def cognition(state: VideoProcessingState) -> Dict:
         return {"errors": ["Transcript too short for analysis"]}
 
     # Emit SSE progress event
+    _advance_task_progress(task_id, 80)
     await event_bus.publish_progress(
         task_id=task_id,
         progress=80,
@@ -743,7 +783,13 @@ async def cognition(state: VideoProcessingState) -> Dict:
         logger.info(f"Cognition: Sequential mode enabled (Delay: {settings.COGNITION_DELAY}s)")
 
         # 1. Classify
-        classification_res = await _run_classify(transcript_text, task_id, state["video_url"], state["user_id"])
+        classification_res = await _run_classify(
+            transcript_text,
+            task_id,
+            state["video_url"],
+            state["user_id"],
+            state.get("transcript_source"),
+        )
 
         # Delay if configured
         if settings.COGNITION_DELAY > 0:
@@ -760,6 +806,7 @@ async def cognition(state: VideoProcessingState) -> Dict:
             task_id,
             state["user_id"],
             transcript_language=state.get("transcript_lang"),
+            transcript_source=state.get("transcript_source"),
             classification_result=classification_input,
         )
 
@@ -768,6 +815,7 @@ async def cognition(state: VideoProcessingState) -> Dict:
             task_id,
             state["user_id"],
             transcript_language=state.get("transcript_lang"),
+            transcript_source=state.get("transcript_source"),
         )
 
         # Unify results format for processing below
@@ -775,18 +823,26 @@ async def cognition(state: VideoProcessingState) -> Dict:
     else:
         # Default: Parallel
         results_tuple = await asyncio.gather(
-            _run_classify(transcript_text, task_id, state["video_url"], state["user_id"]),
+            _run_classify(
+                transcript_text,
+                task_id,
+                state["video_url"],
+                state["user_id"],
+                state.get("transcript_source"),
+            ),
             _run_summarize(
                 transcript_text,
                 task_id,
                 state["user_id"],
                 transcript_language=state.get("transcript_lang"),
+                transcript_source=state.get("transcript_source"),
             ),
             _run_comprehension(
                 transcript_text,
                 task_id,
                 state["user_id"],
                 transcript_language=state.get("transcript_lang"),
+                transcript_source=state.get("transcript_source"),
             ),
             return_exceptions=True,
         )

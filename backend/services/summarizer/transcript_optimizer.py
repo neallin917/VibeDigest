@@ -25,6 +25,7 @@ from utils.text_utils import (
     enforce_paragraph_max_chars,
     detect_language,
 )
+from utils.trace_utils import build_trace_config
 
 logger = logging.getLogger(__name__)
 
@@ -61,15 +62,12 @@ class TranscriptOptimizer:
         Returns:
             Optimized transcript text
         """
-        trace_metadata = trace_metadata or {}
-        trace_config = {
-            "name": "Transcript Optimization",
-            "metadata": {
-                **trace_metadata.get("metadata", {}),
-                "text_len": len(raw_transcript),
-            },
-            **{k: v for k, v in trace_metadata.items() if k != "metadata"},
-        }
+        trace_config = build_trace_config(
+            base=trace_metadata,
+            run_name="Ingest/Optimize",
+            stage="ingest",
+            metadata={"text_len": len(raw_transcript)},
+        )
 
         try:
             if not self.config.api_key:
@@ -201,11 +199,10 @@ class TranscriptOptimizer:
             try:
                 chunk_config = None
                 if trace_config:
-                    chunk_config = trace_config.copy()
-                    chunk_config["metadata"] = {
-                        **chunk_config.get("metadata", {}),
-                        "chunk_index": i,
-                    }
+                    chunk_config = build_trace_config(
+                        base=trace_config,
+                        metadata={"chunk_index": i},
+                    )
 
                 oc = await self._format_single_chunk(
                     chunk_with_context, transcript_language, trace_config=chunk_config

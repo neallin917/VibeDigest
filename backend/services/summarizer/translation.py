@@ -11,6 +11,7 @@ from config import settings
 from prompts import TRANSLATE_JSON_SYSTEM
 from utils.text_utils import extract_first_json_object
 from utils.language_utils import normalize_lang_code
+from utils.trace_utils import build_trace_config
 
 logger = logging.getLogger(__name__)
 
@@ -70,14 +71,12 @@ class SummaryTranslator:
 
         trace_config = None
         if trace_metadata:
-            trace_config = {
-                "name": "Translate Summary",
-                "metadata": {
-                    **trace_metadata.get("metadata", {}),
-                    "target_language": target_language,
-                },
-                **{k: v for k, v in trace_metadata.items() if k != "metadata"},
-            }
+            trace_config = build_trace_config(
+                base=trace_metadata,
+                run_name="Translate/Summary",
+                stage="translate",
+                metadata={"target_language": target_language},
+            )
 
         try:
             response = await self._ainvoke_with_fallback(

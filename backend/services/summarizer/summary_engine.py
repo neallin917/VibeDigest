@@ -23,6 +23,7 @@ from services.summarizer.models import SummaryResponseV4, ContentPlan
 from services.summarizer.config import get_llm
 from utils.text_utils import extract_first_json_object
 from utils.language_utils import normalize_lang_code
+from utils.trace_utils import build_trace_config
 
 logger = logging.getLogger(__name__)
 
@@ -106,13 +107,12 @@ class SummaryEngine:
         )
         phase1_user = SUMMARY_V4_PHASE1_USER.format(transcript_sample=transcript_sample)
 
-        lc_config_p1 = {
-            "run_name": "V4 Phase 1 (Planning)",
-            "metadata": {
-                **(trace_metadata.get("metadata", {}) if trace_metadata else {}),
-                "phase": "planning",
-            },
-        }
+        lc_config_p1 = build_trace_config(
+            base=trace_metadata,
+            run_name="Cognition/Summarize/Plan",
+            stage="cognition",
+            metadata={"phase": "planning"},
+        )
 
         phase1_model = self.config.summary_models[0]
         llm_p1 = get_llm(phase1_model, max_tokens=5000)
@@ -150,14 +150,15 @@ class SummaryEngine:
             transcript=transcript,
         )
 
-        lc_config_p2 = {
-            "run_name": "V4 Phase 2 (Generation)",
-            "metadata": {
-                **(trace_metadata.get("metadata", {}) if trace_metadata else {}),
+        lc_config_p2 = build_trace_config(
+            base=trace_metadata,
+            run_name="Cognition/Summarize/Generate",
+            stage="cognition",
+            metadata={
                 "phase": "generation",
                 "planned_sections": planned_sections,
             },
-        }
+        )
 
         llm_p2 = get_llm(
             self.config.summary_models[0],
