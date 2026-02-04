@@ -194,6 +194,7 @@ export function ChatContainer({
           type: 'tool-get_task_status',
           toolCallId,
           state: 'output-available',
+          input: { taskId: activeTaskId },
           output: {
             taskId: activeTaskId,
             status: 'pending',
