@@ -1,18 +1,15 @@
 import { MetadataRoute } from 'next'
 import { supabasePublic } from '@/lib/supabase-public'
-
-const locales = ["en", "zh", "es", "ar", "fr", "ru", "pt", "hi", "ja", "ko"];
-const defaultLocale = "en";
+import { buildAlternateLanguages, SITE_URL } from '@/lib/seo'
+import { SUPPORTED_LOCALES } from '@/lib/i18n'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://vibedigest.io'
+  const baseUrl = SITE_URL
   const supabase = supabasePublic
 
   // Static routes
   const staticPaths = [
     '',
-    '/pricing',
-    '/login',
     '/privacy',
     '/terms',
     '/explore',
@@ -38,14 +35,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Generate static entries for each locale
   for (const path of staticPaths) {
-    for (const locale of locales) {
+    for (const locale of SUPPORTED_LOCALES) {
       const url = `${baseUrl}/${locale}${path}`
-      const alternates = {
-        languages: locales.reduce((acc, l) => {
-          acc[l] = `${baseUrl}/${l}${path}`
-          return acc
-        }, {} as Record<string, string>)
-      }
+      const alternates = { languages: buildAlternateLanguages(path) }
 
       sitemapEntries.push({
         url,
@@ -61,15 +53,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (tasks) {
     for (const task of tasks) {
       const slug = generateSlug(task.video_title)
-      for (const locale of locales) {
+      for (const locale of SUPPORTED_LOCALES) {
         const path = `/tasks/${task.id}/${slug}`
         const url = `${baseUrl}/${locale}${path}`
-        const alternates = {
-          languages: locales.reduce((acc, l) => {
-            acc[l] = `${baseUrl}/${l}${path}`
-            return acc
-          }, {} as Record<string, string>)
-        }
+        const alternates = { languages: buildAlternateLanguages(path) }
 
         sitemapEntries.push({
           url,
