@@ -5,7 +5,6 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { ChatWorkspace } from "@/components/chat/ChatWorkspace"
 import { AppSidebar } from "@/components/layout/AppSidebar"
 import { AppSidebarProvider } from "@/components/layout/AppSidebarContext"
-import { createClient } from "@/lib/supabase"
 import { mapDBMessageToUIMessage, DBMessage } from "@/lib/chat-utils"
 import type { UIMessage } from "ai"
 import { v4 as uuidv4 } from 'uuid'
@@ -29,8 +28,6 @@ export default function ChatPage() {
     const [activeTaskId, setActiveTaskId] = useState<string | null>(queryTaskId)
     const [initialMessages, setInitialMessages] = useState<UIMessage[]>([])
     const [taskSelectionNonce, setTaskSelectionNonce] = useState(0)
-    const supabase = createClient()
-
     // Track newly created thread IDs to skip loading
     const newThreadIdsRef = useRef<Set<string>>(new Set())
     // Track if initial setup is done
@@ -48,40 +45,6 @@ export default function ChatPage() {
             console.error('Failed to fetch threads', error)
         }
     }, [])
-
-    // Helper: Load task context
-    const loadTaskContext = useCallback(async (taskId: string) => {
-        try {
-            const { data: task } = await supabase
-                .from('tasks')
-                .select('video_title')
-                .eq('id', taskId)
-                .single()
-            
-            const { data: outputs } = await supabase
-                .from('task_outputs')
-                .select('content')
-                .eq('task_id', taskId)
-                .eq('kind', 'summary')
-                .eq('status', 'completed')
-                .single()
-
-            const welcomeContent = task ? 
-                `I've loaded the context for **"${task.video_title || 'Untitled Video'}"**.\n\n${outputs?.content ? `Here is the summary:\n\n${outputs.content}` : 'I am ready to answer your questions about this video.'}` 
-                : 'I am ready to discuss the video.'
-
-            const contextMessage: UIMessage = {
-                id: uuidv4(),
-                role: 'assistant',
-                parts: [{ type: 'text', text: welcomeContent }]
-            }
-            
-            setInitialMessages([contextMessage])
-        } catch (e) {
-            console.error("Failed to load task context", e)
-            setInitialMessages([])
-        }
-    }, [supabase])
 
     // Initial setup: ensure thread ID exists
     useEffect(() => {
@@ -107,13 +70,13 @@ export default function ChatPage() {
                 params.set('threadId', newId)
                 router.replace(`${pathname}?${params.toString()}`, { scroll: false })
                 
-                // Load context immediately
-                loadTaskContext(deepLinkTaskId)
+                // Keep chat area clean; summary is shown in the context panel
+                setInitialMessages([])
             } else {
                 router.replace(`${pathname}?threadId=${newId}`, { scroll: false })
             }
         }
-    }, [fetchThreads, pathname, queryThreadId, router, searchParams, loadTaskContext])
+    }, [fetchThreads, pathname, queryThreadId, router, searchParams])
 
     // Keep active task in sync with URL (back/forward)
     useEffect(() => {
@@ -236,15 +199,15 @@ export default function ChatPage() {
             // Update State
             setActiveThreadId(newId)
             
-            // Pre-load context message for the fresh thread
-            loadTaskContext(taskId)
+            // Keep chat area clean; summary is shown in the context panel
+            setInitialMessages([])
             
             // Update URL
             params.set('threadId', newId)
             router.push(`${pathname}?${params.toString()}`, { scroll: false })
         }
 
-    }, [activeThreadId, pathname, router, searchParams, loadTaskContext])
+    }, [activeThreadId, pathname, router, searchParams])
 
     // Handle Demo Selection from Welcome Screen
     const handleSelectExample = useCallback(async (taskId: string) => {
@@ -264,9 +227,9 @@ export default function ChatPage() {
         params.set('threadId', nextThreadId)
         router.replace(`${pathname}?${params.toString()}`, { scroll: false })
 
-        // Show the context assistant message for demo selection
-        loadTaskContext(taskId)
-    }, [activeThreadId, pathname, router, searchParams, loadTaskContext])
+        // Keep chat area clean; summary is shown in the context panel
+        setInitialMessages([])
+    }, [activeThreadId, pathname, router, searchParams])
 
     // Handle Chat Started (first message sent)
     const handleChatStarted = useCallback((threadId: string) => {
