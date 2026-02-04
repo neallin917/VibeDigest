@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { PlayCircle, Loader2, Sparkles } from "lucide-react"
@@ -123,51 +123,81 @@ export function CommunityTemplates({ limit, showHeader = true, initialTasks = []
     const { t } = useI18n()
     const [tasks, setTasks] = useState<Task[]>(initialTasks)
     const [loading, setLoading] = useState(initialTasks.length === 0)
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
 
     useEffect(() => {
         if (initialTasks.length > 0) {
             return
         }
 
+        let cancelled = false
+
         async function fetchDemoTasks() {
             setLoading(true)
-            let query = supabase
-                .from('tasks')
-                .select(`
-                     id, 
-                     video_url, 
-                     video_title, 
-                     thumbnail_url, 
-                     status, 
-                     created_at, 
-                     author, 
-                     author_image_url,
-                     task_outputs (
-                         kind,
-                         content
-                     )
-                 `)
-                .eq('is_demo', true)
-                .eq('status', 'completed')
-                .order('created_at', { ascending: false })
+            const timeoutMs = 6000
+            let timeoutId: ReturnType<typeof setTimeout> | null = null
+            const timeout = new Promise<null>((resolve) => {
+                timeoutId = setTimeout(() => resolve(null), timeoutMs)
+            })
 
-            if (limit) {
-                query = query.limit(limit)
+            try {
+                let query = supabase
+                    .from('tasks')
+                    .select(`
+                        id, 
+                        video_url, 
+                        video_title, 
+                        thumbnail_url, 
+                        status, 
+                        created_at, 
+                        author, 
+                        author_image_url
+                    `)
+                    .eq('is_demo', true)
+                    .eq('status', 'completed')
+                    .order('created_at', { ascending: false })
+
+                if (limit) {
+                    query = query.limit(limit)
+                }
+
+                const result = await Promise.race([query, timeout])
+
+                if (cancelled || result === null) {
+                    if (result === null) {
+                        console.warn("Demo tasks fetch timed out.")
+                    }
+                    return
+                }
+
+                const { data, error } = result
+
+                if (data) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    setTasks(data as any as Task[])
+                } else if (error) {
+                    console.error("Error fetching demo tasks:", error)
+                }
+            } catch (error) {
+                if (!cancelled) {
+                    console.error("Error fetching demo tasks:", error)
+                }
+            } finally {
+                if (timeoutId) {
+                    clearTimeout(timeoutId)
+                }
+                if (!cancelled) {
+                    setLoading(false)
+                }
             }
-
-            const { data, error } = await query
-
-            if (data) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                setTasks(data as any as Task[])
-            } else if (error) {
-                console.error("Error fetching demo tasks:", error)
-            }
-            setLoading(false)
         }
 
         fetchDemoTasks()
+
+        return () => {
+            // Prevent state updates after unmount.
+            cancelled = true
+        }
     }, [limit, initialTasks.length, supabase])
 
     const containerVariants = {
