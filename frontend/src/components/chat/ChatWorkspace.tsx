@@ -173,9 +173,9 @@ export function ChatWorkspace({
 
         {/* Chat Area */}
         <div className={cn(
-          "flex-1 flex flex-col glass-panel relative z-10",
+          "flex-1 flex flex-col min-h-0 glass-panel relative z-10",
         )}>
-          <div className="flex-1 flex flex-col min-w-0 relative h-full">
+          <div className="flex-1 flex flex-col min-w-0 min-h-0 relative h-full">
             <ChatContainer
               // Key ensures complete remount when switching threads to reset useChat state completely
               key={activeThreadId || 'new-chat'}
