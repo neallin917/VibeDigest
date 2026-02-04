@@ -32,6 +32,10 @@ class InterceptHandler(logging.Handler):
         ).opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
 
 
+class HealthCheckFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.getMessage().find("GET /health") == -1
+
 _configured = False
 
 
@@ -53,6 +57,8 @@ def configure_logging() -> None:
         target = logging.getLogger(name)
         target.handlers = [InterceptHandler()]
         target.propagate = False
+        if name == "uvicorn.access":
+            target.addFilter(HealthCheckFilter())
 
     logger.remove()
     def _patch_record(record):
