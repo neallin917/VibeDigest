@@ -23,6 +23,7 @@ from services.summarizer.models import ContentClassification
 from services.summarizer.config import supports_structured_output, get_llm
 from utils.text_utils import extract_first_json_object
 from utils.openai_client import ainvoke_structured_json
+from utils.trace_utils import build_trace_config
 
 logger = logging.getLogger(__name__)
 
@@ -91,11 +92,11 @@ class ContentClassifier:
         async def _classify_with_model(model_name: str) -> Dict[str, Any]:
             trace_config = None
             if trace_metadata:
-                trace_config = {
-                    "name": "Content Classification",
-                    "metadata": {**trace_metadata.get("metadata", {})},
-                    **{k: v for k, v in trace_metadata.items() if k != "metadata"},
-                }
+                trace_config = build_trace_config(
+                    base=trace_metadata,
+                    run_name="Cognition/Classify",
+                    stage="cognition",
+                )
 
             llm = get_llm(model_name, max_tokens=settings.SHORT_TASK_MAX_TOKENS)
 
@@ -104,12 +105,10 @@ class ContentClassifier:
                 HumanMessage(content=user_prompt),
             ]
 
-            lc_config = {
-                "run_name": trace_config.get("name", "Content Classification")
-                if trace_config
-                else "Content Classification",
-                "metadata": trace_config.get("metadata", {}) if trace_config else {},
-            }
+            if trace_config:
+                lc_config = trace_config
+            else:
+                lc_config = {"run_name": "Cognition/Classify", "metadata": {}}
 
             if self.config.use_response_format_json or not supports_structured_output(
                 model_name

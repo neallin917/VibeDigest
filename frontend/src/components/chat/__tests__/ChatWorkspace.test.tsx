@@ -2,6 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { ChatWorkspace } from '../ChatWorkspace'
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn()
+  })
+}))
+
 vi.mock('../TopHeader', () => ({
   TopHeader: ({ onMobileMenuClick }: any) => (
     <div data-testid="top-header">

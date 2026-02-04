@@ -9,10 +9,16 @@ We adopt a structured approach to tracing, leveraging LangSmith's native concept
 ### 1. Run Name (Action)
 Describes **WHAT** is being done. Keep these stable and verb-based.
 
-*   `Transcript Optimization`: The process of cleaning up raw transcripts.
-*   `Summary Generation`: Generating the structured summary from the transcript.
-*   `Content Classification`: classifying the video content type.
-*   `Translation`: Translating content into a target language.
+Primary run names (current standard):
+*   `Task Process`
+*   `Ingest/Transcribe`
+*   `Ingest/Optimize`
+*   `Cognition/Summarize/Plan`
+*   `Cognition/Summarize/Generate`
+*   `Cognition/Classify`
+*   `Cognition/Comprehension`
+*   `Translate/Summary`
+*   `Translate/Transcript`
 
 ### 2. Metadata (Context & Parameters)
 Describes **WHO** and **HOW** the action was performed. Use this for high-cardinality data.
@@ -27,9 +33,30 @@ Describes **WHO** and **HOW** the action was performed. Use this for high-cardin
 ### 3. Tags (State/Environment)
 Describes **STATUS** or **ENVIRONMENT**. Use this for low-cardinality grouping.
 
-*   `prod` / `dev`: Environment markers.
+*   `env:prod` / `env:dev`: Environment markers.
+*   `stage:ingest|cognition|translate`: Pipeline stage.
+*   `source:whisper|supadata`: Transcript source.
 *   `retry`: Indicates a retry attempt.
 *   `fallback`: Indicates usage of a fallback model.
+
+## Trace Schema (Standardized)
+We standardize LangSmith config fields to keep traces searchable and consistent.
+
+**Core Fields**
+*   `run_name`: Stable action name (see list above)
+*   `session_id`: Always set to `task_id` for grouping
+*   `metadata`: High-cardinality data (task/user/video/model/language/phase)
+*   `tags`: Low-cardinality filters (env/stage/source)
+
+**Required Metadata Keys**
+*   `task_id`, `user_id`, `video_url`, `language`
+*   `model`, `provider`, `phase`, `planned_sections`, `chunk_index`
+
+## Query Examples (LangSmith UI)
+*   `session_id:<task_id>` — show full trace for a task
+*   `tags:stage:cognition` — focus on cognition runs
+*   `tags:source:whisper` — view Whisper-derived tasks
+*   `run_name:"Cognition/Summarize/Generate"` — only summary generation runs
 
 ## Configuration
 

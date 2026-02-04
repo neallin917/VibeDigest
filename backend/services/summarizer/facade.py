@@ -96,10 +96,15 @@ class Summarizer:
                 lc_messages.append(HumanMessage(content=m["content"]))
 
         trace_config = trace_config or {}
+        run_name = trace_config.get("run_name") or trace_config.get("name") or "LLM Call"
         lc_config = {
-            "run_name": trace_config.get("name", "LLM Call"),
+            "run_name": run_name,
             "metadata": trace_config.get("metadata", {}),
-            **{k: v for k, v in trace_config.items() if k not in ("name", "metadata")},
+            **{
+                k: v
+                for k, v in trace_config.items()
+                if k not in ("name", "run_name", "metadata")
+            },
         }
 
         model_kwargs = kwargs.get("model_kwargs", {}) or {}
