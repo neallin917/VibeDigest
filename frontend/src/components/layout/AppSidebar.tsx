@@ -117,12 +117,19 @@ export function AppSidebar({
 
         {/* Brand Logo - Only visible when expanded or we can show icon when collapsed */}
         {!isCollapsed && (
-          <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => router.push(`/${locale}`)}
+            className="flex items-center gap-2 cursor-pointer group"
+            aria-label="Go to home"
+          >
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center shadow-sm">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-700 via-teal-600 to-emerald-600 dark:from-emerald-400 dark:via-teal-300 dark:to-cyan-300 tracking-tight">VibeDigest</span>
-          </div>
+            <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-700 via-teal-600 to-emerald-600 dark:from-emerald-400 dark:via-teal-300 dark:to-cyan-300 tracking-tight group-hover:opacity-90">
+              VibeDigest
+            </span>
+          </button>
         )}
       </div>
 

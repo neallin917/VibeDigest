@@ -25,7 +25,7 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
     const pathname = usePathname()
     const [userEmail, setUserEmail] = useState<string | null>(null)
     const supabase = useMemo(() => createClient(), [])
-    const { t } = useI18n()
+    const { t, locale } = useI18n()
 
     useEffect(() => {
         supabase.auth.getUser().then(({ data: { user } }) => {
@@ -37,7 +37,7 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
         <div className="hidden md:flex h-dvh w-64 flex-col border-r backdrop-blur-xl relative z-10 shadow-xl shadow-black/5 dark:shadow-none bg-white/70 border-slate-200/60 dark:bg-black/40 dark:border-white/10">
             <div className="p-6">
                 <div className="flex items-center justify-between gap-3">
-                    <Link href="/" className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
+                    <Link href={`/${locale}`} className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
                         <BrandLogo textClassName="text-lg" />
                     </Link>
 
@@ -93,7 +93,7 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
                         asChild
                         className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground hover:bg-white/5"
                     >
-                        <Link href="/">
+                        <Link href={`/${locale}`}>
                             <Home className="h-4 w-4" />
                             {t("nav.backToHome")}
                         </Link>
@@ -130,7 +130,7 @@ export function Sidebar({ onHide }: { onHide?: () => void }) {
                                         window.google.accounts.id.disableAutoSelect()
                                     }
                                     await supabase.auth.signOut()
-                                    window.location.href = '/'
+                                    window.location.href = `/${locale}`
                                 }}
                                 className="text-red-400 focus:text-red-400 cursor-pointer"
                             >

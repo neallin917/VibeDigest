@@ -13,8 +13,7 @@ export function Providers({ children, locale }: { children: React.ReactNode, loc
         <QueryClientProvider client={queryClient}>
             <ThemeProvider
                 attribute="class"
-                defaultTheme="system"
-                enableSystem
+                defaultTheme="dark"
                 disableTransitionOnChange
             >
                 <I18nProvider locale={locale as any}>

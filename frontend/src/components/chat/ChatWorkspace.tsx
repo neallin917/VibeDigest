@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { ChatContainer } from "./ChatContainer"
 import dynamic from "next/dynamic"
@@ -20,6 +21,7 @@ import { MobileMenuDrawer } from "./MobileMenuDrawer"
 import { TopHeader } from "./TopHeader"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import type { UIMessage } from "ai"
+import { useI18n } from "@/components/i18n/I18nProvider"
 
 interface Thread {
   id: string
@@ -34,6 +36,7 @@ interface ChatWorkspaceProps {
   onNewChat: () => void
   onSelectThread: (threadId: string) => void
   onSelectTask: (taskId: string | null) => void
+  onSelectExample?: (taskId: string) => void
   onThreadCreated?: () => void
   onChatStarted?: (threadId: string) => void
   threads?: Thread[]
@@ -47,12 +50,15 @@ export function ChatWorkspace({
   onNewChat,
   onSelectThread,
   onSelectTask,
+  onSelectExample,
   onThreadCreated,
   onChatStarted,
   threads
 }: ChatWorkspaceProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const router = useRouter()
+  const { locale } = useI18n()
 
   // Resizable logic
   const [panelWidth, setPanelWidth] = useState(420)
@@ -148,8 +154,7 @@ export function ChatWorkspace({
           setIsMobileMenuOpen(false)
         }}
         onOpenLibrary={() => {
-          // Library functionality is handled by AppSidebar mostly, 
-          // but on mobile this might need to open something or just close menu
+          router.push(`/${locale}/explore`)
           setIsMobileMenuOpen(false)
         }}
         threads={threads}
@@ -178,7 +183,7 @@ export function ChatWorkspace({
               initialMessages={initialMessages}
               activeTaskId={activeTaskId}
               onOpenPanel={setTaskParam}
-              onSelectExample={setTaskParam} // Might want to link this to task creation too
+              onSelectExample={onSelectExample || setTaskParam}
               onChatStarted={onChatStarted}
             />
           </div>
