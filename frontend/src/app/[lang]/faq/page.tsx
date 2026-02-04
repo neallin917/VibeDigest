@@ -94,7 +94,6 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
         },
     }
 }
-}
 
 export default async function FAQPage(props: Props) {
     const params = await props.params;
