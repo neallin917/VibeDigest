@@ -1,15 +1,3 @@
-# Heavy ML dependencies
-faster-whisper==1.2.1
-numpy==2.1.3
-pandas==2.2.3
-ctranslate2==4.6.2
-tokenizers==0.22.1
-onnxruntime==1.23.2
-sympy==1.14.0
-scipy
-torch
-torchaudio
-
 # Core API/Data dependencies (changing less frequently than business logic)
 fastapi==0.126.0
 uvicorn==0.38.0
