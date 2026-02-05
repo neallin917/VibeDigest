@@ -44,3 +44,9 @@ Thumbs.db
 Dockerfile
 docker-compose.yml
 .dockerignore
+
+# Environment variables
+.env
+.env.*
+*/.env
+*/.env.*
