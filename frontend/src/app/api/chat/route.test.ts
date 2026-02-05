@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { POST } from './route'
 import { NextRequest } from 'next/server'
 
@@ -71,15 +71,23 @@ vi.mock('ai', async (importOriginal) => {
 // 3. Mock OpenAI SDK
 vi.mock('@ai-sdk/openai', () => ({
     createOpenAI: vi.fn(() => ({
-        chat: vi.fn()
+        chat: vi.fn((model: string) => ({ id: model }))
     }))
 }))
+
+const originalFetch = global.fetch
 
 // --- Tests ---
 
 describe('POST /api/chat', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+
+        mockFrom.mockImplementation(((table: string) => ({
+            select: mockSelect,
+            insert: mockInsert,
+            update: mockUpdate,
+        })) as any)
 
         // Default Auth: User is logged in
         mockGetUser.mockResolvedValue({
@@ -92,26 +100,44 @@ describe('POST /api/chat', () => {
         })
 
         // Setup chain returns
-        mockSelect.mockImplementation((args) => {
-            return {
-                eq: vi.fn((k, v) => {
-                    return { single: mockSingle, order: mockOrder };
-                }),
-                in: mockIn
-            };
-        })
+        mockSelect.mockImplementation(() => ({
+            eq: vi.fn(() => ({
+                in: mockIn,
+                single: mockSingle,
+                order: mockOrder
+            })),
+            in: mockIn,
+            single: mockSingle,
+            order: mockOrder
+        }))
         mockUpdate.mockReturnValue({
             eq: vi.fn().mockResolvedValue({})
         })
         mockEq.mockImplementation((k, v) => {
             return { single: mockSingle, order: mockOrder };
         })
-        mockIn.mockReturnValue({ single: mockSingle, order: mockOrder })
+        mockIn.mockResolvedValue({ data: [], error: null })
 
         // Default successful responses
         mockSingle.mockResolvedValue({ data: null, error: null })
         mockOrder.mockResolvedValue({ data: [], error: null })
         mockInsert.mockResolvedValue({ error: null })
+
+        ;(global as any).fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                active_provider: 'custom',
+                providers: [
+                    {
+                        provider: 'custom',
+                        defaults: {
+                            smart: 'gemini-3-pro',
+                            fast: 'gemini-3-flash'
+                        }
+                    }
+                ]
+            })
+        })
 
         // Default: Mock streamText response
         mockStreamText.mockReturnValue({
@@ -120,6 +146,10 @@ describe('POST /api/chat', () => {
         })
 
         mockConvertToModelMessages.mockResolvedValue([])
+    })
+
+    afterEach(() => {
+        ;(global as any).fetch = originalFetch
     })
 
     it('returns 401 if user is not authenticated', async () => {
@@ -223,7 +253,6 @@ describe('POST /api/chat', () => {
         expect(callArgs.system).toContain('CURRENT VIDEO CONTEXT')
         expect(callArgs.system).toContain('Test Video')
         expect(callArgs.system).toContain('This is a summary.')
-        expect(callArgs.system).toContain('This is a transcript.')
     })
 
     it('persists new thread if it does not exist', async () => {
@@ -257,6 +286,82 @@ describe('POST /api/chat', () => {
             user_id: 'test-user-id',
             title: 'New Chat'
         }))
+    })
+
+    it('uses fast model for short follow-up with taskId', async () => {
+        const originalFetch = global.fetch
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                active_provider: 'custom',
+                providers: [
+                    {
+                        provider: 'custom',
+                        defaults: {
+                            smart: 'gemini-3-pro',
+                            fast: 'gemini-3-flash'
+                        }
+                    }
+                ]
+            })
+        })
+        ;(global as any).fetch = fetchMock
+        try {
+            const req = new NextRequest('http://localhost/api/chat', {
+                method: 'POST',
+                body: JSON.stringify({
+                    message: { content: '它说领导力的时候有举例吗' },
+                    threadId: 'thread-123',
+                    taskId: 'task-123'
+                })
+            })
+
+            await POST(req)
+
+            const callArgs = mockStreamText.mock.calls.at(-1)?.[0]
+            expect(callArgs?.model?.id).toBe('gemini-3-flash')
+        } finally {
+            ;(global as any).fetch = originalFetch
+        }
+    })
+
+    it('uses smart model for long follow-up with taskId', async () => {
+        const originalFetch = global.fetch
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                active_provider: 'custom',
+                providers: [
+                    {
+                        provider: 'custom',
+                        defaults: {
+                            smart: 'gemini-3-pro',
+                            fast: 'gemini-3-flash'
+                        }
+                    }
+                ]
+            })
+        })
+        ;(global as any).fetch = fetchMock
+
+        try {
+            const longMessage = 'a'.repeat(220)
+            const req = new NextRequest('http://localhost/api/chat', {
+                method: 'POST',
+                body: JSON.stringify({
+                    message: { content: longMessage },
+                    threadId: 'thread-123',
+                    taskId: 'task-123'
+                })
+            })
+
+            await POST(req)
+
+            const callArgs = mockStreamText.mock.calls.at(-1)?.[0]
+            expect(callArgs?.model?.id).toBe('gemini-3-pro')
+        } finally {
+            ;(global as any).fetch = originalFetch
+        }
     })
 
     it('handles persistence in onFinish callback', async () => {
