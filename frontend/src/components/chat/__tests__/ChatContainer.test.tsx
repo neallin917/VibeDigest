@@ -273,4 +273,33 @@ describe('ChatContainer', () => {
     })
     expect(localStorage.getItem('vibedigest_pending_message')).toBeNull()
   })
+
+  it('uses latest activeTaskId when preparing request after task switch', async () => {
+    mockUseChat.mockReturnValue({
+      messages: [],
+      setMessages: mockSetMessages,
+      sendMessage: mockSendMessage,
+      status: 'idle',
+      error: null,
+      regenerate: mockRegenerate,
+      stop: mockStop,
+    })
+
+    const { rerender } = render(<ChatContainer activeTaskId="task-1" />)
+
+    const firstOptions = mockUseChat.mock.calls[0]?.[0]
+    const prepare = firstOptions?.transport?.prepareSendMessagesRequest
+    expect(typeof prepare).toBe('function')
+
+    rerender(<ChatContainer activeTaskId="task-2" />)
+
+    await waitFor(() => {
+      const prepared = prepare({
+        messages: [
+          { id: 'm1', role: 'user', parts: [{ type: 'text', text: 'hello' }] } as UIMessage
+        ]
+      })
+      expect(prepared?.body?.taskId).toBe('task-2')
+    })
+  })
 })

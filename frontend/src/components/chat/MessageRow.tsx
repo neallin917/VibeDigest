@@ -75,6 +75,14 @@ const MarkdownBlock = memo(function MarkdownBlock({ text }: { text: string }) {
   )
 }, (prev, next) => prev.text === next.text)
 
+const StreamingText = memo(function StreamingText({ text }: { text: string }) {
+  return (
+    <div className="whitespace-pre-wrap break-words text-[15.5px] leading-7 text-slate-800 dark:text-zinc-200">
+      {text}
+    </div>
+  )
+}, (prev, next) => prev.text === next.text)
+
 function MessageRowComponent({ message, isStreaming, enableMotion, onOpenPanel }: MessageRowProps) {
   if (message.role === 'system') return null
 
@@ -144,7 +152,7 @@ function MessageRowComponent({ message, isStreaming, enableMotion, onOpenPanel }
                         key={index}
                         className="prose prose-sm md:prose-base prose-slate dark:prose-invert max-w-none break-words"
                       >
-                        <MarkdownBlock text={part.text} />
+                        {isStreaming ? <StreamingText text={part.text} /> : <MarkdownBlock text={part.text} />}
                       </div>
                     )
                   }

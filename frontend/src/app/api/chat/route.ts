@@ -316,6 +316,7 @@ export async function POST(req: Request) {
             ? (getTextFromUIMessage(message) || (message as any).content || '')
             : '';
         const detectedUrl = extractUrl(messageText || '');
+        const allowVideoTools = Boolean(detectedUrl);
 
         // 3. Build System Prompt
         let systemPrompt = `You are VibeDigest Assistant, an AI helper for video content analysis.
@@ -327,11 +328,11 @@ When a taskId is provided:
 - If you need transcript/summary content and it is NOT already present in CURRENT VIDEO CONTEXT, call get_task_outputs
 - If the user is asking a general question (e.g. translation, clarification) and CURRENT VIDEO CONTEXT already contains the needed info, answer directly without calling tools
 
-When users provide video URLs:
+When users provide video URLs in their latest message:
 - ALWAYS call preview_video first to show the video metadata
 - THEN call create_task to start processing immediately (no confirmation needed)
 - THEN call get_task_status to display the progress plan card
-- If you do not have a valid URL, DO NOT call these tools. Ask the user for the URL first.
+- If you do not have a valid URL in the latest user message, DO NOT call preview_video/create_task. Ask the user for the URL first.
 
 === CRITICAL: TOOL PARAMETER FORMAT ===
 For preview_video, use EXACTLY: {"video_url": "https://www.youtube.com/watch?v=VIDEO_ID"}
@@ -342,14 +343,13 @@ WRONG (NEVER USE):
 - {"url": "..."} - use "video_url" not "url"
 - {"query": "..."} - use "video_url" not "query"
 === END CRITICAL ===
+`;
 
-Your available tools:
-- get_task_status: Check current processing status and progress
-- get_task_outputs: Retrieve transcripts, summaries, and other processed content
-- create_task: Start processing a new video URL
-- preview_video: Get video metadata (title, thumbnail, duration) without full processing
+        systemPrompt += allowVideoTools
+            ? `\n\nYour available tools:\n- get_task_status: Check current processing status and progress\n- get_task_outputs: Retrieve transcripts, summaries, and other processed content\n- create_task: Start processing a new video URL\n- preview_video: Get video metadata (title, thumbnail, duration) without full processing`
+            : `\n\nYour available tools:\n- get_task_status: Check current processing status and progress\n- get_task_outputs: Retrieve transcripts, summaries, and other processed content`;
 
-Never make up information about video content. Always use tools to get real data before answering.`;
+        systemPrompt += `\n\nNever make up information about video content. Always use tools to get real data before answering.`;
 
         if (context) {
             systemPrompt += `\n\nCURRENT VIDEO CONTEXT:\n${context}\n\nYou can use the above context to answer questions, but also use tools to get the latest status if needed.`;
@@ -378,202 +378,207 @@ Never make up information about video content. Always use tools to get real data
         console.log('[API/Chat] Core messages count:', coreMessages.length);
 
         console.log('[API/Chat] Starting streamText...');
+        const tools: Record<string, ReturnType<typeof tool>> = {
+            get_task_status: tool({
+                description: "Get the current processing status and progress of a video task",
+                inputSchema: taskStatusSchema,
+                execute: async ({ taskId }: z.infer<typeof taskStatusSchema>) => {
+                    const { data, error } = await supabase
+                        .from('tasks')
+                        .select('*')
+                        .eq('id', taskId)
+                        .single();
+
+                    if (error || !data) {
+                        return { error: 'Task not found', taskId };
+                    }
+                    if (data.user_id !== user?.id && !data.is_demo) {
+                        return { error: 'Access denied', taskId };
+                    }
+                    const normalizedTaskUrl = extractUrl(data.video_url || '')
+                    const canUsePreview = Boolean(
+                        previewCache && normalizedTaskUrl && previewCache.url === normalizedTaskUrl
+                    )
+                    const previewTitle = canUsePreview ? previewCache?.title : undefined
+                    const previewThumbnail = canUsePreview ? previewCache?.thumbnail : undefined
+                    const normalizedTitle = data.video_title && data.video_title !== 'Unknown'
+                        ? data.video_title
+                        : previewTitle
+
+                    return {
+                        taskId: data.id,
+                        status: data.status,
+                        progress: data.progress,
+                        video_title: normalizedTitle,
+                        thumbnail_url: data.thumbnail_url || previewThumbnail,
+                        video_url: data.video_url,
+                        error_message: data.error_message,
+                        created_at: data.created_at,
+                        updated_at: data.updated_at
+                    };
+                },
+            }),
+            get_task_outputs: tool({
+                description: "Get the processed content (transcript, summary) for a specific task",
+                inputSchema: taskOutputsSchema,
+                execute: async ({ taskId, kinds }: z.infer<typeof taskOutputsSchema>) => {
+                    const { data: task, error: taskError } = await supabase
+                        .from('tasks')
+                        .select('user_id, is_demo')
+                        .eq('id', taskId)
+                        .single();
+
+                    if (taskError || !task) {
+                        return { error: 'Task not found', taskId };
+                    }
+                    if (task.user_id !== user?.id && !task.is_demo) {
+                        return { error: 'Access denied', taskId };
+                    }
+
+                    let query = supabase
+                        .from('task_outputs')
+                        .select('*')
+                        .eq('task_id', taskId)
+                        .eq('status', 'completed');
+
+                    if (kinds && kinds.length > 0) {
+                        query = query.in('kind', kinds);
+                    }
+
+                    const { data, error } = await query;
+                    if (error) {
+                        return { error: 'Failed to fetch outputs', taskId, details: error.message };
+                    }
+                    return {
+                        taskId,
+                        outputs: data || [],
+                        count: data?.length || 0,
+                    };
+                },
+            }),
+        };
+
+        if (allowVideoTools) {
+            tools.create_task = tool({
+                description: "Start video processing (transcribe+summarize). IMPORTANT: Pass URL in 'video_url' parameter ONLY.",
+                inputSchema: createTaskSchema,
+                execute: async (args: z.infer<typeof createTaskSchema>) => {
+                    console.log('[API/Chat] create_task args:', JSON.stringify(args));
+
+                    let fallbackSource: string | null = null;
+
+                    // Zod schema ensures video_url is present - extract clean URL
+                    let cleanUrl = extractUrl(args.video_url);
+
+                    // Fallback: Look in conversation history if URL extraction failed
+                    if (!cleanUrl) {
+                         console.log('[API/Chat] No valid URL in args, checking history...');
+                         cleanUrl = findLastUrlInMessages(messages);
+                         if (cleanUrl) fallbackSource = 'message_history';
+                    }
+
+                    // Log fallback usage for monitoring
+                    if (fallbackSource) {
+                        console.warn(`[API/Chat] URL fallback: source=${fallbackSource}, tool=create_task, args=${JSON.stringify(args)}`);
+                    }
+
+                    if (!cleanUrl) {
+                        console.error('[API/Chat] Invalid URL in create_task:', JSON.stringify(args));
+                        return { error: "No valid URL found in input or history. Please provide a valid YouTube URL." };
+                    }
+
+                    if (!user?.id) {
+                        return { error: 'Authentication required' };
+                    }
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/api/process-video`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'Authorization': `Bearer ${accessToken}`,
+                            },
+                            body: new URLSearchParams({
+                                video_url: cleanUrl,
+                            }),
+                        });
+                        const data = await response.json();
+                        if (!response.ok) {
+                            return { error: 'Failed to create task', details: data.detail || 'Unknown error', status: response.status };
+                        }
+                        return {
+                            taskId: data.task_id,
+                            status: 'started',
+                            message: data.message || 'Task created successfully',
+                            videoUrl: cleanUrl,
+                        };
+                    } catch (error) {
+                        return { error: 'Failed to create task', details: error instanceof Error ? error.message : 'Unknown error' };
+                    }
+                },
+            });
+
+            tools.preview_video = tool({
+                description: "Fetch video metadata (title, thumbnail, duration). IMPORTANT: Pass URL in 'video_url' parameter ONLY.",
+                inputSchema: previewVideoSchema,
+                execute: async (args: z.infer<typeof previewVideoSchema>) => {
+                    console.log('[API/Chat] preview_video args:', JSON.stringify(args));
+
+                    let fallbackSource: string | null = null;
+
+                    // Zod schema ensures video_url is present - extract clean URL
+                    let cleanUrl = extractUrl(args.video_url);
+
+                    // Fallback: Look in conversation history if URL extraction failed
+                    if (!cleanUrl) {
+                         console.log('[API/Chat] No valid URL in args, checking history...');
+                         cleanUrl = findLastUrlInMessages(messages);
+                         if (cleanUrl) fallbackSource = 'message_history';
+                    }
+
+                    // Log fallback usage for monitoring
+                    if (fallbackSource) {
+                        console.warn(`[API/Chat] URL fallback: source=${fallbackSource}, tool=preview_video, args=${JSON.stringify(args)}`);
+                    }
+
+                    if (!cleanUrl) {
+                        console.error('[API/Chat] Invalid URL in preview_video:', JSON.stringify(args));
+                        return { error: "No valid URL found in input or history. Please provide a valid YouTube URL." };
+                    }
+
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/api/preview-video`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'Authorization': `Bearer ${accessToken}`,
+                            },
+                            body: new URLSearchParams({ url: cleanUrl }),
+                        });
+                        const data = await response.json();
+                        if (!response.ok) {
+                            return { error: 'Failed to preview video', details: data.detail || 'Unknown error', status: response.status };
+                        }
+                        if (data?.title || data?.thumbnail) {
+                            previewCache = {
+                                url: cleanUrl,
+                                title: data.title,
+                                thumbnail: data.thumbnail
+                            };
+                        }
+                        return data;
+                    } catch (error) {
+                        return { error: 'Failed to preview video', details: error instanceof Error ? error.message : 'Unknown error' };
+                    }
+                },
+            });
+        }
+
         const result = streamText({
             model: openai.chat(modelName),
             system: systemPrompt,
             messages: coreMessages,
             stopWhen: stepCountIs(5), // V6 helper
-            tools: {
-                // ... (Tools remain same) ...
-                get_task_status: tool({
-                    description: "Get the current processing status and progress of a video task",
-                    inputSchema: taskStatusSchema,
-                    execute: async ({ taskId }: z.infer<typeof taskStatusSchema>) => {
-                        const { data, error } = await supabase
-                            .from('tasks')
-                            .select('*')
-                            .eq('id', taskId)
-                            .single();
-
-                        if (error || !data) {
-                            return { error: 'Task not found', taskId };
-                        }
-                        if (data.user_id !== user?.id && !data.is_demo) {
-                            return { error: 'Access denied', taskId };
-                        }
-                        const normalizedTaskUrl = extractUrl(data.video_url || '')
-                        const canUsePreview = Boolean(
-                            previewCache && normalizedTaskUrl && previewCache.url === normalizedTaskUrl
-                        )
-                        const previewTitle = canUsePreview ? previewCache?.title : undefined
-                        const previewThumbnail = canUsePreview ? previewCache?.thumbnail : undefined
-                        const normalizedTitle = data.video_title && data.video_title !== 'Unknown'
-                            ? data.video_title
-                            : previewTitle
-
-                        return {
-                            taskId: data.id,
-                            status: data.status,
-                            progress: data.progress,
-                            video_title: normalizedTitle,
-                            thumbnail_url: data.thumbnail_url || previewThumbnail,
-                            video_url: data.video_url,
-                            error_message: data.error_message,
-                            created_at: data.created_at,
-                            updated_at: data.updated_at
-                        };
-                    },
-                }),
-                get_task_outputs: tool({
-                    description: "Get the processed content (transcript, summary) for a specific task",
-                    inputSchema: taskOutputsSchema,
-                    execute: async ({ taskId, kinds }: z.infer<typeof taskOutputsSchema>) => {
-                        const { data: task, error: taskError } = await supabase
-                            .from('tasks')
-                            .select('user_id, is_demo')
-                            .eq('id', taskId)
-                            .single();
-
-                        if (taskError || !task) {
-                            return { error: 'Task not found', taskId };
-                        }
-                        if (task.user_id !== user?.id && !task.is_demo) {
-                            return { error: 'Access denied', taskId };
-                        }
-
-                        let query = supabase
-                            .from('task_outputs')
-                            .select('*')
-                            .eq('task_id', taskId)
-                            .eq('status', 'completed');
-
-                        if (kinds && kinds.length > 0) {
-                            query = query.in('kind', kinds);
-                        }
-
-                        const { data, error } = await query;
-                        if (error) {
-                            return { error: 'Failed to fetch outputs', taskId, details: error.message };
-                        }
-                        return {
-                            taskId,
-                            outputs: data || [],
-                            count: data?.length || 0,
-                        };
-                    },
-                }),
-                create_task: tool({
-                    description: "Start video processing (transcribe+summarize). IMPORTANT: Pass URL in 'video_url' parameter ONLY.",
-                    inputSchema: createTaskSchema,
-                    execute: async (args: z.infer<typeof createTaskSchema>) => {
-                        console.log('[API/Chat] create_task args:', JSON.stringify(args));
-
-                        let fallbackSource: string | null = null;
-
-                        // Zod schema ensures video_url is present - extract clean URL
-                        let cleanUrl = extractUrl(args.video_url);
-
-                        // Fallback: Look in conversation history if URL extraction failed
-                        if (!cleanUrl) {
-                             console.log('[API/Chat] No valid URL in args, checking history...');
-                             cleanUrl = findLastUrlInMessages(messages);
-                             if (cleanUrl) fallbackSource = 'message_history';
-                        }
-
-                        // Log fallback usage for monitoring
-                        if (fallbackSource) {
-                            console.warn(`[API/Chat] URL fallback: source=${fallbackSource}, tool=create_task, args=${JSON.stringify(args)}`);
-                        }
-
-                        if (!cleanUrl) {
-                            console.error('[API/Chat] Invalid URL in create_task:', JSON.stringify(args));
-                            return { error: "No valid URL found in input or history. Please provide a valid YouTube URL." };
-                        }
-
-                        if (!user?.id) {
-                            return { error: 'Authentication required' };
-                        }
-                        try {
-                            const response = await fetch(`${API_BASE_URL}/api/process-video`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded',
-                                    'Authorization': `Bearer ${accessToken}`,
-                                },
-                                body: new URLSearchParams({
-                                    video_url: cleanUrl,
-                                }),
-                            });
-                            const data = await response.json();
-                            if (!response.ok) {
-                                return { error: 'Failed to create task', details: data.detail || 'Unknown error', status: response.status };
-                            }
-                            return {
-                                taskId: data.task_id,
-                                status: 'started',
-                                message: data.message || 'Task created successfully',
-                                videoUrl: cleanUrl,
-                            };
-                        } catch (error) {
-                            return { error: 'Failed to create task', details: error instanceof Error ? error.message : 'Unknown error' };
-                        }
-                    },
-                }),
-                preview_video: tool({
-                    description: "Fetch video metadata (title, thumbnail, duration). IMPORTANT: Pass URL in 'video_url' parameter ONLY.",
-                    inputSchema: previewVideoSchema,
-                    execute: async (args: z.infer<typeof previewVideoSchema>) => {
-                        console.log('[API/Chat] preview_video args:', JSON.stringify(args));
-
-                        let fallbackSource: string | null = null;
-
-                        // Zod schema ensures video_url is present - extract clean URL
-                        let cleanUrl = extractUrl(args.video_url);
-
-                        // Fallback: Look in conversation history if URL extraction failed
-                        if (!cleanUrl) {
-                             console.log('[API/Chat] No valid URL in args, checking history...');
-                             cleanUrl = findLastUrlInMessages(messages);
-                             if (cleanUrl) fallbackSource = 'message_history';
-                        }
-
-                        // Log fallback usage for monitoring
-                        if (fallbackSource) {
-                            console.warn(`[API/Chat] URL fallback: source=${fallbackSource}, tool=preview_video, args=${JSON.stringify(args)}`);
-                        }
-
-                        if (!cleanUrl) {
-                            console.error('[API/Chat] Invalid URL in preview_video:', JSON.stringify(args));
-                            return { error: "No valid URL found in input or history. Please provide a valid YouTube URL." };
-                        }
-
-                        try {
-                            const response = await fetch(`${API_BASE_URL}/api/preview-video`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded',
-                                    'Authorization': `Bearer ${accessToken}`,
-                                },
-                                body: new URLSearchParams({ url: cleanUrl }),
-                            });
-                            const data = await response.json();
-                            if (!response.ok) {
-                                return { error: 'Failed to preview video', details: data.detail || 'Unknown error', status: response.status };
-                            }
-                            if (data?.title || data?.thumbnail) {
-                                previewCache = {
-                                    url: cleanUrl,
-                                    title: data.title,
-                                    thumbnail: data.thumbnail
-                                };
-                            }
-                            return data;
-                        } catch (error) {
-                            return { error: 'Failed to preview video', details: error instanceof Error ? error.message : 'Unknown error' };
-                        }
-                    },
-                }),
-            },
+            tools,
         });
 
         // 5. Consume stream to ensure saving even if client disconnects

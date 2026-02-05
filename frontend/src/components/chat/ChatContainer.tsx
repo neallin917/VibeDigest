@@ -61,6 +61,8 @@ export function ChatContainer({
 
   const { t, locale } = useI18n()
 
+  const activeTaskIdRef = useRef<string | null | undefined>(activeTaskId)
+
   // Ensure we always have a valid UUID for the thread ID to satisfy DB requirements
   // Use lazy state initialization to generate once per component mount
   const [sessionId] = useState(() => threadId || uuidv4())
@@ -80,7 +82,7 @@ export function ChatContainer({
           body: {
             message: lastMessage,
             threadId: effectiveThreadId,     // Persist to this thread
-            taskId: activeTaskId    // RAG context
+            taskId: activeTaskIdRef.current    // RAG context
           }
         }
       }
@@ -151,6 +153,10 @@ export function ChatContainer({
       setMessages([])
     }
   }, [initialMessages, setMessages])
+
+  useEffect(() => {
+    activeTaskIdRef.current = activeTaskId
+  }, [activeTaskId])
 
   const isLoading = status === 'streaming' || status === 'submitted'
   const hasRenderableAssistant = useMemo(() => {
@@ -278,7 +284,8 @@ export function ChatContainer({
       <div
         ref={scrollRef}
         className={cn(
-          'flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 md:px-8 py-6 custom-scrollbar scroll-smooth',
+          'flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 md:px-8 py-6 custom-scrollbar',
+          status === 'streaming' ? 'scroll-auto' : 'scroll-smooth',
           (messages.length > 0 || !!activeTaskId) ? 'pb-44 md:pb-56' : '',
         )}
       >
