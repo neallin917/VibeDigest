@@ -7,6 +7,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = SITE_URL
   const supabase = supabasePublic
 
+  const generateSlug = (title: string) => {
+    if (!title) return "video"
+    return encodeURIComponent(title.trim().replace(/\s+/g, '-'))
+  }
+
   // Static routes
   const staticPaths = [
     '',
@@ -25,11 +30,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .eq('is_demo', true)
     .order('created_at', { ascending: false })
     .limit(1000)
-
-  const generateSlug = (title: string | null): string => {
-    if (!title) return "video"
-    return encodeURIComponent(title.trim().replace(/\s+/g, '-'))
-  }
 
   const sitemapEntries: MetadataRoute.Sitemap = []
 
@@ -52,18 +52,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Generate dynamic entries for each task and each locale
   if (tasks) {
     for (const task of tasks) {
-      const slug = generateSlug(task.video_title)
       for (const locale of SUPPORTED_LOCALES) {
+        const slug = generateSlug(task.video_title || "video")
         const path = `/tasks/${task.id}/${slug}`
-        const url = `${baseUrl}/${locale}${path}`
-        const alternates = { languages: buildAlternateLanguages(path) }
+        const fullUrl = `${baseUrl}/${locale}${path}`
+        
+        const languages = Object.fromEntries(
+          SUPPORTED_LOCALES.map((l) => [l, `${baseUrl}/${l}${path}`])
+        ) as Record<string, string>
+        languages["x-default"] = `${baseUrl}/en${path}`
 
         sitemapEntries.push({
-          url,
+          url: fullUrl,
           lastModified: new Date(task.created_at),
           changeFrequency: 'monthly',
           priority: 0.6,
-          alternates
+          alternates: {
+              languages
+          }
         })
       }
     }

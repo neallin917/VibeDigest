@@ -37,5 +37,5 @@ export default async function TaskRedirectPage(props: Props) {
     }
 
     const slug = generateSlug(task.video_title || "video");
-    redirect(`/tasks/${id}/${slug}`);
+    redirect(`/${lang}/tasks/${id}/${slug}`);
 }
