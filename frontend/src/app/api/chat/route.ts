@@ -38,8 +38,17 @@ const openai = createOpenAI({
 });
 
 const MODEL_CACHE_TTL_MS = 5 * 60 * 1000;
-let cachedModelName: string | null = null;
-let cachedModelAt = 0;
+type ModelTier = 'smart' | 'fast';
+const cachedModelNameByTier: Record<ModelTier, string | null> = {
+    smart: null,
+    fast: null
+};
+const cachedModelAtByTier: Record<ModelTier, number> = {
+    smart: 0,
+    fast: 0
+};
+
+const SHORT_QUERY_CHAR_LIMIT = 200;
 
 // Backend API URL (must match BACKEND_API_URL in .env.local)
 const API_BASE_URL = process.env.BACKEND_API_URL || 'http://127.0.0.1:8000';
@@ -124,12 +133,14 @@ function findLastUrlInMessages(messages: UIMessage[]): string | null {
     return null;
 }
 
-async function resolveModelName(): Promise<string> {
+async function resolveModelName(tier: ModelTier): Promise<string> {
     if (process.env.OPENAI_MODEL) return process.env.OPENAI_MODEL;
 
     const now = Date.now();
-    if (cachedModelName && now - cachedModelAt < MODEL_CACHE_TTL_MS) {
-        return cachedModelName;
+    const cachedName = cachedModelNameByTier[tier];
+    const cachedAt = cachedModelAtByTier[tier];
+    if (cachedName && now - cachedAt < MODEL_CACHE_TTL_MS) {
+        return cachedName;
     }
 
     try {
@@ -141,20 +152,21 @@ async function resolveModelName(): Promise<string> {
         const activeProvider = data?.active_provider;
         const providers = Array.isArray(data?.providers) ? data.providers : [];
         const selected = providers.find((p: any) => p.provider === activeProvider) || providers[0];
-        const modelName = selected?.defaults?.smart || 'gpt-4o';
+        const defaults = selected?.defaults || {};
+        const fallback = tier === 'fast' ? 'gpt-4o-mini' : 'gpt-4o';
+        const modelName = (tier === 'fast' ? defaults.fast : defaults.smart) || fallback;
 
-        cachedModelName = modelName;
-        cachedModelAt = now;
+        cachedModelNameByTier[tier] = modelName;
+        cachedModelAtByTier[tier] = now;
         return modelName;
     } catch (error) {
         console.warn('[API/Chat] Failed to resolve model from backend:', error);
-        return 'gpt-4o';
+        return tier === 'fast' ? 'gpt-4o-mini' : 'gpt-4o';
     }
 }
 
 export async function POST(req: Request) {
     try {
-        const modelName = await resolveModelName();
         // Parse request body - V6 DefaultChatTransport sends { message, threadId, taskId } in body
         const jsonBody = await req.json();
         console.log('[API/Chat] Request Body:', JSON.stringify(jsonBody, null, 2));
@@ -275,7 +287,7 @@ export async function POST(req: Request) {
                 .from('task_outputs')
                 .select('kind, content, status')
                 .eq('task_id', taskId)
-                .in('kind', ['script', 'summary']);
+                .in('kind', ['summary']);
 
             const completedOutputs = outputs?.filter(o => o.status === 'completed') || [];
 
@@ -289,19 +301,11 @@ export async function POST(req: Request) {
                 if (completedOutputs.length > 0) {
                     console.log(`[API/Chat] Found ${completedOutputs.length} completed outputs`);
                     const summary = completedOutputs.find(o => o.kind === 'summary');
-                    const script = completedOutputs.find(o => o.kind === 'script');
 
                     const summaryContent = summary?.content || '';
-                    const scriptContent = script?.content || '';
 
                     if (summaryContent) {
                         contextParts.push(`## Summary\n${summaryContent}`);
-                    }
-                    if (scriptContent) {
-                        const truncatedScript = scriptContent.length > 8000
-                            ? scriptContent.slice(0, 8000) + '\n\n[Transcript truncated...]'
-                            : scriptContent;
-                        contextParts.push(`## Transcript\n${truncatedScript}`);
                     }
                 } else {
                     console.log('[API/Chat] No completed outputs found for this task');
@@ -317,6 +321,14 @@ export async function POST(req: Request) {
             : '';
         const detectedUrl = extractUrl(messageText || '');
         const allowVideoTools = Boolean(detectedUrl);
+        const isShortFollowup = Boolean(
+            taskId &&
+            !detectedUrl &&
+            messageText.trim().length > 0 &&
+            messageText.trim().length <= SHORT_QUERY_CHAR_LIMIT
+        );
+        const modelTier: ModelTier = isShortFollowup ? 'fast' : 'smart';
+        const modelName = await resolveModelName(modelTier);
 
         // 3. Build System Prompt
         let systemPrompt = `You are VibeDigest Assistant, an AI helper for video content analysis.
@@ -327,6 +339,7 @@ When a taskId is provided:
 - ONLY call get_task_status if the user asks about status/progress/completion (e.g. "status", "progress", "done?", "still processing?")
 - If you need transcript/summary content and it is NOT already present in CURRENT VIDEO CONTEXT, call get_task_outputs
 - If the user is asking a general question (e.g. translation, clarification) and CURRENT VIDEO CONTEXT already contains the needed info, answer directly without calling tools
+- If the user asks for examples/quotes/verbatim wording ("举例", "原文", "引用", "quote", "具体说法") and the summary evidence is insufficient, call get_task_outputs with kinds: ["script"] to cite the transcript
 
 When users provide video URLs in their latest message:
 - ALWAYS call preview_video first to show the video metadata
