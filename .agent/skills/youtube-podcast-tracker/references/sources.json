@@ -1,0 +1,42 @@
+[
+  {
+    "name": "How I Built This (Guy Raz)",
+    "type": "channel",
+    "url": "https://www.youtube.com/@guy_raz/videos"
+  },
+  {
+    "name": "How I Built This (NPR playlist)",
+    "type": "playlist",
+    "url": "https://www.youtube.com/playlist?list=PLp-wXwmbv3z-1f-IDSSMABEEms7zLHPN7"
+  },
+  {
+    "name": "The Tim Ferriss Show",
+    "type": "channel",
+    "url": "https://www.youtube.com/@TimFerriss/videos"
+  },
+  {
+    "name": "Acquired",
+    "type": "channel",
+    "url": "https://www.youtube.com/@AcquiredFM/videos"
+  },
+  {
+    "name": "Invest Like the Best",
+    "type": "channel",
+    "url": "https://www.youtube.com/@JoinColossus/videos"
+  },
+  {
+    "name": "All-In",
+    "type": "channel",
+    "url": "https://www.youtube.com/@allin/videos"
+  },
+  {
+    "name": "a16z Podcast",
+    "type": "channel",
+    "url": "https://www.youtube.com/@a16z/videos"
+  },
+  {
+    "name": "Stanford Graduate School of Business",
+    "type": "channel",
+    "url": "https://www.youtube.com/@stanfordgsb/videos"
+  }
+]
