@@ -391,7 +391,7 @@ WRONG (NEVER USE):
         console.log('[API/Chat] Core messages count:', coreMessages.length);
 
         console.log('[API/Chat] Starting streamText...');
-        const tools: Record<string, ReturnType<typeof tool>> = {
+        const tools: Record<string, any> = {
             get_task_status: tool({
                 description: "Get the current processing status and progress of a video task",
                 inputSchema: taskStatusSchema,
