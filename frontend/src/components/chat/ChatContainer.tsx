@@ -99,7 +99,7 @@ export function ChatContainer({
     messages: initialMessages,
 
     // Error handling
-    onError: (err: any) => {
+    onError: (err: Error | unknown) => {
       console.error('Chat error:', err);
     },
 
@@ -156,12 +156,13 @@ export function ChatContainer({
   const hasRenderableAssistant = useMemo(() => {
     return messages.some((m) => {
       if (m.role !== 'assistant') return false
-      return (m.parts || []).some((part: any) => {
-        if (part.type === 'text') return Boolean(part.text?.trim())
-        if (part.type?.startsWith('tool-') || part.type === 'dynamic-tool') {
-          const toolName = part.type === 'dynamic-tool' ? part.toolName : part.type.replace('tool-', '')
+      return (m.parts || []).some((part: unknown) => {
+        const p = part as { type: string; text?: string; toolName?: string; output?: { taskId?: string } };
+        if (p.type === 'text') return Boolean(p.text?.trim())
+        if (p.type?.startsWith('tool-') || p.type === 'dynamic-tool') {
+          const toolName = p.type === 'dynamic-tool' ? p.toolName : p.type.replace('tool-', '')
           if (toolName === 'preview_video') return false
-          if (toolName === 'create_task' && !part.output?.taskId) return false
+          if (toolName === 'create_task' && !p.output?.taskId) return false
           return true
         }
         return false
@@ -171,13 +172,14 @@ export function ChatContainer({
   const hasTaskStatusForActiveTask = useMemo(() => {
     if (!activeTaskId) return false
     return messages.some((message) => {
-      return (message.parts || []).some((part: any) => {
-        const toolName = part.type === 'dynamic-tool'
-          ? part.toolName
-          : part.type?.startsWith('tool-')
-            ? part.type.replace('tool-', '')
+      return (message.parts || []).some((part: unknown) => {
+        const p = part as { type: string; toolName?: string; output?: { taskId?: string }; input?: { taskId?: string } };
+        const toolName = p.type === 'dynamic-tool'
+          ? p.toolName
+          : p.type?.startsWith('tool-')
+            ? p.type.replace('tool-', '')
             : ''
-        const taskId = part?.output?.taskId || part?.input?.taskId
+        const taskId = p.output?.taskId || p.input?.taskId
         if (!taskId) return false
         return (toolName === 'get_task_status' || toolName === 'create_task') && taskId === activeTaskId
       })
@@ -251,18 +253,19 @@ export function ChatContainer({
     for (const part of lastMessage.parts) {
       // Identify tool name
       let toolName = ''
-      if (part.type === 'dynamic-tool') {
-        toolName = part.toolName
-      } else if (part.type.startsWith('tool-')) {
-        toolName = part.type.replace('tool-', '')
+      const p = part as { type: string; toolName?: string; output?: { taskId?: string }; input?: object };
+      if (p.type === 'dynamic-tool') {
+        toolName = p.toolName || ''
+      } else if (p.type && p.type.startsWith('tool-')) {
+        toolName = p.type.replace('tool-', '')
       }
 
-      if (toolName === 'create_task' && (part as any).output && (part as any).output.taskId) {
-        const newTaskId = (part as any).output.taskId
+      if (toolName === 'create_task' && (p as { output?: { taskId?: string } }).output && (p as { output?: { taskId?: string } }).output?.taskId) {
+        const newTaskId = (p as { output?: { taskId: string } }).output?.taskId
 
         // Only trigger if we haven't already opened this specific task
         // AND if it's not the currently active task (to avoid redundant calls)
-        if (newTaskId !== lastAutoOpenedTaskId.current && newTaskId !== activeTaskId) {
+        if (newTaskId && newTaskId !== lastAutoOpenedTaskId.current && newTaskId !== activeTaskId) {
           lastAutoOpenedTaskId.current = newTaskId
           onOpenPanel(newTaskId)
         }
@@ -276,7 +279,7 @@ export function ChatContainer({
         ref={scrollRef}
         className={cn(
           'flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 md:px-8 py-6 custom-scrollbar scroll-smooth',
-          messages.length > 0 ? 'pb-44 md:pb-56' : '',
+          (messages.length > 0 || !!activeTaskId) ? 'pb-44 md:pb-56' : '',
         )}
       >
         {messages.length === 0 && !activeTaskId ? (
