@@ -5,6 +5,7 @@ import sys
 import os
 from uuid import uuid4
 import pytest
+from yt_dlp.utils import DownloadError
 
 # Add backend to path
 sys.path.append(os.path.join(os.getcwd(), "backend"))
@@ -152,7 +153,14 @@ class TestBilibiliAppleIntegration(unittest.IsolatedAsyncioTestCase):
         vp = VideoProcessor()
         # We verify that yt-dlp can actually talk to Bilibili
         # using the real URL
-        info = await vp.extract_info_only(BILIBILI_URL)
+        try:
+            info = await vp.extract_info_only(BILIBILI_URL)
+        except DownloadError as exc:
+            # Bilibili may block CI egress IPs with 412/403 anti-bot responses.
+            msg = str(exc)
+            if "HTTP Error 412" in msg or "HTTP Error 403" in msg:
+                pytest.skip(f"Bilibili blocked test environment: {msg}")
+            raise
 
         self.assertIsNotNone(info)
         self.assertIn("title", info)
