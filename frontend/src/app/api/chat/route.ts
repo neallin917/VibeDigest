@@ -67,11 +67,11 @@ const taskOutputsSchema = z.object({
 });
 
 const createTaskSchema = z.object({
-    video_url: z.string().describe('REQUIRED: Complete YouTube URL. Example: https://www.youtube.com/watch?v=dQw4w9WgXcQ'),
+    video_url: z.string().describe('REQUIRED: Complete Video URL (YouTube, Bilibili, Apple Podcasts, etc). Example: https://www.youtube.com/watch?v=dQw4w9WgXcQ'),
 });
 
 const previewVideoSchema = z.object({
-    video_url: z.string().describe('REQUIRED: Complete YouTube URL. Example: https://www.youtube.com/watch?v=dQw4w9WgXcQ'),
+    video_url: z.string().describe('REQUIRED: Complete Video URL (YouTube, Bilibili, Apple Podcasts, etc). Example: https://www.youtube.com/watch?v=dQw4w9WgXcQ'),
 });
 
 // --- Startup Logging ---
@@ -474,8 +474,14 @@ When users provide video URLs in their latest message:
 - If you do not have a valid URL in the latest user message, DO NOT call preview_video/create_task. Ask the user for the URL first.
 
 === CRITICAL: TOOL PARAMETER FORMAT ===
-For preview_video, use EXACTLY: {"video_url": "https://www.youtube.com/watch?v=VIDEO_ID"}
-For create_task, use EXACTLY: {"video_url": "https://www.youtube.com/watch?v=VIDEO_ID"}
+For preview_video, use EXACTLY: {"video_url": "https://..."} (Full URL)
+For create_task, use EXACTLY: {"video_url": "https://..."} (Full URL)
+
+Supported Platforms:
+- YouTube (Standard & Shorts)
+- Bilibili (Video & Episodes)
+- Apple Podcasts (Episode URLs)
+- Xiaoyuzhou (Episode URLs)
 
 WRONG (NEVER USE):
 - {"reason": "..."} - use "video_url" not "reason"
