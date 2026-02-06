@@ -26,7 +26,7 @@ function generateSlug(title: string): string {
 
 type TaskOutput = {
     kind: string
-    content: any
+    content: unknown
     status: string | null
     locale?: string | null
 }
@@ -86,33 +86,50 @@ const stripCodeFence = (text: string) => {
     return match ? match[1].trim() : text
 }
 
-const normalizeSummary = (value: any): StructuredSummary | null => {
-    if (!value || typeof value !== 'object') return null
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null
+
+const asString = (value: unknown): string | undefined =>
+    typeof value === 'string' ? value : undefined
+
+const asNumber = (value: unknown): number | undefined =>
+    typeof value === 'number' ? value : undefined
+
+const normalizeSummary = (value: unknown): StructuredSummary | null => {
+    if (!isRecord(value)) return null
 
     const keypointsRaw = Array.isArray(value.keypoints) ? value.keypoints : []
     const keypoints = keypointsRaw
-        .map((kp: any) => ({
-            title: typeof kp?.title === 'string' ? kp.title : undefined,
-            detail: typeof kp?.detail === 'string' ? kp.detail : undefined,
-            why_it_matters: typeof kp?.why_it_matters === 'string' ? kp.why_it_matters : undefined,
-            evidence: typeof kp?.evidence === 'string' ? kp.evidence : undefined,
-        }))
+        .map((kp) => {
+            const point = isRecord(kp) ? kp : {}
+            return {
+                title: asString(point.title),
+                detail: asString(point.detail),
+                why_it_matters: asString(point.why_it_matters),
+                evidence: asString(point.evidence),
+                startSeconds: asNumber(point.startSeconds),
+            }
+        })
         .filter((kp: SummaryKeyPoint) => kp.title || kp.detail || kp.why_it_matters || kp.evidence)
 
     const sectionsRaw = Array.isArray(value.sections) ? value.sections : []
     const sections = sectionsRaw
-        .map((section: any) => {
-            const itemsRaw = Array.isArray(section?.items) ? section.items : []
+        .map((section) => {
+            const safeSection = isRecord(section) ? section : {}
+            const itemsRaw = Array.isArray(safeSection.items) ? safeSection.items : []
             const items = itemsRaw
-                .map((item: any) => ({
-                    content: typeof item?.content === 'string' ? item.content : undefined,
-                }))
+                .map((item) => {
+                    const safeItem = isRecord(item) ? item : {}
+                    return {
+                        content: asString(safeItem.content),
+                    }
+                })
                 .filter((item: SummarySectionItem) => item.content)
 
             return {
-                section_type: typeof section?.section_type === 'string' ? section.section_type : undefined,
-                title: typeof section?.title === 'string' ? section.title : undefined,
-                description: typeof section?.description === 'string' ? section.description : undefined,
+                section_type: asString(safeSection.section_type),
+                title: asString(safeSection.title),
+                description: asString(safeSection.description),
                 items,
             }
         })
@@ -126,9 +143,9 @@ const normalizeSummary = (value: any): StructuredSummary | null => {
     }
 }
 
-const parseSummaryContent = (content: any): StructuredSummary | string | null => {
+const parseSummaryContent = (content: unknown): StructuredSummary | string | null => {
     if (!content) return null
-    if (typeof content === 'object') {
+    if (isRecord(content)) {
         return normalizeSummary(content)
     }
     if (typeof content !== 'string') return null
@@ -155,7 +172,7 @@ const formatSectionTitle = (value: string) =>
         .replace(/_/g, ' ')
         .replace(/\b\w/g, (char) => char.toUpperCase())
 
-const buildSummaryMarkdown = (content: any) => {
+const buildSummaryMarkdown = (content: unknown) => {
     const parsed = parseSummaryContent(content)
     if (!parsed) return ""
     if (typeof parsed === 'string') return parsed
@@ -291,7 +308,7 @@ export default async function TaskDetailPage(props: Props) {
     const chatPath = `/${lang}/chat?task=${id}`
     const status = task.status || "pending"
     const canonicalUrl = buildLocalizedPath(lang, `/tasks/${id}/${correctSlug}`)
-    const articleJsonLd: Record<string, any> = {
+    const articleJsonLd: Record<string, unknown> = {
         "@context": "https://schema.org",
         "@type": "Article",
         headline: title,
@@ -396,6 +413,7 @@ export default async function TaskDetailPage(props: Props) {
                     <aside className="space-y-4">
                         {task.thumbnail_url && (
                             <div className="glass-panel p-3">
+                                {/* eslint-disable-next-line @next/next/no-img-element -- external dynamic thumbnail URL is rendered directly without Next image optimization */}
                                 <img
                                     src={task.thumbnail_url}
                                     alt={title}

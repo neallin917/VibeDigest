@@ -82,6 +82,73 @@ console.log('>>> ---------------------------- <<<');
 
 export const maxDuration = 30;
 
+type ProviderDefaults = {
+    fast?: string;
+    smart?: string;
+};
+
+type ProviderEntry = {
+    provider?: string;
+    defaults?: ProviderDefaults;
+};
+
+type RequestPayload = {
+    message?: UIMessage & { content?: string };
+    threadId?: string;
+    taskId?: string;
+};
+
+type ChatMessageRow = {
+    id: string;
+    role: UIMessage['role'];
+    content: unknown;
+    created_at: string;
+};
+
+type TextPart = {
+    type: 'text';
+    text: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+}
+
+function isTextPart(part: unknown): part is TextPart {
+    return (
+        isRecord(part) &&
+        part.type === 'text' &&
+        typeof part.text === 'string'
+    );
+}
+
+function getLegacyContent(message: UIMessage): string {
+    const content = (message as { content?: unknown }).content;
+    return typeof content === 'string' ? content : '';
+}
+
+function getMessageCreatedAtIso(message: UIMessage): string {
+    const metadata = (message as { metadata?: { createdAt?: unknown } }).metadata;
+    const createdAt = metadata?.createdAt;
+    if (createdAt instanceof Date) return createdAt.toISOString();
+    if (typeof createdAt === 'string') {
+        const parsed = new Date(createdAt);
+        if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+    }
+    return new Date().toISOString();
+}
+
+function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    if (typeof error === 'string') return error;
+    return String(error);
+}
+
+function getErrorStack(error: unknown): string | undefined {
+    if (error instanceof Error) return error.stack;
+    return undefined;
+}
+
 // Helper to extract text from UIMessage (AI SDK v6 Best Practice)
 function getTextFromUIMessage(message: UIMessage): string {
     return (message.parts || [])
@@ -124,8 +191,9 @@ function findLastUrlInMessages(messages: UIMessage[]): string | null {
                 }
             }
             // Check legacy content string
-            if (typeof (msg as any).content === 'string') {
-                const url = extractUrl((msg as any).content);
+            const legacyContent = getLegacyContent(msg);
+            if (legacyContent) {
+                const url = extractUrl(legacyContent);
                 if (url) return url;
             }
         }
@@ -148,10 +216,29 @@ async function resolveModelName(tier: ModelTier): Promise<string> {
         if (!response.ok) {
             throw new Error(`Failed to load providers (${response.status})`);
         }
-        const data = await response.json();
-        const activeProvider = data?.active_provider;
-        const providers = Array.isArray(data?.providers) ? data.providers : [];
-        const selected = providers.find((p: any) => p.provider === activeProvider) || providers[0];
+        const data: unknown = await response.json();
+        const dataRecord = isRecord(data) ? data : {};
+        const activeProvider =
+            typeof dataRecord.active_provider === 'string'
+                ? dataRecord.active_provider
+                : undefined;
+
+        const providersRaw = Array.isArray(dataRecord.providers) ? dataRecord.providers : [];
+        const providers: ProviderEntry[] = providersRaw
+            .filter(isRecord)
+            .map((provider) => {
+                const defaultsRaw = isRecord(provider.defaults) ? provider.defaults : undefined;
+                return {
+                    provider: typeof provider.provider === 'string' ? provider.provider : undefined,
+                    defaults: defaultsRaw
+                        ? {
+                            fast: typeof defaultsRaw.fast === 'string' ? defaultsRaw.fast : undefined,
+                            smart: typeof defaultsRaw.smart === 'string' ? defaultsRaw.smart : undefined,
+                        }
+                        : undefined,
+                };
+            });
+        const selected = providers.find((p) => p.provider === activeProvider) || providers[0];
         const defaults = selected?.defaults || {};
         const fallback = tier === 'fast' ? 'gpt-4o-mini' : 'gpt-4o';
         const modelName = (tier === 'fast' ? defaults.fast : defaults.smart) || fallback;
@@ -168,7 +255,7 @@ async function resolveModelName(tier: ModelTier): Promise<string> {
 export async function POST(req: Request) {
     try {
         // Parse request body - V6 DefaultChatTransport sends { message, threadId, taskId } in body
-        const jsonBody = await req.json();
+        const jsonBody = (await req.json()) as RequestPayload;
         console.log('[API/Chat] Request Body:', JSON.stringify(jsonBody, null, 2));
 
         const { message, threadId, taskId: bodyTaskId } = jsonBody;
@@ -242,14 +329,17 @@ export async function POST(req: Request) {
             if (msgError) console.error('[API/Chat] Message fetch failed:', msgError);
 
             if (dbMessages && dbMessages.length > 0) {
-                messages = dbMessages.map((msg: any) => {
+                messages = (dbMessages as ChatMessageRow[]).map((msg) => {
                     // Construct UIMessage from DB
                     // DB 'content' is JSONB (array of parts)
+                    const parts = Array.isArray(msg.content)
+                        ? msg.content
+                        : [{ type: 'text', text: JSON.stringify(msg.content) }];
                     return {
                         id: msg.id,
                         role: msg.role,
                         // content: '', // V6 prefers parts - REMOVED for strict type safety
-                        parts: Array.isArray(msg.content) ? msg.content : [{ type: 'text', text: JSON.stringify(msg.content) }],
+                        parts: parts as UIMessage['parts'],
                         metadata: {
                             createdAt: new Date(msg.created_at)
                         }
@@ -317,7 +407,7 @@ export async function POST(req: Request) {
         }
 
         const messageText = message
-            ? (getTextFromUIMessage(message) || (message as any).content || '')
+            ? (getTextFromUIMessage(message) || getLegacyContent(message))
             : '';
         const detectedUrl = extractUrl(messageText || '');
         const allowVideoTools = Boolean(detectedUrl);
@@ -382,7 +472,7 @@ WRONG (NEVER USE):
         console.log('[API/Chat] Converting to model messages...');
         const messagesForModel = messages
             .map((msg) => {
-                const textParts = (msg.parts || []).filter((part: any) => part.type === 'text');
+                const textParts = (msg.parts || []).filter((part) => isTextPart(part));
                 if (!textParts.length) return null;
                 return { ...msg, parts: textParts } as UIMessage;
             })
@@ -391,7 +481,7 @@ WRONG (NEVER USE):
         console.log('[API/Chat] Core messages count:', coreMessages.length);
 
         console.log('[API/Chat] Starting streamText...');
-        const tools: Record<string, any> = {
+        const tools: Record<string, unknown> = {
             get_task_status: tool({
                 description: "Get the current processing status and progress of a video task",
                 inputSchema: taskStatusSchema,
@@ -591,7 +681,7 @@ WRONG (NEVER USE):
             system: systemPrompt,
             messages: coreMessages,
             stopWhen: stepCountIs(5), // V6 helper
-            tools,
+            tools: tools as Parameters<typeof streamText>[0]['tools'],
         });
 
         // 5. Consume stream to ensure saving even if client disconnects
@@ -624,7 +714,7 @@ WRONG (NEVER USE):
                             thread_id: threadId,
                             role: msg.role,
                             content: msg.parts,
-                            created_at: (msg.metadata as any)?.createdAt?.toISOString() || new Date().toISOString()
+                            created_at: getMessageCreatedAtIso(msg)
                         });
 
                         if (insertError) {
@@ -668,12 +758,12 @@ WRONG (NEVER USE):
                 }
             },
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('[API/Chat] Fatal Error:', error);
         return new Response(JSON.stringify({
             error: 'Internal Server Error',
-            details: error?.message || String(error),
-            stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+            details: getErrorMessage(error),
+            stack: process.env.NODE_ENV === 'development' ? getErrorStack(error) : undefined
         }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' },

@@ -4,6 +4,12 @@ import { useState, useCallback, useMemo, useEffect } from "react"
 import { createClient } from "@/lib/supabase"
 import { Task } from "@/types"
 
+function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message
+    if (typeof error === "string") return error
+    return 'Failed to fetch tasks'
+}
+
 export function useTasks(shouldFetch: boolean = true) {
     const [tasks, setTasks] = useState<Task[]>([])
     const [loading, setLoading] = useState(false)
@@ -33,7 +39,7 @@ export function useTasks(shouldFetch: boolean = true) {
             setTasks(data || [])
         } catch (err) {
             console.error('Error fetching tasks:', err)
-            setError(err instanceof Error ? err.message : (err as any)?.message || 'Failed to fetch tasks')
+            setError(getErrorMessage(err))
         } finally {
             setLoading(false)
         }

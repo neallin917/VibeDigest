@@ -3,7 +3,7 @@
 import { LanguageDropdown } from "@/components/i18n/LanguageDropdown"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { PageContainer } from "@/components/layout/PageContainer"
-import { Card, CardHeader, CardContent } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Heading, Text } from "@/components/ui/typography"
 import { useTaskNotification } from "@/hooks/useTaskNotification"

@@ -170,13 +170,15 @@ export function useTaskStream(
     onError,
     onEvent,
   });
-  callbacksRef.current = {
-    onProgress,
-    onOutput,
-    onComplete,
-    onError,
-    onEvent,
-  };
+  useEffect(() => {
+    callbacksRef.current = {
+      onProgress,
+      onOutput,
+      onComplete,
+      onError,
+      onEvent,
+    };
+  }, [onProgress, onOutput, onComplete, onError, onEvent]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -355,14 +357,7 @@ export function useTaskStream(
   // Connect when taskId changes
   useEffect(() => {
     if (taskId) {
-      // Reset state for new task
       isTerminalRef.current = false;
-      setProgress(0);
-      setStage('');
-      setMessage('');
-      setStatus('pending');
-      setError(null);
-      setReconnectAttempts(0);
       connect();
     }
 

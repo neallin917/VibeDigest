@@ -12,7 +12,7 @@ interface VideoPlayerProps {
   audioUrl?: string | null
   audioCoverUrl?: string
   sourceUrl?: string
-  onMediaReady?: (ctrl: any) => void
+  onMediaReady?: (ctrl: { seek: (seconds: number) => void }) => void
   className?: string
 }
 

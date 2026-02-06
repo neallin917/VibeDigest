@@ -37,7 +37,6 @@ export function TypewriterPlaceholder({
       case 'typing':
         if (displayText.length < currentUrl.length) {
           timeoutId = setTimeout(() => {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setDisplayText(currentUrl.slice(0, displayText.length + 1))
           }, TYPEWRITER_CONFIG.typingSpeed)
         } else {

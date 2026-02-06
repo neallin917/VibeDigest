@@ -10,8 +10,7 @@ interface TextContentPart {
 // For now, we'll keep it general as the structure isn't fully defined in the original code.
 type OtherContentPart = {
     type: Exclude<string, 'text'>; // Any type other than 'text'
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    [key: string]: any; // Allow any other properties
+    [key: string]: unknown; // Allow additional properties
 };
 
 // A content part can be a text part or another type of part
@@ -50,9 +49,10 @@ export function mapDBMessageToUIMessage(dbMsg: DBMessage): UIMessage {
         // For now, simple text mapping.
     } else if (typeof dbMsg.content === 'object' && dbMsg.content !== null) {
         // Single object content?
-        if (dbMsg.content.type === 'text') {
-            content = dbMsg.content.text;
-            parts = [dbMsg.content];
+        const contentObj = dbMsg.content as Record<string, unknown>;
+        if (contentObj.type === 'text' && typeof contentObj.text === 'string') {
+            content = contentObj.text;
+            parts = [{ type: 'text', text: content }];
         } else {
             content = JSON.stringify(dbMsg.content); // Fallback for non-text objects
             parts = [dbMsg.content as ContentPart]; // Treat as a single part
@@ -62,13 +62,15 @@ export function mapDBMessageToUIMessage(dbMsg: DBMessage): UIMessage {
         parts = [{ type: 'text', text: content }];
     }
 
+    const normalizedRole: UIMessage['role'] =
+        dbMsg.role === 'user' || dbMsg.role === 'assistant' || dbMsg.role === 'system'
+            ? dbMsg.role
+            : 'assistant';
+
     return {
         id: dbMsg.id,
-        role: dbMsg.role as any, // Allow DB roles (like 'tool' or 'data') even if UIMessage is strict
+        role: normalizedRole,
         content: content,
-        // createdAt removed as UIMessage does not have it
-        // Attach parts if your UI component uses them directly.
-        // We cast to any to avoid strict UIMessagePart structure checks against our simple ContentPart types
-        parts: parts as any,
+        parts: parts as unknown as UIMessage['parts'],
     } as unknown as UIMessage;
 }
