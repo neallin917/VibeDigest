@@ -168,7 +168,9 @@ function extractTaskIdFromCreateTaskMessages(messages: UIMessage[]): string | nu
 
             if (!isCreateTaskTool) continue;
 
-            const output = isRecord(part.output) ? part.output : null;
+            const maybeOutput =
+                'output' in part ? (part as { output?: unknown }).output : null;
+            const output = isRecord(maybeOutput) ? maybeOutput : null;
             const taskId = output && typeof output.taskId === 'string' ? output.taskId : null;
             if (isUsableTaskId(taskId)) {
                 return taskId;
