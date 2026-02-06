@@ -3,6 +3,12 @@ import { NextResponse } from "next/server";
 
 const API_BASE_URL = process.env.BACKEND_API_URL || "http://127.0.0.1:8000";
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return "Internal Server Error";
+}
+
 export async function POST(req: Request) {
   const supabase = await createClient();
   const {
@@ -47,10 +53,10 @@ export async function POST(req: Request) {
 
     const data = await res.json();
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Proxy error:", error);
     return NextResponse.json(
-      { error: error.message || "Internal Server Error" },
+      { error: getErrorMessage(error) },
       { status: 500 }
     );
   }

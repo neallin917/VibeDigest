@@ -66,8 +66,10 @@ interface GetTaskStatusToolProps extends BaseToolPartProps<TaskStatusInput, Task
   onViewClick?: (taskId: string) => void
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
 export function GetTaskStatusTool({
-  toolCallId,
   state,
   input,
   output,
@@ -113,16 +115,18 @@ export function GetTaskStatusTool({
         table: 'tasks',
         filter: `id=eq.${output.taskId}`
       }, (payload) => {
-        const next = payload.new as any
-        if (!next || !isActive) return
+        const next = payload.new
+        if (!isRecord(next) || !isActive) return
         setLiveTask({
-          taskId: next.id,
-          status: next.status,
-          progress: next.progress || 0,
-          video_title: next.video_title || undefined,
-          thumbnail_url: next.thumbnail_url || undefined,
-          video_url: next.video_url || undefined,
-          error_message: next.error_message || undefined
+          taskId: typeof next.id === 'string' ? next.id : output.taskId,
+          status: next.status === 'pending' || next.status === 'processing' || next.status === 'completed' || next.status === 'failed'
+            ? next.status
+            : output.status,
+          progress: typeof next.progress === 'number' ? next.progress : 0,
+          video_title: typeof next.video_title === 'string' ? next.video_title : undefined,
+          thumbnail_url: typeof next.thumbnail_url === 'string' ? next.thumbnail_url : undefined,
+          video_url: typeof next.video_url === 'string' ? next.video_url : undefined,
+          error_message: typeof next.error_message === 'string' ? next.error_message : undefined
         })
       })
       .subscribe()
@@ -131,7 +135,7 @@ export function GetTaskStatusTool({
       isActive = false
       supabase.removeChannel(channel)
     }
-  }, [output?.taskId, output?.error, supabase])
+  }, [output?.taskId, output?.error, output?.status, supabase])
 
   switch (state) {
     case 'input-streaming':
@@ -363,7 +367,6 @@ interface CreateTaskToolProps extends BaseToolPartProps {
 }
 
 export function CreateTaskTool({
-  toolCallId,
   state,
   input,
   output,
@@ -472,7 +475,6 @@ interface PreviewVideoToolProps extends BaseToolPartProps {
 }
 
 export function PreviewVideoTool({
-  toolCallId,
   state,
   input,
   output,
@@ -517,12 +519,15 @@ export function PreviewVideoTool({
           {/* Thumbnail */}
           <div className="relative aspect-video bg-black/50">
             {output?.thumbnail ? (
-              <img
-                src={output.thumbnail}
-                alt={output.title || "Video"}
-                loading="lazy"
-                className="absolute inset-0 h-full w-full object-cover"
-              />
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element -- dynamic external thumbnail URLs are rendered directly without Next image optimization */}
+                <img
+                  src={output.thumbnail}
+                  alt={output.title || "Video"}
+                  loading="lazy"
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              </>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                 <Play className="w-8 h-8 opacity-20" />
@@ -588,7 +593,6 @@ interface GetTaskOutputsToolProps extends BaseToolPartProps {
 }
 
 export function GetTaskOutputsTool({
-  toolCallId,
   state,
   input,
   output,
@@ -645,12 +649,8 @@ interface UnknownToolProps extends BaseToolPartProps {
 }
 
 export function UnknownTool({
-  toolCallId,
   toolName,
   state,
-  input,
-  output,
-  errorText
 }: UnknownToolProps) {
   switch (state) {
     case 'input-streaming':

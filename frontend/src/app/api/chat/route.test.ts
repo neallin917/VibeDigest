@@ -41,7 +41,7 @@ const {
 })
 
 // Chainable mock implementation (applied after hoisting)
-mockFrom.mockImplementation(((table: string) => ({
+mockFrom.mockImplementation((() => ({
     select: mockSelect,
     insert: mockInsert,
     update: mockUpdate,
@@ -83,7 +83,7 @@ describe('POST /api/chat', () => {
     beforeEach(() => {
         vi.clearAllMocks()
 
-        mockFrom.mockImplementation(((table: string) => ({
+        mockFrom.mockImplementation((() => ({
             select: mockSelect,
             insert: mockInsert,
             update: mockUpdate,
@@ -113,7 +113,7 @@ describe('POST /api/chat', () => {
         mockUpdate.mockReturnValue({
             eq: vi.fn().mockResolvedValue({})
         })
-        mockEq.mockImplementation((k, v) => {
+        mockEq.mockImplementation(() => {
             return { single: mockSingle, order: mockOrder };
         })
         mockIn.mockResolvedValue({ data: [], error: null })

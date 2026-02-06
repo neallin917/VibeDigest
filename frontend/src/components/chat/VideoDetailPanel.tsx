@@ -56,6 +56,114 @@ type StructuredSummary = {
   sections: SummarySection[]
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+const asString = (value: unknown): string | undefined =>
+  typeof value === 'string' ? value : undefined
+
+const asNumber = (value: unknown): number | undefined =>
+  typeof value === 'number' ? value : undefined
+
+const toTask = (value: unknown): Task | null => {
+  if (!isRecord(value)) return null
+  const id = asString(value.id)
+  const videoUrl = asString(value.video_url)
+  const status = asString(value.status)
+  if (!id || !videoUrl || !status) return null
+  return {
+    id,
+    video_url: videoUrl,
+    video_title: asString(value.video_title),
+    thumbnail_url: asString(value.thumbnail_url),
+    status,
+  }
+}
+
+const stripCodeFence = (text: string) => {
+  if (!text.startsWith('```')) return text
+  const match = text.match(/^```[a-zA-Z]*\n([\s\S]*?)\n```$/)
+  return match ? match[1].trim() : text
+}
+
+const normalizeSummary = (value: unknown): StructuredSummary | null => {
+  if (!isRecord(value)) return null
+
+  const keypointsRaw = Array.isArray(value.keypoints) ? value.keypoints : []
+  const keypoints = keypointsRaw
+    .map((kp) => {
+      const point = isRecord(kp) ? kp : {}
+      return {
+        title: asString(point.title) ?? '',
+        detail: asString(point.detail) ?? '',
+        startSeconds: asNumber(point.startSeconds),
+        why_it_matters: asString(point.why_it_matters),
+        evidence: asString(point.evidence),
+      }
+    })
+    .filter((kp: SummaryKeyPoint) => kp.title || kp.detail || kp.why_it_matters || kp.evidence)
+
+  const sectionsRaw = Array.isArray(value.sections) ? value.sections : []
+  const sections = sectionsRaw
+    .map((section) => {
+      const safeSection = isRecord(section) ? section : {}
+      const itemsRaw = Array.isArray(safeSection.items) ? safeSection.items : []
+      const items = itemsRaw
+        .map((item) => {
+          const safeItem = isRecord(item) ? item : {}
+          return {
+            content: asString(safeItem.content) ?? '',
+            metadata: isRecord(safeItem.metadata) ? safeItem.metadata : undefined,
+          }
+        })
+        .filter((item: SummarySectionItem) => item.content)
+
+      return {
+        section_type: asString(safeSection.section_type) ?? 'section',
+        title: asString(safeSection.title),
+        description: asString(safeSection.description),
+        items,
+      }
+    })
+    .filter((section: SummarySection) => section.items.length || section.title || section.description)
+
+  return {
+    version: asNumber(value.version),
+    tl_dr: asString(value.tl_dr),
+    overview: asString(value.overview),
+    keypoints,
+    sections,
+  }
+}
+
+const parseSummaryContent = (content: unknown): StructuredSummary | null => {
+  if (!content) return null
+  if (isRecord(content)) {
+    return normalizeSummary(content)
+  }
+  if (typeof content !== 'string') return null
+
+  const trimmed = content.trim()
+  if (!trimmed) return null
+
+  const jsonCandidate = stripCodeFence(trimmed)
+
+  if (jsonCandidate.startsWith('{') || jsonCandidate.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(jsonCandidate) as unknown
+      return normalizeSummary(parsed)
+    } catch (e) {
+      console.error("Failed to parse summary JSON", e)
+    }
+  }
+
+  return {
+    overview: trimmed,
+    keypoints: [],
+    sections: []
+  }
+}
+
 // --- Sub-components ---
 
 function KeypointCard({ 
@@ -144,7 +252,7 @@ function KeypointCard({
                       {/* Decorative quote mark */}
                     <Quote className="absolute top-2 left-2 w-4 h-4 text-slate-200 dark:text-white/5 rotate-180" />
                     <p className="text-[13px] italic text-slate-600 dark:text-slate-400 leading-relaxed pl-2 relative z-10">
-                      "{kp.evidence}"
+                      &ldquo;{kp.evidence}&rdquo;
                     </p>
                   </div>
                 </div>
@@ -167,84 +275,7 @@ export function VideoDetailPanel({
   const [summary, setSummary] = useState<StructuredSummary | null>(null)
   const [mediaController, setMediaController] = useState<MediaController | null>(null)
   const [audioData, setAudioData] = useState<{ audioUrl: string, coverUrl?: string } | null>(null)
-  const supabase = createClient()
-
-  const normalizeSummary = (value: any): StructuredSummary | null => {
-    if (!value || typeof value !== 'object') return null
-
-    const keypointsRaw = Array.isArray(value.keypoints) ? value.keypoints : []
-    const keypoints = keypointsRaw
-      .map((kp: any) => ({
-        title: typeof kp?.title === 'string' ? kp.title : '',
-        detail: typeof kp?.detail === 'string' ? kp.detail : '',
-        startSeconds: typeof kp?.startSeconds === 'number' ? kp.startSeconds : undefined,
-        why_it_matters: typeof kp?.why_it_matters === 'string' ? kp.why_it_matters : undefined,
-        evidence: typeof kp?.evidence === 'string' ? kp.evidence : undefined,
-      }))
-      .filter((kp: SummaryKeyPoint) => kp.title || kp.detail || kp.why_it_matters || kp.evidence)
-
-    const sectionsRaw = Array.isArray(value.sections) ? value.sections : []
-    const sections = sectionsRaw
-      .map((section: any) => {
-        const itemsRaw = Array.isArray(section?.items) ? section.items : []
-        const items = itemsRaw
-          .map((item: any) => ({
-            content: typeof item?.content === 'string' ? item.content : '',
-            metadata: item?.metadata && typeof item.metadata === 'object' ? item.metadata : undefined,
-          }))
-          .filter((item: SummarySectionItem) => item.content)
-
-        return {
-          section_type: typeof section?.section_type === 'string' ? section.section_type : 'section',
-          title: typeof section?.title === 'string' ? section.title : undefined,
-          description: typeof section?.description === 'string' ? section.description : undefined,
-          items,
-        }
-      })
-      .filter((section: SummarySection) => section.items.length || section.title || section.description)
-
-    return {
-      version: typeof value.version === 'number' ? value.version : undefined,
-      tl_dr: typeof value.tl_dr === 'string' ? value.tl_dr : undefined,
-      overview: typeof value.overview === 'string' ? value.overview : undefined,
-      keypoints,
-      sections,
-    }
-  }
-
-  const stripCodeFence = (text: string) => {
-    if (!text.startsWith('```')) return text
-    const match = text.match(/^```[a-zA-Z]*\n([\s\S]*?)\n```$/)
-    return match ? match[1].trim() : text
-  }
-
-  const parseSummaryContent = (content: any): StructuredSummary | null => {
-    if (!content) return null
-    if (typeof content === 'object') {
-      return normalizeSummary(content)
-    }
-    if (typeof content !== 'string') return null
-
-    const trimmed = content.trim()
-    if (!trimmed) return null
-
-    const jsonCandidate = stripCodeFence(trimmed)
-
-    if (jsonCandidate.startsWith('{') || jsonCandidate.startsWith('[')) {
-      try {
-        const parsed = JSON.parse(jsonCandidate)
-        return normalizeSummary(parsed)
-      } catch (e) {
-        console.error("Failed to parse summary JSON", e)
-      }
-    }
-
-    return {
-      overview: trimmed,
-      keypoints: [],
-      sections: []
-    }
-  }
+  const supabase = useMemo(() => createClient(), [])
 
   const formatSectionTitle = (value: string) =>
     value
@@ -307,13 +338,13 @@ export function VideoDetailPanel({
 
   useEffect(() => {
     if (!taskId) return
-    if (!taskId) return
 
     // States are reset via key-based remounting in parent
     const fetchData = async () => {
       // 1. Fetch Task
       const { data: t } = await supabase.from('tasks').select('*').eq('id', taskId).single()
-      if (t) setTask(t)
+      const normalizedTask = toTask(t)
+      if (normalizedTask) setTask(normalizedTask)
 
       // 2. Fetch Outputs (Summary & Audio)
       const { data: outputs } = await supabase
@@ -349,16 +380,26 @@ export function VideoDetailPanel({
     const channel = supabase.channel(`task_ctx_${taskId}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'tasks', filter: `id=eq.${taskId}`
-      }, (payload) => setTask(payload.new as Task))
+      }, (payload) => {
+        const nextTask = toTask(payload.new)
+        if (nextTask) {
+          setTask(nextTask)
+        }
+      })
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'task_outputs', filter: `task_id=eq.${taskId}`
       }, async (payload) => {
-        if (payload.new.kind === 'summary' && payload.new.status === 'completed') {
-          const parsed = parseSummaryContent(payload.new.content)
+        const next = payload.new
+        if (!isRecord(next)) return
+        const kind = asString(next.kind)
+        const status = asString(next.status)
+
+        if (kind === 'summary' && status === 'completed') {
+          const parsed = parseSummaryContent(next.content)
           setSummary(parsed)
-        } else if (payload.new.kind === 'audio') {
+        } else if (kind === 'audio') {
           // For audio, we accept any status as long as content parses to a URL
-          const parsed = parseAudioContent(payload.new.content)
+          const parsed = parseAudioContent(asString(next.content))
           if (parsed?.audioUrl) {
             setAudioData(parsed)
           }
@@ -367,11 +408,16 @@ export function VideoDetailPanel({
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'task_outputs', filter: `task_id=eq.${taskId}`
       }, async (payload) => {
-        if (payload.new.kind === 'summary' && payload.new.status === 'completed') {
-          const parsed = parseSummaryContent(payload.new.content)
+        const next = payload.new
+        if (!isRecord(next)) return
+        const kind = asString(next.kind)
+        const status = asString(next.status)
+
+        if (kind === 'summary' && status === 'completed') {
+          const parsed = parseSummaryContent(next.content)
           setSummary(parsed)
-        } else if (payload.new.kind === 'audio') {
-          const parsed = parseAudioContent(payload.new.content)
+        } else if (kind === 'audio') {
+          const parsed = parseAudioContent(asString(next.content))
           if (parsed?.audioUrl) {
             setAudioData(parsed)
           }

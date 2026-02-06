@@ -20,7 +20,7 @@ const MarkdownBlock = memo(function MarkdownBlock({ text }: { text: string }) {
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       components={{
-        pre: ({ node, ...props }) => (
+        pre: ({ ...props }) => (
           <div className="overflow-hidden w-full my-3 bg-slate-950 dark:bg-black/40 rounded-lg border border-slate-200 dark:border-white/10 group relative">
             <div className="flex items-center justify-between px-4 py-2 bg-slate-900/50 dark:bg-white/5 border-b border-slate-800 dark:border-white/5">
               <div className="flex gap-1.5">
@@ -34,13 +34,13 @@ const MarkdownBlock = memo(function MarkdownBlock({ text }: { text: string }) {
                 {...props}
                 className={cn(
                   'bg-transparent p-0 m-0 font-mono text-sm leading-relaxed whitespace-pre-wrap break-words',
-                  (props as any)?.className
+                  props.className
                 )}
               />
             </div>
           </div>
         ),
-        code: ({ node, className, children, ...props }) => {
+        code: ({ className, children, ...props }) => {
           const match = /language-(\w+)/.exec(className || '')
           const isInline = !match && !String(children).includes('\n')
           return (
@@ -57,7 +57,7 @@ const MarkdownBlock = memo(function MarkdownBlock({ text }: { text: string }) {
             </code>
           )
         },
-        a: ({ node, ...props }) => (
+        a: ({ ...props }) => (
           <a
             {...props}
             target="_blank"
@@ -65,9 +65,9 @@ const MarkdownBlock = memo(function MarkdownBlock({ text }: { text: string }) {
             className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300 hover:underline transition-colors font-medium"
           />
         ),
-        ul: ({ node, ...props }) => <ul {...props} className="my-2 list-disc pl-4 space-y-1" />,
-        ol: ({ node, ...props }) => <ol {...props} className="my-2 list-decimal pl-4 space-y-1" />,
-        li: ({ node, ...props }) => <li {...props} className="pl-1" />
+        ul: ({ ...props }) => <ul {...props} className="my-2 list-disc pl-4 space-y-1" />,
+        ol: ({ ...props }) => <ol {...props} className="my-2 list-decimal pl-4 space-y-1" />,
+        li: ({ ...props }) => <li {...props} className="pl-1" />
       }}
     >
       {text}
@@ -87,12 +87,21 @@ function MessageRowComponent({ message, isStreaming, enableMotion, onOpenPanel }
   if (message.role === 'system') return null
 
   if (message.role === 'assistant') {
-    const hasRenderableParts = (message.parts || []).some((part: any) => {
-      if (part.type === 'text') return Boolean(part.text?.trim())
-      if (part.type?.startsWith('tool-') || part.type === 'dynamic-tool') {
-        const toolName = part.type === 'dynamic-tool' ? part.toolName : part.type.replace('tool-', '')
+    const hasRenderableParts = (message.parts || []).some((part) => {
+      const typedPart = part as {
+        type?: string
+        text?: string
+        toolName?: string
+        output?: { taskId?: string }
+      }
+      if (typedPart.type === 'text') return Boolean(typedPart.text?.trim())
+      if (typedPart.type?.startsWith('tool-') || typedPart.type === 'dynamic-tool') {
+        const toolName =
+          typedPart.type === 'dynamic-tool'
+            ? typedPart.toolName
+            : typedPart.type.replace('tool-', '')
         if (toolName === 'preview_video') return false
-        if (toolName === 'create_task' && !part.output?.taskId) return false
+        if (toolName === 'create_task' && !typedPart.output?.taskId) return false
         return true
       }
       return false

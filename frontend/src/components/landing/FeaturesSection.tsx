@@ -7,10 +7,8 @@ import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import {
     FileText,
-    Share2,
     Languages,
     MessageSquare,
-    Download,
     Smartphone,
     Zap,
     Layout,

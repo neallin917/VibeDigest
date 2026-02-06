@@ -1,38 +1,65 @@
 import { GetTaskStatusTool, GetTaskOutputsTool, UnknownTool } from './tools'
 
+type RenderableToolPart = {
+  type?: string
+  toolCallId?: string
+  id?: string
+  state?: 'input-streaming' | 'input-available' | 'output-available' | 'output-error'
+  input?: unknown
+  output?: unknown
+  errorText?: string
+  toolName?: string
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
 // Helper function to render tool parts using AI SDK v6 standard UIMessage types
 export function renderToolPart(
-  part: any,
+  part: unknown,
   index: number,
   onOpenPanel?: (taskId: string) => void,
   options?: { hasGetTaskStatus?: boolean }
 ) {
-  if (!part.type.startsWith('tool-') && part.type !== 'dynamic-tool') {
+  if (!isRecord(part)) return null
+  const toolPart = part as RenderableToolPart
+
+  if (!toolPart.type?.startsWith('tool-') && toolPart.type !== 'dynamic-tool') {
     return null
   }
 
-  const toolCallId = part.toolCallId || part.id
-  const state = part.state
-  const args = part.input
-  const result = part.output
-  const errorText = part.errorText
+  const toolCallId = toolPart.toolCallId || toolPart.id
+  const resolvedToolCallId = toolCallId ?? `tool-${index}`
+  const state = toolPart.state ?? 'input-available'
+  const args = toolPart.input
+  const result = toolPart.output
+  const errorText = toolPart.errorText
 
   let toolName = ''
-  if (part.type === 'dynamic-tool') {
-    toolName = part.toolName
+  if (toolPart.type === 'dynamic-tool') {
+    toolName = toolPart.toolName || ''
   } else {
-    toolName = part.type.replace('tool-', '')
+    toolName = toolPart.type.replace('tool-', '')
   }
 
   switch (toolName) {
     case 'get_task_status':
       return (
         <GetTaskStatusTool
-          key={toolCallId || index}
-          toolCallId={toolCallId}
+          key={resolvedToolCallId}
+          toolCallId={resolvedToolCallId}
           state={state}
-          input={args}
-          output={result}
+          input={args as { taskId: string } | undefined}
+          output={result as {
+            taskId: string
+            status: 'pending' | 'processing' | 'completed' | 'failed'
+            progress?: number
+            video_title?: string
+            thumbnail_url?: string
+            video_url?: string
+            error_message?: string
+            error?: string
+          } | undefined}
           errorText={errorText}
           onViewClick={onOpenPanel}
         />
@@ -40,17 +67,17 @@ export function renderToolPart(
 
     case 'create_task':
       if (options?.hasGetTaskStatus) return null
-      if (!result?.taskId) return null
+      if (!isRecord(result) || typeof result.taskId !== 'string') return null
       return (
         <GetTaskStatusTool
-          key={toolCallId || index}
-          toolCallId={toolCallId}
+          key={resolvedToolCallId}
+          toolCallId={resolvedToolCallId}
           state="output-available"
           output={{
             taskId: result.taskId,
             status: 'pending',
             progress: 0,
-            video_url: result.videoUrl
+            video_url: typeof result.videoUrl === 'string' ? result.videoUrl : undefined
           }}
           errorText={errorText}
           onViewClick={onOpenPanel}
@@ -63,11 +90,16 @@ export function renderToolPart(
     case 'get_task_outputs':
       return (
         <GetTaskOutputsTool
-          key={toolCallId || index}
-          toolCallId={toolCallId}
+          key={resolvedToolCallId}
+          toolCallId={resolvedToolCallId}
           state={state}
-          input={args}
-          output={result}
+          input={args as { taskId: string; kinds?: string[] } | undefined}
+          output={result as {
+            taskId: string
+            outputs: { kind: string; content: string; status: string }[]
+            count: number
+            error?: string
+          } | undefined}
           errorText={errorText}
         />
       )
@@ -75,9 +107,9 @@ export function renderToolPart(
     default:
       return (
         <UnknownTool
-          key={toolCallId || index}
+          key={resolvedToolCallId}
           toolName={toolName}
-          toolCallId={toolCallId}
+          toolCallId={resolvedToolCallId}
           state={state}
           input={args}
           output={result}

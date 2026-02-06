@@ -173,36 +173,6 @@ describe('ChatContainer', () => {
   })
 
   it('renders tool invocations correctly', () => {
-    const messages: UIMessage[] = [
-      { 
-        id: '2', 
-        role: 'assistant', 
-        parts: [
-            { type: 'text', text: 'Checking status...' },
-            { 
-                type: 'tool-invocation', 
-                toolInvocation: { 
-                    toolCallId: 'call_1', 
-                    toolName: 'get_task_status',
-                    args: {},
-                    state: 'result',
-                    result: { status: 'processing' }
-                } 
-            } as any,
-            {
-                type: 'tool-invocation',
-                toolInvocation: {
-                    toolCallId: 'call_2',
-                    toolName: 'unknown_tool',
-                    args: {},
-                    state: 'result',
-                    result: {}
-                }
-            } as any
-        ] 
-      }
-    ]
-    
     const messagesWithTools: any[] = [
         {
             id: '2',

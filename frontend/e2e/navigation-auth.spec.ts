@@ -44,7 +44,6 @@ test.describe('Navigation & Auth Flows', () => {
             // BrandLogo is usually wrapped in a Link or has an onClick.
             // In MobileNav / LandingNav it might be different. 
             // We look for the BrandLogo text or image.
-            const brandLogo = page.locator('div').filter({ hasText: /^VibeDigest$/ }).first();
             // Or look for the specific class logic if known. A safer bet might be finding the link with "/" href if it exists, 
             // but LandingNav uses onClick scrollToSection for "hero". 
             // Let's assume we are on /login, clicking logo should probably take us home?

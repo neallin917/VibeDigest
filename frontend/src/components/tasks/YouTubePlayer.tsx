@@ -5,16 +5,38 @@ import Image from "next/image"
 
 type OnReady = (ctrl: { seek: (seconds: number) => void }) => void
 
+type YTPlayer = {
+  seekTo: (seconds: number, allowSeekAhead?: boolean) => void
+  playVideo: () => void
+  destroy?: () => void
+}
+
+type YTNamespace = {
+  Player: new (
+    elementId: string,
+    options: {
+      width?: string
+      height?: string
+      videoId: string
+      host?: string
+      playerVars?: Record<string, number | string>
+      events?: {
+        onReady?: (event: { target: YTPlayer }) => void
+      }
+    }
+  ) => YTPlayer
+}
+
 declare global {
   interface Window {
-    YT?: any
+    YT?: YTNamespace
     onYouTubeIframeAPIReady?: () => void
   }
 }
 
-let ytApiPromise: Promise<any> | null = null
+let ytApiPromise: Promise<YTNamespace> | null = null
 
-function loadYouTubeIframeAPI(): Promise<any> {
+function loadYouTubeIframeAPI(): Promise<YTNamespace> {
   if (typeof window === "undefined") return Promise.reject(new Error("No window"))
   if (window.YT?.Player) return Promise.resolve(window.YT)
   if (ytApiPromise) return ytApiPromise
@@ -32,7 +54,11 @@ function loadYouTubeIframeAPI(): Promise<any> {
     const prev = window.onYouTubeIframeAPIReady
     window.onYouTubeIframeAPIReady = () => {
       try {
-        resolve(window.YT)
+        if (window.YT?.Player) {
+          resolve(window.YT)
+          return
+        }
+        reject(new Error("YouTube IFrame API not ready"))
       } finally {
         // Preserve any previous handler.
         if (prev && prev !== window.onYouTubeIframeAPIReady) {
@@ -67,7 +93,7 @@ export function YouTubePlayer({
 }) {
   const id = useId()
   const containerId = useMemo(() => `yt-${videoId}-${id}`, [videoId, id])
-  const playerRef = useRef<any>(null)
+  const playerRef = useRef<YTPlayer | null>(null)
   const [isReady, setIsReady] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   // Track pending seek time when user clicks timestamp before player is ready
@@ -134,7 +160,7 @@ export function YouTubePlayer({
             modestbranding: 1,
             playsinline: 1,
             autoplay: coverUrl ? 1 : 0, // Autoplay if coming from facade click
-            origin: typeof window !== "undefined" ? window.location.origin : undefined,
+            ...(typeof window !== "undefined" ? { origin: window.location.origin } : {}),
           },
           events: {
             onReady: () => {
@@ -217,5 +243,3 @@ export function YouTubePlayer({
     </div>
   )
 }
-
-

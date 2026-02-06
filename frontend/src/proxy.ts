@@ -6,7 +6,7 @@ import { SUPPORTED_LOCALES, DEFAULT_LOCALE, COOKIE_NAME } from './lib/i18n'
 
 export default async function proxy(request: NextRequest) {
   // 1. Initialize response
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -72,7 +72,10 @@ export default async function proxy(request: NextRequest) {
 function getLocale(request: NextRequest): string {
   // 1. Check cookie preference
   const cookieLocale = request.cookies.get(COOKIE_NAME)?.value
-  if (cookieLocale && SUPPORTED_LOCALES.includes(cookieLocale as any)) {
+  if (
+    cookieLocale &&
+    SUPPORTED_LOCALES.includes(cookieLocale as (typeof SUPPORTED_LOCALES)[number])
+  ) {
     return cookieLocale
   }
 
@@ -82,7 +85,7 @@ function getLocale(request: NextRequest): string {
 
   try {
     return match(languages, SUPPORTED_LOCALES as unknown as string[], DEFAULT_LOCALE)
-  } catch (e) {
+  } catch {
     return DEFAULT_LOCALE
   }
 }

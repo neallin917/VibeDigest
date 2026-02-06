@@ -56,8 +56,8 @@ type TextComponent = <T extends React.ElementType = "p">(
 // NOTE: React.forwardRef cannot express generics directly. We implement with `any` and cast to a generic component type.
 const TextBase = React.forwardRef(
   (
-    { as, className, variant, tone, weight, ...props }: PolymorphicTextProps<any>,
-    ref: React.ForwardedRef<any>
+    { as, className, variant, tone, weight, ...props }: PolymorphicTextProps<React.ElementType>,
+    ref: React.ForwardedRef<unknown>
   ) => {
     const Comp = (as ?? "p") as React.ElementType
     return (
@@ -112,8 +112,8 @@ type HeadingComponent = <T extends React.ElementType = "h2">(
 
 const HeadingBase = React.forwardRef(
   (
-    { as, className, variant, tone, ...props }: PolymorphicHeadingProps<any>,
-    ref: React.ForwardedRef<any>
+    { as, className, variant, tone, ...props }: PolymorphicHeadingProps<React.ElementType>,
+    ref: React.ForwardedRef<unknown>
   ) => {
     const Comp = (as ?? "h2") as React.ElementType
     return (
@@ -129,4 +129,3 @@ HeadingBase.displayName = "Heading"
 export const Heading = HeadingBase as unknown as HeadingComponent
 
 export { textVariants, headingVariants }
-
