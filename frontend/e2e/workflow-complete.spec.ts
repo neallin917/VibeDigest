@@ -101,7 +101,7 @@ test.describe('Complete Task Workflow (Mocked)', () => {
     await expect(page.getByText('Never Gonna Give You Up').first()).toBeVisible({ timeout: 10000 })
     
     await expect(page.getByText('AI Summary Content')).toBeVisible({ timeout: 15000 })
-    await expect(page.getByText('Key Points')).toBeVisible()
+    await expect(page.getByTestId('header-key-insights')).toBeVisible()
     await expect(page.getByText('Intro').last()).toBeVisible()
   })
 })
