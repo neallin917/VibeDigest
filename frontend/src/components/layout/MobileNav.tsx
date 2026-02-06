@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { LogOut, Menu } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -25,7 +25,7 @@ function isActiveNav(pathname: string, href: string) {
 
 export function MobileHeader() {
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const { t, locale } = useI18n()
 
   useEffect(() => {
@@ -126,4 +126,3 @@ export function MobileBottomNav() {
     </nav>
   )
 }
-

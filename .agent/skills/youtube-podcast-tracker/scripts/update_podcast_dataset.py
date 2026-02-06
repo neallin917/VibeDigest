@@ -12,8 +12,8 @@ import sys
 import time
 from typing import Dict, List, Optional, Tuple
 
-HEADER = "| Import Status | Crawled At | Thumbnail | Title | URL | Channel | Published At | Views | Likes | Comments | Duration | Tags | Description |"
-SEPARATOR = "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
+HEADER = "| Import Status | Crawled At | Thumbnail | Title | URL | Channel | Published At | Views | Likes | Comments | Duration | Tags |"
+SEPARATOR = "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
 
 
 def run_cmd_json(args: List[str]) -> Dict:
@@ -206,16 +206,13 @@ def build_row(details: Dict) -> str:
     
     tags_list = details.get("tags") or []
     tags = escape_cell(", ".join(tags_list[:5])) # Limit to 5 tags
-    
-    original_desc = details.get("description") or ""
-    description = escape_cell(truncate_text(original_desc, 200))
 
     # Tracking columns
     crawled_at = dt.datetime.now().strftime("%Y-%m-%d")
     import_status = "未导入"
 
     return (
-        f"| {import_status} | {crawled_at} | {thumbnail} | {title} | {url} | {channel} | {published_at} | {views} | {likes} | {comments} | {duration} | {tags} | {description} |"
+        f"| {import_status} | {crawled_at} | {thumbnail} | {title} | {url} | {channel} | {published_at} | {views} | {likes} | {comments} | {duration} | {tags} |"
     )
 
 

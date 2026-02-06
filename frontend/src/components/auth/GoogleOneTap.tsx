@@ -1,7 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useMemo, useRef } from "react"
 import { createClient } from "@/lib/supabase"
 import { toast } from "sonner"
 
@@ -36,8 +35,7 @@ declare global {
 }
 
 export function GoogleOneTap() {
-    const router = useRouter()
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
     const initializedRef = useRef(false)
 
     useEffect(() => {
@@ -123,7 +121,7 @@ export function GoogleOneTap() {
         }
 
         checkAuthAndInitialize()
-    }, [router, supabase.auth])
+    }, [supabase])
 
     // This component doesn't render anything visually
     return null

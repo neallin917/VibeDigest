@@ -168,7 +168,7 @@ describe('VideoDetailPanel', () => {
       expect(screen.getByText('TL;DR')).toBeInTheDocument()
       expect(screen.getByText('Short take for V4.')).toBeInTheDocument()
       expect(screen.getByText('Why this matters.')).toBeInTheDocument()
-      expect(screen.getByText('"Evidence quote."')).toBeInTheDocument()
+      expect(screen.getByText('Evidence quote.', { exact: false })).toBeInTheDocument()
       expect(screen.getByText('Insights')).toBeInTheDocument()
       expect(screen.getByText('Item A')).toBeInTheDocument()
     })

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { createClient } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,7 +21,7 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
     const [isSignUp, setIsSignUp] = useState(false)
     const [loading, setLoading] = useState(false)
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
     const { t, locale } = useI18n()
 
     const getErrorMessage = (errorMsg: string) => {

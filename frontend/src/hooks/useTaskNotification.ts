@@ -1,27 +1,81 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useMemo } from "react"
 import { useI18n } from "@/components/i18n/I18nProvider"
 
 export type NotificationPermissionStatus = "default" | "granted" | "denied" | "unsupported"
 
 const STORAGE_KEY = "antigravity_task_subscriptions"
 const EVENT_KEY = "antigravity_task_subscriptions_updated"
+const MAX_SUBSCRIPTIONS = 200
+const SUBSCRIPTION_TTL_MS = 24 * 60 * 60 * 1000
+
+type SubscriptionRecord = Record<string, number>
+type StoredSubscriptions = string[] | { ids?: SubscriptionRecord }
+
+function areSubscriptionRecordsEqual(a: SubscriptionRecord, b: SubscriptionRecord): boolean {
+    const aKeys = Object.keys(a)
+    const bKeys = Object.keys(b)
+
+    if (aKeys.length !== bKeys.length) return false
+
+    for (const key of aKeys) {
+        if (a[key] !== b[key]) return false
+    }
+
+    return true
+}
+
+function pruneSubscriptions(record: SubscriptionRecord, now: number): SubscriptionRecord {
+    const activeEntries = Object.entries(record)
+        .filter(([, ts]) => Number.isFinite(ts) && now - ts <= SUBSCRIPTION_TTL_MS)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, MAX_SUBSCRIPTIONS)
+
+    return Object.fromEntries(activeEntries)
+}
+
+function parseStoredSubscriptions(raw: string | null, now: number): SubscriptionRecord {
+    if (!raw) return {}
+
+    try {
+        const parsed = JSON.parse(raw) as StoredSubscriptions
+
+        // Backward-compatible with the legacy format: ["taskId1", "taskId2"]
+        if (Array.isArray(parsed)) {
+            const fromArray = Object.fromEntries(
+                parsed
+                    .filter((id): id is string => typeof id === "string" && id.length > 0)
+                    .map((id) => [id, now])
+            )
+            return pruneSubscriptions(fromArray, now)
+        }
+
+        if (parsed && typeof parsed === "object" && parsed.ids && typeof parsed.ids === "object") {
+            return pruneSubscriptions(parsed.ids, now)
+        }
+    } catch (e) {
+        console.error("Failed to parse task subscriptions", e)
+    }
+
+    return {}
+}
 
 export function useTaskNotification() {
     const { t } = useI18n()
     const [permission, setPermission] = useState<NotificationPermissionStatus>("default")
-    // activeTaskIds is a Set of task IDs that the user wants to be notified about
-    const [subbedTaskIds, setSubbedTaskIds] = useState<Set<string>>(new Set())
+    // Keep timestamps to support TTL and bounded growth.
+    const [subscriptions, setSubscriptions] = useState<SubscriptionRecord>({})
+    const [loadedFromStorage, setLoadedFromStorage] = useState(false)
+
+    const subbedTaskIds = useMemo(() => new Set(Object.keys(subscriptions)), [subscriptions])
 
     useEffect(() => {
         // Handle initial permission state
         if (typeof window !== "undefined" && "Notification" in window) {
             const current = window.Notification.permission as NotificationPermissionStatus
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setPermission(prev => prev !== current ? current : prev)
         } else {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setPermission(prev => prev !== "unsupported" ? "unsupported" : prev)
             return
         }
@@ -29,14 +83,13 @@ export function useTaskNotification() {
         // Load from localStorage
         const loadFromStorage = () => {
             try {
-                const stored = localStorage.getItem(STORAGE_KEY)
-                if (stored) {
-                    setSubbedTaskIds(new Set(JSON.parse(stored)))
-                } else {
-                    setSubbedTaskIds(new Set())
-                }
+                const now = Date.now()
+                const next = parseStoredSubscriptions(localStorage.getItem(STORAGE_KEY), now)
+                setSubscriptions((prev) => areSubscriptionRecordsEqual(prev, next) ? prev : next)
             } catch (e) {
                 console.error("Failed to load task subscriptions", e)
+            } finally {
+                setLoadedFromStorage(true)
             }
         }
 
@@ -63,17 +116,16 @@ export function useTaskNotification() {
         }
     }, [])
 
-    const updateSubscriptions = (newSet: Set<string>) => {
-        // Optimistically update local state first to prevent flicker
-        setSubbedTaskIds(newSet)
+    useEffect(() => {
+        if (!loadedFromStorage) return
+
         try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(newSet)))
-            // Dispatch custom event for other components in the same window (e.g. global listener)
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ ids: subscriptions }))
             window.dispatchEvent(new Event(EVENT_KEY))
         } catch (e) {
             console.error("Failed to save task subscriptions", e)
         }
-    }
+    }, [loadedFromStorage, subscriptions])
 
     const requestPermission = useCallback(async () => {
         if (!("Notification" in window)) return "unsupported"
@@ -89,32 +141,38 @@ export function useTaskNotification() {
     }, [])
 
     const subscribeToTask = useCallback(async (taskId: string) => {
-        // optimistically add to set
-        const next = new Set(subbedTaskIds)
-        next.add(taskId)
-        updateSubscriptions(next)
+        const now = Date.now()
+        setSubscriptions((prev) => pruneSubscriptions({ ...prev, [taskId]: now }, now))
 
         if (permission === "default") {
             const newPermission = await requestPermission()
             if (newPermission !== "granted") {
-                // If denied/closed, remove the subscription
-                const reverted = new Set(subbedTaskIds)
-                reverted.delete(taskId)
-                updateSubscriptions(reverted)
+                setSubscriptions((prev) => {
+                    const { [taskId]: removedTaskId, ...rest } = prev
+                    void removedTaskId
+                    return rest
+                })
                 return false
             }
         } else if (permission !== "granted") {
+            setSubscriptions((prev) => {
+                const { [taskId]: removedTaskId, ...rest } = prev
+                void removedTaskId
+                return rest
+            })
             return false
         }
 
         return true
-    }, [permission, requestPermission, subbedTaskIds])
+    }, [permission, requestPermission])
 
     const unsubscribeFromTask = useCallback((taskId: string) => {
-        const next = new Set(subbedTaskIds)
-        next.delete(taskId)
-        updateSubscriptions(next)
-    }, [subbedTaskIds])
+        setSubscriptions((prev) => {
+            const { [taskId]: removedTaskId, ...rest } = prev
+            void removedTaskId
+            return rest
+        })
+    }, [])
 
     const sendTaskNotification = useCallback((taskId: string, title: string) => {
         if (permission !== "granted") return
@@ -143,7 +201,7 @@ export function useTaskNotification() {
         requestPermission,
         subscribeToTask,
         unsubscribeFromTask,
-        isSubscribed: (taskId: string) => subbedTaskIds.has(taskId),
+        isSubscribed: (taskId: string) => taskId in subscriptions,
         sendTaskNotification,
         subbedTaskIds // Exporting for the listener
     }

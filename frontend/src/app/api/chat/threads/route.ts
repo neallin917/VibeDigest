@@ -15,6 +15,7 @@ export async function GET() {
             .from('chat_threads')
             .select('*')
             .eq('user_id', user.id)
+            .neq('status', 'deleted')
             .order('updated_at', { ascending: false });
 
         if (error) {

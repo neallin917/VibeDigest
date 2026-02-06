@@ -8,11 +8,12 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { useMemo } from "react"
 
 export function PricingSection() {
     const { t, locale } = useI18n()
     const router = useRouter()
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
 
     const handlePlanClick = async () => {
         const { data: { user } } = await supabase.auth.getUser()

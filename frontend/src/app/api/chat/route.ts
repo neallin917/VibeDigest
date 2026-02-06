@@ -49,6 +49,7 @@ const cachedModelAtByTier: Record<ModelTier, number> = {
 };
 
 const SHORT_QUERY_CHAR_LIMIT = 200;
+const INVALID_TASK_ID = '00000000-0000-0000-0000-000000000000';
 
 // Backend API URL (must match BACKEND_API_URL in .env.local)
 const API_BASE_URL = process.env.BACKEND_API_URL || 'http://127.0.0.1:8000';
@@ -147,6 +148,34 @@ function getErrorMessage(error: unknown): string {
 function getErrorStack(error: unknown): string | undefined {
     if (error instanceof Error) return error.stack;
     return undefined;
+}
+
+function isUsableTaskId(taskId: string | null | undefined): taskId is string {
+    return typeof taskId === 'string' && taskId.length > 0 && taskId !== INVALID_TASK_ID;
+}
+
+function extractTaskIdFromCreateTaskMessages(messages: UIMessage[]): string | null {
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const message = messages[i];
+        if (!Array.isArray(message.parts)) continue;
+
+        for (const part of message.parts) {
+            if (!isRecord(part) || typeof part.type !== 'string') continue;
+
+            const isCreateTaskTool =
+                (part.type === 'dynamic-tool' && part.toolName === 'create_task') ||
+                (part.type.startsWith('tool-') && part.type.replace('tool-', '') === 'create_task');
+
+            if (!isCreateTaskTool) continue;
+
+            const output = isRecord(part.output) ? part.output : null;
+            const taskId = output && typeof output.taskId === 'string' ? output.taskId : null;
+            if (isUsableTaskId(taskId)) {
+                return taskId;
+            }
+        }
+    }
+    return null;
 }
 
 // Helper to extract text from UIMessage (AI SDK v6 Best Practice)
@@ -266,6 +295,7 @@ export async function POST(req: Request) {
         const url = new URL(req.url);
         const queryTaskId = url.searchParams.get('taskId');
         const taskId = bodyTaskId || queryTaskId;
+        const requestTaskId = isUsableTaskId(taskId) ? taskId : null;
 
         console.log(`[API/Chat] Resolved TaskID: ${taskId}`);
 
@@ -311,11 +341,15 @@ export async function POST(req: Request) {
             if (!thread) {
                 console.log('[API/Chat] Creating new thread:', threadId);
                 // Auto-create thread if missing (Client-side ID generation case)
-                const { error: createError } = await supabase.from('chat_threads').insert({
+                const threadInsertPayload: Record<string, unknown> = {
                     id: threadId,
                     user_id: user.id,
                     title: 'New Chat',
-                });
+                };
+                if (requestTaskId) {
+                    threadInsertPayload.task_id = requestTaskId;
+                }
+                const { error: createError } = await supabase.from('chat_threads').insert(threadInsertPayload);
                 if (createError) console.error('[API/Chat] Thread creation failed:', createError);
             }
 
@@ -725,8 +759,17 @@ WRONG (NEVER USE):
                     }
                     console.log(`[API/Chat] Saved ${savedCount} new messages to thread ${threadId}`);
 
+                    const createdTaskId = extractTaskIdFromCreateTaskMessages(finalMessages);
+                    const taskIdToBind = createdTaskId || requestTaskId;
+                    const threadUpdatePayload: Record<string, unknown> = {
+                        updated_at: new Date().toISOString(),
+                    };
+                    if (taskIdToBind) {
+                        threadUpdatePayload.task_id = taskIdToBind;
+                    }
+
                     await supabase.from('chat_threads')
-                        .update({ updated_at: new Date().toISOString() })
+                        .update(threadUpdatePayload)
                         .eq('id', threadId);
 
                     // Title Gen logic
