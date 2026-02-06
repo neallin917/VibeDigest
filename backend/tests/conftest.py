@@ -19,6 +19,34 @@ from dependencies import get_db_client
 from sqlalchemy import create_engine, text
 
 
+def _is_truthy(value: str | None) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "network: marks tests that require external network access"
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """
+    Keep CI deterministic: network tests are skipped by default in CI.
+    Set RUN_NETWORK_TESTS=1 to opt in.
+    """
+    if _is_truthy(os.getenv("RUN_NETWORK_TESTS")):
+        return
+    if not _is_truthy(os.getenv("CI")):
+        return
+
+    skip_network = pytest.mark.skip(
+        reason="Skipping network tests in CI. Set RUN_NETWORK_TESTS=1 to enable."
+    )
+    for item in items:
+        if "network" in item.keywords:
+            item.add_marker(skip_network)
+
+
 @pytest.fixture(scope="session")
 def anyio_backend():
     return "asyncio"
