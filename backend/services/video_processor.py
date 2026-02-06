@@ -495,9 +495,9 @@ class VideoProcessor:
                     raise Exception("未找到下载的音频文件")
 
             # Validate duration; if it differs significantly, try an ffmpeg remux
-            try:
-                import shlex
+            import shlex
 
+            try:
                 # Use asyncio.create_subprocess_shell instead of sync subprocess
                 probe_cmd = f"ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 {shlex.quote(audio_file)}"
 
