@@ -15,15 +15,21 @@
 
 **VibeDigest** is a modern, full-stack application designed to **download videos**, **transcribe audio**, and **generate AI-powered summaries**. Engineered for performance and aesthetics, it utilizes the power of OpenAI/LangChain and the speed of Next.js for a premium user experience.
 
+Now featuring a **Chat-First Architecture** (v3.4) that puts conversation at the center of your learning workflow.
+
 ---
 
 ## ✨ Key Features
 
-- **Standard Video Support**: Robust downloading via `yt-dlp` for broad compatibility.
-- **Smart Transcription**: Automatic audio extraction and intelligent chunking for large files using OpenAI Whisper.
+- **Chat-First Experience**: Interact with video content through a conversational interface. Ask questions, get summaries, and explore details naturally.
+- **Universal Video Support**: Robust downloading via `yt-dlp` for YouTube, Bilibili, and podcast platforms (Xiaoyuzhou).
+- **Smart Transcription**: Automatic audio extraction and intelligent chunking using OpenAI Whisper.
+- **Supadata Integration**: Accelerated YouTube transcript fetching (optional) for near-instant results.
+- **Interactive Timeline**: Clickable transcript blocks synchronized with video playback.
+- **Seekable Playback**: Click-to-seek support for YouTube, Bilibili, and audio sources.
 - **Live Dashboard**: Real-time task progress updates via **Supabase Realtime**.
-- **Modern UI/UX**: Dark-mode-first design with glassmorphism, powered by TailwindCSS and Framer Motion.
-- **Secure Auth**: Integrated email and Google login support via Supabase Auth.
+- **Modern UI/UX**: Dark-mode-first design with glassmorphism, powered by TailwindCSS v4 and Framer Motion.
+- **Secure Auth**: Integrated email and Google login support via Supabase Auth (Web2 only).
 - **Internationalization**: Full i18n support including RTL layouts for Arabic.
 
 ## 🚀 Getting Started
@@ -78,7 +84,7 @@ Visit `http://localhost:3000` to see the app running.
 
 | Component | Technology |
 |-----------|------------|
-| **Frontend** | Next.js 14, TypeScript, TailwindCSS, Framer Motion |
+| **Frontend** | Next.js 14, TypeScript, TailwindCSS v4, Framer Motion |
 | **Backend** | Python 3.10+, FastAPI, LangGraph, LangChain |
 | **Database** | PostgreSQL, Supabase (Realtime, Auth) |
 | **AI/ML** | OpenAI API (Whisper, GPT-4), yt-dlp, pydub |
@@ -93,19 +99,22 @@ The system operates on a **Control Plane vs. Data Plane** model:
 
 For detailed architecture docs, see [docs/architecture/](docs/architecture/).
 
-## ⚡️ Performance & Caching Strategy (v2.1)
+## ⚡️ Performance & Caching Strategy
 
 To provide instant results and save computation resources, VibeDigest implements an advanced deduplication and "Smart Resume" mechanism:
 
-1.  **URL Normalization**:
+1.  **Supadata Acceleration (Optional)**:
+    *   For YouTube videos, the system can fetch transcripts directly via Supadata API (if configured), bypassing the expensive download/transcribe cycle.
+
+2.  **URL Normalization**:
     *   Automatically strips noisy tracking parameters (e.g., `utm_source`) to ensure cache hits.
     *   Treats `youtu.be/xyz` and `youtube.com/watch?v=xyz` as the same resource.
 
-2.  **Task Deduplication (Cache Hit)**:
+3.  **Task Deduplication (Cache Hit)**:
     *   Checks if the video has been processed by **any** user.
     *   **Instant Results**: If found, instantly "clones" existing scripts, summaries, and audio to the current user without re-processing.
 
-3.  **Smart Resume**:
+4.  **Smart Resume**:
     *   If you request a processed video but want a **different language** summary (e.g., have English, want Chinese):
         *   Skips expensive [Download] and [Transcription] steps.
         *   Only executes the lightweight [Translation/Summarization] step.

@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 try:
     from langfuse.openai import OpenAI as LangfuseOpenAI
     from langfuse.openai import AsyncOpenAI as LangfuseAsyncOpenAI
+
     HAS_LANGFUSE = True
 except ImportError as e:
     logger.warning(f"Langfuse Import Failed: {e}")
@@ -43,7 +44,9 @@ class RateLimitAwareChatLiteLLM(ChatLiteLLM):
             yielded_any = False
             try:
                 # Call parent method
-                async for chunk in super()._astream(messages, stop, run_manager, **kwargs):
+                async for chunk in super()._astream(
+                    messages, stop, run_manager, **kwargs
+                ):
                     yield chunk
                     yielded_any = True
                 return
@@ -120,6 +123,7 @@ def get_openai_client(base_url: Optional[str] = None) -> Any:
         return LangfuseOpenAI(api_key=api_key, base_url=final_base_url)
     return LangfuseOpenAI(api_key=api_key)
 
+
 def get_async_openai_client(base_url: Optional[str] = None) -> Any:
     """
     Factory to get an Async OpenAI client.
@@ -137,8 +141,44 @@ def get_async_openai_client(base_url: Optional[str] = None) -> Any:
     return LangfuseAsyncOpenAI(api_key=api_key)
 
 
+def get_async_audio_client(base_url: Optional[str] = None) -> Any:
+    """
+    Factory to get an Async OpenAI client specifically for Audio/Transcription.
+    Prioritizes OPENAI_AUDIO_* env vars to allow separating Audio from Text generation.
+    """
+    # 1. Resolve API Key
+    api_key = os.getenv("OPENAI_AUDIO_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        logger.warning("OPENAI_API_KEY (or OPENAI_AUDIO_API_KEY) not set.")
+        return None
+
+    # 2. Resolve Base URL
+    # If caller provided explicit base_url, use it.
+    # Else check OPENAI_AUDIO_BASE_URL.
+    audio_base_url = base_url or os.getenv("OPENAI_AUDIO_BASE_URL")
+
+    final_base_url = None
+
+    if audio_base_url:
+        # User explicitly configured Audio URL -> Use it
+        final_base_url = audio_base_url
+    elif os.getenv("OPENAI_AUDIO_API_KEY"):
+        # User provided specific Audio Key but NO Audio URL -> Implies Official Endpoint
+        # We IGNORE global OPENAI_BASE_URL in this case to prevent leaking to local LLM
+        final_base_url = None
+    else:
+        # No specific Audio config -> Fallback to global OPENAI_BASE_URL (Legacy behavior)
+        final_base_url = os.getenv("OPENAI_BASE_URL")
+
+    if final_base_url:
+        return LangfuseAsyncOpenAI(api_key=api_key, base_url=final_base_url)
+    return LangfuseAsyncOpenAI(api_key=api_key)
+
+
 # Factory for LangChain Chat Models
-def create_chat_model(model_name: str, temperature: Optional[float] = None, **kwargs: Any) -> Any:
+def create_chat_model(
+    model_name: str, temperature: Optional[float] = None, **kwargs: Any
+) -> Any:
     """
     Creates a LangChain Chat Model using LiteLLM.
     Unified factory for all providers.
@@ -149,7 +189,7 @@ def create_chat_model(model_name: str, temperature: Optional[float] = None, **kw
     if temperature is None:
         temperature = settings.get_temperature(model_name)
 
-    litellm.drop_params = True # Fix for gpt-5 or other provider unsupported params
+    litellm.drop_params = True  # Fix for gpt-5 or other provider unsupported params
 
     # Logic for Custom (OpenAI-compatible) providers:
     # If the provider is 'custom', we need to tell LiteLLM to use the 'openai' adapter,
@@ -162,9 +202,7 @@ def create_chat_model(model_name: str, temperature: Optional[float] = None, **kw
 
     # Use our RateLimitAware wrapper
     return RateLimitAwareChatLiteLLM(
-        model=model_name,
-        temperature=temperature,
-        **kwargs
+        model=model_name, temperature=temperature, **kwargs
     )
 
 
@@ -178,18 +216,18 @@ async def ainvoke_structured_json(
     """
     Invoke a structured-output LLM, with graceful fallback to parsing JSON text
     when tool-calling is not supported or returns None.
-    
+
     This is a shared utility to avoid code duplication across services.
-    
+
     Args:
         llm: The LangChain chat model instance
         schema: A Pydantic model class for structured output
         messages: List of LangChain message objects
         config: Optional LangChain config dict for tracing
-        
+
     Returns:
         A dictionary representation of the parsed schema
-        
+
     Raises:
         ValueError: If the result cannot be parsed into the expected format
         json.JSONDecodeError: If JSON parsing fails
@@ -197,26 +235,32 @@ async def ainvoke_structured_json(
     import json
     import logging
     from utils.text_utils import extract_first_json_object
-    
+
     logger = logging.getLogger(__name__)
-    
+
     raw = await llm.ainvoke(messages, config=config)
-    
+
     logger.debug(f"[ainvoke_structured_json] raw type: {type(raw)}")
-    logger.debug(f"[ainvoke_structured_json] raw.content: {getattr(raw, 'content', 'N/A')!r}")
+    logger.debug(
+        f"[ainvoke_structured_json] raw.content: {getattr(raw, 'content', 'N/A')!r}"
+    )
     if hasattr(raw, "additional_kwargs"):
-        logger.debug(f"[ainvoke_structured_json] raw.additional_kwargs: {raw.additional_kwargs}")
-    
+        logger.debug(
+            f"[ainvoke_structured_json] raw.additional_kwargs: {raw.additional_kwargs}"
+        )
+
     raw_text = _extract_text_from_response(raw)
-    logger.debug(f"[ainvoke_structured_json] extracted raw_text: {raw_text[:500] if raw_text else 'EMPTY'}...")
-    
+    logger.debug(
+        f"[ainvoke_structured_json] extracted raw_text: {raw_text[:500] if raw_text else 'EMPTY'}..."
+    )
+
     if not raw_text or raw_text == "{}":
         raise ValueError(f"LLM returned empty response. Raw: {raw}")
-    
+
     json_text = extract_first_json_object(raw_text) or raw_text
     obj = json.loads(json_text)
     parsed = schema(**obj)
-    
+
     if hasattr(parsed, "model_dump"):
         return parsed.model_dump()
     return parsed.dict()
@@ -226,12 +270,13 @@ def _extract_text_from_response(raw) -> str:
     """Extract text content from LangChain response, handling various response formats."""
     import json
     import logging
+
     logger = logging.getLogger(__name__)
-    
+
     if hasattr(raw, "content") and raw.content:
         logger.info(f"[_extract_text] Found content: {raw.content[:200]}...")
         return raw.content
-    
+
     if hasattr(raw, "additional_kwargs"):
         kwargs = raw.additional_kwargs or {}
         logger.info(f"[_extract_text] additional_kwargs keys: {list(kwargs.keys())}")
@@ -245,7 +290,7 @@ def _extract_text_from_response(raw) -> str:
                 result = json.dumps(first_call["function"].get("arguments", {}))
                 logger.info(f"[_extract_text] Found tool_calls: {result[:200]}...")
                 return result
-    
+
     fallback = str(raw)
     logger.warning(f"[_extract_text] Using fallback str(raw): {fallback[:300]}...")
     return fallback

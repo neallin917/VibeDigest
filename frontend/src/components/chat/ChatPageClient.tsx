@@ -33,8 +33,29 @@ function ChatPageContent() {
     const [isBootstrapping, setIsBootstrapping] = useState(true)
     // Track newly created thread IDs to skip loading
     const newThreadIdsRef = useRef<Set<string>>(new Set())
+    const hasBootstrappedRef = useRef(false)
+    const latestSearchParamsRef = useRef(searchParamsString)
     const resolvedActiveThreadId = queryThreadId || activeThreadId
     const resolvedActiveTaskId = queryTaskId ?? activeTaskId
+
+    useEffect(() => {
+        latestSearchParamsRef.current = searchParamsString
+    }, [searchParamsString])
+
+    const getCurrentParams = useCallback(() => {
+        return new URLSearchParams(latestSearchParamsRef.current)
+    }, [])
+
+    const safeReplace = useCallback((params: URLSearchParams) => {
+        const nextSearch = params.toString()
+        const currentSearch = latestSearchParamsRef.current
+        if (nextSearch === currentSearch) return false
+
+        latestSearchParamsRef.current = nextSearch
+        const nextUrl = nextSearch ? `${pathname}?${nextSearch}` : pathname
+        replace(nextUrl, { scroll: false })
+        return true
+    }, [pathname, replace])
 
     // Fetch threads list
     const fetchThreads = useCallback(async () => {
@@ -106,7 +127,9 @@ function ChatPageContent() {
         let cancelled = false
 
         const initialize = async () => {
-            setIsBootstrapping(true)
+            if (!hasBootstrappedRef.current) {
+                setIsBootstrapping(true)
+            }
             await fetchThreads()
 
             if (queryTaskId) {
@@ -122,10 +145,10 @@ function ChatPageContent() {
                     setInitialMessages([])
                 }
 
-                const params = new URLSearchParams(searchParamsString)
+                const params = getCurrentParams()
                 params.set("task", queryTaskId)
                 params.set("threadId", resolvedThreadId)
-                replace(`${pathname}?${params.toString()}`, { scroll: false })
+                safeReplace(params)
             } else if (queryThreadId) {
                 if (cancelled) return
                 setActiveTaskId(null)
@@ -143,10 +166,14 @@ function ChatPageContent() {
                 setActiveTaskId(null)
                 setActiveThreadId(newId)
                 setInitialMessages([])
-                replace(`${pathname}?threadId=${newId}`, { scroll: false })
+                const params = getCurrentParams()
+                params.delete("task")
+                params.set("threadId", newId)
+                safeReplace(params)
             }
 
             if (!cancelled) {
+                hasBootstrappedRef.current = true
                 setIsBootstrapping(false)
             }
         }
@@ -163,8 +190,8 @@ function ChatPageContent() {
         queryTaskId,
         queryThreadId,
         resolveOrCreateThreadForTask,
-        replace,
-        searchParamsString,
+        getCurrentParams,
+        safeReplace,
     ])
 
     // Handle New Chat
@@ -180,8 +207,11 @@ function ChatPageContent() {
         setInitialMessages([])
 
         // Then update URL
-        replace(`${pathname}?threadId=${newId}`, { scroll: false })
-    }, [pathname, replace])
+        const params = getCurrentParams()
+        params.delete("task")
+        params.set("threadId", newId)
+        safeReplace(params)
+    }, [getCurrentParams, safeReplace])
 
     // Handle Thread Selection (from sidebar)
     const handleSelectThread = useCallback(async (threadId: string) => {
@@ -189,11 +219,11 @@ function ChatPageContent() {
         newThreadIdsRef.current.delete(threadId)
 
         // Update URL
-        const params = new URLSearchParams(searchParamsString)
+        const params = getCurrentParams()
         params.delete("task")
         setActiveTaskId(null)
         params.set("threadId", threadId)
-        replace(`${pathname}?${params.toString()}`, { scroll: false })
+        safeReplace(params)
 
         // Load messages
         try {
@@ -212,11 +242,11 @@ function ChatPageContent() {
             setInitialMessages([])
             setActiveThreadId(threadId)
         }
-    }, [pathname, replace, searchParamsString])
+    }, [getCurrentParams, safeReplace])
 
     // Handle Task Selection (from Sidebar or Workspace)
     const handleSelectTask = useCallback(async (taskId: string | null) => {
-        const params = new URLSearchParams(searchParamsString)
+        const params = getCurrentParams()
 
         if (!taskId) {
             // Case: Closing the panel / Deselecting task
@@ -226,7 +256,7 @@ function ChatPageContent() {
             if (resolvedActiveThreadId) {
                 params.set('threadId', resolvedActiveThreadId)
             }
-            replace(`${pathname}?${params.toString()}`, { scroll: false })
+            safeReplace(params)
             return
         }
 
@@ -241,7 +271,7 @@ function ChatPageContent() {
 
         setActiveThreadId(resolvedThreadId)
         params.set('threadId', resolvedThreadId)
-        replace(`${pathname}?${params.toString()}`, { scroll: false })
+        safeReplace(params)
 
         if (isEphemeralThread) {
             setInitialMessages([])
@@ -250,7 +280,7 @@ function ChatPageContent() {
         }
 
         fetchThreads()
-    }, [fetchThreads, loadThreadMessages, pathname, replace, resolveOrCreateThreadForTask, resolvedActiveThreadId, searchParamsString])
+    }, [fetchThreads, getCurrentParams, loadThreadMessages, resolveOrCreateThreadForTask, resolvedActiveThreadId, safeReplace])
 
     // Handle Demo Selection from Welcome Screen
     const handleSelectExample = useCallback(async (taskId: string) => {
@@ -263,13 +293,15 @@ function ChatPageContent() {
         newThreadIdsRef.current.delete(threadId)
 
         // Ensure URL is updated
-        const params = new URLSearchParams(searchParamsString)
-        params.set('threadId', threadId)
-        replace(`${pathname}?${params.toString()}`, { scroll: false })
+        const params = getCurrentParams()
+        if (params.get("threadId") !== threadId) {
+            params.set('threadId', threadId)
+            safeReplace(params)
+        }
 
         // Refresh threads list
         fetchThreads()
-    }, [fetchThreads, pathname, replace, searchParamsString])
+    }, [fetchThreads, getCurrentParams, safeReplace])
 
     return (
         <AppSidebarProvider defaultCollapsed={true}>

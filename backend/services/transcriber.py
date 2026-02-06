@@ -10,10 +10,11 @@ from services.formatting import (
     _merge_segments_into_sentences,
     _paragraph_limits_for_language,
     _group_sentences_into_paragraphs_v2,
-    format_time
+    format_time,
 )
 
 logger = logging.getLogger(__name__)
+
 
 class Transcriber:
     """Audio transcriber using the OpenAI API for speech-to-text."""
@@ -33,10 +34,13 @@ class Transcriber:
         """Lazy-init the OpenAI client (async)."""
         if self.client is None:
             # Import new factory
-            from utils.openai_client import get_async_openai_client
-            self.client = get_async_openai_client()
+            from utils.openai_client import get_async_audio_client
+
+            self.client = get_async_audio_client()
             if self.client:
-                logger.info("OpenAI Async Client initialized (Transcriber)")
+                logger.info(
+                    "OpenAI Async Client initialized (Transcriber - Audio Specialized)"
+                )
             else:
                 raise ValueError("未找到 OPENAI_API_KEY 环境变量")
 
@@ -54,7 +58,9 @@ class Transcriber:
         md, _, _ = await self.transcribe_with_raw(audio_path, language=language)
         return md
 
-    async def transcribe_with_raw(self, audio_path: str, language: Optional[str] = None) -> Tuple[str, str, str]:
+    async def transcribe_with_raw(
+        self, audio_path: str, language: Optional[str] = None
+    ) -> Tuple[str, str, str]:
         """
         Transcribe audio and also return a JSON payload of raw segments for future re-formatting.
         Uses Langfuse span tracking when available.
@@ -67,14 +73,17 @@ class Transcriber:
         # Langfuse V3: Create a span for Whisper transcription
         try:
             from langfuse import get_client
+
             langfuse = get_client()
             observation_ctx = (
                 langfuse.start_as_current_observation(
                     as_type="generation",
                     name="Whisper Transcription",
                     model=self.model_name,
-                    input={"audio_path": audio_path}
-                ) if langfuse else nullcontext()
+                    input={"audio_path": audio_path},
+                )
+                if langfuse
+                else nullcontext()
             )
         except ImportError:
             observation_ctx = nullcontext()
@@ -97,12 +106,14 @@ class Transcriber:
                 files_to_transcribe = []
                 is_chunked = False
 
-                if file_size_mb > 24.0: # Leave some headroom
+                if file_size_mb > 24.0:  # Leave some headroom
                     logger.info("文件超过25MB，开始分片处理...")
                     is_chunked = True
                     files_to_transcribe = await self._split_audio(audio_path)
                 else:
-                    files_to_transcribe = [(audio_path, 0.0)] # tuple of (path, start_offset)
+                    files_to_transcribe = [
+                        (audio_path, 0.0)
+                    ]  # tuple of (path, start_offset)
 
                 all_segments = []
                 detected_language = "unknown"
@@ -117,12 +128,14 @@ class Transcriber:
                                 model=self.model_name,
                                 file=audio_file,
                                 language=language,
-                                response_format="verbose_json"
+                                response_format="verbose_json",
                             )
 
                         # Record language detection result from first chunk
                         if offset == 0.0:
-                            detected_language = getattr(transcript, 'language', 'unknown')
+                            detected_language = getattr(
+                                transcript, "language", "unknown"
+                            )
                             self.last_detected_language = detected_language
 
                         # Offset timestamps and merge
@@ -180,7 +193,9 @@ class Transcriber:
                 logger.error(f"转录失败: {str(e)}")
                 raise Exception(f"转录失败: {str(e)}")
 
-    async def _split_audio(self, audio_path: str, chunk_length_ms: int = 10 * 60 * 1000) -> List[Tuple[str, float]]:
+    async def _split_audio(
+        self, audio_path: str, chunk_length_ms: int = 10 * 60 * 1000
+    ) -> List[Tuple[str, float]]:
         """
         Split audio into smaller chunks using pydub.
         """
@@ -224,11 +239,31 @@ class Transcriber:
         Return supported languages (common OpenAI Whisper languages).
         """
         return [
-            "zh", "en", "ja", "ko", "es", "fr", "de", "it", "pt", "ru",
-            "ar", "hi", "th", "vi", "tr", "pl", "nl", "sv", "da", "no"
+            "zh",
+            "en",
+            "ja",
+            "ko",
+            "es",
+            "fr",
+            "de",
+            "it",
+            "pt",
+            "ru",
+            "ar",
+            "hi",
+            "th",
+            "vi",
+            "tr",
+            "pl",
+            "nl",
+            "sv",
+            "da",
+            "no",
         ]
 
-    def get_detected_language(self, transcript_text: Optional[str] = None) -> Optional[str]:
+    def get_detected_language(
+        self, transcript_text: Optional[str] = None
+    ) -> Optional[str]:
         """
         Return the last detected language.
         """
@@ -236,7 +271,7 @@ class Transcriber:
             return self.last_detected_language
 
         if transcript_text and "**Detected Language:**" in transcript_text:
-            lines = transcript_text.split('\n')
+            lines = transcript_text.split("\n")
             for line in lines:
                 if "**Detected Language:**" in line:
                     lang = line.split(":")[-1].strip()

@@ -1,6 +1,7 @@
 # VibeDigest Architecture Codemap
 
-> Freshness: 2025-01-23T22:30:00Z
+> Freshness: 2026-02-06
+
 
 ## System Overview
 
