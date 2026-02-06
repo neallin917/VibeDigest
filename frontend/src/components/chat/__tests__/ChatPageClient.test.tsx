@@ -35,6 +35,7 @@ vi.mock('../ChatWorkspace', () => ({
       data-task-id={props.activeTaskId || ''}
     >
       <button onClick={() => props.onSelectTask('task-b')}>Select Task B</button>
+      <button onClick={() => props.onChatStarted?.(props.activeThreadId || 'thread-a')}>Chat Started</button>
     </div>
   )
 }))
@@ -145,5 +146,50 @@ describe('ChatPageClient', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('/api/threads?taskId=task-b')
     expect(replaceMock).toHaveBeenCalledWith('/en/chat?task=task-b&threadId=thread-b', { scroll: false })
+  })
+
+  it('does not call replace when URL is already synchronized', async () => {
+    currentSearchParams = new URLSearchParams('task=task-a&threadId=thread-a')
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = input.toString()
+      if (url === '/api/chat/threads') return jsonResponse([])
+      if (url === '/api/chat/threads/thread-a/messages') return jsonResponse([])
+      throw new Error(`Unexpected fetch URL: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<ChatPageClient />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('workspace')).toHaveAttribute('data-thread-id', 'thread-a')
+      expect(screen.getByTestId('workspace')).toHaveAttribute('data-task-id', 'task-a')
+    })
+
+    expect(replaceMock).not.toHaveBeenCalled()
+  })
+
+  it('does not call replace on chat-start when threadId is unchanged', async () => {
+    currentSearchParams = new URLSearchParams('task=task-a&threadId=thread-a')
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = input.toString()
+      if (url === '/api/chat/threads') return jsonResponse([])
+      if (url === '/api/chat/threads/thread-a/messages') return jsonResponse([])
+      throw new Error(`Unexpected fetch URL: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<ChatPageClient />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('workspace')).toHaveAttribute('data-thread-id', 'thread-a')
+    })
+
+    replaceMock.mockClear()
+    fireEvent.click(screen.getByText('Chat Started'))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/chat/threads')
+    })
+    expect(replaceMock).not.toHaveBeenCalled()
   })
 })

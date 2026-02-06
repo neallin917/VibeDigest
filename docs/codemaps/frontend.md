@@ -1,6 +1,10 @@
 # Frontend Codemap
 
-> Freshness: 2025-01-23T22:30:00Z
+> Freshness: 2026-02-06
+
+## System Overview
+
+**VibeDigest** uses a **Chat-First Architecture** (v3.4), putting the conversational interface at the center of the user experience.
 
 ## Technology Stack
 
@@ -101,14 +105,14 @@ components/ui/
 
 ### Feature Components
 
-| Folder | Count | Purpose |
-|--------|-------|---------|
-| `chat/` | 17 | Chat interface, messages, threads |
-| `tasks/` | 15 | Video player, transcript, summary |
-| `landing/` | 7 | Hero, features, pricing, testimonials |
-| `layout/` | 13 | Header, footer, navigation |
-| `auth/` | 5 | Login, OAuth buttons |
-| `settings/` | 3 | Usage card, preferences |
+| Folder | Purpose | Key Components |
+|--------|---------|----------------|
+| `chat/` | Core Chat Interface | `ChatWorkspace`, `ChatContainer`, `VideoDetailPanel`, `WelcomeScreen` |
+| `tasks/` | Media & Transcript | `VideoEmbed`, `YouTubePlayer`, `TranscriptTimeline`, `AudioEmbed` |
+| `landing/` | Marketing Pages | `HeroSection`, `FeaturesSection`, `PricingSection` |
+| `layout/` | App Shell | `MainShell`, `Sidebar`, `MobileNav`, `FeedbackDialog` |
+| `auth/` | Authentication | `LoginForm`, `GoogleOneTap` |
+| `settings/`| User Preferences | `UsageCard` |
 
 ## State Management
 

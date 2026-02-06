@@ -2,6 +2,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { streamText, convertToModelMessages, generateText, UIMessage, tool, createIdGenerator, stepCountIs } from 'ai';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { extractAndNormalizeUrl } from '@/lib/url-utils';
 
 const AI_SDK_DEBUG = process.env.AI_SDK_DEBUG === '1';
 
@@ -188,22 +189,8 @@ function getTextFromUIMessage(message: UIMessage): string {
         .join('');
 }
 
-// Helper to sanitize and validate URLs (Fix for "Invalid video URL" 400 errors)
 function extractUrl(text: string): string | null {
-    if (!text || typeof text !== 'string' || text === 'undefined' || text === 'null') return null;
-
-    // 1. Extract first valid http/https URL, ignoring surrounding markdown or whitespace
-    const match = text.match(/(https?:\/\/[^\s<>"')\]]+)/);
-    if (match) return match[0];
-
-    // 2. Fallback: Check if it is a raw YouTube Video ID (11 chars)
-    // Only accept if the text is JUST the ID (trimmed), to avoid matching random 11-char words in sentences
-    const idMatch = text.trim().match(/^([a-zA-Z0-9_-]{11})$/);
-    if (idMatch) {
-        return `https://www.youtube.com/watch?v=${idMatch[1]}`;
-    }
-
-    return null;
+    return extractAndNormalizeUrl(text);
 }
 
 // Helper to find the most recent URL in the conversation history
@@ -528,39 +515,74 @@ WRONG (NEVER USE):
                 description: "Get the current processing status and progress of a video task",
                 inputSchema: taskStatusSchema,
                 execute: async ({ taskId }: z.infer<typeof taskStatusSchema>) => {
+                    // 1. Try Direct Database Access (Fastest)
                     const { data, error } = await supabase
                         .from('tasks')
                         .select('*')
                         .eq('id', taskId)
                         .single();
 
-                    if (error || !data) {
-                        return { error: 'Task not found', taskId };
-                    }
-                    if (data.user_id !== user?.id && !data.is_demo) {
-                        return { error: 'Access denied', taskId };
-                    }
-                    const normalizedTaskUrl = extractUrl(data.video_url || '')
-                    const canUsePreview = Boolean(
-                        previewCache && normalizedTaskUrl && previewCache.url === normalizedTaskUrl
-                    )
-                    const previewTitle = canUsePreview ? previewCache?.title : undefined
-                    const previewThumbnail = canUsePreview ? previewCache?.thumbnail : undefined
-                    const normalizedTitle = data.video_title && data.video_title !== 'Unknown'
-                        ? data.video_title
-                        : previewTitle
+                    if (data) {
+                        if (data.user_id !== user?.id && !data.is_demo) {
+                            return { error: 'Access denied', taskId };
+                        }
+                        const normalizedTaskUrl = extractUrl(data.video_url || '')
+                        const canUsePreview = Boolean(
+                            previewCache && normalizedTaskUrl && previewCache.url === normalizedTaskUrl
+                        )
+                        const previewTitle = canUsePreview ? previewCache?.title : undefined
+                        const previewThumbnail = canUsePreview ? previewCache?.thumbnail : undefined
+                        const normalizedTitle = data.video_title && data.video_title !== 'Unknown'
+                            ? data.video_title
+                            : previewTitle
 
-                    return {
-                        taskId: data.id,
-                        status: data.status,
-                        progress: data.progress,
-                        video_title: normalizedTitle,
-                        thumbnail_url: data.thumbnail_url || previewThumbnail,
-                        video_url: data.video_url,
-                        error_message: data.error_message,
-                        created_at: data.created_at,
-                        updated_at: data.updated_at
-                    };
+                        return {
+                            taskId: data.id,
+                            status: data.status,
+                            progress: data.progress,
+                            video_title: normalizedTitle,
+                            thumbnail_url: data.thumbnail_url || previewThumbnail,
+                            video_url: data.video_url,
+                            error_message: data.error_message,
+                            created_at: data.created_at,
+                            updated_at: data.updated_at
+                        };
+                    }
+
+                    // 2. Fallback: Try Backend API (Robustness for Split-Brain/RLS issues in Dev)
+                    // If the task was just created by the backend but isn't visible via Supabase client yet (replication/RLS),
+                    // the backend API might still see it.
+                    if (user?.id && accessToken) {
+                        try {
+                            console.warn(`[API/Chat] Task ${taskId} not found in DB, trying Backend API fallback...`);
+                            const response = await fetch(`${API_BASE_URL}/api/tasks/${taskId}/status`, {
+                                headers: {
+                                    'Authorization': `Bearer ${accessToken}`,
+                                },
+                            });
+                            
+                            if (response.ok) {
+                                const apiData = await response.json();
+                                console.log(`[API/Chat] Task ${taskId} recovered via Backend API`);
+                                return {
+                                    taskId: apiData.id,
+                                    status: apiData.status,
+                                    progress: apiData.progress,
+                                    video_title: apiData.video_title,
+                                    thumbnail_url: apiData.thumbnail_url,
+                                    video_url: apiData.video_url,
+                                    error_message: apiData.error,
+                                    created_at: apiData.created_at,
+                                    updated_at: apiData.updated_at,
+                                    source: 'backend_api_fallback'
+                                };
+                            }
+                        } catch (apiError) {
+                            console.error(`[API/Chat] Backend API fallback failed for ${taskId}:`, apiError);
+                        }
+                    }
+
+                    return { error: 'Task not found', taskId };
                 },
             }),
             get_task_outputs: tool({

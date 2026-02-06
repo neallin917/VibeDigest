@@ -36,6 +36,11 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "is3-ssl.mzstatic.com" },
       { protocol: "https", hostname: "is4-ssl.mzstatic.com" },
       { protocol: "https", hostname: "is5-ssl.mzstatic.com" },
+      // Xiaoyuzhou images
+      { protocol: "https", hostname: "image.xyzcdn.net" },
+      { protocol: "http", hostname: "image.xyzcdn.net" },
+      { protocol: "https", hostname: "**.xyzcdn.net" },
+      { protocol: "http", hostname: "**.xyzcdn.net" },
     ],
   },
   // Proxy /lg/* requests to LangGraph server for chat functionality

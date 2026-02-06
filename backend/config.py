@@ -8,12 +8,14 @@ from utils.env_utils import parse_bool_env
 
 configure_logging()
 
+
 class PriceConfig(BaseModel):
     id: str
     amount: float
     name: str
     credits: int = 0
-    mode: str = 'payment' # 'payment' or 'subscription'
+    mode: str = "payment"  # 'payment' or 'subscription'
+
 
 class Settings:
     # Services
@@ -21,12 +23,14 @@ class Settings:
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
     SUPABASE_SERVICE_KEY: str = os.getenv("SUPABASE_SERVICE_KEY", "")
-    
+
     # Creem Payment
     CREEM_API_KEY: str = os.getenv("CREEM_API_KEY", "")
     CREEM_WEBHOOK_SECRET: str = os.getenv("CREEM_WEBHOOK_SECRET", "")
-    CREEM_API_BASE: str = os.getenv("CREEM_API_BASE", "https://api.creem.io")  # Use https://test-api.creem.io for test mode
-    
+    CREEM_API_BASE: str = os.getenv(
+        "CREEM_API_BASE", "https://api.creem.io"
+    )  # Use https://test-api.creem.io for test mode
+
     # Coinbase
     COINBASE_API_KEY: str = os.getenv("COINBASE_API_KEY", "")
     COINBASE_WEBHOOK_SECRET: str = os.getenv("COINBASE_WEBHOOK_SECRET", "")
@@ -35,17 +39,23 @@ class Settings:
     LANGFUSE_PUBLIC_KEY: str = os.getenv("LANGFUSE_PUBLIC_KEY", "")
     LANGFUSE_SECRET_KEY: str = os.getenv("LANGFUSE_SECRET_KEY", "")
     LANGFUSE_HOST: str = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
-    
+
     # LangSmith
     LANGCHAIN_TRACING_V2: str = os.getenv("LANGCHAIN_TRACING_V2", "false")
-    LANGCHAIN_API_KEY: str = os.getenv("LANGCHAIN_API_KEY") or os.getenv("LANGSMITH_API_KEY") or ""
-    LANGCHAIN_PROJECT: str = os.getenv("LANGCHAIN_PROJECT") or os.getenv("LANGSMITH_PROJECT") or "default"
+    LANGCHAIN_API_KEY: str = (
+        os.getenv("LANGCHAIN_API_KEY") or os.getenv("LANGSMITH_API_KEY") or ""
+    )
+    LANGCHAIN_PROJECT: str = (
+        os.getenv("LANGCHAIN_PROJECT") or os.getenv("LANGSMITH_PROJECT") or "default"
+    )
 
     # Monitoring
     SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
 
     # Database
-    POSTGRES_URI: str = os.getenv("POSTGRES_URI", "postgresql://postgres:password@postgres:5432/langgraph")
+    POSTGRES_URI: str = os.getenv(
+        "POSTGRES_URI", "postgresql://postgres:password@postgres:5432/langgraph"
+    )
 
     # Models
     # Chat Agent Model
@@ -55,31 +65,38 @@ class Settings:
     # Default to TRUE for safety if env var invalid
     COGNITION_SEQUENTIAL: bool = parse_bool_env("COGNITION_SEQUENTIAL", True)
     COGNITION_DELAY: float = float(os.getenv("COGNITION_DELAY") or "0.0")
-    
+
     # LLM Configuration
     LLM_PROVIDER: str = (os.getenv("LLM_PROVIDER") or "openai").lower()
     OPENAI_BASE_URL: Optional[str] = os.getenv("OPENAI_BASE_URL")
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
 
+    # Audio Configuration (Transcription)
+    # Allows separating transcription provider (e.g. Official OpenAI) from generation provider (e.g. Local LLM)
+    OPENAI_AUDIO_BASE_URL: Optional[str] = os.getenv("OPENAI_AUDIO_BASE_URL")
+    OPENAI_AUDIO_API_KEY: Optional[str] = os.getenv("OPENAI_AUDIO_API_KEY")
+
     MODEL_ALIAS_SMART: Optional[str] = os.getenv("MODEL_ALIAS_SMART")
     MODEL_ALIAS_FAST: Optional[str] = os.getenv("MODEL_ALIAS_FAST")
 
     # --- Functional Mappings ---
-    
+
     @property
     def OPENAI_MODEL(self) -> str:
         if self.MODEL_ALIAS_SMART:
             return self.MODEL_ALIAS_SMART
         from utils.model_registry import get_model_registry
+
         registry = get_model_registry()
         provider = registry.get_provider(self.LLM_PROVIDER)
         return (provider or {}).get("defaults", {}).get("smart") or "gpt-4o"
-    
+
     @property
     def OPENAI_COMPREHENSION_MODELS(self) -> list[str]:
         if self.MODEL_ALIAS_SMART:
             return [self.MODEL_ALIAS_SMART]
         from utils.model_registry import get_model_registry
+
         registry = get_model_registry()
         provider = registry.get_provider(self.LLM_PROVIDER)
         smart = (provider or {}).get("defaults", {}).get("smart")
@@ -91,6 +108,7 @@ class Settings:
         if self.MODEL_ALIAS_SMART:
             return [self.MODEL_ALIAS_SMART]
         from utils.model_registry import get_model_registry
+
         registry = get_model_registry()
         provider = registry.get_provider(self.LLM_PROVIDER)
         smart = (provider or {}).get("defaults", {}).get("smart")
@@ -101,6 +119,7 @@ class Settings:
         if self.MODEL_ALIAS_FAST:
             return self.MODEL_ALIAS_FAST
         from utils.model_registry import get_model_registry
+
         registry = get_model_registry()
         provider = registry.get_provider(self.LLM_PROVIDER)
         return (provider or {}).get("defaults", {}).get("fast") or "gpt-4o-mini"
@@ -110,21 +129,22 @@ class Settings:
         if self.MODEL_ALIAS_FAST:
             return self.MODEL_ALIAS_FAST
         from utils.model_registry import get_model_registry
+
         registry = get_model_registry()
         provider = registry.get_provider(self.LLM_PROVIDER)
         return (provider or {}).get("defaults", {}).get("fast") or "gpt-4o-mini"
-    
+
     # --- LLM Generation Defaults ---
     DEFAULT_TEMPERATURE: float = 0.1  # Default for most tasks
-    REASONING_TEMPERATURE: float = 1.0 # Default for reasoning models (gpt-5/o1)
-    
+    REASONING_TEMPERATURE: float = 1.0  # Default for reasoning models (gpt-5/o1)
+
     # Token Limits (Sensible Defaults)
     DEFAULT_MAX_TOKENS: int = 4000
     SHORT_TASK_MAX_TOKENS: int = 1000
     LONG_TASK_MAX_TOKENS: int = 16000
-    
+
     # Feature Flags
-    USE_JSON_MODE: bool = True # Global flag to enable JSON mode where applicable
+    USE_JSON_MODE: bool = True  # Global flag to enable JSON mode where applicable
 
     def get_temperature(self, model_name: Optional[str]) -> float:
         """
@@ -136,13 +156,21 @@ class Settings:
             return self.DEFAULT_TEMPERATURE
 
         # If it's the Smart model, or explicitly an o1/gpt-5 variant
-        if model_name == self.MODEL_ALIAS_SMART or "gpt-5" in model_name or "o1-" in model_name or "gpt-4o" == model_name or ("gemini" in model_name and "flash" not in model_name):
+        if (
+            model_name == self.MODEL_ALIAS_SMART
+            or "gpt-5" in model_name
+            or "o1-" in model_name
+            or "gpt-4o" == model_name
+            or ("gemini" in model_name and "flash" not in model_name)
+        ):
             return self.REASONING_TEMPERATURE
         return self.DEFAULT_TEMPERATURE
 
     # Transcription Models
     # Defaulting to whisper-1 for now, but ready to switch to gpt-4o-transcribe
-    OPENAI_TRANSCRIPTION_MODEL: str = os.getenv("OPENAI_TRANSCRIPTION_MODEL", "whisper-1")
+    OPENAI_TRANSCRIPTION_MODEL: str = os.getenv(
+        "OPENAI_TRANSCRIPTION_MODEL", "whisper-1"
+    )
 
     # Summary Strategy
     # 'v4_dynamic' - Two-phase dynamic summary with content-aware section generation (default)
@@ -159,7 +187,10 @@ class Settings:
         If running locally (not in Docker) but config points to 'host.docker.internal',
         automatically swap it to '127.0.0.1' so scripts/tests work out of the box.
         """
-        if not self.OPENAI_BASE_URL or "host.docker.internal" not in self.OPENAI_BASE_URL:
+        if (
+            not self.OPENAI_BASE_URL
+            or "host.docker.internal" not in self.OPENAI_BASE_URL
+        ):
             return
 
         # Detection: Check if we are inside a Docker container
@@ -177,7 +208,9 @@ class Settings:
         if not is_docker:
             # We are likely running on the host machine (Mac/Linux/Windows)
             original = self.OPENAI_BASE_URL
-            self.OPENAI_BASE_URL = self.OPENAI_BASE_URL.replace("host.docker.internal", "127.0.0.1")
+            self.OPENAI_BASE_URL = self.OPENAI_BASE_URL.replace(
+                "host.docker.internal", "127.0.0.1"
+            )
             logging.warning(
                 f"[DevDX] Detected local execution. Swapped OpenAI Base URL: "
                 f"'{original}' -> '{self.OPENAI_BASE_URL}'"
@@ -190,20 +223,20 @@ class Settings:
             amount=5.00,
             name="50 Credits Top-up (One-time)",
             credits=50,
-            mode='payment'
+            mode="payment",
         ),
         "PRO_MONTHLY": PriceConfig(
             id="prod_5XoWWMZN6ptDexocrwyqT0",
             amount=9.90,
             name="Pro Plan (1 Month)",
-            mode='subscription'
+            mode="subscription",
         ),
         "PRO_ANNUAL": PriceConfig(
             id="prod_1pLnYf7AwktcAhRhkjiJTh",
             amount=99.00,
             name="Pro Plan (1 Year)",
-            mode='subscription'
-        )
+            mode="subscription",
+        ),
     }
 
     # Progress Constants
@@ -213,7 +246,7 @@ class Settings:
         FETCHING_TRANSCRIPT = 20
         DOWNLOADING = 30
         TRANSCRIBING = 40
-        SUMMARIZING_SOURCE = 60 # Implicit in code often
+        SUMMARIZING_SOURCE = 60  # Implicit in code often
         COMPLETED = 100
 
     @classmethod
@@ -222,5 +255,6 @@ class Settings:
             if price.id == price_id:
                 return price
         return None
+
 
 settings = Settings()
