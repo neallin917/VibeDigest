@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useMemo } from "react"
 import { createClient } from "@/lib/supabase"
 import { useTaskNotification } from "@/hooks/useTaskNotification"
 import { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
@@ -16,7 +16,7 @@ export function TaskNotificationListener() {
     // We only need the subscription list and the sender function
     // The permission check is handled inside sendTaskNotification
     const { subbedTaskIds, sendTaskNotification } = useTaskNotification()
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
 
     useEffect(() => {
         const ids = Array.from(subbedTaskIds)

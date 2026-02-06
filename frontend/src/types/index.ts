@@ -23,6 +23,7 @@ export interface Thread {
     id: string
     title: string
     updated_at: string
+    task_id?: string | null
 }
 
 // Re-export hook types for convenience

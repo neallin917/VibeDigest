@@ -13,25 +13,28 @@ interface Thread {
     id: string
     title: string
     updated_at: string
+    task_id?: string | null
 }
 
 function ChatPageContent() {
     const searchParams = useSearchParams()
-    const router = useRouter()
+    const { replace } = useRouter()
     const pathname = usePathname()
     const queryThreadId = searchParams.get("threadId")
     const queryTaskId = searchParams.get("task")
+    const searchParamsString = searchParams.toString()
 
     // State
     const [threads, setThreads] = useState<Thread[]>([])
-    const [activeThreadId, setActiveThreadId] = useState<string | null>(queryThreadId)
+    const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
     const [activeTaskId, setActiveTaskId] = useState<string | null>(queryTaskId)
     const [initialMessages, setInitialMessages] = useState<UIMessage[]>([])
     const [taskSelectionNonce, setTaskSelectionNonce] = useState(0)
+    const [isBootstrapping, setIsBootstrapping] = useState(true)
     // Track newly created thread IDs to skip loading
     const newThreadIdsRef = useRef<Set<string>>(new Set())
-    // Track if initial setup is done
-    const hasInitializedRef = useRef(false)
+    const resolvedActiveThreadId = queryThreadId || activeThreadId
+    const resolvedActiveTaskId = queryTaskId ?? activeTaskId
 
     // Fetch threads list
     const fetchThreads = useCallback(async () => {
@@ -46,70 +49,123 @@ function ChatPageContent() {
         }
     }, [])
 
-    // Initial setup: ensure thread ID exists
-    useEffect(() => {
-        if (hasInitializedRef.current) return
-        hasInitializedRef.current = true
-
-        fetchThreads()
-
-        if (queryThreadId) {
-            // URL has threadId, will load messages in next effect
-            setActiveThreadId(queryThreadId)
-        } else {
-            // No threadId in URL, create new one
-            const newId = uuidv4()
-            newThreadIdsRef.current.add(newId)
-            setActiveThreadId(newId)
-
-            // Check if there is a task param (Deep Link from Explore)
-            const deepLinkTaskId = searchParams.get("task")
-            if (deepLinkTaskId) {
-                setActiveTaskId(deepLinkTaskId)
-                const params = new URLSearchParams(searchParams.toString())
-                params.set('threadId', newId)
-                router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-                
-                // Keep chat area clean; summary is shown in the context panel
-                setInitialMessages([])
-            } else {
-                router.replace(`${pathname}?threadId=${newId}`, { scroll: false })
+    const loadThreadMessages = useCallback(async (threadId: string) => {
+        try {
+            const res = await fetch(`/api/chat/threads/${threadId}/messages`)
+            if (res.ok) {
+                const dbMessages: DBMessage[] = await res.json()
+                const uiMessages = dbMessages.map(mapDBMessageToUIMessage)
+                setInitialMessages(uiMessages)
+                return
             }
+            setInitialMessages([])
+        } catch (error) {
+            console.error('Failed to load thread messages', error)
+            setInitialMessages([])
         }
-    }, [fetchThreads, pathname, queryThreadId, router, searchParams])
+    }, [])
 
-    // Keep active task in sync with URL (back/forward)
-    useEffect(() => {
-        setActiveTaskId(queryTaskId)
-    }, [queryTaskId])
-
-    // Load messages when URL threadId changes (but skip for new threads)
-    useEffect(() => {
-        if (!queryThreadId) return
-
-        // Skip loading for newly created threads
-        if (newThreadIdsRef.current.has(queryThreadId)) {
-            return
+    const resolveOrCreateThreadForTask = useCallback(async (taskId: string) => {
+        try {
+            const listRes = await fetch(`/api/threads?taskId=${encodeURIComponent(taskId)}`)
+            if (listRes.ok) {
+                const taskThreads: Thread[] = await listRes.json()
+                if (Array.isArray(taskThreads) && taskThreads.length > 0 && taskThreads[0]?.id) {
+                    return taskThreads[0].id
+                }
+            }
+        } catch (error) {
+            console.error('Failed to resolve task threads', error)
         }
 
-        const loadMessages = async () => {
-            try {
-                const res = await fetch(`/api/chat/threads/${queryThreadId}/messages`)
-                if (res.ok) {
-                    const dbMessages: DBMessage[] = await res.json()
-                    const uiMessages = dbMessages.map(mapDBMessageToUIMessage)
-                    setInitialMessages(uiMessages)
+        try {
+            const createRes = await fetch('/api/threads', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ taskId }),
+            })
+
+            if (createRes.ok) {
+                const createdThread: Thread = await createRes.json()
+                if (createdThread?.id) {
+                    return createdThread.id
+                }
+            }
+        } catch (error) {
+            console.error('Failed to create task thread', error)
+        }
+
+        // Fallback for degraded mode: keep chat usable even if task-thread APIs fail.
+        const fallbackId = uuidv4()
+        newThreadIdsRef.current.add(fallbackId)
+        return fallbackId
+    }, [])
+
+    // Keep local state synchronized with URL params and ensure a thread exists.
+    useEffect(() => {
+        let cancelled = false
+
+        const initialize = async () => {
+            setIsBootstrapping(true)
+            await fetchThreads()
+
+            if (queryTaskId) {
+                const resolvedThreadId = queryThreadId || await resolveOrCreateThreadForTask(queryTaskId)
+                if (cancelled) return
+
+                setActiveTaskId(queryTaskId)
+                setActiveThreadId(resolvedThreadId)
+
+                if (!newThreadIdsRef.current.has(resolvedThreadId)) {
+                    await loadThreadMessages(resolvedThreadId)
                 } else {
                     setInitialMessages([])
                 }
-            } catch (error) {
-                console.error('Failed to load thread messages', error)
+
+                const params = new URLSearchParams(searchParamsString)
+                params.set("task", queryTaskId)
+                params.set("threadId", resolvedThreadId)
+                replace(`${pathname}?${params.toString()}`, { scroll: false })
+            } else if (queryThreadId) {
+                if (cancelled) return
+                setActiveTaskId(null)
+                setActiveThreadId(queryThreadId)
+                if (!newThreadIdsRef.current.has(queryThreadId)) {
+                    await loadThreadMessages(queryThreadId)
+                } else {
+                    setInitialMessages([])
+                }
+            } else {
+                const newId = uuidv4()
+                newThreadIdsRef.current.add(newId)
+                if (cancelled) return
+
+                setActiveTaskId(null)
+                setActiveThreadId(newId)
                 setInitialMessages([])
+                replace(`${pathname}?threadId=${newId}`, { scroll: false })
+            }
+
+            if (!cancelled) {
+                setIsBootstrapping(false)
             }
         }
 
-        loadMessages()
-    }, [queryThreadId])
+        initialize()
+
+        return () => {
+            cancelled = true
+        }
+    }, [
+        fetchThreads,
+        loadThreadMessages,
+        pathname,
+        queryTaskId,
+        queryThreadId,
+        resolveOrCreateThreadForTask,
+        replace,
+        searchParamsString,
+    ])
 
     // Handle New Chat
     const handleNewChat = useCallback(() => {
@@ -124,8 +180,8 @@ function ChatPageContent() {
         setInitialMessages([])
 
         // Then update URL
-        router.replace(`${pathname}?threadId=${newId}`, { scroll: false })
-    }, [pathname, router])
+        replace(`${pathname}?threadId=${newId}`, { scroll: false })
+    }, [pathname, replace])
 
     // Handle Thread Selection (from sidebar)
     const handleSelectThread = useCallback(async (threadId: string) => {
@@ -133,11 +189,11 @@ function ChatPageContent() {
         newThreadIdsRef.current.delete(threadId)
 
         // Update URL
-        const params = new URLSearchParams(searchParams.toString())
+        const params = new URLSearchParams(searchParamsString)
         params.delete("task")
         setActiveTaskId(null)
         params.set("threadId", threadId)
-        router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+        replace(`${pathname}?${params.toString()}`, { scroll: false })
 
         // Load messages
         try {
@@ -156,24 +212,21 @@ function ChatPageContent() {
             setInitialMessages([])
             setActiveThreadId(threadId)
         }
-    }, [pathname, router, searchParams])
+    }, [pathname, replace, searchParamsString])
 
     // Handle Task Selection (from Sidebar or Workspace)
-    // CORE LOGIC: Clicking a task switches context. 
-    // If we are already in a thread, we PRESERVE it to avoid jarring resets.
-    // If we are not in a thread, we create a new one.
     const handleSelectTask = useCallback(async (taskId: string | null) => {
-        const params = new URLSearchParams(searchParams.toString())
+        const params = new URLSearchParams(searchParamsString)
 
         if (!taskId) {
             // Case: Closing the panel / Deselecting task
             // Action: Keep current thread, just remove task param
             params.delete("task")
             setActiveTaskId(null)
-            if (activeThreadId) {
-                params.set('threadId', activeThreadId)
+            if (resolvedActiveThreadId) {
+                params.set('threadId', resolvedActiveThreadId)
             }
-            router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+            replace(`${pathname}?${params.toString()}`, { scroll: false })
             return
         }
 
@@ -182,54 +235,27 @@ function ChatPageContent() {
         setActiveTaskId(taskId)
         params.set('task', taskId)
 
-        // Check if we have an active thread
-        if (activeThreadId) {
-            // KEEP current thread
-            params.set('threadId', activeThreadId)
-            router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-            // We do NOT call loadTaskContext here because we don't want to wipe the chat history.
-            // The VideoDetailPanel will load the context/summary.
-        } else {
-            // Start a FRESH chat session
-            const newId = uuidv4()
-            
-            // Mark as new thread to skip loading
-            newThreadIdsRef.current.add(newId)
-            
-            // Update State
-            setActiveThreadId(newId)
-            
-            // Keep chat area clean; summary is shown in the context panel
+        const resolvedThreadId = await resolveOrCreateThreadForTask(taskId)
+        const isEphemeralThread = newThreadIdsRef.current.has(resolvedThreadId)
+        newThreadIdsRef.current.delete(resolvedThreadId)
+
+        setActiveThreadId(resolvedThreadId)
+        params.set('threadId', resolvedThreadId)
+        replace(`${pathname}?${params.toString()}`, { scroll: false })
+
+        if (isEphemeralThread) {
             setInitialMessages([])
-            
-            // Update URL
-            params.set('threadId', newId)
-            router.push(`${pathname}?${params.toString()}`, { scroll: false })
+        } else {
+            await loadThreadMessages(resolvedThreadId)
         }
 
-    }, [activeThreadId, pathname, router, searchParams])
+        fetchThreads()
+    }, [fetchThreads, loadThreadMessages, pathname, replace, resolveOrCreateThreadForTask, resolvedActiveThreadId, searchParamsString])
 
     // Handle Demo Selection from Welcome Screen
     const handleSelectExample = useCallback(async (taskId: string) => {
-        const params = new URLSearchParams(searchParams.toString())
-
-        let nextThreadId = activeThreadId
-        if (!nextThreadId) {
-            const newId = uuidv4()
-            newThreadIdsRef.current.add(newId)
-            setActiveThreadId(newId)
-            nextThreadId = newId
-        }
-
-        setActiveTaskId(taskId)
-        setTaskSelectionNonce((prev) => prev + 1)
-        params.set('task', taskId)
-        params.set('threadId', nextThreadId)
-        router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-
-        // Keep chat area clean; summary is shown in the context panel
-        setInitialMessages([])
-    }, [activeThreadId, pathname, router, searchParams])
+        await handleSelectTask(taskId)
+    }, [handleSelectTask])
 
     // Handle Chat Started (first message sent)
     const handleChatStarted = useCallback((threadId: string) => {
@@ -237,13 +263,13 @@ function ChatPageContent() {
         newThreadIdsRef.current.delete(threadId)
 
         // Ensure URL is updated
-        const params = new URLSearchParams(searchParams.toString())
+        const params = new URLSearchParams(searchParamsString)
         params.set('threadId', threadId)
-        router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+        replace(`${pathname}?${params.toString()}`, { scroll: false })
 
         // Refresh threads list
         fetchThreads()
-    }, [fetchThreads, pathname, router, searchParams])
+    }, [fetchThreads, pathname, replace, searchParamsString])
 
     return (
         <AppSidebarProvider defaultCollapsed={true}>
@@ -251,25 +277,29 @@ function ChatPageContent() {
                 {/* Global Sidebar */}
                 <AppSidebar
                     threads={threads}
-                    activeThreadId={activeThreadId}
+                    activeThreadId={resolvedActiveThreadId}
                     onNewChat={handleNewChat}
                     onSelectThread={handleSelectThread}
                 />
 
                 {/* Workspace */}
-                <ChatWorkspace
-                    activeThreadId={activeThreadId}
-                    activeTaskId={activeTaskId}
-                    taskSelectionNonce={taskSelectionNonce}
-                    initialMessages={initialMessages}
-                    onNewChat={handleNewChat}
-                    onSelectThread={handleSelectThread}
-                    onSelectTask={handleSelectTask}
-                    onSelectExample={handleSelectExample}
-                    onThreadCreated={fetchThreads}
-                    onChatStarted={handleChatStarted}
-                    threads={threads}
-                />
+                {isBootstrapping ? (
+                    <div className="flex-1 h-screen bg-background" />
+                ) : (
+                    <ChatWorkspace
+                        activeThreadId={resolvedActiveThreadId}
+                        activeTaskId={resolvedActiveTaskId}
+                        taskSelectionNonce={taskSelectionNonce}
+                        initialMessages={initialMessages}
+                        onNewChat={handleNewChat}
+                        onSelectThread={handleSelectThread}
+                        onSelectTask={handleSelectTask}
+                        onSelectExample={handleSelectExample}
+                        onThreadCreated={fetchThreads}
+                        onChatStarted={handleChatStarted}
+                        threads={threads}
+                    />
+                )}
             </div>
         </AppSidebarProvider>
     )

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { createClient } from "@/lib/supabase"
@@ -27,7 +27,7 @@ export function LandingUserButton() {
     const { t, locale } = useI18n()
     const [user, setUser] = useState<User | null>(null)
     const [loading, setLoading] = useState(true)
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
 
     useEffect(() => {
         // Check initial session
@@ -70,7 +70,7 @@ export function LandingUserButton() {
     // Not logged in - show Sign Up button
     if (!user) {
         return (
-            <Link href="/login">
+            <Link href={`/${locale}/login`}>
                 <Button variant="outline" size="sm" className="gap-2 bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20">
                     {t("auth.signUp")}
                 </Button>
@@ -86,7 +86,7 @@ export function LandingUserButton() {
     return (
         <div className="flex items-center gap-2">
             {/* Direct Dashboard Button */}
-            <Link href="/chat">
+            <Link href={`/${locale}/chat`}>
                 <Button variant="outline" size="sm" className="gap-2 backdrop-blur-md bg-white/30 dark:bg-white/10 border-white/40 dark:border-white/10 shadow-sm hover:shadow-md hover:bg-white/50 dark:hover:bg-white/20 transition-all text-primary font-medium">
                     {t("auth.goToDashboard")}
                 </Button>

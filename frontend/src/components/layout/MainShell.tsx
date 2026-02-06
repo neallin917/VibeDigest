@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 
 import { AppSidebar } from "@/components/layout/AppSidebar"
@@ -16,7 +16,7 @@ export function MainShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   // Public paths that don't require authentication
   // /tasks/* is public so unauthenticated users can view demo tasks
@@ -55,7 +55,7 @@ export function MainShell({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe()
     }
-  }, [router, supabase.auth, isPublicPath, locale])
+  }, [router, supabase, isPublicPath, locale])
 
   // Show loading spinner while checking auth (but allow public paths through)
   if (isLoading && !isPublicPath) {
@@ -101,5 +101,4 @@ export function MainShell({ children }: { children: React.ReactNode }) {
     </AppSidebarProvider>
   )
 }
-
 

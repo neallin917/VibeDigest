@@ -288,6 +288,40 @@ describe('POST /api/chat', () => {
         }))
     })
 
+    it('persists new thread with task_id when taskId is provided', async () => {
+        mockFrom.mockImplementation(((table: string) => {
+            if (table === 'chat_threads') {
+                return {
+                    select: vi.fn().mockReturnValue({
+                        eq: vi.fn().mockReturnValue({
+                            single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } })
+                        })
+                    }),
+                    insert: mockInsert
+                }
+            }
+            return { select: mockSelect, insert: mockInsert }
+        }) as any)
+
+        const req = new NextRequest('http://localhost/api/chat', {
+            method: 'POST',
+            body: JSON.stringify({
+                message: { content: 'Bind this thread' },
+                threadId: 'new-thread-id',
+                taskId: 'task-abc'
+            })
+        })
+
+        await POST(req)
+
+        expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+            id: 'new-thread-id',
+            user_id: 'test-user-id',
+            title: 'New Chat',
+            task_id: 'task-abc'
+        }))
+    })
+
     it('uses fast model for short follow-up with taskId', async () => {
         const originalFetch = global.fetch
         const fetchMock = vi.fn().mockResolvedValue({
@@ -406,5 +440,45 @@ describe('POST /api/chat', () => {
         // Since we didn't mock the specific table for the second pass in detail in this specific test block (relies on global mock),
         // we just verify that insert was called. 
         // For more rigor, we'd set up the mockFrom to differentiate 'chat_messages' table calls.
+    })
+
+    it('backfills thread task_id from create_task tool output in onFinish', async () => {
+        const req = new NextRequest('http://localhost/api/chat', {
+            method: 'POST',
+            body: JSON.stringify({
+                message: { content: 'create task for this video' },
+                threadId: 'thread-123'
+            })
+        })
+
+        await POST(req)
+
+        const streamTextResult = mockStreamText.mock.results.at(-1)?.value
+        const toUIMessageCall = streamTextResult.toUIMessageStreamResponse.mock.calls[0][0]
+
+        mockInsert.mockClear()
+        mockUpdate.mockClear()
+        mockSingle.mockResolvedValue({ data: null })
+
+        const finalMessages = [
+            {
+                id: 'assistant-1',
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'tool-create_task',
+                        output: { taskId: 'task-created-1' }
+                    }
+                ],
+                metadata: { createdAt: new Date().toISOString() }
+            }
+        ]
+
+        await toUIMessageCall.onFinish({ messages: finalMessages })
+
+        expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
+            updated_at: expect.any(String),
+            task_id: 'task-created-1'
+        }))
     })
 })

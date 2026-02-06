@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { ApiClient } from "@/lib/api"
 import { createClient } from "@/lib/supabase"
@@ -52,13 +52,13 @@ export function FeedbackDialog({
     const [category, setCategory] = useState(defaultCategory)
     const [message, setMessage] = useState("")
     const [contactEmail, setContactEmail] = useState("")
+    const supabase = useMemo(() => createClient(), [])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
 
         try {
-            const supabase = createClient()
             const { data: { session } } = await supabase.auth.getSession()
 
             if (!session?.access_token) {

@@ -103,6 +103,8 @@ logs/security/
 /.shared/
 /.reports/
 /.claude/
+/.agents/
+/.agent/
 
 # Python Testing & Linting Caches
 .pytest_cache/
