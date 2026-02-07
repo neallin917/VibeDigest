@@ -1,4 +1,5 @@
 import { test as setup, expect } from '@playwright/test';
+import { AuthPage } from './pages/AuthPage';
 
 const authFile = 'playwright/.auth/user.json';
 
@@ -8,27 +9,46 @@ const authFile = 'playwright/.auth/user.json';
  * 此脚本会在需要认证的测试之前运行，保存登录态到 storageState
  */
 setup('authenticate', async ({ page }) => {
+    // Mock Supabase Auth Token Endpoint
+    await page.route('**/auth/v1/token*', async (route) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                access_token: 'fake-jwt-token',
+                token_type: 'bearer',
+                expires_in: 3600,
+                refresh_token: 'fake-refresh-token',
+                user: {
+                    id: 'test-user-id',
+                    aud: 'authenticated',
+                    role: 'authenticated',
+                    email: 'e2e@vibedigest.io',
+                    email_confirmed_at: new Date().toISOString(),
+                    last_sign_in_at: new Date().toISOString(),
+                    app_metadata: { provider: 'email', providers: ['email'] },
+                    user_metadata: { full_name: 'E2E Test User' },
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                }
+            })
+        });
+    });
+
+    const authPage = new AuthPage(page);
+
     // 1. 导航到登录页
-    await page.goto('/en/login');
+    await authPage.gotoLogin();
 
     // 2. 等待页面加载
     await page.waitForLoadState('domcontentloaded');
 
-    // 3. 切换到密码登录模式 (登录页默认是 Magic Link 模式)
-    const passwordModeButton = page.getByRole('button', { name: /Sign in with Password/i });
-    if (await passwordModeButton.isVisible({ timeout: 5000 })) {
-        await passwordModeButton.click();
-    }
-
-    // 4. 等待密码输入框出现
-    await expect(page.getByPlaceholder('Password')).toBeVisible({ timeout: 5000 });
-
-    // 5. 输入测试账户凭据
-    await page.getByPlaceholder('name@example.com').fill(process.env.TEST_USER_EMAIL || '');
-    await page.getByPlaceholder('Password').fill(process.env.TEST_USER_PASSWORD || '');
-
-    // 6. 点击登录按钮
-    await page.getByRole('button', { name: 'Sign In', exact: true }).click();
+    // 3-6. Perform Login using Page Object
+    // Use defaults if env vars missing
+    const email = process.env.TEST_USER_EMAIL || 'e2e@vibedigest.io';
+    const password = process.env.TEST_USER_PASSWORD || 'password123';
+    
+    await authPage.login(email, password);
 
     // 7. 等待登录成功 - 跳转到 dashboard 或首页
     await expect(page).toHaveURL(/\/(dashboard|chat|en\/?$)/, { timeout: 15000 });
@@ -36,5 +56,5 @@ setup('authenticate', async ({ page }) => {
     // 8. 保存登录状态到文件
     await page.context().storageState({ path: authFile });
 
-    console.log('✅ Authentication successful, state saved to', authFile);
+    console.log('✅ Authentication successful (mocked), state saved to', authFile);
 });
