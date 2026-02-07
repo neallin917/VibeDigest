@@ -61,6 +61,20 @@ export default defineConfig({
       dependencies: ['setup'],
       testMatch: /.*auth.*\.spec\.ts/, // Only run auth-related tests
     },
+
+    // ========================================
+    // Cross-Browser Tests (Smoke Only)
+    // ========================================
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+      testMatch: /workflow-complete\.spec\.ts/,
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+      testMatch: /workflow-complete\.spec\.ts/,
+    },
   ],
 
   /* Run your local dev server before starting the tests */

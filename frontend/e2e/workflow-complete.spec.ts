@@ -1,4 +1,7 @@
 import { test, expect } from '@playwright/test'
+import { ChatPage } from './pages/ChatPage'
+import { TaskPage } from './pages/TaskPage'
+import { createMockTask, createMockUser, createMockTaskOutput } from './fixtures/testData'
 
 test.describe('Complete Task Workflow (Mocked)', () => {
 
@@ -7,13 +10,7 @@ test.describe('Complete Task Workflow (Mocked)', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'test-user-id',
-          aud: 'authenticated',
-          role: 'authenticated',
-          email: 'tester@vibedigest.io',
-          user_metadata: { full_name: 'Test User' }
-        })
+        body: JSON.stringify(createMockUser())
       })
     })
 
@@ -31,16 +28,10 @@ test.describe('Complete Task Workflow (Mocked)', () => {
       const isSingle = route.request().headers()['accept']?.includes('vnd.pgrst.object');
       
       if (url.includes('id=eq.mock-task-123')) {
-        const data = {
-          id: 'mock-task-123',
-          user_id: 'test-user-id',
-          video_url: 'https://youtube.com/watch?v=dQw4w9WgXcQ',
-          video_title: 'Never Gonna Give You Up',
-          thumbnail_url: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
-          status: taskStatus,
-          progress: taskStatus === 'processing' ? 45 : 100,
-          created_at: new Date().toISOString()
-        };
+        const data = createMockTask({
+            status: taskStatus as any,
+            progress: taskStatus === 'processing' ? 45 : 100
+        });
         
         await route.fulfill({
           status: 200,
@@ -62,15 +53,11 @@ test.describe('Complete Task Workflow (Mocked)', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify([
-          { 
-            kind: 'summary', 
-            content: JSON.stringify({
+          createMockTaskOutput('summary', {
               overview: 'AI Summary Content',
               keypoints: [{ title: 'Intro', detail: 'The beginning', startSeconds: 0 }]
-            }), 
-            status: 'completed' 
-          },
-          { kind: 'script', content: '00:00 - Intro', status: 'completed' }
+          }),
+          createMockTaskOutput('script', '00:00 - Intro')
         ])
       })
     })
@@ -87,20 +74,20 @@ test.describe('Complete Task Workflow (Mocked)', () => {
   test('user can submit a video and see the completed results', async ({ page }) => {
     page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
 
-    await page.goto('/en/chat')
-    await expect(page.locator('h1')).toContainText(/digest today/i)
+    const chatPage = new ChatPage(page);
+    const taskPage = new TaskPage(page);
 
-    const input = page.getByLabel('Chat input')
-    await input.fill('https://youtube.com/watch?v=dQw4w9WgXcQ')
-    
-    const submitBtn = page.locator('button').filter({ has: page.locator('svg') }).last()
-    await submitBtn.click()
+    await chatPage.goto();
+    await expect(chatPage.welcomeHeading).toContainText(/digest today/i);
 
-    await page.goto('/en/chat?task=mock-task-123')
+    await chatPage.submitMessage('https://youtube.com/watch?v=dQw4w9WgXcQ');
+
+    // Simulate navigation to task details
+    await page.goto('/en/chat?task=mock-task-123');
     
-    await expect(page.getByText('Never Gonna Give You Up').first()).toBeVisible({ timeout: 10000 })
+    await taskPage.expectTaskCardVisible('Never Gonna Give You Up');
     
-    await expect(page.getByText('AI Summary Content')).toBeVisible({ timeout: 15000 })
+    await taskPage.expectContentVisible('AI Summary Content');
     await expect(page.getByTestId('header-key-insights')).toBeVisible()
     await expect(page.getByText('Intro').last()).toBeVisible()
   })

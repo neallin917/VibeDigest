@@ -2,6 +2,7 @@ import os
 import sys
 from pathlib import Path
 from typing import AsyncGenerator
+from unittest.mock import MagicMock, AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient, ASGITransport
@@ -15,7 +16,7 @@ if os.getenv("SKIP_DB_TESTS") == "1":
 
 from main import app
 from db_client import DBClient
-from dependencies import get_db_client
+from dependencies import get_db_client, get_current_user, get_video_processor, get_coinbase_client
 from sqlalchemy import create_engine, text
 
 
@@ -241,3 +242,54 @@ async def async_client(test_db) -> AsyncGenerator[AsyncClient, None]:
 
     # Clean up
     app.dependency_overrides.pop(get_db_client, None)
+
+
+# --- Shared API Fixtures (Task 1) ---
+
+@pytest.fixture
+def mock_db_client():
+    return MagicMock()
+
+@pytest.fixture
+def mock_user():
+    return "test_user_id"
+
+@pytest.fixture
+def mock_video_processor():
+    processor = MagicMock()
+    processor.extract_info_only = AsyncMock(return_value={
+        "title": "Test Video",
+        "thumbnail": "http://thumb",
+        "duration": 100,
+        "author": "Test Author",
+        "description": "Desc",
+        "upload_date": "2023-01-01",
+        "view_count": 100
+    })
+    return processor
+
+@pytest.fixture
+def mock_coinbase_client():
+    client = MagicMock()
+    # Mocking what test_payments_api expected
+    client.charge.create.return_value.hosted_url = "http://cb.com/charge"
+    client.charge.create.return_value.code = "CODE123"
+    return client
+
+@pytest.fixture
+async def api_client(mock_db_client, mock_video_processor, mock_coinbase_client, mock_user):
+    """
+    Shared AsyncClient with commonly mocked dependencies.
+    Replaces local 'client' fixture in API tests.
+    """
+    saved_overrides = dict(app.dependency_overrides)
+    app.dependency_overrides[get_db_client] = lambda: mock_db_client
+    app.dependency_overrides[get_video_processor] = lambda: mock_video_processor
+    app.dependency_overrides[get_coinbase_client] = lambda: mock_coinbase_client
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+    app.dependency_overrides = saved_overrides

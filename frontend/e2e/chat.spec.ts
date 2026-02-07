@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test'
+import { ChatPage } from './pages/ChatPage'
+import { createMockTask, createMockUser } from './fixtures/testData'
 
 test.describe('Chat Interface Flow', () => {
 
@@ -29,16 +31,15 @@ test.describe('Chat Interface Flow', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify([{
+          body: JSON.stringify([createMockTask({
             id: 'task-e2e-123',
             video_title: 'E2E Test Video',
             video_url: 'https://youtube.com/watch?v=e2e',
             thumbnail_url: 'https://placehold.co/600x400',
-            status: 'processing', // Start as processing
+            status: 'processing',
             progress: 20,
-            created_at: new Date().toISOString(),
             user_id: 'test-user'
-          }])
+          })])
         })
       } else if (url.includes('is_demo=eq.true')) {
         // Mock demo tasks for Welcome Screen
@@ -71,12 +72,7 @@ test.describe('Chat Interface Flow', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'test-user',
-          aud: 'authenticated',
-          role: 'authenticated',
-          email: 'test@example.com'
-        })
+        body: JSON.stringify(createMockUser({ id: 'test-user', email: 'test@example.com' }))
       })
     })
 
@@ -97,8 +93,10 @@ test.describe('Chat Interface Flow', () => {
   })
 
   test('submitting a URL in Chat creates a task and shows the card', async ({ page }) => {
+    const chatPage = new ChatPage(page);
+
     // Navigate to Chat
-    await page.goto('/chat')
+    await chatPage.goto();
 
     // Debug: Log current URL
     console.log('Current URL:', page.url())
@@ -110,39 +108,12 @@ test.describe('Chat Interface Flow', () => {
     }
 
     // Wait for React hydration and Welcome Screen
-    // Update: Heading is now "What would you like to digest today?"
-    await expect(page.locator('h1')).toContainText(/Welcome|VibeDigest|digest today/i)
+    await expect(chatPage.welcomeHeading).toContainText(/Welcome|VibeDigest|digest today/i)
 
-    // Find input in Welcome Screen (inline variant)
-    // Note: Placeholder is hidden/empty due to typewriter effect, so we use aria-label
-    const input = page.getByLabel('Chat input')
-    await expect(input).toBeVisible()
-
-    // Paste URL
-    await input.fill('https://youtube.com/watch?v=e2e')
-    await page.keyboard.press('Enter')
+    // Paste URL and Submit
+    await chatPage.submitMessage('https://youtube.com/watch?v=e2e');
 
     // Verify Chat Message appears (The user message)
-    await expect(page.getByText('https://youtube.com/watch?v=e2e')).toBeVisible()
-
-    /* TODO: Re-enable when task navigation is explicit or fully mocked
-    // Simulate user navigating to the task (or app redirect) to activate task context
-    // We use pushState to avoid page reload which would wipe the chat state in this test (since we don't persist to mock backend)
-    await page.evaluate(() => {
-        const url = new URL(window.location.href);
-        url.searchParams.set('task', 'task-e2e-123');
-        window.history.pushState({}, '', url.toString());
-    });
-    
-    // Check if card appears (flaky without full integration)
-    try {
-        await expect(page.getByText('E2E Test Video')).toBeVisible({ timeout: 5000 })
-        await expect(page.locator('svg.animate-spin')).toBeVisible() // Loader icon
-        await page.getByText('E2E Test Video').click()
-        await expect(page.locator('iframe[src*="youtube"]')).toBeVisible()
-    } catch (e) {
-        console.log('Skipping Video Card checks: Card did not appear in E2E mock environment');
-    }
-    */
+    await chatPage.expectMessageVisible('https://youtube.com/watch?v=e2e');
   })
 })

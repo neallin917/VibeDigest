@@ -106,6 +106,11 @@ test.describe('Navigation & Auth Flows', () => {
      * auth.setup.ts 会在测试前运行，生成 playwright/.auth/user.json
      */
     test.describe('Authenticated User', () => {
+        test.beforeEach(async ({}, testInfo) => {
+            if (testInfo.project.name.includes('guest')) {
+                testInfo.skip(true, 'Skip authenticated tests in guest project');
+            }
+        });
 
         test('4.1 [P0] Chat access after login', async ({ page }) => {
             // Given: 用户已登录 (storageState)

@@ -100,7 +100,7 @@ jobs:
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps chromium
     - name: Run E2E tests
-      run: npx playwright test e2e/workflow-complete.spec.ts
+      run: npx playwright test
       env:
         NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co"
         NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy-key"
