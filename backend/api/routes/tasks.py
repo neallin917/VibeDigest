@@ -3,6 +3,7 @@ import asyncio
 import os
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, Form, HTTPException, BackgroundTasks, Body, Header
+from fastapi.responses import StreamingResponse
 
 from dependencies import get_current_user, get_db_client, get_video_processor
 from db_client import DBClient
