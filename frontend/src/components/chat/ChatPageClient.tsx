@@ -9,6 +9,7 @@ import { mapDBMessageToUIMessage, DBMessage } from "@/lib/chat-utils"
 import type { UIMessage } from "ai"
 import { v4 as uuidv4 } from 'uuid'
 import { createClient } from "@/lib/supabase"
+import { fetchThreadTaskId } from "@/lib/thread-utils"
 
 interface Thread {
     id: string
@@ -182,11 +183,26 @@ function ChatPageContent() {
                 safeReplace(params)
             } else if (queryThreadId) {
                 if (cancelled) return
-                setActiveTaskId(null)
                 setActiveThreadId(queryThreadId)
+
+                // Restore task association from the thread's persisted task_id
                 if (!newThreadIdsRef.current.has(queryThreadId)) {
+                    const restoredTaskId = await fetchThreadTaskId(queryThreadId)
+                    if (cancelled) return
+
+                    if (restoredTaskId) {
+                        setActiveTaskId(restoredTaskId)
+                        const params = getCurrentParams()
+                        params.set("task", restoredTaskId)
+                        params.set("threadId", queryThreadId)
+                        safeReplace(params)
+                    } else {
+                        setActiveTaskId(null)
+                    }
+
                     await loadThreadMessages(queryThreadId)
                 } else {
+                    setActiveTaskId(null)
                     setInitialMessages([])
                 }
             } else {
@@ -249,10 +265,17 @@ function ChatPageContent() {
         // Remove from new threads set (in case it was added but now has messages)
         newThreadIdsRef.current.delete(threadId)
 
-        // Update URL
+        // Restore task association from the thread's persisted task_id
+        const restoredTaskId = await fetchThreadTaskId(threadId)
+        setActiveTaskId(restoredTaskId)
+
+        // Update URL with restored task (if any)
         const params = getCurrentParams()
-        params.delete("task")
-        setActiveTaskId(null)
+        if (restoredTaskId) {
+            params.set("task", restoredTaskId)
+        } else {
+            params.delete("task")
+        }
         params.set("threadId", threadId)
         safeReplace(params)
 
