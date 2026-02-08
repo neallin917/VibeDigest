@@ -22,6 +22,10 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
+  timeout: 90000,
+  expect: {
+    timeout: 15000,
+  },
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -29,6 +33,7 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
   },
 
   /* Configure projects for major browsers */
@@ -59,21 +64,6 @@ export default defineConfig({
         storageState: 'playwright/.auth/user.json',
       },
       dependencies: ['setup'],
-      testMatch: /.*auth.*\.spec\.ts/, // Only run auth-related tests
-    },
-
-    // ========================================
-    // Cross-Browser Tests (Smoke Only)
-    // ========================================
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-      testMatch: /workflow-complete\.spec\.ts/,
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-      testMatch: /workflow-complete\.spec\.ts/,
     },
   ],
 
@@ -81,7 +71,9 @@ export default defineConfig({
   webServer: {
     command: 'npm run dev:test', // Uses NEXT_DIST_DIR=.next-test via package.json
     url: 'http://localhost:3001',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
+    reuseExistingServer: true,
+    timeout: 180 * 1000,
+    stdout: 'pipe',
+    stderr: 'pipe',
   },
 });

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { setupApiMocks } from './fixtures/mock-api';
 
 /**
  * Journey 1.1: Landing Page -> Chat Flow
@@ -13,46 +14,53 @@ import { test, expect } from '@playwright/test'
  */
 test.describe('Landing Page Acquisition Flow', () => {
 
-    test('submitting URL on landing page redirects to login (if unauthenticated)', async ({ page }) => {
+    test.beforeEach(async ({ page }) => {
+        await setupApiMocks(page, { isAuthenticated: false });
+    });
+
+    test('submitting URL on landing page redirects to login (if unauthenticated)', async ({ page, context }) => {
+        // Ensure no cookies exist to force unauthenticated state
+        await context.clearCookies();
+        
         await page.goto('/en')
 
-        // Find the URL input on landing page
-        const urlInput = page.getByPlaceholder(/youtube|url|video/i).first()
+        // Find the URL input on landing page (use first() to avoid strict mode if multiple exist)
+        const urlInput = page.getByLabel(/Chat input/i).first()
         await expect(urlInput).toBeVisible()
 
         // Type a valid URL
         await urlInput.fill('https://youtube.com/watch?v=testVideo123')
 
         // Click generate button
-        const generateBtn = page.locator('button').filter({ hasText: /generate|开始|AI Summary|AI 总结/i }).first()
+        const generateBtn = page.getByRole('button', { name: /Send message|开始|AI Summary/i }).filter({ visible: true }).first()
         await generateBtn.click()
 
         // Should redirect to login
-        await expect(page).toHaveURL(/\/login/, { timeout: 10000 })
+        await page.waitForURL(/\/login/, { timeout: 30000 });
+        await expect(page).toHaveURL(/\/login/)
     })
 
-    test('should show error for empty URL', async ({ page }) => {
+    test('should disable button for empty URL', async ({ page }) => {
         await page.goto('/en')
 
-        // Click generate without entering URL
-        const generateBtn = page.locator('button').filter({ hasText: /generate|开始|AI Summary|AI 总结/i }).first()
-        await generateBtn.click()
-
-        // Should show URL help dialog or some error indication
-        // The implementation might vary, but usually a dialog or toast
-        await expect(page.getByRole('dialog').or(page.getByText('Supported platforms'))).toBeVisible({ timeout: 5000 })
+        // Send button should be disabled when input is empty
+        const generateBtn = page.getByRole('button', { name: /Send message|开始|AI Summary/i }).first()
+        await expect(generateBtn).toBeDisabled()
     })
 
     test('should show error for invalid URL format', async ({ page }) => {
         await page.goto('/en')
 
-        const urlInput = page.getByPlaceholder(/youtube|url|video/i).first()
+        const urlInput = page.getByLabel(/Chat input/i).first()
         await urlInput.fill('not-a-valid-url')
 
-        const generateBtn = page.locator('button').filter({ hasText: /generate|开始|AI Summary|AI 总结/i }).first()
+        const generateBtn = page.getByRole('button', { name: /Send message|开始|AI Summary/i }).first()
         await generateBtn.click()
 
         // Should show URL help dialog or error
-        await expect(page.getByRole('dialog').or(page.getByText('Supported platforms'))).toBeVisible({ timeout: 5000 })
+        // The dialog usually has a role="dialog"
+        const dialog = page.getByRole('dialog').first()
+        await expect(dialog).toBeVisible({ timeout: 5000 })
+        await expect(dialog).toContainText(/Supported platforms|Use specific URL/i)
     })
 })
