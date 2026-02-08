@@ -140,7 +140,7 @@ function MessageRowComponent({ message, isStreaming, enableMotion, onOpenPanel }
       <div
         className={cn(
           'flex flex-col gap-1 max-w-[85%] min-w-0',
-          message.role === 'user' ? 'items-end' : 'items-start w-full'
+          message.role === 'user' ? 'items-end' : 'items-start'
         )}
       >
         <div
@@ -187,8 +187,15 @@ function MessageRowComponent({ message, isStreaming, enableMotion, onOpenPanel }
 export const MessageRow = memo(MessageRowComponent, (prev, next) => {
   if (prev.enableMotion !== next.enableMotion) return false
   if (prev.isStreaming !== next.isStreaming) return false
+  
+  // If streaming, always re-render to show updates
+  if (next.isStreaming) return false
+
   if (prev.message === next.message) return true
   if (prev.message.id !== next.message.id) return false
   if (prev.message.role !== next.message.role) return false
-  return prev.message.parts === next.message.parts
+  
+  // Use stringify for deep comparison of parts to avoid unnecessary re-renders
+  // when object references change but content is identical
+  return JSON.stringify(prev.message.parts) === JSON.stringify(next.message.parts)
 })

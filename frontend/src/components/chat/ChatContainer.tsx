@@ -230,11 +230,23 @@ export function ChatContainer({
     : historyMessages
 
   const scrollRef = useRef<HTMLDivElement>(null)
+  const isUserNearBottomRef = useRef(true)
+
+  const handleScroll = () => {
+    if (!scrollRef.current) return
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current
+    const distanceToBottom = scrollHeight - scrollTop - clientHeight
+    isUserNearBottomRef.current = distanceToBottom < 100 // 100px threshold
+  }
 
   // Auto-scroll to bottom
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    if (scrollRef.current && isUserNearBottomRef.current) {
+      requestAnimationFrame(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+        }
+      })
     }
   }, [messages, status])
 
@@ -292,6 +304,7 @@ export function ChatContainer({
     <div className="flex flex-col h-full min-h-0 relative">
       <div
         ref={scrollRef}
+        onScroll={handleScroll}
         className={cn(
           'flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 md:px-8 py-6 custom-scrollbar',
           status === 'streaming' ? 'scroll-auto' : 'scroll-smooth',
