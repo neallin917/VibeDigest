@@ -1,5 +1,6 @@
 "use client"
 
+import { Suspense } from "react"
 import { LoginForm } from "@/components/auth/LoginForm"
 
 export default function LoginPage() {
@@ -30,7 +31,9 @@ export default function LoginPage() {
 
             {/* 3. Content */}
             <div className="relative z-10 w-full max-w-md">
-                <LoginForm />
+                <Suspense fallback={<div className="w-full max-w-md h-96" />}>
+                    <LoginForm />
+                </Suspense>
             </div>
         </div>
     )

@@ -6,17 +6,7 @@ import { createMockTask, createMockUser, createMockTaskOutput } from './fixtures
 test.describe('Complete Task Workflow (Mocked)', () => {
 
   test.beforeEach(async ({ page }) => {
-    // Allow access to protected /chat route in SSR middleware without real Supabase session
-    await page.context().addCookies([{
-      name: 'VIBEDIGEST_E2E_AUTH_BYPASS',
-      value: 'true',
-      domain: 'localhost',
-      path: '/',
-      httpOnly: true,
-      secure: false,
-      sameSite: 'Lax',
-    }]);
-
+    // /chat is now a public route, no auth bypass cookie needed
     await page.route('**/auth/v1/user', async (route) => {
       await route.fulfill({
         status: 200,

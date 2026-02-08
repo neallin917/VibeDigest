@@ -49,7 +49,7 @@ test.describe('Navigation & Auth Flows', () => {
         test('Logo Click: Should navigate to Landing Page', async ({ page }) => {
             await page.goto('/en/faq');
             await page.waitForLoadState('networkidle');
-            
+
             const logo = page.locator('nav').getByRole('link', { name: /VibeDigest/i }).filter({ visible: true }).first();
             await expect(logo).toBeVisible();
             await logo.dispatchEvent('click');
@@ -57,8 +57,8 @@ test.describe('Navigation & Auth Flows', () => {
         });
 
         test('Protected Routes: Should redirect to Login', async ({ page }) => {
+            // /chat is now public; only /settings and /history require login
             const protectedPaths = [
-                '/en/chat',
                 '/en/settings',
                 '/en/history'
             ];
@@ -68,6 +68,33 @@ test.describe('Navigation & Auth Flows', () => {
                 await page.waitForURL(/\/login/, { timeout: 30000 });
                 await expect(page).toHaveURL(/.*\/login/);
             }
+        });
+
+        test('Chat Page: Guest can access and browse demo content', async ({ page }) => {
+            await page.goto('/en/chat');
+            // Should NOT redirect to login — stay on /chat
+            await expect(page).toHaveURL(/.*\/chat/, { timeout: 30000 });
+            // Welcome screen should be visible
+            await expect(page.getByLabel(/Chat input/i)).toBeVisible({ timeout: 10000 });
+        });
+
+        test('Chat Page: Sending a message redirects to Login', async ({ page }) => {
+            await page.goto('/en/chat');
+            await page.waitForLoadState('networkidle');
+
+            // Type a message in the chat input
+            const chatInput = page.getByLabel(/Chat input/i).first();
+            await expect(chatInput).toBeVisible();
+            await chatInput.fill('Tell me about this video');
+
+            // Click send
+            const sendButton = page.getByRole('button', { name: /Send message|发送/i }).filter({ visible: true }).first();
+            await expect(sendButton).toBeEnabled();
+            await sendButton.click();
+
+            // Should be redirected to login
+            await page.waitForURL(/\/login/, { timeout: 30000 });
+            await expect(page).toHaveURL(/.*\/login/);
         });
 
         test('Landing Page: Check "Send message" redirects to Login', async ({ page }) => {
@@ -83,10 +110,10 @@ test.describe('Navigation & Auth Flows', () => {
 
             // 3. Find and Click the now-enabled button
             const sendButton = page.getByRole('button', { name: /Send message|开始/i }).filter({ visible: true }).first();
-            
+
             // Wait for button to be strictly enabled and stable
             await expect(sendButton).toBeEnabled();
-            
+
             // Allow hydration to settle - removing force: true ensures Playwright waits for event listeners
             await sendButton.click();
 
@@ -140,8 +167,8 @@ test.describe('Navigation & Auth Flows', () => {
             // Then: 应该被重定向到首页或登录页
             await expect(page).toHaveURL(/\/(en)?(\/login)?$/, { timeout: 10000 });
 
-            // 验证: 再次访问 /chat 应该被重定向到 login
-            await page.goto('/en/chat');
+            // 验证: 再次访问 /settings 应该被重定向到 login
+            await page.goto('/en/settings');
             await expect(page).toHaveURL(/.*\/login/, { timeout: 10000 });
         });
     });

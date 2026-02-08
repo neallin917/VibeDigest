@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect, useRef, Suspense } from "react"
+import { useState, useCallback, useEffect, useRef, useMemo, Suspense } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { ChatWorkspace } from "@/components/chat/ChatWorkspace"
 import { AppSidebar } from "@/components/layout/AppSidebar"
@@ -8,6 +8,7 @@ import { AppSidebarProvider } from "@/components/layout/AppSidebarContext"
 import { mapDBMessageToUIMessage, DBMessage } from "@/lib/chat-utils"
 import type { UIMessage } from "ai"
 import { v4 as uuidv4 } from 'uuid'
+import { createClient } from "@/lib/supabase"
 
 interface Thread {
     id: string
@@ -23,6 +24,16 @@ function ChatPageContent() {
     const queryThreadId = searchParams.get("threadId")
     const queryTaskId = searchParams.get("task")
     const searchParamsString = searchParams.toString()
+
+    // Auth state (null = loading, true/false = resolved)
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+    const supabase = useMemo(() => createClient(), [])
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            setIsAuthenticated(!!user)
+        })
+    }, [supabase])
 
     // State
     const [threads, setThreads] = useState<Thread[]>([])
@@ -57,10 +68,14 @@ function ChatPageContent() {
         return true
     }, [pathname, replace])
 
-    // Fetch threads list
+    // Fetch threads list (silently skipped for unauthenticated users)
     const fetchThreads = useCallback(async () => {
         try {
             const res = await fetch('/api/chat/threads')
+            if (res.status === 401) {
+                setThreads([])
+                return
+            }
             if (res.ok) {
                 const data = await res.json()
                 setThreads(data)
@@ -73,6 +88,10 @@ function ChatPageContent() {
     const loadThreadMessages = useCallback(async (threadId: string) => {
         try {
             const res = await fetch(`/api/chat/threads/${threadId}/messages`)
+            if (res.status === 401) {
+                setInitialMessages([])
+                return
+            }
             if (res.ok) {
                 const dbMessages: DBMessage[] = await res.json()
                 const uiMessages = dbMessages.map(mapDBMessageToUIMessage)
@@ -89,6 +108,12 @@ function ChatPageContent() {
     const resolveOrCreateThreadForTask = useCallback(async (taskId: string) => {
         try {
             const listRes = await fetch(`/api/threads?taskId=${encodeURIComponent(taskId)}`)
+            if (listRes.status === 401) {
+                // Unauthenticated: use a local ephemeral thread ID
+                const fallbackId = uuidv4()
+                newThreadIdsRef.current.add(fallbackId)
+                return fallbackId
+            }
             if (listRes.ok) {
                 const taskThreads: Thread[] = await listRes.json()
                 if (Array.isArray(taskThreads) && taskThreads.length > 0 && taskThreads[0]?.id) {
@@ -105,6 +130,12 @@ function ChatPageContent() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ taskId }),
             })
+
+            if (createRes.status === 401) {
+                const fallbackId = uuidv4()
+                newThreadIdsRef.current.add(fallbackId)
+                return fallbackId
+            }
 
             if (createRes.ok) {
                 const createdThread: Thread = await createRes.json()
@@ -323,6 +354,7 @@ function ChatPageContent() {
                         activeTaskId={resolvedActiveTaskId}
                         taskSelectionNonce={taskSelectionNonce}
                         initialMessages={initialMessages}
+                        isAuthenticated={isAuthenticated ?? false}
                         onNewChat={handleNewChat}
                         onSelectThread={handleSelectThread}
                         onSelectTask={handleSelectTask}

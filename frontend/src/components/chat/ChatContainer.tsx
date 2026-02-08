@@ -17,6 +17,7 @@ interface ChatContainerProps {
   activeTaskId?: string | null
   threadId?: string | null
   initialMessages?: UIMessage[]
+  isAuthenticated?: boolean
   onOpenPanel?: (taskId: string) => void
   onSelectExample?: (taskId: string) => void
   onChatStarted?: (threadId: string) => void
@@ -54,6 +55,7 @@ export function ChatContainer({
   activeTaskId,
   threadId,
   initialMessages = [],
+  isAuthenticated = false,
   onOpenPanel,
   onSelectExample,
   onChatStarted
@@ -132,13 +134,20 @@ export function ChatContainer({
     window.location.href = loginUrl
   }
 
-  /* 
+  /*
    * wrapper for sending messages that matches the previous append signature if needed,
-   * but strictly we should use sendMessageToApi({ text }) 
+   * but strictly we should use sendMessageToApi({ text })
    */
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = (content: string) => {
     const trimmed = content.trim()
     if (!trimmed) return
+
+    // Auth gate: save message and redirect to login for unauthenticated users
+    if (!isAuthenticated) {
+      localStorage.setItem('vibedigest_pending_message', trimmed)
+      handleLogin()
+      return
+    }
 
     // AI SDK v6: sendMessage expects { text: string }
     sendMessageToApi({ text: trimmed })
@@ -294,6 +303,7 @@ export function ChatContainer({
             onSelectExample={onSelectExample || (() => { })}
             onSubmit={handleSubmit}
             isLoading={isLoading}
+            isAuthenticated={isAuthenticated}
           />
         ) : (
           <div className="max-w-3xl mx-auto w-full space-y-8">
