@@ -65,7 +65,10 @@ test.describe('Settings Page', () => {
     }]);
   });
 
-  test('should render settings page correctly for authenticated user', async ({ page }) => {
+  test('should render settings page correctly for authenticated user', async ({ page }, testInfo) => {
+    // Settings is a protected route — only run this test when auth storageState is available
+    test.skip(testInfo.project.name === 'chromium-guest', 'Protected route requires authenticated project');
+
     // 1. Navigate directly to Settings
     await page.goto('/en/settings');
     console.log(`Current URL after navigation: ${page.url()}`);
