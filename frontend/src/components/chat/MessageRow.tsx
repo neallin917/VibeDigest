@@ -139,7 +139,7 @@ function MessageRowComponent({ message, isStreaming, enableMotion, onOpenPanel }
     >
       <div
         className={cn(
-          'flex flex-col gap-1 max-w-[85%] min-w-0',
+          'flex flex-col gap-1 max-w-full min-w-0',
           message.role === 'user' ? 'items-end' : 'items-start'
         )}
       >
