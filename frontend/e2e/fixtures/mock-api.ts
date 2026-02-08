@@ -2,32 +2,35 @@ import { type Page } from '@playwright/test';
 
 /**
  * Mocks common backend API responses for E2E stability.
+ *
+ * @supabase/ssr createBrowserClient stores session in cookies (NOT localStorage),
+ * encoded as base64url with prefix "base64-". We inject the cookie directly.
  */
 export async function setupApiMocks(page: Page, options: { isAuthenticated?: boolean } = {}) {
     const { isAuthenticated = false } = options;
 
-    // 0. Mock Supabase Auth at window level (Init Script)
-    await page.addInitScript(({ auth, session }) => {
-        if (auth) {
-            // Find project ref from environment if possible, or use a wild card approach
-            // Here we just set a generic key that Supabase might look for if configured
-            localStorage.setItem('supabase.auth.token', JSON.stringify(session));
-            (window as any).__SUPABASE_MOCK_SESSION__ = session;
-        } else {
-            // Clear any potential session
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key?.includes('auth-token')) localStorage.removeItem(key);
-            }
-            (window as any).__SUPABASE_MOCK_SESSION__ = null;
-        }
-    }, { 
-        auth: isAuthenticated, 
-        session: {
+    // 0. Inject auth session via cookie (how @supabase/ssr stores it)
+    if (isAuthenticated) {
+        const mockSession = {
             access_token: 'fake-jwt-token',
-            user: { id: 'test-user-id', email: 'e2e@vibedigest.io', role: 'authenticated' }
-        }
-    });
+            refresh_token: 'fake-refresh-token',
+            expires_in: 3600,
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+            token_type: 'bearer',
+            user: { id: 'test-user-id', aud: 'authenticated', role: 'authenticated', email: 'e2e@vibedigest.io' }
+        };
+        // @supabase/ssr encodes cookie value as: "base64-" + base64url(JSON.stringify(session))
+        const encoded = 'base64-' + Buffer.from(JSON.stringify(mockSession)).toString('base64url');
+        await page.context().addCookies([{
+            name: 'supabase.auth.token',
+            value: encoded,
+            domain: 'localhost',
+            path: '/',
+            httpOnly: false,
+            secure: false,
+            sameSite: 'Lax',
+        }]);
+    }
 
     // 1. Mock Supabase Auth with state awareness (Network Level)
     await page.route('**/auth/v1/**', async (route) => {

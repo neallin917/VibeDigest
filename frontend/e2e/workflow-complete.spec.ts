@@ -2,18 +2,13 @@ import { test, expect } from '@playwright/test'
 import { ChatPage } from './pages/ChatPage'
 import { TaskPage } from './pages/TaskPage'
 import { createMockTask, createMockUser, createMockTaskOutput } from './fixtures/testData'
+import { setupApiMocks } from './fixtures/mock-api'
 
 test.describe('Complete Task Workflow (Mocked)', () => {
 
   test.beforeEach(async ({ page }) => {
-    // /chat is now a public route, no auth bypass cookie needed
-    await page.route('**/auth/v1/user', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(createMockUser())
-      })
-    })
+    // Setup auth mocks - inject fake session so Supabase client sees isAuthenticated=true
+    await setupApiMocks(page, { isAuthenticated: true })
 
     await page.route('**/api/chat', async (route) => {
       await route.fulfill({

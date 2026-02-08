@@ -1,10 +1,14 @@
 import { test, expect } from '@playwright/test'
 import { ChatPage } from './pages/ChatPage'
 import { createMockTask, createMockUser } from './fixtures/testData'
+import { setupApiMocks } from './fixtures/mock-api'
 
 test.describe('Chat Interface Flow', () => {
 
   test.beforeEach(async ({ page }) => {
+    // 0. Setup auth mocks - inject fake session so Supabase client sees isAuthenticated=true
+    await setupApiMocks(page, { isAuthenticated: true })
+
     // 1. Mock Process Video API
     await page.route('**/api/process-video', async (route) => {
       await route.fulfill({
