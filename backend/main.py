@@ -1,22 +1,14 @@
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
 from loguru import logger
 
 from utils.logging import configure_logging
+from utils.env_loader import load_env
 
-# Load environment variables before other local imports
-# Priority: .env.local (secrets) > .env (shared config)
-project_root = Path(__file__).parent.parent
-env_local = project_root / ".env.local"
-env_shared = project_root / ".env"
-
-# Load in order: shared config first, then local overrides
-if env_shared.exists():
-    load_dotenv(dotenv_path=env_shared)
-if env_local.exists():
-    load_dotenv(dotenv_path=env_local, override=True)
+# Load environment variables before other local imports.
+# Priority: shell env > .env.local > .env (shell vars are never overridden)
+load_env()
 
 configure_logging()
 

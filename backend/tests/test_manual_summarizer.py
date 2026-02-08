@@ -1,43 +1,56 @@
-import asyncio
+"""Integration test: real Summarizer calls via the configured LLM provider.
+
+Auto-marked as ``integration`` by conftest.py (filename contains "manual"),
+so it is excluded from the default ``make test-backend`` run.
+
+Run:
+    make test-integration
+    # or manually:
+    uv run pytest backend/tests/test_manual_summarizer.py -v -s
+"""
 import sys
 from pathlib import Path
 
-# Add backend to path
-sys.path.append(str(Path(__file__).parent.parent))
+import pytest
+
+# Ensure backend root is in path when running this file directly.
+backend_root = Path(__file__).resolve().parents[1]
+if str(backend_root) not in sys.path:
+    sys.path.insert(0, str(backend_root))
 
 from utils.env_loader import load_env  # noqa: E402
+
 load_env()
 
 from services.summarizer import Summarizer  # noqa: E402
 
-async def test_summarizer():
-    print("Initializing Summarizer...")
-    summarizer = Summarizer()
-    print(f"Summarizer initialized. API Key present: {bool(summarizer.api_key)}")
-    
-    transcript = "This is a short test transcript. It talks about AI and coding. It mentions a key point about refactoring."
-    
-    print("\nTesting summarize (v2 integration)...")
-    try:
-        summary = await summarizer.summarize(transcript, target_language="en")
-        print("Summary result:", summary[:200] + "..." if len(summary) > 200 else summary)
-    except Exception as e:
-        print(f"Summary failed: {e}")
-        # Don't raise, try others
-        
-    print("\nTesting classify_content...")
-    try:
-        classification = await summarizer.classify_content(transcript)
-        print("Classification result:", classification)
-    except Exception as e:
-        print(f"Classification failed: {e}")
+_TRANSCRIPT = (
+    "This is a short test transcript. "
+    "It talks about AI and coding. "
+    "It mentions a key point about refactoring."
+)
 
-    print("\nTesting optimize_transcript...")
-    try:
-        optimized = await summarizer.optimize_transcript(transcript)
-        print("Optimized transcript:", optimized[:200] + "..." if len(optimized) > 200 else optimized)
-    except Exception as e:
-        print(f"Optimization failed: {e}")
 
-if __name__ == "__main__":
-    asyncio.run(test_summarizer())
+@pytest.fixture(scope="module")
+def summarizer() -> Summarizer:
+    return Summarizer()
+
+
+async def test_summarize(summarizer: Summarizer):
+    """summarize() should return a non-empty string."""
+    result = await summarizer.summarize(_TRANSCRIPT, target_language="en")
+    assert result, "summarize() returned empty result"
+    assert len(result.strip()) > 0, "summarize() returned blank content"
+
+
+async def test_classify_content(summarizer: Summarizer):
+    """classify_content() should return a non-empty result."""
+    result = await summarizer.classify_content(_TRANSCRIPT)
+    assert result, "classify_content() returned empty result"
+
+
+async def test_optimize_transcript(summarizer: Summarizer):
+    """optimize_transcript() should return a non-empty string."""
+    result = await summarizer.optimize_transcript(_TRANSCRIPT)
+    assert result, "optimize_transcript() returned empty result"
+    assert len(result.strip()) > 0, "optimize_transcript() returned blank content"

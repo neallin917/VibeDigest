@@ -68,7 +68,8 @@ class ModelRegistry:
         return payload
 
     def get_all(self) -> Dict[str, Any]:
-        if self._cache is None:
+        # Invalidate cache when active provider changes (e.g. LLM_PROVIDER env override in tests)
+        if self._cache is None or self._cache.get("active_provider") != settings.LLM_PROVIDER:
             return self.refresh()
         return self._cache
 

@@ -49,6 +49,13 @@ async def test_workflow_mocked():
         mock_db.get_task_outputs.return_value = mock_outputs
         
         # --- Mock Video Processor ---
+        mock_vp.extract_info_only = AsyncMock(return_value={
+            "title": "Mock Video Title",
+            "thumbnail": "http://thumb.url",
+            "author": "Mock Author",
+            "duration": 120,
+            "audio_url": None
+        })
         # Mock download_and_convert return: (audio_path, title, thumb, direct_url, meta)
         mock_vp.download_and_convert = AsyncMock(return_value=(
             "mock_audio.mp3", 

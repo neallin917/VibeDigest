@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import patch, ANY
 from config import settings
 from utils.openai_client import create_chat_model
 
@@ -31,4 +31,26 @@ class TestLLMSwitching:
             mock_rate_limit_llm.assert_called_with(
                 model=aliased_model,
                 temperature=0.1
+            )
+
+    @patch('utils.openai_client.RateLimitAwareChatLiteLLM')
+    def test_openrouter_prefix_injection(self, mock_rate_limit_llm):
+        """Verify model name gets openrouter/ prefix when provider is openrouter"""
+        with patch.object(settings, 'LLM_PROVIDER', 'openrouter'):
+            create_chat_model("openai/gpt-5.2")
+
+            mock_rate_limit_llm.assert_called_with(
+                model="openrouter/openai/gpt-5.2",
+                temperature=ANY
+            )
+
+    @patch('utils.openai_client.RateLimitAwareChatLiteLLM')
+    def test_openrouter_no_double_prefix(self, mock_rate_limit_llm):
+        """Verify already-prefixed model is not double-prefixed"""
+        with patch.object(settings, 'LLM_PROVIDER', 'openrouter'):
+            create_chat_model("openrouter/openai/gpt-5.2")
+
+            mock_rate_limit_llm.assert_called_with(
+                model="openrouter/openai/gpt-5.2",
+                temperature=ANY
             )

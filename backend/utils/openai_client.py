@@ -16,11 +16,15 @@ try:
     from langfuse.openai import AsyncOpenAI as LangfuseAsyncOpenAI
 
     HAS_LANGFUSE = True
-except ImportError as e:
-    logger.warning(f"Langfuse Import Failed: {e}")
+except (ImportError, Exception) as e:
+    logger.warning(f"Langfuse Initialization Failed (Falling back to standard OpenAI): {e}")
     HAS_LANGFUSE = False
-    from openai import OpenAI as LangfuseOpenAI  # Fallback to standard
-    from openai import AsyncOpenAI as LangfuseAsyncOpenAI
+    try:
+        from openai import OpenAI as LangfuseOpenAI
+        from openai import AsyncOpenAI as LangfuseAsyncOpenAI
+    except ImportError:
+        LangfuseOpenAI = None
+        LangfuseAsyncOpenAI = None
 
 
 class RateLimitAwareChatLiteLLM(ChatLiteLLM):
@@ -199,6 +203,10 @@ def create_chat_model(
         # Ensure base_url is passed if using custom provider
         if settings.OPENAI_BASE_URL:
             kwargs.setdefault("api_base", settings.OPENAI_BASE_URL)
+    elif settings.LLM_PROVIDER == "openrouter":
+        # LiteLLM native OpenRouter support: prefix model with "openrouter/"
+        if not model_name.startswith("openrouter/"):
+            model_name = f"openrouter/{model_name}"
 
     # Use our RateLimitAware wrapper
     return RateLimitAwareChatLiteLLM(

@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 FREE_LIMIT = 3
 PRO_LIMIT = 100
 
+# In-memory tracking for guest trials
+GUEST_TRIAL_CACHE: Dict[str, int] = {}
+
 
 class DBClient:
     def __init__(self):
@@ -207,6 +210,37 @@ class DBClient:
             self._execute_query(query, params)
         except Exception as e:
             logger.error(f"Failed to update output {output_id}: {e}")
+
+    def get_task_count(self, identifier: str) -> int:
+        """Count tasks. For guest IDs, check the guest_usage table."""
+        if not self.engine:
+            return 0
+        with self.engine.connect() as conn:
+            # 1. Check guest_usage table first (X-Guest-Id)
+            guest_query = text("SELECT usage_count FROM guest_usage WHERE guest_id = :id")
+            guest_res = conn.execute(guest_query, {"id": identifier}).scalar()
+            if guest_res is not None:
+                return int(guest_res)
+
+            # 2. Fallback to tasks table (Regular user_id)
+            query = text("SELECT COUNT(*) FROM tasks WHERE user_id = :id")
+            result = conn.execute(query, {"id": identifier}).scalar()
+            return int(result or 0)
+
+    def track_guest_trial(self, guest_id: str):
+        """Mark a guest trial as used in the guest_usage table."""
+        if not self.engine:
+            return
+        with self.engine.connect() as conn:
+            query = text("""
+                INSERT INTO guest_usage (guest_id, usage_count)
+                VALUES (:id, 1)
+                ON CONFLICT (guest_id) DO UPDATE SET 
+                    usage_count = guest_usage.usage_count + 1,
+                    updated_at = now();
+            """)
+            conn.execute(query, {"id": guest_id})
+            conn.commit()
 
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Fetch a task by ID."""
