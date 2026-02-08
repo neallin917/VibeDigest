@@ -9,21 +9,13 @@ import { type Page } from '@playwright/test';
 export async function setupApiMocks(page: Page, options: { isAuthenticated?: boolean } = {}) {
     const { isAuthenticated = false } = options;
 
-    // 0. Inject auth session via cookie (how @supabase/ssr stores it)
+    // 0. Set VIBEDIGEST_E2E_AUTH_BYPASS cookie to control client-side isAuthenticated state.
+    //    ChatPageClient reads this cookie when NEXT_PUBLIC_E2E_MOCK=1 to determine auth state,
+    //    allowing per-test control (true = authenticated, missing = guest).
     if (isAuthenticated) {
-        const mockSession = {
-            access_token: 'fake-jwt-token',
-            refresh_token: 'fake-refresh-token',
-            expires_in: 3600,
-            expires_at: Math.floor(Date.now() / 1000) + 3600,
-            token_type: 'bearer',
-            user: { id: 'test-user-id', aud: 'authenticated', role: 'authenticated', email: 'e2e@vibedigest.io' }
-        };
-        // @supabase/ssr encodes cookie value as: "base64-" + base64url(JSON.stringify(session))
-        const encoded = 'base64-' + Buffer.from(JSON.stringify(mockSession)).toString('base64url');
         await page.context().addCookies([{
-            name: 'supabase.auth.token',
-            value: encoded,
+            name: 'VIBEDIGEST_E2E_AUTH_BYPASS',
+            value: 'true',
             domain: 'localhost',
             path: '/',
             httpOnly: false,

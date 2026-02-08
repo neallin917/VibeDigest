@@ -31,9 +31,13 @@ function ChatPageContent() {
     const supabase = useMemo(() => createClient(), [])
 
     useEffect(() => {
-        // E2E test mode: bypass auth check (same pattern as api/chat/route.ts)
+        // E2E test mode: read auth state from VIBEDIGEST_E2E_AUTH_BYPASS cookie
+        // This allows per-test control: isAuthenticated: true/false in setupApiMocks
         if (process.env.NEXT_PUBLIC_E2E_MOCK === '1') {
-            setIsAuthenticated(true)
+            const isE2EAuthenticated = document.cookie
+                .split(';')
+                .some(c => c.trim() === 'VIBEDIGEST_E2E_AUTH_BYPASS=true')
+            setIsAuthenticated(isE2EAuthenticated)
             return
         }
         supabase.auth.getUser().then(({ data: { user } }) => {
