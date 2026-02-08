@@ -30,25 +30,45 @@ export function LandingUserButton() {
     const supabase = useMemo(() => createClient(), [])
 
     useEffect(() => {
-        // Check initial session
+        let mounted = true
+
+        // Check initial session with timeout
         const checkUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            setUser(user)
-            setLoading(false)
+            try {
+                // specific timeout to prevent infinite loading state
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Auth check timeout')), 5000)
+                )
+                
+                const authPromise = supabase.auth.getUser()
+                
+                const { data } = await Promise.race([authPromise, timeoutPromise]) as any
+                
+                if (mounted) {
+                    setUser(data?.user ?? null)
+                }
+            } catch (error) {
+                console.warn("Auth check failed or timed out", error)
+                if (mounted) setUser(null)
+            } finally {
+                if (mounted) setLoading(false)
+            }
         }
         checkUser()
 
         // Listen for auth changes (including One Tap login)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            if (session) {
-                const { data: { user } } = await supabase.auth.getUser()
-                setUser(user)
-            } else {
-                setUser(null)
+            if (mounted) {
+                setUser(session?.user ?? null)
+                // Ensure loading is cleared when auth state changes
+                setLoading(false)
             }
         })
 
-        return () => subscription.unsubscribe()
+        return () => {
+            mounted = false
+            subscription.unsubscribe()
+        }
     }, [supabase])
 
     const handleLogout = async () => {
