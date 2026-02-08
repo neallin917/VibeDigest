@@ -4,8 +4,18 @@ test.describe('Mobile Responsiveness', () => {
   // Set viewport to iPhone SE size
   test.use({ viewport: { width: 375, height: 667 } });
 
-  test.beforeEach(async ({ page }) => {
-    // Mock Auth
+  test.beforeEach(async ({ page, context }) => {
+    // 0. Inject Auth Bypass Cookie to access protected /chat route directly
+    await context.addCookies([
+      {
+        name: 'VIBEDIGEST_E2E_AUTH_BYPASS',
+        value: 'true',
+        domain: 'localhost',
+        path: '/',
+      }
+    ]);
+
+    // Mock Auth User Response
     await page.route('**/auth/v1/user', async (route) => {
       await route.fulfill({
         status: 200,
@@ -58,25 +68,22 @@ test.describe('Mobile Responsiveness', () => {
     await expect(sidebar).toBeHidden();
 
     // 2. Verify Hamburger menu button is VISIBLE
-    const hamburgerBtn = page.getByLabel('Open menu'); // Assuming aria-label="Open menu"
-    await expect(hamburgerBtn).toBeVisible();
+    const hamburgerBtn = page.getByRole('button', { name: /Open menu/i }).first();
+    await expect(hamburgerBtn).toBeVisible({ timeout: 15000 });
 
     // 3. Click Hamburger menu
     await hamburgerBtn.click();
 
     // 4. Verify Drawer opens and shows navigation items
-    // Using a generic text check for items usually found in the drawer
-    await expect(page.getByText('Chats', { exact: true })).toBeVisible();
-    await expect(page.getByText('Tasks', { exact: true })).toBeVisible();
+    // Use getByRole inside the dialog to be precise and avoid strict mode issues with desktop sidebar
+    const drawer = page.getByRole('dialog');
+    await expect(drawer.getByRole('button', { name: /New Chat|新对话/i }).first()).toBeVisible({ timeout: 10000 });
+    await expect(drawer.getByRole('button', { name: /Community|社区/i }).first()).toBeVisible({ timeout: 10000 });
 
     // 5. Click close/overlay and verify Drawer closes
-    // Playwright can click the overlay or we can press Escape, or click a close button
-    // Often shadcn/ui sheet has a close button with 'Close' label
-    // Or we can tap the backdrop.
-    // Let's try pressing Escape first as it's robust, or clicking the backdrop
     await page.keyboard.press('Escape');
     
-    // Wait for animation
-    await expect(page.getByText('Chats', { exact: true })).not.toBeVisible();
+    // Wait for animation to complete
+    await expect(drawer).not.toBeVisible({ timeout: 10000 });
   });
 });

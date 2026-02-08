@@ -9,9 +9,9 @@ export class ChatPage {
   constructor(page: Page) {
     this.page = page;
     this.welcomeHeading = page.locator('h1');
-    this.chatInput = page.getByLabel('Chat input');
-    // Finds the send button (usually an icon button in the input area)
-    this.submitButton = page.locator('button').filter({ has: page.locator('svg') }).last();
+    this.chatInput = page.getByLabel(/Chat input/i);
+    // Use the explicit aria-label for the send button
+    this.submitButton = page.getByLabel(/Send message/i);
   }
 
   async goto() {

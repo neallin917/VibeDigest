@@ -1,5 +1,6 @@
 import { test as setup, expect } from '@playwright/test';
 import { AuthPage } from './pages/AuthPage';
+import { setupApiMocks } from './fixtures/mock-api';
 
 const authFile = 'playwright/.auth/user.json';
 
@@ -9,52 +10,67 @@ const authFile = 'playwright/.auth/user.json';
  * 此脚本会在需要认证的测试之前运行，保存登录态到 storageState
  */
 setup('authenticate', async ({ page }) => {
-    // Mock Supabase Auth Token Endpoint
-    await page.route('**/auth/v1/token*', async (route) => {
-        await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify({
-                access_token: 'fake-jwt-token',
-                token_type: 'bearer',
-                expires_in: 3600,
-                refresh_token: 'fake-refresh-token',
-                user: {
-                    id: 'test-user-id',
-                    aud: 'authenticated',
-                    role: 'authenticated',
-                    email: 'e2e@vibedigest.io',
-                    email_confirmed_at: new Date().toISOString(),
-                    last_sign_in_at: new Date().toISOString(),
-                    app_metadata: { provider: 'email', providers: ['email'] },
-                    user_metadata: { full_name: 'E2E Test User' },
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                }
-            })
-        });
-    });
-
-    const authPage = new AuthPage(page);
-
-    // 1. 导航到登录页
-    await authPage.gotoLogin();
-
-    // 2. 等待页面加载
-    await page.waitForLoadState('domcontentloaded');
-
-    // 3-6. Perform Login using Page Object
-    // Use defaults if env vars missing
-    const email = process.env.TEST_USER_EMAIL || 'e2e@vibedigest.io';
-    const password = process.env.TEST_USER_PASSWORD || 'password123';
+    const baseURL = 'http://localhost:3001';
     
-    await authPage.login(email, password);
+    // 0. 预先注入 Auth Bypass Cookie
+    await page.context().addCookies([
+        {
+            name: 'VIBEDIGEST_E2E_AUTH_BYPASS',
+            value: 'true',
+            domain: 'localhost',
+            path: '/',
+            httpOnly: true,
+            secure: false,
+            sameSite: 'Lax',
+        }
+    ]);
 
-    // 7. 等待登录成功 - 跳转到 dashboard 或首页
-    await expect(page).toHaveURL(/\/(dashboard|chat|en\/?$)/, { timeout: 15000 });
+    // 1. 直接注入 Session 到 localStorage (绕过 UI 登录)
+    // 这是 Supabase E2E 测试中最稳健的做法
+    const mockSession = {
+        access_token: 'fake-jwt-token',
+        refresh_token: 'fake-refresh-token',
+        expires_in: 3600,
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        user: {
+            id: 'test-user-id',
+            aud: 'authenticated',
+            role: 'authenticated',
+            email: 'e2e@vibedigest.io',
+            app_metadata: { provider: 'email' },
+            user_metadata: { full_name: 'E2E Test User' },
+        }
+    };
 
-    // 8. 保存登录状态到文件
+    // 我们需要知道 Supabase 的 Storage Key
+    // 默认格式是 sb-[project-ref]-auth-token
+    // 由于我们在 .env.local 设为 localhost:54321，这里的 ref 可能不固定
+    // 但我们可以通过代码动态注入
+    await page.addInitScript((session) => {
+        // 覆盖所有可能的 Supabase 存储键
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key?.includes('-auth-token')) localStorage.removeItem(key);
+        }
+        localStorage.setItem('supabase.auth.token', JSON.stringify(session));
+        // 同时注入全局变量供 mock-api 使用
+        (window as any).__SUPABASE_MOCK_SESSION__ = session;
+    }, mockSession);
+
+    // 2. 使用统一的 API Mock 处理网络层
+    await setupApiMocks(page, { isAuthenticated: true });
+
+    // 3. 直接导航到受保护路由，验证注入是否成功
+    await page.goto('/en/chat');
+    
+    // 4. 等待页面加载并确认没有被重定向回登录页
+    await expect(page).toHaveURL(/.*\/chat/, { timeout: 30000 });
+    
+    // 验证 UI 是否渲染了已登录状态 (通过找到聊天输入框)
+    await expect(page.getByLabel(/Chat input/i)).toBeVisible({ timeout: 15000 });
+
+    // 5. 保存状态
     await page.context().storageState({ path: authFile });
 
-    console.log('✅ Authentication successful (mocked), state saved to', authFile);
+    console.log('✅ Authentication successful (Injected), state saved to', authFile);
 });

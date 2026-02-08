@@ -87,6 +87,7 @@ export function ChatInput({
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
               aria-label="Chat input"
+              data-testid="chat-input"
               className={cn(
                 "w-full bg-transparent border-none focus:ring-0 focus:outline-none text-slate-800 dark:text-zinc-100",
                 "py-3.5 text-[15px] font-medium tracking-wide",

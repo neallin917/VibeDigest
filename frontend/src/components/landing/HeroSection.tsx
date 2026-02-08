@@ -3,18 +3,64 @@
 import { useI18n } from "@/components/i18n/I18nProvider"
 import { ChatInput } from "@/components/chat/ChatInput"
 import { useRouter } from "next/navigation"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, Youtube, Apple, ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useState } from "react"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { isSupportedUrl } from "@/lib/urls"
+
+import { createBrowserClient } from "@supabase/ssr"
 
 export function HeroSection() {
     const { t } = useI18n()
     const router = useRouter()
+    const [showUrlHelp, setShowUrlHelp] = useState(false)
+    
+    // Initialize Supabase client for client-side auth check
+    const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
 
-    const handleHeroSubmit = (text: string) => {
-        // Save message for handoff
+    const handleHeroSubmit = async (text: string) => {
+        // Validate URL format for any non-empty input
+        if (text.trim() && !isSupportedUrl(text)) {
+            setShowUrlHelp(true)
+            return
+        }
+
+        // Save message for handoff (works for both logged in and guest)
         localStorage.setItem('vibedigest_pending_message', text)
-        // Redirect to chat
-        router.push('/chat')
+
+        let session = null
+        try {
+            // Check if user is logged in
+            const { data } = await supabase.auth.getSession()
+            session = data?.session
+        } catch (error) {
+            console.error('Supabase session check failed:', error)
+            // Proceed as guest if check fails
+        }
+
+        // Get current locale from URL or use default
+        const locale = window.location.pathname.split('/')[1] || 'en'
+
+        if (session) {
+            // Logged in -> Go to chat
+            router.push(`/${locale}/chat`)
+        } else {
+            // Not logged in -> Force Login (Hard Wall)
+            // Redirect to login page with locale
+            router.push(`/${locale}/login`)
+        }
     }
 
     const renderWithBold = (text: string) => {
@@ -92,6 +138,56 @@ export function HeroSection() {
             >
                 <ChevronDown className="w-6 h-6 text-slate-400 dark:text-zinc-500 animate-bounce" />
             </div>
+
+            {/* Unsupported URL Dialog */}
+            <Dialog open={showUrlHelp} onOpenChange={setShowUrlHelp}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <ExternalLink className="w-5 h-5 text-emerald-500" />
+                            {t("taskForm.urlHelp.title")}
+                        </DialogTitle>
+                        <DialogDescription className="pt-2">
+                            {t("taskForm.urlHelp.description")}
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="py-4">
+                        <p className="text-sm font-semibold mb-3 text-slate-900 dark:text-slate-200">
+                            {t("taskForm.urlHelp.supportedPlatforms")}
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-white/5 p-2.5 rounded-xl border border-slate-100 dark:border-white/5">
+                                <Youtube className="w-4 h-4 text-red-500" />
+                                <span>YouTube</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-white/5 p-2.5 rounded-xl border border-slate-100 dark:border-white/5">
+                                <Apple className="w-4 h-4 text-purple-500" />
+                                <span>Apple Podcasts</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-white/5 p-2.5 rounded-xl border border-slate-100 dark:border-white/5">
+                                <div className="w-4 h-4 rounded-sm bg-blue-400 flex items-center justify-center text-[10px] text-white font-bold">B</div>
+                                <span>Bilibili</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-white/5 p-2.5 rounded-xl border border-slate-100 dark:border-white/5">
+                                <div className="w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center text-[10px] text-white font-bold">X</div>
+                                <span>{t("taskForm.urlHelp.xiaoyuzhou")}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button 
+                            type="button" 
+                            variant="secondary"
+                            onClick={() => setShowUrlHelp(false)}
+                            className="w-full sm:w-auto rounded-xl"
+                        >
+                            {t("taskForm.urlHelp.gotIt")}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </section>
     )
 }
