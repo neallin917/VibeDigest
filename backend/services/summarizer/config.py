@@ -86,14 +86,21 @@ class SummarizerConfig:
     """
 
     def __init__(self):
-        self.api_key = os.getenv("OPENAI_API_KEY")
+        from config import settings
+
+        # Resolve API key based on active provider so that OpenRouter works without OPENAI_API_KEY.
+        if settings.LLM_PROVIDER == "openrouter":
+            self.api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
+        else:
+            self.api_key = os.getenv("OPENAI_API_KEY")
         self.base_url = os.getenv("OPENAI_BASE_URL")
 
         if self.api_key:
             logger.info("Summarizer initialized with OpenAI capabilities (LangChain)")
         else:
             logger.warning(
-                "OPENAI_API_KEY missing, Summarizer will not function correctly"
+                "API key missing for provider %s, Summarizer will not function correctly",
+                settings.LLM_PROVIDER,
             )
 
         # Model chain configuration

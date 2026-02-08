@@ -13,12 +13,22 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.dirname(current_dir)
 sys.path.insert(0, backend_dir)
 
-# Mock langchain before importing summarizer
-sys.modules["langchain_openai"] = MagicMock()
-sys.modules["langchain_core"] = MagicMock()
-sys.modules["langchain_core.messages"] = MagicMock()
+# Mock langchain before importing summarizer, then immediately restore sys.modules
+# so subsequent test modules (e.g. integration tests) get the real langchain.
+_MOCK_KEYS = ["langchain_openai", "langchain_core", "langchain_core.messages"]
+_SAVED_MODULES = {k: sys.modules.get(k) for k in _MOCK_KEYS}
+for _k in _MOCK_KEYS:
+    sys.modules[_k] = MagicMock()
 
 from services.summarizer import Summarizer  # noqa: E402
+
+# Restore: Summarizer already captured mock refs internally; real langchain stays available.
+for _k, _orig in _SAVED_MODULES.items():
+    if _orig is None:
+        sys.modules.pop(_k, None)
+    else:
+        sys.modules[_k] = _orig
+del _MOCK_KEYS, _SAVED_MODULES, _k, _orig
 
 
 # --- FIXTURES ---
