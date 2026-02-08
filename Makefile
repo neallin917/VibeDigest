@@ -88,9 +88,15 @@ restart-prod:
 # --- Testing ---
 test: test-backend test-frontend
 
-test-backend:
-	@echo "Running backend tests..."
-	uv run pytest
+test-backend: test-unit
+
+test-unit:
+	@echo "Running unit tests (mocked, fast)..."
+	uv run pytest backend/tests/ -m "not integration and not slow"
+
+test-integration:
+	@echo "Running integration tests (OpenRouter real API)..."
+	LLM_PROVIDER=openrouter uv run pytest backend/tests/ -m integration --no-cov -v
 
 test-frontend:
 	@echo "Running frontend tests..."

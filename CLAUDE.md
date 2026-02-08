@@ -26,9 +26,10 @@ make start-dev               # Docker backend (dev, hot reload)
 ### Testing
 
 ```bash
-make test                    # All tests (backend + frontend)
-make test-backend            # pytest (uv run pytest)
-make test-frontend           # vitest (cd frontend && npm test)
+make test                    # Unit tests only: backend + frontend (fast, no real APIs)
+make test-backend            # Backend unit tests (pytest -m "not integration and not slow")
+make test-frontend           # Frontend unit tests (vitest)
+make test-integration        # Backend integration tests (real APIs, requires .env.local)
 
 # Single backend test file
 PYTHONPATH=backend uv run pytest backend/tests/test_foo.py -v
@@ -102,7 +103,7 @@ cd frontend && npm run generate-types    # Regenerate TS types from backend Pyda
 - Python with type hints, `snake_case` conventions
 - All Python commands run with `uv` (e.g., `uv run pytest`, `uv pip install`)
 - Dependencies go in **root** `requirements.txt` (not backend/), since CI installs from root
-- `asyncio_mode=auto` in pytest; tests mock all external services (OpenAI, Supabase, Resend)
+- `asyncio_mode=auto` in pytest; unit tests mock all external services (OpenAI, Supabase, Resend); integration tests may call real services
 - Config via `backend/config.py`; model resolution via `ModelRegistry` from YAML configs
 - `LLM_PROVIDER` env var selects provider; `MODEL_ALIAS_SMART`/`MODEL_ALIAS_FAST` override defaults
 
@@ -134,9 +135,9 @@ cd frontend && npm run generate-types    # Regenerate TS types from backend Pyda
 
 ### Testing Rules
 
-- **Zero cost (CI/Unit)**: Never call real paid APIs (OpenAI, DeepSeek) or download real videos in unit tests or CI environments.
-- **Real APIs (Local)**: Local integration and E2E tests MAY use real APIs (OpenAI, Supadata) to verify end-to-end flows and quality.
-- Mock external services with `unittest.mock` (backend) or Vitest mocks (frontend) for standard test suites.
+- **Unit tests** (`make test-backend`): Always mock external services (`unittest.mock` / Vitest mocks). No real network calls. Runs on every commit.
+- **Integration tests** (`make test-integration`): May call real APIs and download real videos. Requires `.env.local`. Mark with `@pytest.mark.integration` — or place in `tests/integration/` / name file `test_manual_*.py` (auto-marked).
+- **E2E tests** (Playwright): Run against real frontend on port 3001 with `NEXT_PUBLIC_E2E_MOCK=1`.
 - Frontend tests run in jsdom; mock `useRouter`, `ApiClient`
 
 ## Before Committing

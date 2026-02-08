@@ -145,6 +145,7 @@ def test_db(postgres_container):
     CREATE TABLE IF NOT EXISTS public.tasks (
         id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
         user_id uuid REFERENCES auth.users(id),
+        guest_id text, -- Added for anonymous tracking
         video_url text,
         status text DEFAULT 'pending',
         progress integer DEFAULT 0,
@@ -177,6 +178,12 @@ def test_db(postgres_container):
         error_message text,
         attempt integer DEFAULT 0,
         created_at timestamptz DEFAULT now(),
+        updated_at timestamptz DEFAULT now()
+    );
+
+    CREATE TABLE IF NOT EXISTS public.guest_usage (
+        guest_id text PRIMARY KEY,
+        usage_count integer DEFAULT 0,
         updated_at timestamptz DEFAULT now()
     );
 
@@ -293,3 +300,17 @@ async def api_client(mock_db_client, mock_video_processor, mock_coinbase_client,
         yield ac
 
     app.dependency_overrides = saved_overrides
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list) -> None:
+    """Auto-mark tests so they don't need manual @pytest.mark decorators.
+
+    Rules:
+    - Files inside tests/integration/ → @pytest.mark.integration
+    - Files whose name contains "manual" → @pytest.mark.integration
+    """
+    integration_mark = pytest.mark.integration
+    for item in items:
+        path_parts = Path(item.fspath).parts
+        if "integration" in path_parts or "manual" in Path(item.fspath).stem:
+            item.add_marker(integration_mark, append=False)

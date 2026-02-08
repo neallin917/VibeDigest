@@ -67,7 +67,7 @@ VibeDigest is a full-stack tool engineered to download videos, transcribe audio,
         - `settings/`, `tasks/`.
       - `page.tsx`: Public Landing Page.
       - `login/`: Auth Page.
-  - `src/middleware.ts`: Auth Gatekeeper + Route Redirects.
+  - `src/proxy.ts`: Auth Gatekeeper + Route Redirects (Replaces deprecated `middleware.ts`).
   - `src/components/ui/`: Reusable UI components (Button, Card, etc.).
   - `src/components/layout/`: App shell & navigation (`Sidebar`, `MobileNav`, shared `navItems`).
   - `src/components/chat/`: Chat-First UI Components
@@ -443,6 +443,7 @@ All port configurations are defined in the **root `.env`** file. Other `.env` fi
 2.  **New Page**: Create `page.tsx` in `src/app/`.
 3.  **Backend Changes**: `main.py` = Control; `db_client.py` = Data.
 4.  **Formatting**: Run `npm run lint` before commit.
+5.  **Middleware/Proxy**: Use `src/proxy.ts` instead of `middleware.ts` for route interception and auth gating. The `middleware.ts` convention is deprecated in this project environment.
 
 ---
 

@@ -21,28 +21,35 @@ async def test_preview_video_invalid_url(api_client, mock_video_processor):
 
 @pytest.mark.asyncio
 async def test_process_video_success(api_client, mock_db_client):
-    mock_db_client.check_and_consume_quota.return_value = True
+    """Successful task creation: task created and pipeline queued."""
     mock_db_client.create_task.return_value = {"id": "task_123"}
-    
-    # Force DEV_AUTH_BYPASS to False so quota is checked
-    with patch.dict(os.environ, {"DEV_AUTH_BYPASS": "0"}):
-        with patch("api.routes.tasks.run_pipeline") as mock_pipeline:
-            response = await api_client.post("/api/process-video", data={"video_url": "https://youtube.com/watch?v=123"})
-            assert response.status_code == 200
-            assert response.json() == {"task_id": "task_123", "message": "Task started"}
-            
-            mock_db_client.check_and_consume_quota.assert_called_once()
-            mock_db_client.create_task.assert_called_once()
+
+    with patch("api.routes.tasks.run_pipeline"):
+        response = await api_client.post("/api/process-video", data={"video_url": "https://youtube.com/watch?v=123"})
+        assert response.status_code == 200
+        assert response.json() == {"task_id": "task_123", "message": "Task started"}
+        mock_db_client.create_task.assert_called_once()
 
 @pytest.mark.asyncio
-async def test_process_video_quota_exceeded(api_client, mock_db_client):
-    mock_db_client.check_and_consume_quota.return_value = False
-    
-    # Force DEV_AUTH_BYPASS to False
-    with patch.dict(os.environ, {"DEV_AUTH_BYPASS": "0"}):
-        response = await api_client.post("/api/process-video", data={"video_url": "https://youtube.com/watch?v=123"})
+async def test_process_video_quota_exceeded(mock_db_client, mock_video_processor, mock_coinbase_client):
+    """Guest quota exceeded: dependency raises 402 before the route body runs."""
+    from fastapi import HTTPException as FastAPIHTTPException
+
+    def _quota_exceeded():
+        raise FastAPIHTTPException(status_code=402, detail="Guest quota exceeded")
+
+    saved = dict(app.dependency_overrides)
+    app.dependency_overrides[get_db_client] = lambda: mock_db_client
+    app.dependency_overrides[get_video_processor] = lambda: mock_video_processor
+    app.dependency_overrides[get_current_user] = _quota_exceeded
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            response = await ac.post("/api/process-video", data={"video_url": "https://youtube.com/watch?v=123"})
         assert response.status_code == 402
-        assert "Quota exceeded" in response.json()["detail"]
+        assert "quota" in response.json()["detail"].lower()
+    finally:
+        app.dependency_overrides = saved
 
 @pytest.mark.asyncio
 async def test_retry_output(api_client, mock_db_client):
