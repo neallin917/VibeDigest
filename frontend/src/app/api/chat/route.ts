@@ -3,44 +3,19 @@ import { streamText, convertToModelMessages, generateText, UIMessage, tool, crea
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { extractAndNormalizeUrl } from '@/lib/url-utils';
+import { createProviderClient } from '@/lib/llm-config';
 
 const AI_SDK_DEBUG = process.env.AI_SDK_DEBUG === '1';
 
-const debugFetch: typeof fetch = async (input, init) => {
-    if (AI_SDK_DEBUG) {
-        try {
-            const url = typeof input === 'string' ? input : input.toString();
-            console.log('[AI SDK] Request URL:', url);
-            if (init?.body) {
-                console.log('[AI SDK] Request body:', init.body.toString());
-            }
-        } catch (e) {
-            console.warn('[AI SDK] Failed to log request:', e);
-        }
-    }
-    const response = await fetch(input, init);
-    if (AI_SDK_DEBUG && !response.ok) {
-        try {
-            const text = await response.clone().text();
-            console.log('[AI SDK] Response status:', response.status);
-            console.log('[AI SDK] Response body:', text);
-        } catch (e) {
-            console.warn('[AI SDK] Failed to log response:', e);
-        }
-    }
-    return response;
-};
-
-// Create OpenAI-compatible provider with custom baseURL (for local LLM)
-const openai = createOpenAI({
-    baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
-    apiKey: process.env.OPENAI_API_KEY || '',
-    fetch: AI_SDK_DEBUG ? debugFetch : undefined,
-});
-
 const MODEL_CACHE_TTL_MS = 5 * 60 * 1000;
 type ModelTier = 'smart' | 'fast';
-const cachedModelNameByTier: Record<ModelTier, string | null> = {
+
+type ResolvedModel = {
+    model: string;
+    provider: string;
+};
+
+const cachedModelByTier: Record<ModelTier, ResolvedModel | null> = {
     smart: null,
     fast: null
 };
@@ -219,14 +194,22 @@ function findLastUrlInMessages(messages: UIMessage[]): string | null {
     return null;
 }
 
-async function resolveModelName(tier: ModelTier): Promise<string> {
-    if (process.env.OPENAI_MODEL) return process.env.OPENAI_MODEL;
+async function resolveModelName(tier: ModelTier): Promise<ResolvedModel> {
+    const fallbackProvider = 'openai';
+    const fallbackModel = tier === 'fast' ? 'gpt-4o-mini' : 'gpt-4o';
+
+    if (process.env.OPENAI_MODEL) {
+        return {
+            model: process.env.OPENAI_MODEL,
+            provider: process.env.LLM_PROVIDER || fallbackProvider
+        };
+    }
 
     const now = Date.now();
-    const cachedName = cachedModelNameByTier[tier];
+    const cached = cachedModelByTier[tier];
     const cachedAt = cachedModelAtByTier[tier];
-    if (cachedName && now - cachedAt < MODEL_CACHE_TTL_MS) {
-        return cachedName;
+    if (cached && now - cachedAt < MODEL_CACHE_TTL_MS) {
+        return cached;
     }
 
     try {
@@ -258,15 +241,18 @@ async function resolveModelName(tier: ModelTier): Promise<string> {
             });
         const selected = providers.find((p) => p.provider === activeProvider) || providers[0];
         const defaults = selected?.defaults || {};
-        const fallback = tier === 'fast' ? 'gpt-4o-mini' : 'gpt-4o';
-        const modelName = (tier === 'fast' ? defaults.fast : defaults.smart) || fallback;
+        
+        const modelName = (tier === 'fast' ? defaults.fast : defaults.smart) || fallbackModel;
+        const providerName = activeProvider || fallbackProvider;
 
-        cachedModelNameByTier[tier] = modelName;
+        const result: ResolvedModel = { model: modelName, provider: providerName };
+
+        cachedModelByTier[tier] = result;
         cachedModelAtByTier[tier] = now;
-        return modelName;
+        return result;
     } catch (error) {
         console.warn('[API/Chat] Failed to resolve model from backend:', error);
-        return tier === 'fast' ? 'gpt-4o-mini' : 'gpt-4o';
+        return { model: fallbackModel, provider: fallbackProvider };
     }
 }
 
@@ -441,7 +427,12 @@ export async function POST(req: Request) {
             messageText.trim().length <= SHORT_QUERY_CHAR_LIMIT
         );
         const modelTier: ModelTier = isShortFollowup ? 'fast' : 'smart';
-        const modelName = await resolveModelName(modelTier);
+        
+        // Resolve model AND provider
+        const { model: modelName, provider: providerName } = await resolveModelName(modelTier);
+        
+        // Dynamic client creation based on provider
+        const openai = createProviderClient(providerName);
 
         // 3. Build System Prompt
         let systemPrompt = `You are VibeDigest Assistant, an AI helper for video content analysis.

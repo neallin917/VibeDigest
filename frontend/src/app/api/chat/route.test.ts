@@ -75,6 +75,13 @@ vi.mock('@ai-sdk/openai', () => ({
     }))
 }))
 
+// 4. Mock llm-config
+vi.mock('@/lib/llm-config', () => ({
+    createProviderClient: vi.fn(() => ({
+        chat: vi.fn((model: string) => ({ id: model }))
+    }))
+}))
+
 const originalFetch = global.fetch
 
 // --- Tests ---
