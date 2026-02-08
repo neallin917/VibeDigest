@@ -31,6 +31,11 @@ function ChatPageContent() {
     const supabase = useMemo(() => createClient(), [])
 
     useEffect(() => {
+        // E2E test mode: bypass auth check (same pattern as api/chat/route.ts)
+        if (process.env.NEXT_PUBLIC_E2E_MOCK === '1') {
+            setIsAuthenticated(true)
+            return
+        }
         supabase.auth.getUser().then(({ data: { user } }) => {
             setIsAuthenticated(!!user)
         })
