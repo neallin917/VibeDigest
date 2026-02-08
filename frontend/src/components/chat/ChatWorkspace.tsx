@@ -34,6 +34,7 @@ interface ChatWorkspaceProps {
   activeTaskId: string | null
   taskSelectionNonce?: number
   initialMessages: UIMessage[]
+  isAuthenticated?: boolean
   onNewChat: () => void
   onSelectThread: (threadId: string) => void
   onSelectTask: (taskId: string | null) => void
@@ -49,6 +50,7 @@ export function ChatWorkspace({
   activeTaskId,
   taskSelectionNonce = 0,
   initialMessages,
+  isAuthenticated = false,
   onNewChat,
   onSelectThread,
   onSelectTask,
@@ -194,6 +196,7 @@ export function ChatWorkspace({
               threadId={activeThreadId}
               initialMessages={initialMessages}
               activeTaskId={activeTaskId}
+              isAuthenticated={isAuthenticated}
               onOpenPanel={openPanelForTask}
               onSelectExample={onSelectExample || openPanelForTask}
               onChatStarted={onChatStarted}

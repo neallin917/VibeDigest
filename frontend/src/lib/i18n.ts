@@ -60,6 +60,7 @@ const messages: Record<Locale, Messages> = {
     auth: {
       welcomeBack: "Welcome Back",
       signInToContinue: "Sign in to continue to {appName}",
+      signInToChat: "Sign in to start chatting",
       signInWithGoogle: "Sign in with Google",
 
       orWithEmail: "Or with Email",
@@ -485,6 +486,7 @@ const messages: Record<Locale, Messages> = {
     auth: {
       welcomeBack: "欢迎回来",
       signInToContinue: "登录以继续",
+      signInToChat: "登录后即可开始对话",
       signInWithGoogle: "Google 登录",
 
       orWithEmail: "或使用邮箱",
@@ -940,6 +942,7 @@ const messages: Record<Locale, Messages> = {
     auth: {
       welcomeBack: "Bienvenido de nuevo",
       signInToContinue: "Inicia sesión para continuar",
+      signInToChat: "Inicia sesión para comenzar a chatear",
       signInWithGoogle: "Entrar con Google",
 
       orWithEmail: "O con correo",
@@ -1241,6 +1244,7 @@ const messages: Record<Locale, Messages> = {
     auth: {
       welcomeBack: "مرحبًا بعودتك",
       signInToContinue: "تسجيل الدخول للمتابعة",
+      signInToChat: "سجّل الدخول لبدء المحادثة",
       signInWithGoogle: "دخول عبر Google",
       orWithEmail: "أو عبر البريد",
       emailPlaceholder: "بريدك الإلكتروني",
@@ -1472,6 +1476,7 @@ const messages: Record<Locale, Messages> = {
     auth: {
       welcomeBack: "Bon retour",
       signInToContinue: "Connectez-vous pour continuer",
+      signInToChat: "Connectez-vous pour commencer à chatter",
       signInWithGoogle: "Connexion Google",
       orWithEmail: "Ou par email",
       emailPlaceholder: "Votre email",
@@ -1703,6 +1708,7 @@ const messages: Record<Locale, Messages> = {
     auth: {
       welcomeBack: "С возвращением",
       signInToContinue: "Войдите, чтобы продолжить",
+      signInToChat: "Войдите, чтобы начать чат",
       signInWithGoogle: "Войти через Google",
       orWithEmail: "Или через Email",
       emailPlaceholder: "Ваш email",
@@ -1934,6 +1940,7 @@ const messages: Record<Locale, Messages> = {
     auth: {
       welcomeBack: "Bem-vindo de volta",
       signInToContinue: "Faça login para continuar",
+      signInToChat: "Faça login para começar a conversar",
       signInWithGoogle: "Entrar com Google",
       orWithEmail: "Ou com e-mail",
       emailPlaceholder: "Seu e-mail",
@@ -2165,6 +2172,7 @@ const messages: Record<Locale, Messages> = {
     auth: {
       welcomeBack: "वापसी पर स्वागत है",
       signInToContinue: "जारी रखने के लिए साइन इन करें",
+      signInToChat: "चैट शुरू करने के लिए साइन इन करें",
       signInWithGoogle: "Google के साथ साइन इन करें",
       orWithEmail: "या ईमेल के साथ",
       emailPlaceholder: "आपका ईमेल",
@@ -2399,6 +2407,7 @@ const messages: Record<Locale, Messages> = {
     auth: {
       welcomeBack: "おかえりなさい",
       signInToContinue: "ログインして続行",
+      signInToChat: "チャットを始めるにはログインしてください",
       signInWithGoogle: "Googleでログイン",
       orWithEmail: "またはメールで",
       emailPlaceholder: "メールアドレス",
@@ -2673,6 +2682,7 @@ const messages: Record<Locale, Messages> = {
     auth: {
       welcomeBack: "환영합니다",
       signInToContinue: "계속하려면 로그인하세요",
+      signInToChat: "채팅을 시작하려면 로그인하세요",
       signInWithGoogle: "Google로 로그인",
       orWithEmail: "또는 이메일로",
       emailPlaceholder: "이메일 주소",

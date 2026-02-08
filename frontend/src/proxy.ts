@@ -6,8 +6,8 @@ import { createServerClient } from '@supabase/ssr'
 const SUPPORTED_LOCALES = ["en", "zh", "es", "ar", "fr", "ru", "pt", "hi", "ja", "ko"]
 const DEFAULT_LOCALE = "en"
 
-const PROTECTED_ROUTES = ['/chat', '/history', '/settings']
-const PUBLIC_ROUTES = ['/login', '/auth', '/register', '/faq', '/explore', '/terms', '/privacy', '/about']
+const PROTECTED_ROUTES = ['/history', '/settings']
+const PUBLIC_ROUTES = ['/login', '/auth', '/register', '/faq', '/explore', '/terms', '/privacy', '/about', '/chat']
 
 function getLocale(request: NextRequest): string {
   const headers = { 'accept-language': request.headers.get('accept-language') || '' }

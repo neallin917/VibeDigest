@@ -92,25 +92,19 @@ test.describe('Chat Interface Flow', () => {
     page.on('pageerror', err => console.log(`BROWSER ERROR: ${err}`))
   })
 
-  test('submitting a URL in Chat creates a task and shows the card', async ({ page }) => {
+  test('chat page is accessible and shows welcome screen for authenticated users', async ({ page }) => {
     const chatPage = new ChatPage(page);
 
-    // Navigate to Chat
+    // Navigate to Chat - now publicly accessible
     await chatPage.goto();
 
-    // Debug: Log current URL
-    console.log('Current URL:', page.url())
-
-    // If redirected to login, the test needs to be skipped or handled
-    if (page.url().includes('login')) {
-      console.log('Redirected to login. Skipping unauthenticated test.')
-      return
-    }
+    // Should stay on /chat (no redirect to login)
+    await expect(page).toHaveURL(/.*\/chat/);
 
     // Wait for React hydration and Welcome Screen
     await expect(chatPage.welcomeHeading).toContainText(/Welcome|VibeDigest|digest today/i)
 
-    // Paste URL and Submit
+    // Paste URL and Submit (mock auth returns authenticated user)
     await chatPage.submitMessage('https://youtube.com/watch?v=e2e');
 
     // Verify Chat Message appears (The user message)

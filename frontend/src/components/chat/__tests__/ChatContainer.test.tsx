@@ -39,9 +39,10 @@ vi.mock('../ChatInput', () => ({
 }))
 
 vi.mock('../WelcomeScreen', () => ({
-  WelcomeScreen: ({ onSubmit }: any) => (
+  WelcomeScreen: ({ onSubmit, isAuthenticated }: any) => (
     <div data-testid="welcome-screen">
       <button onClick={() => onSubmit('welcome message')}>Start</button>
+      {!isAuthenticated && <span data-testid="login-hint">sign-in-hint</span>}
     </div>
   )
 }))
@@ -98,7 +99,7 @@ describe('ChatContainer', () => {
     expect(screen.getByText('Hello')).toBeInTheDocument()
   })
 
-  it('sends message via ChatInput', async () => {
+  it('sends message via ChatInput when authenticated', async () => {
     const messages: UIMessage[] = [
       { id: '1', role: 'user', parts: [{ type: 'text', text: 'Prev' }] }
     ]
@@ -109,15 +110,48 @@ describe('ChatContainer', () => {
         status: 'idle',
     } as any)
 
-    render(<ChatContainer />)
+    render(<ChatContainer isAuthenticated={true} />)
     fireEvent.click(screen.getByText('Send'))
     expect(mockSendMessage).toHaveBeenCalledWith({ text: 'test message' })
   })
 
-  it('sends message via WelcomeScreen', async () => {
-    render(<ChatContainer />)
+  it('redirects to login when unauthenticated user sends a message', () => {
+    const messages: UIMessage[] = [
+      { id: '1', role: 'user', parts: [{ type: 'text', text: 'Prev' }] }
+    ]
+    mockUseChat.mockReturnValue({
+        messages,
+        setMessages: mockSetMessages,
+        sendMessage: mockSendMessage,
+        status: 'idle',
+    } as any)
+
+    const originalHref = window.location.href
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, href: '' },
+      writable: true,
+    })
+
+    render(<ChatContainer isAuthenticated={false} />)
+    fireEvent.click(screen.getByText('Send'))
+
+    expect(mockSendMessage).not.toHaveBeenCalled()
+    expect(localStorage.getItem('vibedigest_pending_message')).toBe('test message')
+    expect(window.location.href).toMatch(/\/login/)
+
+    window.location.href = originalHref
+    localStorage.clear()
+  })
+
+  it('sends message via WelcomeScreen when authenticated', async () => {
+    render(<ChatContainer isAuthenticated={true} />)
     fireEvent.click(screen.getByText('Start'))
     expect(mockSendMessage).toHaveBeenCalledWith({ text: 'welcome message' })
+  })
+
+  it('shows login hint in WelcomeScreen when unauthenticated', () => {
+    render(<ChatContainer isAuthenticated={false} />)
+    expect(screen.getByTestId('login-hint')).toBeInTheDocument()
   })
 
   it('renders pending/loading state', () => {
@@ -233,11 +267,11 @@ describe('ChatContainer', () => {
     })
   })
 
-  it('handles pending message from localStorage', async () => {
+  it('handles pending message from localStorage when authenticated', async () => {
     localStorage.setItem('vibedigest_pending_message', 'Stored Message')
-    
-    render(<ChatContainer />)
-    
+
+    render(<ChatContainer isAuthenticated={true} />)
+
     await waitFor(() => {
         expect(mockSendMessage).toHaveBeenCalledWith({ text: 'Stored Message' })
     })

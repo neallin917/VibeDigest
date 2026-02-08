@@ -23,9 +23,11 @@ interface WelcomeScreenProps {
   onSubmit: (text: string) => void
   /** Loading state for input */
   isLoading?: boolean
+  /** Whether the user is authenticated */
+  isAuthenticated?: boolean
 }
 
-export function WelcomeScreen({ onSelectExample, onSubmit, isLoading }: WelcomeScreenProps) {
+export function WelcomeScreen({ onSelectExample, onSubmit, isLoading, isAuthenticated = false }: WelcomeScreenProps) {
   const { t } = useI18n()
   const [examples, setExamples] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -143,6 +145,11 @@ export function WelcomeScreen({ onSelectExample, onSubmit, isLoading }: WelcomeS
           showTypewriter={true}
           hideDisclaimer={true}
         />
+        {!isAuthenticated && (
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 text-center">
+            {t('auth.signInToChat')}
+          </p>
+        )}
       </motion.div>
 
       {/* Examples Section */}

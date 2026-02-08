@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,6 +24,8 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
     const supabase = useMemo(() => createClient(), [])
     const { t, locale } = useI18n()
+    const searchParams = useSearchParams()
+    const nextUrl = searchParams.get('next')
 
     const getErrorMessage = (errorMsg: string) => {
         if (errorMsg.includes("Invalid login credentials")) return t("auth.errors.invalidCredentials") || errorMsg
@@ -33,10 +36,14 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
 
     const handleGoogleLogin = async () => {
         setLoading(true)
+        const callbackUrl = new URL(`${window.location.origin}/${locale}/auth/callback`)
+        if (nextUrl) {
+            callbackUrl.searchParams.set('next', nextUrl)
+        }
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: `${window.location.origin}/${locale}/auth/callback`
+                redirectTo: callbackUrl.toString()
             }
         })
         if (error) setMessage({ type: 'error', text: getErrorMessage(error.message) })
@@ -48,19 +55,25 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
         setLoading(true)
         setMessage(null)
 
+        const redirectTarget = nextUrl || `/${locale}/chat`
+
         if (isSignUp) {
+            const signUpCallbackUrl = new URL(`${window.location.origin}/auth/callback`)
+            if (nextUrl) {
+                signUpCallbackUrl.searchParams.set('next', nextUrl)
+            }
             const { data, error } = await supabase.auth.signUp({
                 email,
                 password,
                 options: {
-                    emailRedirectTo: `${window.location.origin}/auth/callback`
+                    emailRedirectTo: signUpCallbackUrl.toString()
                 }
             })
             if (error) {
                 setMessage({ type: 'error', text: getErrorMessage(error.message) })
             } else {
                 if (data.session) {
-                    window.location.href = '/chat'
+                    window.location.href = redirectTarget
                 } else {
                     setMessage({ type: 'success', text: t("auth.checkEmailForConfirmation") || "Please check your email to confirm your account." })
                 }
@@ -73,13 +86,17 @@ export function LoginForm({ className, isModal = false }: LoginFormProps) {
             if (error) {
                 setMessage({ type: 'error', text: getErrorMessage(error.message) })
             } else {
-                window.location.href = '/chat'
+                window.location.href = redirectTarget
             }
         } else {
+            const otpCallbackUrl = new URL(`${window.location.origin}/auth/callback`)
+            if (nextUrl) {
+                otpCallbackUrl.searchParams.set('next', nextUrl)
+            }
             const { error } = await supabase.auth.signInWithOtp({
                 email,
                 options: {
-                    emailRedirectTo: `${window.location.origin}/auth/callback`
+                    emailRedirectTo: otpCallbackUrl.toString()
                 }
             })
 
