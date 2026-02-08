@@ -86,6 +86,9 @@ jobs:
       env:
         OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         LLM_PROVIDER: openrouter
+        # Use proven models for CI; YAML defaults may list aspirational future models.
+        MODEL_ALIAS_SMART: openai/gpt-4o-mini
+        MODEL_ALIAS_FAST: openai/gpt-4o-mini
       run: |
         export PYTHONPATH=$PYTHONPATH:$(pwd)/backend
         pytest -c backend/pytest.ini backend/tests/ -m integration --no-cov -v
