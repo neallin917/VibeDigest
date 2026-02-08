@@ -70,6 +70,33 @@ test.describe('Complete Task Workflow (Mocked)', () => {
         body: JSON.stringify({ providers: [] })
       })
     })
+
+    // Mock Threads API (needed for resolveOrCreateThreadForTask and fetchThreadTaskId)
+    await page.route('**/api/threads*', async (route) => {
+      const method = route.request().method()
+      if (method === 'POST') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ id: 'mock-thread-123', task_id: 'mock-task-123' })
+        })
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([])
+        })
+      }
+    })
+
+    // Mock Chat Threads API (legacy path)
+    await page.route('**/api/chat/threads*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([])
+      })
+    })
   })
 
   test('user can submit a video and see the completed results', async ({ page }) => {

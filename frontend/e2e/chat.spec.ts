@@ -76,13 +76,30 @@ test.describe('Chat Interface Flow', () => {
       })
     })
 
-    // 6. Mock Threads
-    await page.route('**/api/chat/threads', async (route) => {
+    // 6. Mock Threads (both paths: legacy /api/chat/threads and new /api/threads)
+    await page.route('**/api/chat/threads*', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify([])
       })
+    })
+
+    await page.route('**/api/threads*', async (route) => {
+      const method = route.request().method()
+      if (method === 'POST') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ id: 'mock-thread-e2e', task_id: 'task-e2e-123' })
+        })
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([])
+        })
+      }
     })
   })
 
