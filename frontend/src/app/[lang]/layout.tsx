@@ -59,9 +59,6 @@ export async function generateMetadata({
       statusBarStyle: "default",
       title: "VibeDigest",
     },
-    alternates: {
-      canonical: "./",
-    },
     title: {
       default: "VibeDigest - AI Video Summarizer & Transcriber for YouTube",
       template: "%s | VibeDigest",
