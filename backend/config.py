@@ -104,7 +104,7 @@ class Settings:
 
     @property
     def OPENAI_SUMMARY_MODELS(self) -> list[str]:
-        # Summary now uses SMART tier for higher quality output (gpt-5/gemini-3-pro)
+        # Summary now uses SMART tier for higher quality output (gpt-5/gemini-3-pro-preview)
         if self.MODEL_ALIAS_SMART:
             return [self.MODEL_ALIAS_SMART]
         from utils.model_registry import get_model_registry

@@ -468,7 +468,7 @@ class VideoProcessor:
                     if "403" in msg and "Forbidden" in msg and "BiliBili" in msg:
                         raise Exception(
                             "Bilibili blocked the request (HTTP 403). "
-                            "If this is a restricted/anti-bot page, set BILIBILI_SESSDATA or BILIBILI_COOKIE in backend/.env "
+                            "If this is a restricted/anti-bot page, set BILIBILI_SESSDATA or BILIBILI_COOKIE in .env "
                             "and retry."
                         ) from e
                     raise
