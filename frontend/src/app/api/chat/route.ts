@@ -53,6 +53,7 @@ const previewVideoSchema = z.object({
 // --- Startup Logging ---
 console.log('>>> [API/Chat] Route Initialized <<<');
 console.log(`    Model:    ${process.env.OPENAI_MODEL || 'dynamic (from backend)'}`);
+console.log(`    Provider: ${process.env.LLM_PROVIDER || 'dynamic (defaults to backend)'}`);
 console.log(`    Base URL: ${process.env.OPENAI_BASE_URL || 'Default'}`);
 console.log(`    Backend:  ${API_BASE_URL}`);
 console.log('>>> ---------------------------- <<<');
@@ -219,10 +220,15 @@ async function resolveModelName(tier: ModelTier): Promise<ResolvedModel> {
         }
         const data: unknown = await response.json();
         const dataRecord = isRecord(data) ? data : {};
-        const activeProvider =
+        
+        // Prioritize Frontend Env Var -> Backend Config -> Default
+        const envProvider = process.env.LLM_PROVIDER;
+        const backendActiveProvider =
             typeof dataRecord.active_provider === 'string'
                 ? dataRecord.active_provider
                 : undefined;
+        
+        const activeProvider = envProvider || backendActiveProvider || fallbackProvider;
 
         const providersRaw = Array.isArray(dataRecord.providers) ? dataRecord.providers : [];
         const providers: ProviderEntry[] = providersRaw
@@ -239,11 +245,22 @@ async function resolveModelName(tier: ModelTier): Promise<ResolvedModel> {
                         : undefined,
                 };
             });
-        const selected = providers.find((p) => p.provider === activeProvider) || providers[0];
+        
+        const selected = providers.find((p) => p.provider === activeProvider) || providers.find(p => p.provider === fallbackProvider) || providers[0];
         const defaults = selected?.defaults || {};
         
-        const modelName = (tier === 'fast' ? defaults.fast : defaults.smart) || fallbackModel;
-        const providerName = activeProvider || fallbackProvider;
+        // If we are forced to OpenRouter but have no defaults from backend, use safe OpenRouter defaults
+        let modelName = (tier === 'fast' ? defaults.fast : defaults.smart);
+        
+        if (!modelName) {
+            if (activeProvider === 'openrouter') {
+                modelName = tier === 'fast' ? 'google/gemini-2.0-flash-001' : 'google/gemini-2.0-flash-001';
+            } else {
+                modelName = fallbackModel;
+            }
+        }
+        
+        const providerName = activeProvider;
 
         const result: ResolvedModel = { model: modelName, provider: providerName };
 
@@ -252,6 +269,15 @@ async function resolveModelName(tier: ModelTier): Promise<ResolvedModel> {
         return result;
     } catch (error) {
         console.warn('[API/Chat] Failed to resolve model from backend:', error);
+        
+        // Smart Fallback based on Env Var
+        if (process.env.LLM_PROVIDER === 'openrouter') {
+            return {
+                model: tier === 'fast' ? 'google/gemini-2.0-flash-001' : 'google/gemini-2.0-flash-001',
+                provider: 'openrouter'
+            };
+        }
+
         return { model: fallbackModel, provider: fallbackProvider };
     }
 }
