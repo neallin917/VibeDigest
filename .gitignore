@@ -111,3 +111,6 @@ logs/security/
 .ruff_cache/
 # next-agents-md
 .next-docs/
+
+# Data directory (content operations, media files, etc.)
+data/
