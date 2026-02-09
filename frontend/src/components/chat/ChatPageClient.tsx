@@ -28,17 +28,20 @@ function ChatPageContent() {
     const searchParamsString = searchParams.toString()
 
     // Auth state (null = loading, true/false = resolved)
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(() => {
+        // E2E test mode: read auth state from VIBEDIGEST_E2E_AUTH_BYPASS cookie
+        // This allows per-test control: isAuthenticated: true/false in setupApiMocks
+        if (typeof document !== 'undefined' && env.NEXT_PUBLIC_E2E_MOCK === '1') {
+            return document.cookie
+                .split(';')
+                .some(c => c.trim() === 'VIBEDIGEST_E2E_AUTH_BYPASS=true')
+        }
+        return null
+    })
     const supabase = useMemo(() => createClient(), [])
 
     useEffect(() => {
-        // E2E test mode: read auth state from VIBEDIGEST_E2E_AUTH_BYPASS cookie
-        // This allows per-test control: isAuthenticated: true/false in setupApiMocks
         if (env.NEXT_PUBLIC_E2E_MOCK === '1') {
-            const isE2EAuthenticated = document.cookie
-                .split(';')
-                .some(c => c.trim() === 'VIBEDIGEST_E2E_AUTH_BYPASS=true')
-            setIsAuthenticated(isE2EAuthenticated)
             return
         }
         supabase.auth.getUser().then(({ data: { user } }) => {
@@ -57,6 +60,8 @@ function ChatPageContent() {
     const newThreadIdsRef = useRef<Set<string>>(new Set())
     const hasBootstrappedRef = useRef(false)
     const latestSearchParamsRef = useRef(searchParamsString)
+    // 🆕 Track navigation history for cycle detection
+    const navigationHistoryRef = useRef<Array<{ url: string; timestamp: number }>>([])
     const resolvedActiveThreadId = queryThreadId || activeThreadId
     const resolvedActiveTaskId = queryTaskId ?? activeTaskId
 
@@ -72,6 +77,27 @@ function ChatPageContent() {
         const nextSearch = params.toString()
         const currentSearch = latestSearchParamsRef.current
         if (nextSearch === currentSearch) return false
+
+        // 🆕 Cycle detection: Check if we're oscillating between URLs
+        const now = Date.now()
+        const recentHistory = navigationHistoryRef.current.filter(
+            (entry) => now - entry.timestamp < 2000 // 2 second window
+        )
+
+        // If this URL appears in recent history, it's likely a cycle
+        const cycleDetected = recentHistory.some((entry) => entry.url === nextSearch)
+        if (cycleDetected) {
+            console.warn('[ChatPageClient] Navigation cycle detected, blocking navigation to:', nextSearch)
+            console.warn('[ChatPageClient] Recent history:', recentHistory.map(e => e.url))
+            return false
+        }
+
+        // Update navigation history
+        navigationHistoryRef.current.push({ url: nextSearch, timestamp: now })
+        // Keep only last 5 entries to prevent memory leak
+        if (navigationHistoryRef.current.length > 5) {
+            navigationHistoryRef.current.shift()
+        }
 
         latestSearchParamsRef.current = nextSearch
         const nextUrl = nextSearch ? `${pathname}?${nextSearch}` : pathname

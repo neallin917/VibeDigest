@@ -39,6 +39,7 @@ export const createMockTask = (overrides?: Partial<Task>): Task => {
  * @param overrides - Optional properties to override.
  * @returns A User object.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const createMockUser = (overrides?: any) => {
   return {
     id: 'test-user-id',
@@ -57,6 +58,7 @@ export const createMockUser = (overrides?: any) => {
  * @param overrides - Optional overrides
  * @returns A TaskOutput object.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const createMockTaskOutput = (kind: 'summary' | 'script' | 'blog' | 'tweets', content: any, overrides?: any) => {
     return {
         kind,

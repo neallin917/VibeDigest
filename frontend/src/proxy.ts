@@ -36,7 +36,7 @@ export async function proxy(request: NextRequest) {
   const pathParts = pathname.split('/')
   const pathLocale = SUPPORTED_LOCALES.find(l => pathParts[1] === l)
   
-  let locale = pathLocale || DEFAULT_LOCALE
+  const locale = pathLocale || DEFAULT_LOCALE
   let pathWithoutLocale = pathLocale ? '/' + pathParts.slice(2).join('/') : pathname
   if (!pathWithoutLocale.startsWith('/')) pathWithoutLocale = '/' + pathWithoutLocale
 

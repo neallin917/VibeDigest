@@ -11,7 +11,23 @@ vi.mock("next/navigation", () => ({
 import { usePathname } from "next/navigation"
 
 vi.mock("@/components/i18n/I18nProvider", () => ({
-    useI18n: () => ({ locale: "en", t: (k: string) => k })
+    useI18n: () => ({
+        locale: "en",
+        t: (k: string) => {
+            const translations: Record<string, string> = {
+                "landing.navProduct": "Product",
+                "landing.navDemos": "Demos",
+                "landing.navFeatures": "Features",
+                "landing.navHowItWorks": "How It Works",
+                "landing.navPricing": "Pricing",
+                "landing.navFAQ": "FAQ",
+                "landing.language": "Language",
+                "landing.theme": "Theme",
+                "auth.goToDashboard": "Go to Dashboard"
+            }
+            return translations[k] || k
+        }
+    })
 }))
 
 vi.mock("@/components/auth/LandingUserButton", () => ({

@@ -26,13 +26,13 @@ describe('getProviderConfig', () => {
 
     it('returns OpenRouter config when provider is openrouter', () => {
         // Setup mock environment
-        // @ts-ignore - writing to read-only property for test mocking
+        // @ts-expect-error - writing to read-only property for test mocking
         vi.mocked(env).OPENROUTER_BASE_URL = 'https://openrouter.mock/api/v1';
-        // @ts-ignore
+        // @ts-expect-error - writing to read-only property for test mocking
         vi.mocked(env).OPENROUTER_API_KEY = 'sk-or-mock';
-        // @ts-ignore
+        // @ts-expect-error - writing to read-only property for test mocking
         vi.mocked(env).OPENAI_BASE_URL = 'https://openai.mock/v1';
-        // @ts-ignore
+        // @ts-expect-error - writing to read-only property for test mocking
         vi.mocked(env).OPENAI_API_KEY = 'sk-openai-mock';
 
         const config = getProviderConfig('openrouter');
@@ -42,9 +42,9 @@ describe('getProviderConfig', () => {
     });
 
     it('returns OpenAI config when provider is openai', () => {
-        // @ts-ignore
+        // @ts-expect-error - writing to read-only property for test mocking
         vi.mocked(env).OPENAI_BASE_URL = 'https://api.openai.com/v1';
-        // @ts-ignore
+        // @ts-expect-error - writing to read-only property for test mocking
         vi.mocked(env).OPENAI_API_KEY = 'sk-openai-mock';
 
         const config = getProviderConfig('openai');
@@ -54,9 +54,9 @@ describe('getProviderConfig', () => {
     });
 
     it('returns OpenAI config when provider is custom', () => {
-        // @ts-ignore
+        // @ts-expect-error - writing to read-only property for test mocking
         vi.mocked(env).OPENAI_BASE_URL = 'http://localhost:1234/v1';
-        // @ts-ignore
+        // @ts-expect-error - writing to read-only property for test mocking
         vi.mocked(env).OPENAI_API_KEY = 'sk-custom-mock';
 
         const config = getProviderConfig('custom');
@@ -66,36 +66,36 @@ describe('getProviderConfig', () => {
     });
 
     it('defaults to OpenRouter public URL if OPENROUTER_BASE_URL is missing', () => {
-        // @ts-ignore
+        // @ts-expect-error - writing to read-only property for test mocking
         vi.mocked(env).OPENROUTER_BASE_URL = undefined;
-        // @ts-ignore
+        // @ts-expect-error - writing to read-only property for test mocking
         vi.mocked(env).OPENROUTER_API_KEY = 'sk-or-mock';
         const config = getProviderConfig('openrouter');
         expect(config.baseURL).toBe('https://openrouter.ai/api/v1');
     });
 
     it('defaults to OpenAI public URL if OPENAI_BASE_URL is missing', () => {
-        // @ts-ignore
+        // @ts-expect-error - writing to read-only property for test mocking
         vi.mocked(env).OPENAI_BASE_URL = undefined;
-        // @ts-ignore
+        // @ts-expect-error - writing to read-only property for test mocking
         vi.mocked(env).OPENAI_API_KEY = 'sk-openai-mock';
         const config = getProviderConfig('openai');
         expect(config.baseURL).toBe('https://api.openai.com/v1');
     });
 
     it('throws error when OPENAI_API_KEY is missing for OpenAI provider', () => {
-        // @ts-ignore
+        // @ts-expect-error - writing to read-only property for test mocking
         vi.mocked(env).OPENAI_API_KEY = undefined;
-        // @ts-ignore
+        // @ts-expect-error - writing to read-only property for test mocking
         vi.mocked(env).OPENROUTER_API_KEY = 'sk-or-mock'; // Should be ignored
 
         expect(() => getProviderConfig('openai')).toThrow(/Missing API Key for provider: 'openai'/);
     });
 
     it('throws error when OPENROUTER_API_KEY is missing for OpenRouter provider', () => {
-        // @ts-ignore
+        // @ts-expect-error - writing to read-only property for test mocking
         vi.mocked(env).OPENROUTER_API_KEY = undefined;
-        // @ts-ignore
+        // @ts-expect-error - writing to read-only property for test mocking
         vi.mocked(env).OPENAI_API_KEY = 'sk-openai-mock'; // Should be ignored
 
         expect(() => getProviderConfig('openrouter')).toThrow(/Missing API Key for provider: 'openrouter'/);

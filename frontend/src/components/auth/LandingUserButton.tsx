@@ -42,7 +42,7 @@ export function LandingUserButton() {
                 
                 const authPromise = supabase.auth.getUser()
                 
-                const { data } = await Promise.race([authPromise, timeoutPromise]) as any
+                const { data } = await Promise.race([authPromise, timeoutPromise]) as { data: { user: User | null } }
                 
                 if (mounted) {
                     setUser(data?.user ?? null)
