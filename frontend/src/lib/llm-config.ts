@@ -46,6 +46,11 @@ export function getProviderConfig(providerName: string): ProviderConfig {
         apiKey = env.OPENROUTER_API_KEY || '';
     }
 
+    // Fail Fast: Validate API Key
+    if (!apiKey) {
+        throw new Error(`Missing API Key for provider: '${providerName}'. Please check environment variables (OPENAI_API_KEY or OPENROUTER_API_KEY).`);
+    }
+
     return {
         baseURL,
         apiKey,

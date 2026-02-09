@@ -241,6 +241,9 @@ export function ChatContainer({
 
   // Auto-scroll to bottom
   useEffect(() => {
+    // Skip auto-scroll if showing Welcome Screen (no messages and no active task context)
+    if (messages.length === 0 && !activeTaskId) return
+
     if (scrollRef.current && isUserNearBottomRef.current) {
       requestAnimationFrame(() => {
         if (scrollRef.current) {
@@ -248,7 +251,7 @@ export function ChatContainer({
         }
       })
     }
-  }, [messages, status])
+  }, [messages, status, activeTaskId])
 
   // Handle pending landing page message
   useEffect(() => {
