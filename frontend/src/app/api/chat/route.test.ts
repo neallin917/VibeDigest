@@ -504,3 +504,139 @@ describe('POST /api/chat', () => {
         }))
     })
 })
+
+describe('Chat Title Generation Logic', () => {
+    // Re-setup mocks for this suite since it relies on specific behaviors
+    beforeEach(() => {
+        vi.clearAllMocks()
+        // ... (We rely on global mocks but need to reset them) ...
+        mockFrom.mockImplementation((() => ({
+            select: mockSelect,
+            insert: mockInsert,
+            update: mockUpdate,
+        })) as any)
+        
+        mockGetUser.mockResolvedValue({
+            data: { user: { id: 'test-user-id' } },
+            error: null
+        })
+        
+        // Default mocks
+        mockSingle.mockResolvedValue({ data: null, error: null })
+        mockInsert.mockResolvedValue({ error: null })
+        mockUpdate.mockReturnValue({ eq: vi.fn().mockResolvedValue({}) })
+        mockStreamText.mockReturnValue({
+            consumeStream: vi.fn(),
+            toUIMessageStreamResponse: vi.fn().mockReturnValue(new Response('mock stream'))
+        })
+        mockGenerateText.mockResolvedValue({ text: 'Generated Title' })
+        mockConvertToModelMessages.mockResolvedValue([])
+    })
+
+    it('SHOULD generate title if current title is "New Chat" even if messages length > 1 (Lazy Initialization)', async () => {
+        const threadId = 'thread-existing-tool-calls'
+        
+        mockFrom.mockImplementation(((table: string) => {
+            if (table === 'chat_threads') {
+                return {
+                    select: vi.fn().mockReturnValue({
+                        eq: vi.fn().mockReturnValue({
+                            single: vi.fn().mockResolvedValue({ 
+                                data: { id: threadId, title: 'New Chat' }, 
+                                error: null 
+                            })
+                        })
+                    }),
+                    update: mockUpdate
+                }
+            }
+            if (table === 'chat_messages') {
+                return {
+                    select: vi.fn().mockReturnValue({
+                        eq: vi.fn().mockReturnValue({
+                            order: vi.fn().mockResolvedValue({
+                                data: [
+                                    { id: 'msg-1', role: 'user', content: [{ type: 'text', text: 'Analyze this video' }], created_at: '2024-01-01T00:00:00Z' },
+                                    { id: 'msg-2', role: 'assistant', content: [{ type: 'tool-call', toolName: 'create_task' }], created_at: '2024-01-01T00:00:01Z' }
+                                ],
+                                error: null
+                            }),
+                            single: mockSingle
+                        })
+                    }),
+                    insert: mockInsert
+                }
+            }
+            return { select: mockSelect, insert: mockInsert, update: mockUpdate }
+        }) as any)
+
+        const req = new NextRequest('http://localhost/api/chat', {
+            method: 'POST',
+            body: JSON.stringify({
+                message: { content: 'How is the progress?' },
+                threadId: threadId
+            })
+        })
+
+        await POST(req)
+
+        const streamTextResult = mockStreamText.mock.results.at(-1)?.value
+        const toUIMessageCall = streamTextResult.toUIMessageStreamResponse.mock.calls[0][0]
+
+        const finalMessages = [
+            { id: 'msg-1', role: 'user', parts: [{ type: 'text', text: 'Analyze this video' }] },
+            { id: 'msg-2', role: 'assistant', parts: [{ type: 'tool-call', toolName: 'create_task' }] },
+            { id: 'msg-3', role: 'tool', parts: [{ type: 'tool-result', result: 'Task started' }] },
+            { id: 'msg-4', role: 'user', parts: [{ type: 'text', text: 'How is the progress?' }] },
+            { id: 'msg-5', role: 'assistant', parts: [{ type: 'text', text: 'It is processing.' }] }
+        ]
+
+        await toUIMessageCall.onFinish({ messages: finalMessages })
+
+        expect(mockGenerateText).toHaveBeenCalled()
+        const genCallArgs = mockGenerateText.mock.calls[0][0]
+        expect(genCallArgs.prompt).toContain('Analyze this video')
+        expect(genCallArgs.prompt).toContain('It is processing.')
+        expect(mockUpdate).toHaveBeenCalledWith({ title: 'Generated Title' })
+    })
+
+    it('should NOT regenerate title if title is already customized', async () => {
+        const threadId = 'thread-custom-title'
+        
+        mockFrom.mockImplementation(((table: string) => {
+            if (table === 'chat_threads') {
+                return {
+                    select: vi.fn().mockReturnValue({
+                        eq: vi.fn().mockReturnValue({
+                            single: vi.fn().mockResolvedValue({ 
+                                data: { id: threadId, title: 'My Custom Analysis' }, 
+                                error: null 
+                            })
+                        })
+                    }),
+                    update: mockUpdate
+                }
+            }
+            return { select: mockSelect, insert: mockInsert, update: mockUpdate }
+        }) as any)
+
+        const req = new NextRequest('http://localhost/api/chat', {
+            method: 'POST',
+            body: JSON.stringify({ message: { content: 'More info' }, threadId })
+        })
+
+        await POST(req)
+
+        const streamTextResult = mockStreamText.mock.results.at(-1)?.value
+        const toUIMessageCall = streamTextResult.toUIMessageStreamResponse.mock.calls[0][0]
+
+        const finalMessages = [
+            { id: 'msg-1', role: 'user', parts: [{ type: 'text', text: 'Hello' }] },
+            { id: 'msg-2', role: 'assistant', parts: [{ type: 'text', text: 'Hi' }] }
+        ]
+
+        await toUIMessageCall.onFinish({ messages: finalMessages })
+
+        expect(mockGenerateText).not.toHaveBeenCalled()
+    })
+})
