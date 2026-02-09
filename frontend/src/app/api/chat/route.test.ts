@@ -2,6 +2,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { POST } from './route'
 import { NextRequest } from 'next/server'
 
+// Mock env before importing route
+vi.mock('@/env', () => ({
+    env: {
+        AI_SDK_DEBUG: '0',
+        BACKEND_API_URL: 'http://localhost:8000',
+        OPENAI_MODEL: undefined,
+        LLM_PROVIDER: undefined,
+        OPENAI_BASE_URL: undefined,
+        OPENAI_API_KEY: undefined,
+        OPENROUTER_BASE_URL: undefined,
+        OPENROUTER_API_KEY: undefined,
+        NEXT_PUBLIC_E2E_MOCK: '0',
+    }
+}))
+
 // --- Mocks ---
 
 // 1. Mock Supabase Server Client

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { match } from '@formatjs/intl-localematcher'
 import Negotiator from 'negotiator'
 import { createServerClient } from '@supabase/ssr'
+import { env } from '@/env'
 
 const SUPPORTED_LOCALES = ["en", "zh", "es", "ar", "fr", "ru", "pt", "hi", "ja", "ko"]
 const DEFAULT_LOCALE = "en"
@@ -57,8 +58,8 @@ export async function proxy(request: NextRequest) {
     
     // Create Supabase client to check actual session
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      env.NEXT_PUBLIC_SUPABASE_URL,
+      env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
         cookies: {
           getAll() { return request.cookies.getAll() },

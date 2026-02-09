@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { env } from '@/env'
 
 export async function GET(request: Request, { params }: { params: Promise<{ lang: string }> }) {
     const { searchParams, origin } = new URL(request.url)
@@ -11,8 +12,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ lang
     if (code) {
         const cookieStore = await cookies()
         const supabase = createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            env.NEXT_PUBLIC_SUPABASE_URL,
+            env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
             {
                 cookies: {
                     getAll() {
@@ -35,7 +36,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ lang
         const { error } = await supabase.auth.exchangeCodeForSession(code)
         if (!error) {
             const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
-            const isLocalEnv = process.env.NODE_ENV === 'development'
+            const isLocalEnv = env.NODE_ENV === 'development'
             if (isLocalEnv) {
                 // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
                 return NextResponse.redirect(`${origin}${next}`)

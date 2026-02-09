@@ -1,25 +1,39 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getProviderConfig } from './llm-config';
+import { env } from '@/env';
+
+// Mock the environment module
+vi.mock('@/env', () => ({
+    env: {
+        OPENROUTER_BASE_URL: undefined,
+        OPENROUTER_API_KEY: undefined,
+        OPENAI_BASE_URL: undefined,
+        OPENAI_API_KEY: undefined,
+        LLM_PROVIDER: undefined,
+        AI_SDK_DEBUG: '0',
+    }
+}));
 
 describe('getProviderConfig', () => {
-    const originalEnv = process.env;
-
     beforeEach(() => {
-        vi.resetModules();
-        process.env = { ...originalEnv };
-    });
-
-    afterEach(() => {
-        process.env = originalEnv;
+        // Reset mock values before each test
+        vi.mocked(env).OPENROUTER_BASE_URL = undefined;
+        vi.mocked(env).OPENROUTER_API_KEY = undefined;
+        vi.mocked(env).OPENAI_BASE_URL = undefined;
+        vi.mocked(env).OPENAI_API_KEY = undefined;
+        vi.mocked(env).LLM_PROVIDER = undefined;
     });
 
     it('returns OpenRouter config when provider is openrouter', () => {
-        process.env.OPENROUTER_BASE_URL = 'https://openrouter.mock/api/v1';
-        process.env.OPENROUTER_API_KEY = 'sk-or-mock';
-        
-        // Ensure OpenAI vars don't interfere
-        process.env.OPENAI_BASE_URL = 'https://openai.mock/v1';
-        process.env.OPENAI_API_KEY = 'sk-openai-mock';
+        // Setup mock environment
+        // @ts-ignore - writing to read-only property for test mocking
+        vi.mocked(env).OPENROUTER_BASE_URL = 'https://openrouter.mock/api/v1';
+        // @ts-ignore
+        vi.mocked(env).OPENROUTER_API_KEY = 'sk-or-mock';
+        // @ts-ignore
+        vi.mocked(env).OPENAI_BASE_URL = 'https://openai.mock/v1';
+        // @ts-ignore
+        vi.mocked(env).OPENAI_API_KEY = 'sk-openai-mock';
 
         const config = getProviderConfig('openrouter');
 
@@ -28,8 +42,10 @@ describe('getProviderConfig', () => {
     });
 
     it('returns OpenAI config when provider is openai', () => {
-        process.env.OPENAI_BASE_URL = 'https://api.openai.com/v1';
-        process.env.OPENAI_API_KEY = 'sk-openai-mock';
+        // @ts-ignore
+        vi.mocked(env).OPENAI_BASE_URL = 'https://api.openai.com/v1';
+        // @ts-ignore
+        vi.mocked(env).OPENAI_API_KEY = 'sk-openai-mock';
 
         const config = getProviderConfig('openai');
 
@@ -38,8 +54,10 @@ describe('getProviderConfig', () => {
     });
 
     it('returns OpenAI config when provider is custom', () => {
-        process.env.OPENAI_BASE_URL = 'http://localhost:1234/v1';
-        process.env.OPENAI_API_KEY = 'sk-custom-mock';
+        // @ts-ignore
+        vi.mocked(env).OPENAI_BASE_URL = 'http://localhost:1234/v1';
+        // @ts-ignore
+        vi.mocked(env).OPENAI_API_KEY = 'sk-custom-mock';
 
         const config = getProviderConfig('custom');
 
@@ -48,13 +66,15 @@ describe('getProviderConfig', () => {
     });
 
     it('defaults to OpenRouter public URL if OPENROUTER_BASE_URL is missing', () => {
-        delete process.env.OPENROUTER_BASE_URL;
+        // @ts-ignore
+        vi.mocked(env).OPENROUTER_BASE_URL = undefined;
         const config = getProviderConfig('openrouter');
         expect(config.baseURL).toBe('https://openrouter.ai/api/v1');
     });
 
     it('defaults to OpenAI public URL if OPENAI_BASE_URL is missing', () => {
-        delete process.env.OPENAI_BASE_URL;
+        // @ts-ignore
+        vi.mocked(env).OPENAI_BASE_URL = undefined;
         const config = getProviderConfig('openai');
         expect(config.baseURL).toBe('https://api.openai.com/v1');
     });

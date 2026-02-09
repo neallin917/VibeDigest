@@ -4,8 +4,9 @@ import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { extractAndNormalizeUrl } from '@/lib/url-utils';
 import { createProviderClient } from '@/lib/llm-config';
+import { env } from '@/env';
 
-const AI_SDK_DEBUG = process.env.AI_SDK_DEBUG === '1';
+const AI_SDK_DEBUG = env.AI_SDK_DEBUG === '1';
 
 const MODEL_CACHE_TTL_MS = 5 * 60 * 1000;
 type ModelTier = 'smart' | 'fast';
@@ -28,7 +29,7 @@ const SHORT_QUERY_CHAR_LIMIT = 200;
 const INVALID_TASK_ID = '00000000-0000-0000-0000-000000000000';
 
 // Backend API URL (must match BACKEND_API_URL in .env.local)
-const API_BASE_URL = process.env.BACKEND_API_URL || 'http://127.0.0.1:8000';
+const API_BASE_URL = env.BACKEND_API_URL || 'http://127.0.0.1:8000';
 
 // AI SDK v6: Use Zod schemas for tool parameters
 const taskStatusSchema = z.object({
@@ -52,9 +53,9 @@ const previewVideoSchema = z.object({
 
 // --- Startup Logging ---
 console.log('>>> [API/Chat] Route Initialized <<<');
-console.log(`    Model:    ${process.env.OPENAI_MODEL || 'dynamic (from backend)'}`);
-console.log(`    Provider: ${process.env.LLM_PROVIDER || 'dynamic (defaults to backend)'}`);
-console.log(`    Base URL: ${process.env.OPENAI_BASE_URL || 'Default'}`);
+console.log(`    Model:    ${env.OPENAI_MODEL || 'dynamic (from backend)'}`);
+console.log(`    Provider: ${env.LLM_PROVIDER || 'dynamic (defaults to backend)'}`);
+console.log(`    Base URL: ${env.OPENAI_BASE_URL || 'Default'}`);
 console.log(`    Backend:  ${API_BASE_URL}`);
 console.log('>>> ---------------------------- <<<');
 
@@ -199,10 +200,10 @@ async function resolveModelName(tier: ModelTier): Promise<ResolvedModel> {
     const fallbackProvider = 'openai';
     const fallbackModel = tier === 'fast' ? 'gpt-4o-mini' : 'gpt-4o';
 
-    if (process.env.OPENAI_MODEL) {
+    if (env.OPENAI_MODEL) {
         return {
-            model: process.env.OPENAI_MODEL,
-            provider: process.env.LLM_PROVIDER || fallbackProvider
+            model: env.OPENAI_MODEL,
+            provider: env.LLM_PROVIDER || fallbackProvider
         };
     }
 
@@ -222,7 +223,7 @@ async function resolveModelName(tier: ModelTier): Promise<ResolvedModel> {
         const dataRecord = isRecord(data) ? data : {};
         
         // Prioritize Frontend Env Var -> Backend Config -> Default
-        const envProvider = process.env.LLM_PROVIDER;
+        const envProvider = env.LLM_PROVIDER;
         const backendActiveProvider =
             typeof dataRecord.active_provider === 'string'
                 ? dataRecord.active_provider
@@ -271,7 +272,7 @@ async function resolveModelName(tier: ModelTier): Promise<ResolvedModel> {
         console.warn('[API/Chat] Failed to resolve model from backend:', error);
         
         // Smart Fallback based on Env Var
-        if (process.env.LLM_PROVIDER === 'openrouter') {
+        if (env.LLM_PROVIDER === 'openrouter') {
             return {
                 model: tier === 'fast' ? 'google/gemini-2.0-flash-001' : 'google/gemini-2.0-flash-001',
                 provider: 'openrouter'
@@ -308,7 +309,7 @@ export async function POST(req: Request) {
         let user;
         let accessToken;
 
-        if (process.env.NEXT_PUBLIC_E2E_MOCK === '1') {
+        if (env.NEXT_PUBLIC_E2E_MOCK === '1') {
             user = { id: 'test-user-id', email: 'tester@vibedigest.io' };
             accessToken = 'mock-access-token';
         } else {
@@ -853,7 +854,7 @@ WRONG (NEVER USE):
         return new Response(JSON.stringify({
             error: 'Internal Server Error',
             details: getErrorMessage(error),
-            stack: process.env.NODE_ENV === 'development' ? getErrorStack(error) : undefined
+            stack: env.NODE_ENV === 'development' ? getErrorStack(error) : undefined
         }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' },

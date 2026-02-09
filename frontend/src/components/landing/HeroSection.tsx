@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button"
 import { isSupportedUrl } from "@/lib/urls"
 
 import { createBrowserClient } from "@supabase/ssr"
+import { env } from "@/env"
 
 export function HeroSection() {
     const { t } = useI18n()
@@ -26,8 +27,8 @@ export function HeroSection() {
     
     // Initialize Supabase client for client-side auth check
     const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        env.NEXT_PUBLIC_SUPABASE_URL,
+        env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     )
 
     const handleHeroSubmit = async (text: string) => {

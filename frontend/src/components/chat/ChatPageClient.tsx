@@ -10,6 +10,7 @@ import type { UIMessage } from "ai"
 import { v4 as uuidv4 } from 'uuid'
 import { createClient } from "@/lib/supabase"
 import { fetchThreadTaskId } from "@/lib/thread-utils"
+import { env } from "@/env"
 
 interface Thread {
     id: string
@@ -33,7 +34,7 @@ function ChatPageContent() {
     useEffect(() => {
         // E2E test mode: read auth state from VIBEDIGEST_E2E_AUTH_BYPASS cookie
         // This allows per-test control: isAuthenticated: true/false in setupApiMocks
-        if (process.env.NEXT_PUBLIC_E2E_MOCK === '1') {
+        if (env.NEXT_PUBLIC_E2E_MOCK === '1') {
             const isE2EAuthenticated = document.cookie
                 .split(';')
                 .some(c => c.trim() === 'VIBEDIGEST_E2E_AUTH_BYPASS=true')
