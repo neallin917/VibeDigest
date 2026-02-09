@@ -328,13 +328,17 @@ export async function POST(req: Request) {
 
         // 1. Load Conversation History
         let messages: UIMessage[] = [];
+        let threadTitle: string | undefined;
+
         if (threadId) {
             // Ensure thread exists or create it
             const { data: thread, error: threadError } = await supabase
                 .from('chat_threads')
-                .select('id')
+                .select('id, title')
                 .eq('id', threadId)
                 .single();
+            
+            threadTitle = thread?.title;
 
             if (threadError && threadError.code !== 'PGRST116') { // PGRST116 is "not found"
                 console.error('[API/Chat] Thread lookup error:', threadError);
@@ -821,16 +825,33 @@ WRONG (NEVER USE):
                         .eq('id', threadId);
 
                     // Title Gen logic
-                    if (messages.length <= 1 && message) {
-                        const assistantMsg = finalMessages.find(m => m.role === 'assistant');
-                        const assistantText = assistantMsg ? getTextFromUIMessage(assistantMsg) : '';
+                    // Trigger if:
+                    // 1. It's the first message OR
+                    // 2. The title is still the default 'New Chat' (Lazy Initialization)
+                    // AND we have valid text content to generate from
+                    const isNewChat = !threadTitle || threadTitle === 'New Chat';
+                    
+                    if (isNewChat) {
+                        // Find the first valid user message and assistant response text from the full history
+                        // We search specifically for TEXT content, ignoring tool calls/results
+                        const firstUserMsg = [...messages, ...finalMessages].find(m => 
+                            m.role === 'user' && getTextFromUIMessage(m).length > 0
+                        );
+                        
+                        const firstAssistantTextMsg = finalMessages.find(m => 
+                            m.role === 'assistant' && getTextFromUIMessage(m).length > 0
+                        );
 
-                        if (assistantText) {
+                        if (firstUserMsg && firstAssistantTextMsg) {
+                            const userText = getTextFromUIMessage(firstUserMsg);
+                            const assistantText = getTextFromUIMessage(firstAssistantTextMsg);
+
                             try {
+                                console.log('[API/Chat] Generating title for thread:', threadId);
                                 const { text: title } = await generateText({
                                     model: openai.chat(modelName),
                                     system: 'Generate a very concise title (3-6 words) for this chat conversation based on the first message. Do not use quotes.',
-                                    prompt: `User message: ${getTextFromUIMessage(message)}\nAssistant response: ${assistantText}`,
+                                    prompt: `User message: ${userText}\nAssistant response: ${assistantText}`,
                                 });
 
                                 if (title) {
@@ -838,6 +859,7 @@ WRONG (NEVER USE):
                                         .from('chat_threads')
                                         .update({ title: title.trim() })
                                         .eq('id', threadId);
+                                    console.log('[API/Chat] Updated thread title:', title.trim());
                                 }
                             } catch (e) {
                                 console.error('[API/Chat] Failed to generate title:', e);
@@ -851,6 +873,25 @@ WRONG (NEVER USE):
         });
     } catch (error: unknown) {
         console.error('[API/Chat] Fatal Error:', error);
+
+        const errorMessage = getErrorMessage(error);
+        const isAuthError = errorMessage.includes('Missing API Key') || 
+                           errorMessage.includes('401') || 
+                           errorMessage.includes('invalid_api_key');
+
+        if (isAuthError) {
+            console.error('[API/Chat] Authentication/Configuration Error detected');
+            return new Response(JSON.stringify({
+                error: 'Service Configuration Error',
+                details: 'AI Service credentials are missing or invalid. Please check server logs.',
+                // Only show real details in dev
+                debug_details: env.NODE_ENV === 'development' ? errorMessage : undefined
+            }), {
+                status: 503, // Service Unavailable (due to config)
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
         return new Response(JSON.stringify({
             error: 'Internal Server Error',
             details: getErrorMessage(error),
