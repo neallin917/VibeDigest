@@ -27,6 +27,7 @@ interface FeatureCardProps {
 }
 
 function FeatureCard({ icon: Icon, title, desc, gradient, iconColor, delay, comingSoon, className = "" }: FeatureCardProps) {
+    const { t } = useI18n()
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -65,7 +66,7 @@ function FeatureCard({ icon: Icon, title, desc, gradient, iconColor, delay, comi
                     
                     {comingSoon && (
                         <Badge variant="secondary" className="text-[10px] h-5 px-2 font-semibold border-emerald-500/10 bg-emerald-500/5 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400">
-                            Soon
+                            {t("landing.comingSoon")}
                         </Badge>
                     )}
                 </div>
@@ -137,10 +138,10 @@ export function FeaturesSection() {
                         transition={{ duration: 0.6 }}
                     >
                         <Heading as="h2" className="text-2xl md:text-4xl font-display font-bold mb-5 text-slate-900 dark:text-white">
-                            Everything you need to <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-700 to-teal-700 dark:from-emerald-400 dark:to-teal-400">learn faster</span>
+                            {t("landing.featuresTitlePrefix")} <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-700 to-teal-700 dark:from-emerald-400 dark:to-teal-400">{t("landing.featuresTitleEmphasis")}</span>
                         </Heading>
                         <Text className="max-w-xl mx-auto text-slate-600 dark:text-zinc-400 text-base">
-                            Transform passive watching into active understanding with our suite of AI-powered tools.
+                            {t("landing.featuresSubtitle")}
                         </Text>
                     </motion.div>
                 </div>

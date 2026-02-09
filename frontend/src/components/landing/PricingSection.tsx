@@ -124,7 +124,7 @@ export function PricingSection() {
                                     "dark:from-emerald-500 dark:to-teal-500 dark:text-black"
                                 )}>
                                     <Zap className="w-2.5 h-2.5 fill-current" />
-                                    MOST POPULAR
+                                    {t("landing.mostPopular")}
                                 </div>
                             )}
 

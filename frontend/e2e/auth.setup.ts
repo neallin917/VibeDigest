@@ -54,6 +54,7 @@ setup('authenticate', async ({ page }) => {
         }
         localStorage.setItem('supabase.auth.token', JSON.stringify(session));
         // 同时注入全局变量供 mock-api 使用
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (window as any).__SUPABASE_MOCK_SESSION__ = session;
     }, mockSession);
 

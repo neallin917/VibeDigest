@@ -25,6 +25,7 @@ test.describe('Complete Task Workflow (Mocked)', () => {
       
       if (url.includes('id=eq.mock-task-123')) {
         const data = createMockTask({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             status: taskStatus as any,
             progress: taskStatus === 'processing' ? 45 : 100
         });

@@ -39,12 +39,12 @@ export function LandingNav() {
 
     // Labels for navigation items
     const labels: Record<string, string> = {
-        product: locale === "zh" ? "产品" : "Product",
-        demos: locale === "zh" ? "社区示例" : "Demos",
-        features: locale === "zh" ? "功能" : "Features",
-        howItWorks: locale === "zh" ? "使用方法" : "How It Works",
-        pricing: locale === "zh" ? "定价" : "Pricing",
-        faq: locale === "zh" ? "常见问题" : "FAQ",
+        product: t("landing.navProduct"),
+        demos: t("landing.navDemos"),
+        features: t("landing.navFeatures"),
+        howItWorks: t("landing.navHowItWorks"),
+        pricing: t("landing.navPricing"),
+        faq: t("landing.navFAQ"),
     }
 
     // Simplified check for "scrolled past hero"
@@ -143,13 +143,13 @@ export function LandingNav() {
                                 <div className="px-3 py-2 border-b border-slate-200 dark:border-white/10 space-y-2">
                                     <div className="flex items-center justify-between">
                                         <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-white/50">
-                                            {locale === "zh" ? "语言" : "Language"}
+                                            {t("landing.language")}
                                         </span>
                                     </div>
                                     <LanguageInlineSelect className="w-full" />
                                     <div className="flex items-center justify-between pt-1">
                                         <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-white/50">
-                                            {locale === "zh" ? "主题" : "Theme"}
+                                            {t("landing.theme")}
                                         </span>
                                         <ThemeToggle className="h-8 w-8 rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/10" />
                                     </div>

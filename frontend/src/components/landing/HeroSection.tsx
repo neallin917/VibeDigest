@@ -91,7 +91,7 @@ export function HeroSection() {
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
                     </span>
-                    <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 tracking-wide uppercase">AI-Powered Video Companion</span>
+                    <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 tracking-wide uppercase">{t("landing.badge")}</span>
                 </div>
 
                 <h1
@@ -129,7 +129,7 @@ export function HeroSection() {
                 </div>
 
                 <p className="mt-5 text-xs text-slate-500 dark:text-zinc-500">
-                    Trusted by 10,000+ happy learners
+                    {t("landing.trustedBy")}
                 </p>
             </div>
 
