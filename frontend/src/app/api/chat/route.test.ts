@@ -35,6 +35,7 @@ const {
     mockStreamText,
     mockConvertToModelMessages,
     mockGetSession,
+    mockGenerateText,
 } = vi.hoisted(() => {
     return {
         // Supabase mocks
@@ -52,6 +53,7 @@ const {
         // AI SDK mocks
         mockStreamText: vi.fn(),
         mockConvertToModelMessages: vi.fn(),
+        mockGenerateText: vi.fn(),
     }
 })
 
@@ -80,6 +82,7 @@ vi.mock('ai', async (importOriginal) => {
         ...(actual as any),
         streamText: mockStreamText,
         convertToModelMessages: mockConvertToModelMessages,
+        generateText: mockGenerateText,
     }
 })
 
