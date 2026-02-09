@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { env } from "@/env";
 
-const API_BASE_URL = process.env.BACKEND_API_URL || "http://127.0.0.1:8000";
+const API_BASE_URL = env.BACKEND_API_URL || "http://127.0.0.1:8000";
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;

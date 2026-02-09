@@ -2,6 +2,11 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 import withBundleAnalyzer from '@next/bundle-analyzer';
 import path from "path";
+import { loadEnvConfig } from '@next/env';
+
+// Load environment variables from the root directory
+const projectRoot = path.resolve(__dirname, "..");
+loadEnvConfig(projectRoot);
 
 const bundleAnalyzer = withBundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',

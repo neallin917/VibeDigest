@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Providers } from "@/components/providers";
 import { Vignette } from "@/components/ui/vignette";
 import { buildLocalizedPath, getOpenGraphLocale, SITE_URL } from "@/lib/seo";
+import { env } from "@/env";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -28,7 +29,7 @@ const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
 });
 
-const gaId = process.env.NEXT_PUBLIC_GA_ID || "";
+const gaId = env.NEXT_PUBLIC_GA_ID || "";
 
 import { Viewport } from 'next'
 
@@ -99,9 +100,9 @@ export async function generateMetadata({
       images: ["/ai-video-summarizer-transcriber-og.png"],
     },
     verification: {
-      google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
+      google: env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
       other: {
-        "msvalidate.01": process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION || "",
+        "msvalidate.01": env.NEXT_PUBLIC_BING_SITE_VERIFICATION || "",
       }
     },
     robots: {

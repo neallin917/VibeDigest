@@ -1,7 +1,8 @@
 import { createOpenAI } from '@ai-sdk/openai';
+import { env } from '@/env';
 
 // Define debug fetch once
-const AI_SDK_DEBUG = process.env.AI_SDK_DEBUG === '1';
+const AI_SDK_DEBUG = env.AI_SDK_DEBUG === '1';
 
 const debugFetch: typeof fetch = async (input, init) => {
     if (AI_SDK_DEBUG) {
@@ -36,13 +37,13 @@ export type ProviderConfig = {
 
 export function getProviderConfig(providerName: string): ProviderConfig {
     // Default to OpenAI/Custom env vars
-    let baseURL = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
-    let apiKey = process.env.OPENAI_API_KEY || '';
+    let baseURL = env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+    let apiKey = env.OPENAI_API_KEY || '';
 
     // Override for OpenRouter
     if (providerName === 'openrouter') {
-        baseURL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
-        apiKey = process.env.OPENROUTER_API_KEY || '';
+        baseURL = env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
+        apiKey = env.OPENROUTER_API_KEY || '';
     }
 
     return {

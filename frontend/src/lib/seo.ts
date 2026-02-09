@@ -1,9 +1,10 @@
 import { DEFAULT_LOCALE, LOCALE_DATE_TAG, SUPPORTED_LOCALES, type Locale } from "@/lib/i18n"
+import { env } from "@/env"
 
 export const SITE_URL =
-  process.env.NEXT_PUBLIC_APP_URL ||
-  process.env.NEXT_PUBLIC_BASE_URL ||
-  process.env.FRONTEND_URL ||
+  env.NEXT_PUBLIC_APP_URL ||
+  env.NEXT_PUBLIC_BASE_URL ||
+  env.FRONTEND_URL ||
   "https://vibedigest.io"
 
 const normalizePath = (path: string) => {

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from "react"
 import { createClient } from "@/lib/supabase"
 import { toast } from "sonner"
+import { env } from "@/env"
 
 declare global {
     interface Window {
@@ -43,7 +44,7 @@ export function GoogleOneTap() {
         if (initializedRef.current) return
         initializedRef.current = true
 
-        const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+        const clientId = env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
         if (!clientId) {
             console.warn("Google One Tap: Missing NEXT_PUBLIC_GOOGLE_CLIENT_ID")
             return
