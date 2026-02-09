@@ -33,5 +33,10 @@
     "name": "a16z Podcast",
     "type": "channel",
     "url": "https://www.youtube.com/@a16z"
+  },
+  {
+    "name": "Y Combinator",
+    "type": "channel",
+    "url": "https://www.youtube.com/@ycombinator"
   }
 ]

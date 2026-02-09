@@ -68,6 +68,8 @@ describe('getProviderConfig', () => {
     it('defaults to OpenRouter public URL if OPENROUTER_BASE_URL is missing', () => {
         // @ts-ignore
         vi.mocked(env).OPENROUTER_BASE_URL = undefined;
+        // @ts-ignore
+        vi.mocked(env).OPENROUTER_API_KEY = 'sk-or-mock';
         const config = getProviderConfig('openrouter');
         expect(config.baseURL).toBe('https://openrouter.ai/api/v1');
     });
@@ -75,7 +77,27 @@ describe('getProviderConfig', () => {
     it('defaults to OpenAI public URL if OPENAI_BASE_URL is missing', () => {
         // @ts-ignore
         vi.mocked(env).OPENAI_BASE_URL = undefined;
+        // @ts-ignore
+        vi.mocked(env).OPENAI_API_KEY = 'sk-openai-mock';
         const config = getProviderConfig('openai');
         expect(config.baseURL).toBe('https://api.openai.com/v1');
+    });
+
+    it('throws error when OPENAI_API_KEY is missing for OpenAI provider', () => {
+        // @ts-ignore
+        vi.mocked(env).OPENAI_API_KEY = undefined;
+        // @ts-ignore
+        vi.mocked(env).OPENROUTER_API_KEY = 'sk-or-mock'; // Should be ignored
+
+        expect(() => getProviderConfig('openai')).toThrow(/Missing API Key for provider: 'openai'/);
+    });
+
+    it('throws error when OPENROUTER_API_KEY is missing for OpenRouter provider', () => {
+        // @ts-ignore
+        vi.mocked(env).OPENROUTER_API_KEY = undefined;
+        // @ts-ignore
+        vi.mocked(env).OPENAI_API_KEY = 'sk-openai-mock'; // Should be ignored
+
+        expect(() => getProviderConfig('openrouter')).toThrow(/Missing API Key for provider: 'openrouter'/);
     });
 });
