@@ -654,6 +654,25 @@ WRONG (NEVER USE):
                 execute: async (args: z.infer<typeof createTaskSchema>) => {
                     console.log('[API/Chat] create_task args:', JSON.stringify(args));
 
+                    // 🆕 Enforce 1:1 Thread-Task relationship
+                    // Check if current thread already has a task_id
+                    if (threadId) {
+                        const { data: thread } = await supabase
+                            .from('chat_threads')
+                            .select('task_id')
+                            .eq('id', threadId)
+                            .single();
+
+                        if (thread?.task_id) {
+                            console.log(`[API/Chat] Thread ${threadId} already has task ${thread.task_id}, blocking new task creation`);
+                            return {
+                                error: 'This conversation is already discussing a video. Please click "New Chat" to discuss a different video.',
+                                suggest_new_chat: true,
+                                existing_task_id: thread.task_id
+                            };
+                        }
+                    }
+
                     let fallbackSource: string | null = null;
 
                     // Zod schema ensures video_url is present - extract clean URL
