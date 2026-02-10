@@ -295,6 +295,8 @@ export function ChatContainer({
 
         // Only trigger if we haven't already opened this specific task
         // AND if it's not the currently active task (to avoid redundant calls)
+        // Note: The 1:1 Thread-Task enforcement in the backend already prevents
+        // multiple tasks in one thread, making this guard sufficient
         if (newTaskId && newTaskId !== lastAutoOpenedTaskId.current && newTaskId !== activeTaskId) {
           lastAutoOpenedTaskId.current = newTaskId
           onOpenPanel(newTaskId)
