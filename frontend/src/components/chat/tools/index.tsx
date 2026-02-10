@@ -399,12 +399,19 @@ export function CreateTaskTool({
         const detailsText = output.details
           ? (typeof output.details === 'string' ? output.details : JSON.stringify(output.details))
           : null;
+        
+        // If we have a specific error message, show it. Otherwise fall back to details or generic message.
+        const errorMessage = output.error !== 'Failed to create task' ? output.error : null;
+
         return (
           <div className="my-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20">
             <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
               <AlertCircle className="w-4 h-4" />
               <span className="font-medium">Failed to create task</span>
             </div>
+            {errorMessage && (
+              <p className="mt-1 text-xs text-red-500">{errorMessage}</p>
+            )}
             {detailsText && (
               <p className="mt-1 text-xs text-red-500">{detailsText}</p>
             )}
