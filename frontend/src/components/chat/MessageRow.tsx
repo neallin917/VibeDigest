@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { UIMessage } from 'ai'
 import { cn } from '@/lib/utils'
+import { partsAreEqual } from '@/lib/chat-perf-utils'
 import { renderToolPart } from './renderToolPart'
 
 interface MessageRowProps {
@@ -187,15 +188,16 @@ function MessageRowComponent({ message, isStreaming, enableMotion, onOpenPanel }
 export const MessageRow = memo(MessageRowComponent, (prev, next) => {
   if (prev.enableMotion !== next.enableMotion) return false
   if (prev.isStreaming !== next.isStreaming) return false
-  
+  if (prev.onOpenPanel !== next.onOpenPanel) return false
+
   // If streaming, always re-render to show updates
   if (next.isStreaming) return false
 
   if (prev.message === next.message) return true
   if (prev.message.id !== next.message.id) return false
   if (prev.message.role !== next.message.role) return false
-  
-  // Use stringify for deep comparison of parts to avoid unnecessary re-renders
-  // when object references change but content is identical
-  return JSON.stringify(prev.message.parts) === JSON.stringify(next.message.parts)
+
+  // Shallow comparison of parts: text by value, tool parts by reference
+  // Replaces O(n*size) JSON.stringify with O(n) loop
+  return partsAreEqual(prev.message.parts, next.message.parts)
 })

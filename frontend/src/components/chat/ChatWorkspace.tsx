@@ -113,27 +113,50 @@ export function ChatWorkspace({
     }
   }, [selectionKey])
 
+  // rAF throttle refs for smooth resize
+  const pendingWidthRef = useRef<number | null>(null)
+  const rafIdRef = useRef<number | null>(null)
+
   const startResizing = useCallback(() => {
     setIsResizing(true)
   }, [])
 
   const stopResizing = useCallback(() => {
+    // Cancel any pending rAF
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current)
+      rafIdRef.current = null
+    }
+    // Flush pending width
+    if (pendingWidthRef.current !== null) {
+      setPanelWidth(pendingWidthRef.current)
+      localStorage.setItem("vibe_panel_width", pendingWidthRef.current.toString())
+      pendingWidthRef.current = null
+    } else {
+      localStorage.setItem("vibe_panel_width", panelWidth.toString())
+    }
     setIsResizing(false)
-    localStorage.setItem("vibe_panel_width", panelWidth.toString())
   }, [panelWidth])
 
   const resize = useCallback(
     (mouseMoveEvent: MouseEvent) => {
-      if (isResizing) {
-        // Calculate new width: window width - mouse X - right margin (approx 16px)
-        const newWidth = document.body.clientWidth - mouseMoveEvent.clientX - 16
+      if (!isResizing) return
 
-        // Min 320px, Max 80% of screen (relaxed from 60% to allow wider context)
-        // Also ensure left chat panel maintains at least 320px
-        const maxAllowed = Math.max(320, document.body.clientWidth - 320)
+      // Calculate new width: window width - mouse X - right margin (approx 16px)
+      const newWidth = document.body.clientWidth - mouseMoveEvent.clientX - 16
 
-        if (newWidth > 320 && newWidth < maxAllowed) {
-          setPanelWidth(newWidth)
+      // Min 320px, Max: ensure left chat panel maintains at least 320px
+      const maxAllowed = Math.max(320, document.body.clientWidth - 320)
+
+      if (newWidth > 320 && newWidth < maxAllowed) {
+        pendingWidthRef.current = newWidth
+        if (rafIdRef.current === null) {
+          rafIdRef.current = requestAnimationFrame(() => {
+            if (pendingWidthRef.current !== null) {
+              setPanelWidth(pendingWidthRef.current)
+            }
+            rafIdRef.current = null
+          })
         }
       }
     },
@@ -150,6 +173,15 @@ export function ChatWorkspace({
       window.removeEventListener("mouseup", stopResizing)
     }
   }, [isResizing, resize, stopResizing])
+
+  // Cleanup rAF on unmount
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current)
+      }
+    }
+  }, [])
 
 
   return (
