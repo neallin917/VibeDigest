@@ -6,11 +6,12 @@ import { ChatInput } from './ChatInput'
 import { WelcomeScreen } from './WelcomeScreen'
 import { MessageRow } from './MessageRow'
 import { cn } from '@/lib/utils'
+import { checkHasRenderableAssistant, checkHasTaskStatusForActiveTask } from '@/lib/chat-perf-utils'
 import { useRef, useEffect, useMemo, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 
 import { Loader2, XCircle } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useI18n } from '@/components/i18n/I18nProvider'
 
 interface ChatContainerProps {
@@ -168,38 +169,14 @@ export function ChatContainer({
   }, [activeTaskId])
 
   const isLoading = status === 'streaming' || status === 'submitted'
-  const hasRenderableAssistant = useMemo(() => {
-    return messages.some((m) => {
-      if (m.role !== 'assistant') return false
-      return (m.parts || []).some((part: unknown) => {
-        const p = part as { type: string; text?: string; toolName?: string; output?: { taskId?: string } };
-        if (p.type === 'text') return Boolean(p.text?.trim())
-        if (p.type?.startsWith('tool-') || p.type === 'dynamic-tool') {
-          const toolName = p.type === 'dynamic-tool' ? p.toolName : p.type.replace('tool-', '')
-          if (toolName === 'preview_video') return false
-          if (toolName === 'create_task' && !p.output?.taskId) return false
-          return true
-        }
-        return false
-      })
-    })
-  }, [messages])
-  const hasTaskStatusForActiveTask = useMemo(() => {
-    if (!activeTaskId) return false
-    return messages.some((message) => {
-      return (message.parts || []).some((part: unknown) => {
-        const p = part as { type: string; toolName?: string; output?: { taskId?: string }; input?: { taskId?: string } };
-        const toolName = p.type === 'dynamic-tool'
-          ? p.toolName
-          : p.type?.startsWith('tool-')
-            ? p.type.replace('tool-', '')
-            : ''
-        const taskId = p.output?.taskId || p.input?.taskId
-        if (!taskId) return false
-        return (toolName === 'get_task_status' || toolName === 'create_task') && taskId === activeTaskId
-      })
-    })
-  }, [messages, activeTaskId])
+  const hasRenderableAssistant = useMemo(
+    () => checkHasRenderableAssistant(messages),
+    [messages]
+  )
+  const hasTaskStatusForActiveTask = useMemo(
+    () => checkHasTaskStatusForActiveTask(messages, activeTaskId ?? null),
+    [messages, activeTaskId]
+  )
   const forcedTaskStatusMessage = useMemo<UIMessage | null>(() => {
     if (!activeTaskId || hasTaskStatusForActiveTask) return null
     const toolCallId = `task-status-${activeTaskId}`
@@ -325,17 +302,16 @@ export function ChatContainer({
           />
         ) : (
           <div className="max-w-3xl mx-auto w-full space-y-8">
-            <AnimatePresence initial={false}>
-              {renderMessages.map((m, index) => (
-                <MessageRow
-                  key={m.id}
-                  message={m}
-                  isStreaming={false}
-                  enableMotion={index === renderMessages.length - 1}
-                  onOpenPanel={onOpenPanel}
-                />
-              ))}
-            </AnimatePresence>
+            {/* Performance: No AnimatePresence wrapper — only the newest message gets motion */}
+            {renderMessages.map((m, index) => (
+              <MessageRow
+                key={m.id}
+                message={m}
+                isStreaming={false}
+                enableMotion={index === renderMessages.length - 1}
+                onOpenPanel={onOpenPanel}
+              />
+            ))}
 
             {streamingMessage ? (
               <MessageRow

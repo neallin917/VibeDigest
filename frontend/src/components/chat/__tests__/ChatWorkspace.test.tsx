@@ -127,7 +127,7 @@ describe('ChatWorkspace', () => {
 
   it('handles resizing', () => {
     render(<ChatWorkspace {...defaultProps} activeTaskId="task-1" />)
-    
+
     const resizer = document.querySelector('.cursor-col-resize') as Element
     expect(resizer).toBeInTheDocument()
 
@@ -143,5 +143,83 @@ describe('ChatWorkspace', () => {
     })
 
     expect(localStorageMock.setItem).toHaveBeenCalledWith('vibe_panel_width', expect.any(String))
+  })
+
+  // -----------------------------------------------------------------------
+  // Cycle 4: Resize throttling with requestAnimationFrame
+  // -----------------------------------------------------------------------
+  describe('resize throttling', () => {
+    it('batches rapid mousemove events via rAF and persists final width', () => {
+      // Mock rAF to capture callbacks without auto-executing
+      const rafCallbacks: FrameRequestCallback[] = []
+      const originalRaf = window.requestAnimationFrame
+      const originalCaf = window.cancelAnimationFrame
+      let rafId = 0
+      window.requestAnimationFrame = vi.fn((cb: FrameRequestCallback) => {
+        rafCallbacks.push(cb)
+        return ++rafId
+      })
+      window.cancelAnimationFrame = vi.fn()
+
+      // Set document.body.clientWidth for resize calculation
+      Object.defineProperty(document.body, 'clientWidth', { value: 1200, configurable: true })
+
+      render(<ChatWorkspace {...defaultProps} activeTaskId="task-1" />)
+
+      const resizer = document.querySelector('.cursor-col-resize') as Element
+      expect(resizer).toBeInTheDocument()
+
+      // Start resizing
+      fireEvent.mouseDown(resizer)
+
+      // Fire 10 rapid mousemove events
+      for (let i = 0; i < 10; i++) {
+        act(() => {
+          window.dispatchEvent(new MouseEvent('mousemove', { clientX: 400 + i * 10 }))
+        })
+      }
+
+      // rAF coalescing: since mock rAF never auto-fires, rafIdRef stays non-null
+      // after the first schedule, so only 1 rAF should be scheduled for 10 moves
+      const rafCallCount = (window.requestAnimationFrame as any).mock.calls.length
+      expect(rafCallCount).toBe(1)
+
+      // Flush the rAF callback(s)
+      act(() => {
+        for (const cb of rafCallbacks) {
+          cb(performance.now())
+        }
+        rafCallbacks.length = 0
+      })
+
+      // Stop resizing
+      act(() => {
+        window.dispatchEvent(new MouseEvent('mouseup'))
+      })
+
+      // Final width should be persisted
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('vibe_panel_width', expect.any(String))
+
+      // Restore
+      window.requestAnimationFrame = originalRaf
+      window.cancelAnimationFrame = originalCaf
+    })
+
+    it('persists final width from rAF on mouseup', () => {
+      render(<ChatWorkspace {...defaultProps} activeTaskId="task-1" />)
+
+      const resizer = document.querySelector('.cursor-col-resize') as Element
+      fireEvent.mouseDown(resizer)
+
+      act(() => {
+        window.dispatchEvent(new MouseEvent('mousemove', { clientX: 500 }))
+      })
+
+      act(() => {
+        window.dispatchEvent(new MouseEvent('mouseup'))
+      })
+
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('vibe_panel_width', expect.any(String))
+    })
   })
 })

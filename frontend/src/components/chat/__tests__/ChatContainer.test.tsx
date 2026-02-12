@@ -278,6 +278,58 @@ describe('ChatContainer', () => {
     expect(localStorage.getItem('vibedigest_pending_message')).toBeNull()
   })
 
+  // -----------------------------------------------------------------------
+  // Cycle 3: AnimatePresence removal — message rendering performance tests
+  // -----------------------------------------------------------------------
+  describe('message rendering performance', () => {
+    it('renders all history messages without AnimatePresence wrapper', () => {
+      const messages: UIMessage[] = Array.from({ length: 5 }, (_, i) => ({
+        id: `msg-${i}`,
+        role: 'user' as const,
+        parts: [{ type: 'text' as const, text: `Message ${i}` }],
+      }))
+      mockUseChat.mockReturnValue({
+        messages,
+        setMessages: mockSetMessages,
+        sendMessage: mockSendMessage,
+        status: 'idle',
+        error: null,
+      } as any)
+
+      const { container } = render(<ChatContainer />)
+      // All 5 messages should be rendered
+      for (let i = 0; i < 5; i++) {
+        expect(screen.getByText(`Message ${i}`)).toBeInTheDocument()
+      }
+      // No element should have data-streaming="true" (history messages)
+      const streamingElems = container.querySelectorAll('[data-streaming="true"]')
+      expect(streamingElems).toHaveLength(0)
+    })
+
+    it('renders streaming message separately from history', () => {
+      const historyMessages: UIMessage[] = [
+        { id: 'h1', role: 'user', parts: [{ type: 'text', text: 'User says hi' }] },
+        { id: 'h2', role: 'assistant', parts: [{ type: 'text', text: 'Assistant replies' }] },
+        { id: 's1', role: 'assistant', parts: [{ type: 'text', text: 'Streaming...' }] },
+      ]
+      mockUseChat.mockReturnValue({
+        messages: historyMessages,
+        setMessages: mockSetMessages,
+        sendMessage: mockSendMessage,
+        status: 'streaming',
+        error: null,
+      } as any)
+
+      const { container } = render(<ChatContainer />)
+      // History messages should be present
+      expect(screen.getByText('User says hi')).toBeInTheDocument()
+      expect(screen.getByText('Assistant replies')).toBeInTheDocument()
+      // Streaming message should be marked as streaming
+      const streamingElems = container.querySelectorAll('[data-streaming="true"]')
+      expect(streamingElems.length).toBeGreaterThanOrEqual(1)
+    })
+  })
+
   it('uses latest activeTaskId when preparing request after task switch', async () => {
     mockUseChat.mockReturnValue({
       messages: [],
