@@ -42,13 +42,24 @@ def parse_existing_dataset(path: str) -> Tuple[List[str], List[str], set]:
         return [], [], set()
 
     header_idx = None
+    # Normalize header for comparison (ignore whitespace differences)
+    normalized_header_target = " ".join(HEADER.lower().split())
+
     for i, line in enumerate(lines):
-        if line.strip().lower() == HEADER:
+        # Normalize current line and check if it starts with pipe
+        if not line.strip().startswith("|"):
+            continue
+        
+        normalized_line = " ".join(line.strip().lower().split())
+        # Check if the normalized line matches the normalized header target
+        # Some markdown tables have extra spaces for alignment
+        if normalized_header_target in normalized_line:
             header_idx = i
             break
-
+            
     if header_idx is None:
-        # Treat entire file as body if header not found
+        # Fallback: check if first non-empty line resembles header
+        # or just treat entire file as body if header not found
         return [], lines, set()
 
     header_line = lines[header_idx]
@@ -248,14 +259,17 @@ def main() -> int:
              # Random sleep between sources to be polite
              # Increased to 5-10s to be safer
              sleep_time = random.uniform(5.0, 10.0)
-             print(f"Sleeping {sleep_time:.1f}s...")
+             print(f"Checking source: {source['name']} ({source['url']}) - Sleeping {sleep_time:.1f}s...")
              time.sleep(sleep_time)
+        else:
+             print(f"Checking source: {source['name']} ({source['url']})")
 
         entries = list_source_entries(
             source["url"], 
             limit=args.max_per_source, 
             since_days=args.since_days
         )
+        print(f"  -> Found {len(entries)} raw entries")
         # Slicing is still good practice even with playlist-end, to be sure
         if args.max_per_source:
              entries = entries[: args.max_per_source]
@@ -320,8 +334,9 @@ def main() -> int:
     # Sort new rows by published_at (desc) if possible
     def sort_key(row: str) -> str:
         cells = [c.strip() for c in row.strip("|").split("|")]
-        if len(cells) >= 4:
-            return cells[3]
+        # Index 6 is Published At (YYYY-MM-DD)
+        if len(cells) >= 7:
+            return cells[6]
         return ""
 
     new_rows.sort(key=sort_key, reverse=True)

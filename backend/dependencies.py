@@ -1,7 +1,7 @@
 from functools import lru_cache
 import os
 import logging
-from typing import Optional, Dict
+from typing import Optional
 from fastapi import Header, HTTPException, Depends
 from coinbase_commerce.client import Client as CoinbaseClient
 
@@ -15,47 +15,58 @@ from services.video_processor import VideoProcessor
 
 logger = logging.getLogger(__name__)
 
-# Single source of truth for Guest Trials
-GUEST_TRIAL_COUNT: Dict[str, int] = {}
+# Guest usage is tracked solely via the guest_usage DB table.
+# No more in-memory dicts — the database is the single source of truth.
+
 
 @lru_cache()
 def get_db_client() -> DBClient:
     return DBClient()
 
-# ... (rest of standard providers)
+
 @lru_cache()
 def get_video_processor() -> VideoProcessor:
     return VideoProcessor()
+
 
 @lru_cache()
 def get_transcriber() -> Transcriber:
     return Transcriber()
 
+
 @lru_cache()
 def get_summarizer() -> Summarizer:
     return Summarizer()
+
 
 @lru_cache()
 def get_notifier() -> Notifier:
     return Notifier()
 
+
 @lru_cache()
 def get_supadata_client() -> SupadataClient:
     return SupadataClient()
+
 
 @lru_cache()
 def get_coinbase_client() -> CoinbaseClient:
     return CoinbaseClient(api_key=settings.COINBASE_API_KEY)
 
+
 async def get_current_user(
     authorization: Optional[str] = Header(None),
     x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
     x_guest_id: Optional[str] = Header(None, alias="X-Guest-Id"),
-    db: DBClient = Depends(get_db_client)
+    db: DBClient = Depends(get_db_client),
 ) -> str:
     """Identify user and enforce Guest Quota immediately."""
-    dev_bypass = os.getenv("DEV_AUTH_BYPASS", "").strip().lower() in {"1", "true", "yes"}
-    
+    dev_bypass = os.getenv("DEV_AUTH_BYPASS", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+
     if settings.MOCK_MODE:
         return "00000000-0000-0000-0000-000000000001"
 
@@ -68,8 +79,8 @@ async def get_current_user(
 
     # 2. GUEST (X-Guest-Id present)
     if x_guest_id:
-        count = GUEST_TRIAL_COUNT.get(x_guest_id, 0)
-        # Check if quota exceeded BEFORE allowing access
+        # Single source of truth: check guest_usage table in DB
+        count = db.get_task_count(x_guest_id)
         if not dev_bypass and count >= 1:
             logger.warning(f"Guest Quota Exceeded for {x_guest_id}")
             raise HTTPException(status_code=402, detail="Guest quota exceeded")
@@ -78,8 +89,10 @@ async def get_current_user(
     # 3. FALLBACK (No ID provided)
     return "00000000-0000-0000-0000-000000000001"
 
+
 def increment_guest_usage(guest_id: str):
-    """Call this AFTER successful task creation."""
+    """Call this AFTER successful task creation. Persists to DB."""
     if guest_id:
-        GUEST_TRIAL_COUNT[guest_id] = GUEST_TRIAL_COUNT.get(guest_id, 0) + 1
-        logger.info(f"Incremented guest usage for {guest_id}. Total: {GUEST_TRIAL_COUNT[guest_id]}")
+        db = get_db_client()
+        db.track_guest_trial(guest_id)
+        logger.info(f"Tracked guest usage for {guest_id} in DB")

@@ -18,12 +18,8 @@ async def mock_get_current_user():
 
 @pytest.fixture(autouse=True)
 def isolate_quota():
-    """Reset in-memory GUEST_TRIAL_COUNT around each test to prevent cross-test bleed."""
-    saved = dict(deps.GUEST_TRIAL_COUNT)
-    deps.GUEST_TRIAL_COUNT.clear()
+    """Guest usage is now tracked in DB. No in-memory state to reset."""
     yield
-    deps.GUEST_TRIAL_COUNT.clear()
-    deps.GUEST_TRIAL_COUNT.update(saved)
 
 
 @pytest.fixture

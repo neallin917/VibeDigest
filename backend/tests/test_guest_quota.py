@@ -9,12 +9,8 @@ import dependencies as deps
 
 @pytest.fixture(autouse=True)
 def isolate_guest_quota():
-    """Reset in-memory GUEST_TRIAL_COUNT before and after each test."""
-    saved = dict(deps.GUEST_TRIAL_COUNT)
-    deps.GUEST_TRIAL_COUNT.clear()
+    """Guest usage is now tracked in DB. No in-memory state to reset."""
     yield
-    deps.GUEST_TRIAL_COUNT.clear()
-    deps.GUEST_TRIAL_COUNT.update(saved)
 
 @pytest.mark.asyncio
 async def test_guest_quota_enforcement(async_client: AsyncClient, monkeypatch):
