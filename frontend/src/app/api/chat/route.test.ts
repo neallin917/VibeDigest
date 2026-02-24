@@ -36,6 +36,7 @@ const {
     mockConvertToModelMessages,
     mockGetSession,
     mockGenerateText,
+    mockUpsert,
 } = vi.hoisted(() => {
     return {
         // Supabase mocks
@@ -44,6 +45,7 @@ const {
         mockSelect: vi.fn(),
         mockInsert: vi.fn(),
         mockUpdate: vi.fn(),
+        mockUpsert: vi.fn(),
         mockEq: vi.fn(),
         mockIn: vi.fn(),
         mockSingle: vi.fn(),
@@ -62,6 +64,7 @@ mockFrom.mockImplementation((() => ({
     select: mockSelect,
     insert: mockInsert,
     update: mockUpdate,
+    upsert: mockUpsert,
 })) as any)
 
 // Default successful responses (Moved to beforeEach)
@@ -112,6 +115,7 @@ describe('POST /api/chat', () => {
             select: mockSelect,
             insert: mockInsert,
             update: mockUpdate,
+            upsert: mockUpsert,
         })) as any)
 
         // Default Auth: User is logged in
@@ -147,6 +151,7 @@ describe('POST /api/chat', () => {
         mockSingle.mockResolvedValue({ data: null, error: null })
         mockOrder.mockResolvedValue({ data: [], error: null })
         mockInsert.mockResolvedValue({ error: null })
+        mockUpsert.mockResolvedValue({ error: null })
 
         ;(global as any).fetch = vi.fn().mockResolvedValue({
             ok: true,
@@ -293,7 +298,19 @@ describe('POST /api/chat', () => {
                     insert: mockInsert
                 }
             }
-            return { select: mockSelect, insert: mockInsert }
+            if (table === 'chat_messages') {
+                return {
+                    select: vi.fn().mockReturnValue({
+                        eq: vi.fn().mockReturnValue({
+                            single: vi.fn().mockResolvedValue({ data: null }),
+                            order: mockOrder
+                        })
+                    }),
+                    insert: mockInsert,
+                    upsert: mockUpsert
+                }
+            }
+            return { select: mockSelect, insert: mockInsert, upsert: mockUpsert }
         }) as any)
 
         const req = new NextRequest('http://localhost/api/chat', {
@@ -305,6 +322,14 @@ describe('POST /api/chat', () => {
         })
 
         await POST(req)
+
+        // Capture stream result and call onFinish
+        const streamTextResult = mockStreamText.mock.results.at(-1)?.value
+        const toUIMessageCall = streamTextResult.toUIMessageStreamResponse.mock.calls[0][0]
+        
+        await toUIMessageCall.onFinish({ 
+            messages: [{ id: 'msg-1', role: 'user', content: 'New Thread' }] 
+        })
 
         expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
             id: 'new-thread-id',
@@ -325,7 +350,19 @@ describe('POST /api/chat', () => {
                     insert: mockInsert
                 }
             }
-            return { select: mockSelect, insert: mockInsert }
+            if (table === 'chat_messages') {
+                return {
+                    select: vi.fn().mockReturnValue({
+                        eq: vi.fn().mockReturnValue({
+                            single: vi.fn().mockResolvedValue({ data: null }),
+                            order: mockOrder
+                        })
+                    }),
+                    insert: mockInsert,
+                    upsert: mockUpsert
+                }
+            }
+            return { select: mockSelect, insert: mockInsert, upsert: mockUpsert }
         }) as any)
 
         const req = new NextRequest('http://localhost/api/chat', {
@@ -338,6 +375,14 @@ describe('POST /api/chat', () => {
         })
 
         await POST(req)
+
+        // Capture stream result and call onFinish
+        const streamTextResult = mockStreamText.mock.results.at(-1)?.value
+        const toUIMessageCall = streamTextResult.toUIMessageStreamResponse.mock.calls[0][0]
+        
+        await toUIMessageCall.onFinish({ 
+            messages: [{ id: 'msg-1', role: 'user', content: 'Bind this thread' }] 
+        })
 
         expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
             id: 'new-thread-id',
@@ -517,16 +562,34 @@ describe('Chat Title Generation Logic', () => {
             select: mockSelect,
             insert: mockInsert,
             update: mockUpdate,
+            upsert: mockUpsert,
         })) as any)
-        
+
         mockGetUser.mockResolvedValue({
             data: { user: { id: 'test-user-id' } },
             error: null
         })
-        
+        mockGetSession.mockResolvedValue({
+            data: { session: { user: { id: 'test-user-id' }, access_token: 'valid-token' } },
+            error: null
+        })
+
         // Default mocks
+        mockSelect.mockImplementation(() => ({
+            eq: vi.fn(() => ({
+                in: mockIn,
+                single: mockSingle,
+                order: mockOrder
+            })),
+            in: mockIn,
+            single: mockSingle,
+            order: mockOrder
+        }))
         mockSingle.mockResolvedValue({ data: null, error: null })
+        mockOrder.mockResolvedValue({ data: [], error: null })
+        mockIn.mockResolvedValue({ data: [], error: null })
         mockInsert.mockResolvedValue({ error: null })
+        mockUpsert.mockResolvedValue({ error: null })
         mockUpdate.mockReturnValue({ eq: vi.fn().mockResolvedValue({}) })
         mockStreamText.mockReturnValue({
             consumeStream: vi.fn(),
@@ -534,6 +597,22 @@ describe('Chat Title Generation Logic', () => {
         })
         mockGenerateText.mockResolvedValue({ text: 'Generated Title' })
         mockConvertToModelMessages.mockResolvedValue([])
+
+        ;(global as any).fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                active_provider: 'custom',
+                providers: [
+                    {
+                        provider: 'custom',
+                        defaults: {
+                            smart: 'gemini-3-pro',
+                            fast: 'gemini-3-flash'
+                        }
+                    }
+                ]
+            })
+        })
     })
 
     it('SHOULD generate title if current title is "New Chat" even if messages length > 1 (Lazy Initialization)', async () => {
@@ -567,10 +646,11 @@ describe('Chat Title Generation Logic', () => {
                             single: mockSingle
                         })
                     }),
-                    insert: mockInsert
+                    insert: mockInsert,
+                    upsert: mockUpsert
                 }
             }
-            return { select: mockSelect, insert: mockInsert, update: mockUpdate }
+            return { select: mockSelect, insert: mockInsert, update: mockUpdate, upsert: mockUpsert }
         }) as any)
 
         const req = new NextRequest('http://localhost/api/chat', {
@@ -620,7 +700,7 @@ describe('Chat Title Generation Logic', () => {
                     update: mockUpdate
                 }
             }
-            return { select: mockSelect, insert: mockInsert, update: mockUpdate }
+            return { select: mockSelect, insert: mockInsert, update: mockUpdate, upsert: mockUpsert }
         }) as any)
 
         const req = new NextRequest('http://localhost/api/chat', {

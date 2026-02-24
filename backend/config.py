@@ -62,8 +62,9 @@ class Settings:
     MOCK_MODE: bool = parse_bool_env("MOCK_MODE", False)
 
     # Cognition Rate Limiting (Local/Dev)
-    # Default to TRUE for safety if env var invalid
-    COGNITION_SEQUENTIAL: bool = parse_bool_env("COGNITION_SEQUENTIAL", True)
+    # Default to FALSE (parallel) for production performance.
+    # Set COGNITION_SEQUENTIAL=true for debugging or rate-limited environments.
+    COGNITION_SEQUENTIAL: bool = parse_bool_env("COGNITION_SEQUENTIAL", False)
     COGNITION_DELAY: float = float(os.getenv("COGNITION_DELAY") or "0.0")
 
     # LLM Configuration

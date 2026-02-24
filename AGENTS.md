@@ -36,7 +36,7 @@ VibeDigest — Full-stack tool to download videos, transcribe audio, and generat
 4. **Components**: Use CVA for variants, check `src/components/ui/` first
 5. **Tests**: Never call paid APIs in CI (mock everything)
 6. **Thinking Process**: Conduct all internal reasoning, tool calls, and architecture planning in English for maximum logical consistency.
-7. **Language Alignment**: Strictly provide the final explanation and summary in the same language as the user's last query.
+7. **Language Alignment**: Strictly provide the final explanation and summary in Chinese.
 8. **Best Practice Alignment**:
    1. Before implementing any solution, internally brainstorm at least two approaches.
    2. Compare your proposed solution against industry-standard best practices (e.g., Clean Code, SOLID, OWASP for security, or framework-specific idioms like React Server Components or Pythonic PEP 8).

@@ -1,11 +1,11 @@
 import os
 import logging
 from typing import Dict, Any, List, Optional
-from supabase import create_client, Client
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 import json
+import jwt
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -14,28 +14,22 @@ logger = logging.getLogger(__name__)
 FREE_LIMIT = 3
 PRO_LIMIT = 100
 
-# In-memory tracking for guest trials
-GUEST_TRIAL_CACHE: Dict[str, int] = {}
+# REMOVED: GUEST_TRIAL_CACHE was an in-memory dict that could drift from DB.
+# Guest usage is now tracked solely via the guest_usage table in the database.
+# See dependencies.py for the unified guest usage functions.
 
 
 class DBClient:
     def __init__(self):
-        # 1. Supabase Client (For Auth Validation ONLY)
-        self.url = os.environ.get("SUPABASE_URL")
-        self.key = os.environ.get("SUPABASE_SERVICE_KEY")
+        # JWT Secret for Supabase token verification (replaces supabase-py auth client)
+        self._jwt_secret = os.environ.get("SUPABASE_JWT_SECRET", "")
+        if not self._jwt_secret:
+            logger.warning(
+                "SUPABASE_JWT_SECRET not set. Token validation will fail. "
+                "Set it to your Supabase project's JWT secret."
+            )
 
-        if not self.url or not self.key:
-            logger.warning("Supabase credentials not found. Auth validation will fail.")
-            self.supabase: Optional[Client] = None
-        else:
-            try:
-                self.supabase = create_client(self.url, self.key)
-                logger.info("Supabase client initialized (Auth Only).")
-            except Exception as e:
-                logger.error(f"Failed to initialize Supabase client: {e}")
-                self.supabase = None
-
-        # 2. SQLAlchemy Engine (For Data Operations)
+        # SQLAlchemy Engine (Single connection pool for ALL data operations)
         # In production/dev, this should be the Supabase Transaction Pooler (port 6543) or Session Pooler (5432)
         # Format: postgresql://postgres.project:password@aws-0-region.pooler.supabase.com:6543/postgres
         self.db_url = os.environ.get("DATABASE_URL")
@@ -47,13 +41,34 @@ class DBClient:
                     self.db_url, pool_pre_ping=True, pool_size=10, max_overflow=20
                 )
                 self.Session = scoped_session(sessionmaker(bind=self.engine))
-                logger.info(f"SQLAlchemy engine initialized for: {self.db_url}")
+                # Log host only — avoid leaking credentials
+                from urllib.parse import urlparse as _urlparse
+                _parsed = _urlparse(self.db_url)
+                logger.info(f"SQLAlchemy engine initialized for: {_parsed.hostname}:{_parsed.port}")
             except Exception as e:
                 logger.error(f"Failed to initialize SQLAlchemy engine: {e}")
                 self.engine = None
         else:
             logger.warning("DATABASE_URL not set. Data operations will fail.")
             self.engine = None
+
+        # Lazy supabase-py client for backward compatibility (scripts only)
+        self._supabase_lazy: Optional[Any] = None
+
+    @property
+    def supabase(self):
+        """Lazy-loaded supabase-py client for scripts. Not used in main app flow."""
+        if self._supabase_lazy is None:
+            try:
+                from supabase import create_client
+
+                url = os.environ.get("SUPABASE_URL", "")
+                key = os.environ.get("SUPABASE_SERVICE_KEY", "")
+                if url and key:
+                    self._supabase_lazy = create_client(url, key)
+            except Exception as e:
+                logger.warning(f"Lazy supabase client init failed: {e}")
+        return self._supabase_lazy
 
     def _normalize_kind(self, kind: Any) -> str:
         if kind is None:
@@ -392,39 +407,80 @@ class DBClient:
         progress: Optional[int] = None,
         error: Optional[str] = None,
     ) -> None:
-        """Convenience: Update output finding it by kind first."""
+        """Convenience: Update output by task_id + kind using a single SQL UPDATE."""
         kind = self._normalize_kind(kind)
-        # TODO: Optimize with direct SQL update where kind=? AND task_id=?
-        # But for now, reuse existing patterns for safety
-        outputs = self.get_task_outputs(task_id)
-        target = next((o for o in outputs if o["kind"] == kind), None)
 
-        if target:
-            self.update_output_status(
-                target["id"],
-                status=status,
-                progress=progress,
-                content=content,
-                error=error,
+        fields = []
+        params: Dict[str, Any] = {"task_id": task_id, "kind": kind}
+
+        if status is not None:
+            fields.append("status = :status")
+            params["status"] = status
+        if progress is not None:
+            fields.append("progress = :progress")
+            params["progress"] = progress
+        if content is not None:
+            fields.append("content = :content")
+            params["content"] = content
+        if error is not None:
+            fields.append("error_message = :error")
+            params["error"] = error
+
+        if not fields:
+            return
+
+        fields.append("updated_at = now()")
+        query = (
+            f"UPDATE task_outputs SET {', '.join(fields)} "
+            f"WHERE task_id = :task_id AND kind = :kind"
+        )
+
+        if not self.engine:
+            raise Exception("Database engine not initialized")
+
+        session = self.Session()
+        try:
+            result = session.execute(text(query), params)
+            session.commit()
+            if result.rowcount == 0:
+                logger.warning(
+                    f"No output kind '{kind}' found for task {task_id}"
+                )
+        except Exception as e:
+            session.rollback()
+            logger.error(
+                f"Failed to update output kind '{kind}' for task {task_id}: {e}"
             )
-        else:
-            logger.warning(
-                f"Attempted to update non-existent output kind '{kind}' for task {task_id}"
-            )
+        finally:
+            session.close()
 
     def validate_token(self, token: str) -> Optional[str]:
-        """Validate Supabase JWT and return user_id."""
-        # Use Supabase Client as usual for Auth
-        if not self.supabase:
+        """Validate Supabase JWT and return user_id.
+
+        Uses PyJWT to decode the token directly, eliminating the need for
+        a separate supabase-py client and its connection pool.
+        """
+        if not self._jwt_secret:
+            logger.error("JWT secret not configured, cannot validate token")
             return None
         try:
             if token.startswith("Bearer "):
                 token = token.split(" ")[1]
-            user = self.supabase.auth.get_user(token)
-            if user and user.user:
-                return user.user.id
+            payload = jwt.decode(
+                token,
+                self._jwt_secret,
+                algorithms=["HS256"],
+                audience="authenticated",
+            )
+            user_id = payload.get("sub")
+            if user_id:
+                return str(user_id)
+            logger.warning("JWT decoded but 'sub' claim is missing")
             return None
-        except Exception as e:
+        except jwt.ExpiredSignatureError:
+            logger.warning("Token has expired")
+            return None
+        except jwt.InvalidTokenError as e:
             logger.error(f"Token validation failed: {e}")
             return None
 
