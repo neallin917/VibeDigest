@@ -63,7 +63,7 @@ describe('Chat Tools', () => {
           input={{ taskId: '123' }}
         />
       )
-      expect(screen.getByText(/Checking task status/)).toBeInTheDocument()
+      expect(screen.getByText('chat.tools.status.checkingFor')).toBeInTheDocument()
     })
 
     it('renders error state', () => {
@@ -89,7 +89,7 @@ describe('Chat Tools', () => {
             errorText="Network error"
           />
         )
-        expect(screen.getByText(/Failed to get task status: Network error/)).toBeInTheDocument()
+        expect(screen.getByText(/chat\.tools\.status\.errorGetStatus/)).toBeInTheDocument()
     })
 
     it('fetches task and subscribes to updates', async () => {
@@ -143,7 +143,7 @@ describe('Chat Tools', () => {
       )
 
       await waitFor(() => {
-        const queuedElements = screen.getAllByText('Queued')
+        const queuedElements = screen.getAllByText('chat.tools.status.statusQueued')
         expect(queuedElements.length).toBeGreaterThan(0)
       })
 
@@ -161,7 +161,7 @@ describe('Chat Tools', () => {
       })
 
       await waitFor(() => {
-        expect(screen.getByText('Processing')).toBeInTheDocument()
+        expect(screen.getByText('chat.tools.status.statusProcessing')).toBeInTheDocument()
         expect(screen.getByText('Processing Video')).toBeInTheDocument()
       })
     })
@@ -182,10 +182,10 @@ describe('Chat Tools', () => {
         )
 
         await waitFor(() => {
-            expect(screen.getByText('View Summary')).toBeInTheDocument()
+            expect(screen.getByText('chat.tools.status.viewSummary')).toBeInTheDocument()
         })
 
-        fireEvent.click(screen.getByText('View Summary'))
+        fireEvent.click(screen.getByText('chat.tools.status.viewSummary'))
         expect(onViewClick).toHaveBeenCalledWith('123')
     })
   })
@@ -199,7 +199,7 @@ describe('Chat Tools', () => {
           input={{ video_url: 'https://youtube.com/v/123' }}
         />
       )
-      expect(screen.getByText(/Starting video processing for/)).toBeInTheDocument()
+      expect(screen.getByText(/chat\.tools\.create\.starting/)).toBeInTheDocument()
     })
 
     it('renders success state', () => {
@@ -215,7 +215,7 @@ describe('Chat Tools', () => {
       expect(screen.getByText('Created')).toBeInTheDocument()
       expect(screen.getByText('http://video')).toBeInTheDocument()
       
-      fireEvent.click(screen.getByText('View Progress'))
+      fireEvent.click(screen.getByText('chat.tools.create.viewProgress'))
       expect(onViewClick).toHaveBeenCalledWith('123')
     })
 
@@ -227,7 +227,7 @@ describe('Chat Tools', () => {
             output={{ error: 'Creation failed', details: 'Invalid URL' }}
           />
         )
-        expect(screen.getByText('Failed to create task')).toBeInTheDocument()
+        expect(screen.getByText('chat.tools.create.failed')).toBeInTheDocument()
         expect(screen.getByText('Invalid URL')).toBeInTheDocument()
     })
   })
@@ -241,7 +241,7 @@ describe('Chat Tools', () => {
           input={{ video_url: 'http://test' }}
         />
       )
-      expect(screen.getByText(/Fetching video info/)).toBeInTheDocument()
+      expect(screen.getByText(/chat\.tools\.preview\.fetching/)).toBeInTheDocument()
     })
 
     it('renders video info', () => {
@@ -278,7 +278,7 @@ describe('Chat Tools', () => {
               input={{ taskId: '1', kinds: ['summary'] }}
             />
         )
-        expect(screen.getByText(/Retrieving content/)).toBeInTheDocument()
+        expect(screen.getByText(/chat\.tools\.outputs\.retrieving/)).toBeInTheDocument()
     })
 
     it('renders output count', () => {
@@ -289,7 +289,7 @@ describe('Chat Tools', () => {
               output={{ taskId: '1', outputs: [], count: 3 }}
             />
         )
-        expect(screen.getByText('Retrieved 3 output(s)')).toBeInTheDocument()
+        expect(screen.getByText('chat.tools.outputs.retrieved')).toBeInTheDocument()
     })
   })
 
@@ -302,7 +302,7 @@ describe('Chat Tools', () => {
               state="input-available"
             />
         )
-        expect(screen.getByText('Running: mystery_tool...')).toBeInTheDocument()
+        expect(screen.getByText('chat.tools.unknown.running')).toBeInTheDocument()
     })
 
     it('renders completed state', () => {
@@ -313,7 +313,7 @@ describe('Chat Tools', () => {
               state="output-available"
             />
         )
-        expect(screen.getByText('Completed: mystery_tool')).toBeInTheDocument()
+        expect(screen.getByText('chat.tools.unknown.completed')).toBeInTheDocument()
     })
   })
 })
