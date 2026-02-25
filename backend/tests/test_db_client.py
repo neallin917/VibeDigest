@@ -17,7 +17,10 @@ def db_client_instance(mock_engine, mock_session):
     with (
         patch("db_client.create_engine", return_value=mock_engine),
         patch("db_client.scoped_session", return_value=MagicMock(return_value=mock_session)),
-        patch.dict(os.environ, {"DATABASE_URL": "postgresql://test:test@localhost/test"})
+        patch.dict(os.environ, {
+            "DATABASE_URL": "postgresql://test:test@localhost/test",
+            "SUPABASE_JWT_SECRET": "test-jwt-secret",
+        })
     ):
         client = DBClient()
         # Ensure session factory returns our mock session
@@ -98,22 +101,15 @@ def test_get_task_outputs(db_client_instance, mock_session):
     assert len(results) == 2
 
 def test_validate_token_success(db_client_instance):
-    mock_supabase = MagicMock()
-    mock_user = MagicMock()
-    mock_user.user.id = "u1"
-    mock_supabase.auth.get_user.return_value = mock_user
-    db_client_instance.supabase = mock_supabase
-
-    user_id = db_client_instance.validate_token("Bearer token")
-    assert user_id == "u1"
+    with patch('db_client.jwt.decode', return_value={"sub": "u1"}):
+        user_id = db_client_instance.validate_token("Bearer token")
+        assert user_id == "u1"
 
 def test_validate_token_failure(db_client_instance):
-    mock_supabase = MagicMock()
-    mock_supabase.auth.get_user.side_effect = Exception("Invalid")
-    db_client_instance.supabase = mock_supabase
-
-    user_id = db_client_instance.validate_token("token")
-    assert user_id is None
+    import jwt as pyjwt
+    with patch('db_client.jwt.decode', side_effect=pyjwt.InvalidTokenError("bad")):
+        user_id = db_client_instance.validate_token("token")
+        assert user_id is None
 
 def test_check_and_consume_quota_success(db_client_instance, mock_session):
     # Mock get_profile

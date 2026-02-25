@@ -3,7 +3,7 @@ import sys
 import logging
 from typing import cast
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 # Setup path and env
 sys.path.append(str(Path(__file__).parent.parent))
@@ -20,23 +20,26 @@ from workflow import app, VideoProcessingState  # noqa: E402
 
 async def test_workflow_mocked():
     print("--- Starting Mocked Workflow Test ---")
-    
+
     # 1. Setup Mocks
-    # We explicitly patch the instances used in workflow.py
-    # Note: workflow.py initializes them at module level: db_client, video_processor, etc.
-    
-    with patch('workflow.db_client') as mock_db, \
-         patch('workflow.video_processor') as mock_vp, \
-         patch('workflow.transcriber') as mock_transcriber, \
-         patch('workflow.summarizer') as mock_summarizer, \
-         patch('workflow.supadata_client') as mock_supadata:
+    mock_db = MagicMock()
+    mock_vp = AsyncMock()
+    mock_transcriber = AsyncMock()
+    mock_summarizer = MagicMock()
+    mock_supadata = AsyncMock()
+
+    with patch('workflow._get_db_client', return_value=mock_db), \
+         patch('workflow._get_video_processor', return_value=mock_vp), \
+         patch('workflow._get_transcriber', return_value=mock_transcriber), \
+         patch('workflow._get_summarizer', return_value=mock_summarizer), \
+         patch('workflow._get_supadata_client', return_value=mock_supadata):
 
         # --- Mock Supadata ---
         mock_supadata.get_transcript_async = AsyncMock(return_value=(None, None, None)) # Force fallback to download
 
         # --- Mock DB Behaviors ---
         mock_db.find_latest_completed_task_by_url.return_value = None  # Cache Miss
-        
+
         # Mock get_task_outputs to return placeholders needed by nodes
         # Each node looks for specific kinds.
         mock_outputs = [
@@ -47,7 +50,7 @@ async def test_workflow_mocked():
             {"id": "out-audio", "kind": "audio", "status": "pending", "locale": "en"},
         ]
         mock_db.get_task_outputs.return_value = mock_outputs
-        
+
         # --- Mock Video Processor ---
         mock_vp.extract_info_only = AsyncMock(return_value={
             "title": "Mock Video Title",
@@ -58,21 +61,21 @@ async def test_workflow_mocked():
         })
         # Mock download_and_convert return: (audio_path, title, thumb, direct_url, meta)
         mock_vp.download_and_convert = AsyncMock(return_value=(
-            "mock_audio.mp3", 
-            "Mock Video Title", 
-            "http://thumb.url", 
-            None, 
+            "mock_audio.mp3",
+            "Mock Video Title",
+            "http://thumb.url",
+            None,
             {"duration": 120, "author": "Mock Author"}
         ))
-        
+
         # --- Mock Transcriber ---
         # Return: (script_md, raw_json, lang)
         mock_transcriber.transcribe_with_raw = AsyncMock(return_value=(
-            "Mock transcript text with timestamps.", 
-            '{"segments": []}', 
+            "Mock transcript text with timestamps.",
+            '{"segments": []}',
             "en"
         ))
-        
+
         # --- Mock Summarizer ---
         # Mock class methods
         # IMPORTANT: Must be >50 chars to pass 'Smart Skip' in cognition node
@@ -105,10 +108,10 @@ async def test_workflow_mocked():
         })
 
         print(f"Running workflow for: {initial_state['video_url']}")
-        
+
         # 2. Run Workflow
         final_state = await app.ainvoke(initial_state)
-        
+
         # 3. Validation
         print("\n--- Workflow Finished ---")
         print(f"Final Transcript: {final_state.get('transcript_text')}")
