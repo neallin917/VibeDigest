@@ -4,6 +4,9 @@
 
 [English](./README.md)
 
+<p align="center">
+  <img src="docs/screenshots/landing-dark.png" alt="VibeDigest 落地页" width="100%">
+</p>
 
 **VibeDigest** 是一个现代化的全栈应用程序，旨在无缝下载视频、转录音频并生成 AI 驱动的摘要。它专为性能和美学而设计，利用了 OpenAI 的强大功能和 Next.js 的速度。
 
@@ -15,6 +18,16 @@
 - **强大的工作流**：由 **LangGraph** 编排，实现弹性的、有状态的任务执行和错误处理。
 - **实时更新**：通过 **Supabase Realtime** 即时反馈任务进度。
 
+## 🖥 预览
+
+<p align="center">
+  <img src="docs/screenshots/chat-dark.png" alt="VibeDigest 聊天界面" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/demo-case-dark.png" alt="VibeDigest 演示案例详情" width="100%">
+</p>
+
 ## 🚀 功能
 
 - **通用视频支持**：通过 `yt-dlp` 提供强大的视频下载功能。
@@ -23,7 +36,7 @@
 - **入职演示**：新用户会看到一个实时演示任务，以立即了解平台的功能。
 - **浏览器通知**：即使在后台，也可以在任务完成时获得即时警报。
 - **安全认证**：通过 Supabase Auth 集成电子邮件和 Google 登录支持。
-- **多语言 UI (i18n)**：内置 UI 语言切换器，支持阿拉伯语的 RTL。
+- **多语言 UI (i18n)**：内置 UI 语言切换器，支持英文、中文、日文。
 - **灵活定价**：混合模式（订阅 + 按需付费），具有年度计费选项和透明的使用跟踪。
 - **支付（可选）**：通过 Creem 进行卡支付（无需公司注册），通过 Coinbase Commerce 进行加密货币结帐。
 
@@ -132,9 +145,8 @@ make test            # 运行所有测试
 
 ## 🌍 i18n (UI 多语言)
 
-- **支持的语言环境**: `en`, `zh`, `es`, `ar`, `fr`, `ru`, `pt`, `hi`, `ja`, `ko`
+- **支持的语言环境**: `en`, `zh`, `ja`
 - **持久化**: 存储在 `localStorage` 的键 `vd.locale` 中
-- **支持 RTL**: 阿拉伯语 (`ar`) 自动设置 `<html dir="rtl">`
 - **用户更改语言的地方**:
   - `frontend/src/app/(main)/settings/page.tsx` (设置 → 语言)
   - 公共页面: 落地页 (`/`) 和 登录页 (`/login`) 右上角
