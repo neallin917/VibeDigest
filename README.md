@@ -97,7 +97,7 @@ The system operates on a **Control Plane vs. Data Plane** model:
 -   **Control**: The frontend sends commands (like "Process Video") to the backend via HTTP.
 -   **Data**: The backend updates the database. The frontend **never** waits for the HTTP response for status; it subscribes to the database changes. this ensures the UI is always in sync with the true state of the task.
 
-For detailed architecture docs, see [docs/architecture/](docs/architecture/).
+For detailed architecture docs, see [AGENTS.md](AGENTS.md).
 
 ## ⚡️ Performance & Caching Strategy
 
@@ -130,7 +130,9 @@ To provide instant results and save computation resources, VibeDigest implements
 
 ## 📚 Additional Resources
 
-- **[Contribution Guide](docs/CONTRIB.md)**: Detailed workflow, coding standards, and testing procedures.
+- **[Contribution Guide](CONTRIBUTING.md)**: Detailed workflow, coding standards, and testing procedures.
+- **[Changelog](CHANGELOG.md)**: Version history and release notes.
+- **[Security Policy](SECURITY.md)**: Vulnerability reporting and supported versions.
 - **[Runbook](docs/RUNBOOK.md)**: Production deployment and monitoring.
 
 ## 🧱 Database Migrations (Supabase)
