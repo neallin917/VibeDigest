@@ -12,6 +12,7 @@ psycopg-pool>=3.2.0
 supabase==2.27.0
 supabase-auth==2.27.0
 supabase-functions==2.27.0
+PyJWT[crypto]>=2.8.0
 httpx==0.28.1
 requests==2.32.3
 aiohttp==3.10.11
