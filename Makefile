@@ -4,12 +4,21 @@
 .PHONY: test-backend test-frontend
 .PHONY: stop restart-dev rebuild-dev restart-prod deploy
 
+# --- Configuration ---
+# 提取端口 (macOS 兼容)
+FRONTEND_PORT=$(shell grep -o '"frontend_port": [0-9]*' .workspace.json | awk '{print $$2}')
+BACKEND_PORT=16081
+
 # Default target
 help:
 	@echo "Available commands:"
 	@echo "  make install       - Install both backend and frontend dependencies"
 	@echo "  make start-backend - Start the backend server (local)"
 	@echo "  make start-frontend- Start the frontend development server"
+	@echo "  make stop-frontend - Stop the frontend development server"
+	@echo "  make stop-backend  - Stop the backend development server"
+	@echo "  make restart-frontend - Restart the frontend development server"
+	@echo "  make restart-backend  - Restart the backend development server"
 	@echo "  make start-dev     - Start backend in Docker (Dev Mode, hot reload)"
 	@echo "  make start-prod    - Start backend in Docker (Prod Mode, stable)"
 	@echo "  make stop          - Stop all Docker containers"
@@ -33,14 +42,25 @@ install-frontend:
 	cd frontend && npm install
 
 # --- Execution ---
-# --- Execution ---
 start-backend:
 	@echo "Starting backend..."
-	cd backend && uv run uvicorn main:app --reload --port 16081
+	cd backend && uv run uvicorn main:app --reload --port $(BACKEND_PORT)
 
 start-frontend:
 	@echo "Starting frontend..."
 	cd frontend && npm run dev
+
+stop-frontend:
+	@echo "Stopping frontend on port $(FRONTEND_PORT)..."
+	@lsof -t -i:$(FRONTEND_PORT) | xargs kill -9 2>/dev/null || echo "No process found on port $(FRONTEND_PORT)"
+
+stop-backend:
+	@echo "Stopping backend on port $(BACKEND_PORT)..."
+	@lsof -t -i:$(BACKEND_PORT) | xargs kill -9 2>/dev/null || echo "No process found on port $(BACKEND_PORT)"
+
+restart-frontend: stop-frontend start-frontend
+
+restart-backend: stop-backend start-backend
 
 # --- Docker Environment (Isolated) ---
 # Dev: Builds from source, Hot Reloads

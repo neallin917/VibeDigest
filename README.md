@@ -8,7 +8,7 @@
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](docker-compose.yml)
 
 <p align="center">
-  <img src="frontend/public/ai-video-summarizer-transcriber-og.png" alt="VibeDigest Banner" width="100%">
+  <img src="docs/screenshots/landing-dark.png" alt="VibeDigest Landing Page" width="100%">
 </p>
 
 [中文版](./README.zh-CN.md)
@@ -30,7 +30,17 @@ Now featuring a **Chat-First Architecture** (v3.4) that puts conversation at the
 - **Live Dashboard**: Real-time task progress updates via **Supabase Realtime**.
 - **Modern UI/UX**: Dark-mode-first design with glassmorphism, powered by TailwindCSS v4 and Framer Motion.
 - **Secure Auth**: Integrated email and Google login support via Supabase Auth (Web2 only).
-- **Internationalization**: Full i18n support including RTL layouts for Arabic.
+- **Internationalization**: Full i18n support for English, Chinese, and Japanese.
+
+## 🖥 Preview
+
+<p align="center">
+  <img src="docs/screenshots/chat-dark.png" alt="VibeDigest Chat Interface" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/demo-case-dark.png" alt="VibeDigest Demo Case Detail" width="100%">
+</p>
 
 ## 🚀 Getting Started
 
@@ -122,9 +132,8 @@ To provide instant results and save computation resources, VibeDigest implements
 
 ## 🌍 i18n (UI Languages)
 
-- **Supported locales**: `en`, `zh`, `es`, `ar`, `fr`, `ru`, `pt`, `hi`, `ja`, `ko`
+- **Supported locales**: `en`, `zh`, `ja`
 - **Persistence**: stored in `localStorage` key `vd.locale`
-- **RTL**: Arabic (`ar`) automatically sets `<html dir="rtl">`
 - **Configuration**: See `frontend/src/lib/i18n.ts`.
 
 
