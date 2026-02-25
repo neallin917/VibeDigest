@@ -2,7 +2,7 @@
 
 /**
  * Tool UI Components for AI SDK v6 Generative UI
- * 
+ *
  * Each tool has a dedicated UI component that renders based on its state:
  * - input-streaming: Tool inputs are being streamed
  * - input-available: Tool inputs are ready, execution pending
@@ -143,7 +143,10 @@ export function GetTaskStatusTool({
       return (
         <div className="flex items-center gap-2 my-2 text-sm text-slate-500 dark:text-slate-400">
           <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-          <span>Checking task status{input?.taskId ? ` for ${input.taskId.slice(0, 8)}...` : '...'}</span>
+          <span>{input?.taskId
+            ? t("chat.tools.status.checkingFor", { id: input.taskId.slice(0, 8) })
+            : t("chat.tools.status.checking")
+          }</span>
         </div>
       )
 
@@ -168,39 +171,39 @@ export function GetTaskStatusTool({
               try {
                 return new URL(effectiveOutput.video_url).hostname
               } catch {
-                return 'Video task'
+                return t("chat.tools.status.videoTask")
               }
             })()
-          : 'Video task'
+          : t("chat.tools.status.videoTask")
       const planSteps = [
         {
           key: 'queued',
-          label: 'Queued',
-          description: 'We verified the URL and prepared the workflow.',
+          label: t("chat.tools.status.steps.queuedLabel"),
+          description: t("chat.tools.status.steps.queuedDesc"),
           minProgress: 0
         },
         {
           key: 'ingest',
-          label: 'Fetch source data',
-          description: 'Collect metadata and pull the best available transcript.',
+          label: t("chat.tools.status.steps.ingestLabel"),
+          description: t("chat.tools.status.steps.ingestDesc"),
           minProgress: 15
         },
         {
           key: 'transcribe',
-          label: 'Transcribe audio',
-          description: 'Generate a clean, timestamped transcript for analysis.',
+          label: t("chat.tools.status.steps.transcribeLabel"),
+          description: t("chat.tools.status.steps.transcribeDesc"),
           minProgress: 30
         },
         {
           key: 'summarize',
-          label: 'Summarize content',
-          description: 'Create an accurate, structured summary for quick reading.',
+          label: t("chat.tools.status.steps.summarizeLabel"),
+          description: t("chat.tools.status.steps.summarizeDesc"),
           minProgress: 70
         },
         {
           key: 'finalize',
-          label: 'Finalize outputs',
-          description: 'Prepare the final assets and make them ready to view.',
+          label: t("chat.tools.status.steps.finalizeLabel"),
+          description: t("chat.tools.status.steps.finalizeDesc"),
           minProgress: 90
         }
       ]
@@ -231,25 +234,25 @@ export function GetTaskStatusTool({
               {status === 'processing' && (
                 <>
                   <Clock className="w-3 h-3 text-blue-500 animate-pulse" />
-                  <span className="text-blue-500">Processing</span>
+                  <span className="text-blue-500">{t("chat.tools.status.statusProcessing")}</span>
                 </>
               )}
               {status === 'pending' && (
                 <>
                   <Clock className="w-3 h-3 text-amber-500" />
-                  <span className="text-amber-500">Queued</span>
+                  <span className="text-amber-500">{t("chat.tools.status.statusQueued")}</span>
                 </>
               )}
               {status === 'completed' && (
                 <>
                   <CheckCircle className="w-3 h-3 text-emerald-500" />
-                  <span className="text-emerald-500">Ready</span>
+                  <span className="text-emerald-500">{t("chat.tools.status.statusReady")}</span>
                 </>
               )}
               {status === 'failed' && (
                 <>
                   <AlertCircle className="w-3 h-3 text-red-500" />
-                  <span className="text-red-500">Failed</span>
+                  <span className="text-red-500">{t("chat.tools.status.statusFailed")}</span>
                 </>
               )}
             </div>
@@ -257,12 +260,12 @@ export function GetTaskStatusTool({
             {/* Plan Steps */}
             <div className="rounded-md border border-white/40 bg-white/30 dark:border-white/10 dark:bg-white/5">
               <div className="px-3 py-2 border-b border-white/30 dark:border-white/10">
-                <div className="text-sm font-semibold text-slate-800 dark:text-zinc-100">Processing Plan</div>
-                <div className="text-xs text-slate-500 dark:text-zinc-400">Step-by-step progress for this task</div>
+                <div className="text-sm font-semibold text-slate-800 dark:text-zinc-100">{t("chat.tools.status.processingPlan")}</div>
+                <div className="text-xs text-slate-500 dark:text-zinc-400">{t("chat.tools.status.processingPlanDesc")}</div>
                 {status !== 'failed' && (
                   <div className="mt-2 space-y-1">
                     <div className="text-xs text-slate-500 dark:text-zinc-400">
-                      {completedCount} of {planSteps.length} complete
+                      {t("chat.tools.status.progressCount", { completed: completedCount, total: planSteps.length })}
                     </div>
                     <Progress value={progressValue} className="h-1 bg-slate-200/80 dark:bg-white/10" />
                   </div>
@@ -313,7 +316,7 @@ export function GetTaskStatusTool({
                 onClick={() => onViewClick(output.taskId)}
                 className="w-full h-8 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white"
               >
-                View Summary
+                {t("chat.tools.status.viewSummary")}
               </Button>
             )}
           </div>
@@ -332,7 +335,7 @@ export function GetTaskStatusTool({
       return (
         <div className="flex items-center gap-2 my-2 text-sm text-red-500">
           <AlertCircle className="w-4 h-4" />
-          <span>Failed to get task status: {errorText || 'Unknown error'}</span>
+          <span>{t("chat.tools.status.errorGetStatus")}: {errorText || t("chat.tools.status.unknownError")}</span>
         </div>
       )
 
@@ -373,6 +376,7 @@ export function CreateTaskTool({
   errorText,
   onViewClick
 }: CreateTaskToolProps) {
+  const { t } = useI18n()
   // Robust fallback for URL display
   const displayUrl = input?.video_url || input?.videoUrl || input?.url;
 
@@ -381,7 +385,7 @@ export function CreateTaskTool({
       return (
         <div className="flex items-center gap-2 my-2 text-sm text-slate-500 dark:text-slate-400">
           <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
-          <span>Preparing to process video...</span>
+          <span>{t("chat.tools.create.preparing")}</span>
         </div>
       )
 
@@ -389,7 +393,7 @@ export function CreateTaskTool({
       return (
         <div className="flex items-center gap-2 my-2 text-sm text-blue-500">
           <Sparkles className="w-4 h-4 animate-pulse" />
-          <span>Starting video processing for: {displayUrl?.slice(0, 40)}...</span>
+          <span>{t("chat.tools.create.starting", { url: displayUrl?.slice(0, 40) || '' })}...</span>
         </div>
       )
 
@@ -399,7 +403,7 @@ export function CreateTaskTool({
         const detailsText = output.details
           ? (typeof output.details === 'string' ? output.details : JSON.stringify(output.details))
           : null;
-        
+
         // If we have a specific error message, show it. Otherwise fall back to details or generic message.
         const errorMessage = output.error !== 'Failed to create task' ? output.error : null;
 
@@ -407,7 +411,7 @@ export function CreateTaskTool({
           <div className="my-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20">
             <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
               <AlertCircle className="w-4 h-4" />
-              <span className="font-medium">Failed to create task</span>
+              <span className="font-medium">{t("chat.tools.create.failed")}</span>
             </div>
             {errorMessage && (
               <p className="mt-1 text-xs text-red-500">{errorMessage}</p>
@@ -423,7 +427,7 @@ export function CreateTaskTool({
         <div className="my-3 p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/20">
           <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
             <CheckCircle className="w-4 h-4" />
-            <span className="font-medium">{output?.message || 'Task created successfully!'}</span>
+            <span className="font-medium">{output?.message || t("chat.tools.create.success")}</span>
           </div>
           {output?.videoUrl && (
             <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 truncate">
@@ -438,7 +442,7 @@ export function CreateTaskTool({
               className="mt-3 h-7 text-xs"
             >
               <ExternalLink className="w-3 h-3 mr-1" />
-              View Progress
+              {t("chat.tools.create.viewProgress")}
             </Button>
           )}
         </div>
@@ -448,7 +452,7 @@ export function CreateTaskTool({
       return (
         <div className="flex items-center gap-2 my-2 text-sm text-red-500">
           <AlertCircle className="w-4 h-4" />
-          <span>Failed to create task: {errorText || 'Unknown error'}</span>
+          <span>{t("chat.tools.create.errorCreate")}: {errorText || t("chat.tools.status.unknownError")}</span>
         </div>
       )
 
@@ -487,6 +491,7 @@ export function PreviewVideoTool({
   output,
   errorText
 }: PreviewVideoToolProps) {
+  const { t } = useI18n()
   // Robust fallback for URL display
   const displayUrl = input?.video_url || input?.videoUrl || input?.url;
 
@@ -496,13 +501,13 @@ export function PreviewVideoTool({
       return (
         <div className="flex items-center gap-2 my-2 text-sm text-slate-500 dark:text-slate-400">
           <Search className="w-4 h-4 animate-pulse text-blue-500" />
-          <span>Fetching video info{displayUrl ? (() => {
+          <span>{displayUrl ? (() => {
             try {
-              return ` from ${new URL(displayUrl).hostname}...`;
+              return t("chat.tools.preview.fetchingFrom", { host: new URL(displayUrl).hostname });
             } catch {
-              return '...';
+              return t("chat.tools.preview.fetching") + '...';
             }
-          })() : '...'}</span>
+          })() : t("chat.tools.preview.fetching") + '...'}</span>
         </div>
       )
 
@@ -550,7 +555,7 @@ export function PreviewVideoTool({
           {/* Content */}
           <div className="p-4 space-y-2 min-w-0">
             <h3 className="font-medium text-sm line-clamp-2 leading-snug text-slate-800 dark:text-slate-200 break-words">
-              {output?.title || 'Untitled Video'}
+              {output?.title || t("chat.tools.preview.untitled")}
             </h3>
             {output?.channel && (
               <p className="text-xs text-muted-foreground">{output.channel}</p>
@@ -563,7 +568,7 @@ export function PreviewVideoTool({
       return (
         <div className="flex items-center gap-2 my-2 text-sm text-red-500">
           <AlertCircle className="w-4 h-4" />
-          <span>Failed to preview video: {errorText || 'Unknown error'}</span>
+          <span>{t("chat.tools.preview.errorPreview")}: {errorText || t("chat.tools.status.unknownError")}</span>
         </div>
       )
 
@@ -605,13 +610,15 @@ export function GetTaskOutputsTool({
   output,
   errorText
 }: GetTaskOutputsToolProps) {
+  const { t } = useI18n()
+
   switch (state) {
     case 'input-streaming':
     case 'input-available':
       return (
         <div className="flex items-center gap-2 my-2 text-sm text-slate-500 dark:text-slate-400">
           <FileText className="w-4 h-4 animate-pulse text-blue-500" />
-          <span>Retrieving content{input?.kinds ? ` (${input.kinds.join(', ')})` : ''}...</span>
+          <span>{t("chat.tools.outputs.retrieving")}{input?.kinds ? ` (${input.kinds.join(', ')})` : ''}...</span>
         </div>
       )
 
@@ -629,7 +636,7 @@ export function GetTaskOutputsTool({
         <div className="my-2 text-sm text-emerald-600 dark:text-emerald-400">
           <div className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4" />
-            <span>Retrieved {output?.count || 0} output(s)</span>
+            <span>{t("chat.tools.outputs.retrieved", { count: output?.count || 0 })}</span>
           </div>
         </div>
       )
@@ -638,7 +645,7 @@ export function GetTaskOutputsTool({
       return (
         <div className="flex items-center gap-2 my-2 text-sm text-red-500">
           <AlertCircle className="w-4 h-4" />
-          <span>Failed to get outputs: {errorText || 'Unknown error'}</span>
+          <span>{t("chat.tools.outputs.errorOutputs")}: {errorText || t("chat.tools.status.unknownError")}</span>
         </div>
       )
 
@@ -659,13 +666,15 @@ export function UnknownTool({
   toolName,
   state,
 }: UnknownToolProps) {
+  const { t } = useI18n()
+
   switch (state) {
     case 'input-streaming':
     case 'input-available':
       return (
         <div className="flex items-center gap-2 my-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-white/5 px-3 py-2 rounded-md border border-slate-100 dark:border-white/5 w-fit">
           <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
-          <span className="font-medium">Running: {toolName}...</span>
+          <span className="font-medium">{t("chat.tools.unknown.running", { name: toolName })}</span>
         </div>
       )
 
@@ -673,7 +682,7 @@ export function UnknownTool({
       return (
         <div className="flex items-center gap-2 my-2 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-500/10 px-3 py-2 rounded-md border border-emerald-100/50 dark:border-emerald-500/20 w-fit">
           <CheckCircle className="w-3 h-3" />
-          <span className="font-medium">Completed: {toolName}</span>
+          <span className="font-medium">{t("chat.tools.unknown.completed", { name: toolName })}</span>
         </div>
       )
 
@@ -681,7 +690,7 @@ export function UnknownTool({
       return (
         <div className="flex items-center gap-2 my-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10 px-3 py-2 rounded-md border border-red-100 dark:border-red-900/20 w-fit">
           <AlertCircle className="w-3 h-3" />
-          <span className="font-medium">Failed: {toolName}</span>
+          <span className="font-medium">{t("chat.tools.unknown.failed", { name: toolName })}</span>
         </div>
       )
 

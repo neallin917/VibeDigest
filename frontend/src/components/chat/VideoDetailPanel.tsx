@@ -166,15 +166,16 @@ const parseSummaryContent = (content: unknown): StructuredSummary | null => {
 
 // --- Sub-components ---
 
-function KeypointCard({ 
-  kp, 
-  idx, 
-  onSeek 
-}: { 
+function KeypointCard({
+  kp,
+  idx,
+  onSeek
+}: {
   kp: SummaryKeyPoint
   idx: number
-  onSeek: (seconds: number) => void 
+  onSeek: (seconds: number) => void
 }) {
+  const { t } = useI18n()
   const [showEvidence, setShowEvidence] = useState(true)
 
   return (
@@ -234,7 +235,7 @@ function KeypointCard({
             className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors uppercase tracking-[0.18em] select-none"
           >
             <Quote className="w-3 h-3" />
-            <span>Evidence</span>
+            <span>{t("tasks.summaryStructured.evidenceLabel")}</span>
             {showEvidence ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
           
@@ -453,7 +454,7 @@ export function VideoDetailPanel({
           <span className="p-1.5 bg-white/50 dark:bg-white/10 rounded-lg shadow-sm ring-1 ring-white dark:ring-white/20 backdrop-blur-md">
             <StickyNote className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
           </span>
-          Context Panel
+          {t("chat.contextPanel.title")}
         </h3>
         {onClose && (
           <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 hover:bg-white/20 dark:hover:bg-white/10">
@@ -531,14 +532,14 @@ export function VideoDetailPanel({
         {!summary && task.status === 'processing' && (
           <div className="rounded-2xl px-4 py-6 text-center border border-white/60 dark:border-white/10 bg-white/70 dark:bg-zinc-900/40 shadow-glass backdrop-blur-xl">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 dark:border-emerald-400 mb-2"></div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">Analyzing video...</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">{t("chat.contextPanel.analyzingVideo")}</p>
           </div>
         )}
 
         {/* Empty State */}
         {!summary && task.status === 'completed' && (
           <div className="rounded-2xl px-4 py-5 text-center text-[12px] text-slate-500 dark:text-slate-400 border border-white/60 dark:border-white/10 bg-white/70 dark:bg-zinc-900/40 shadow-glass backdrop-blur-xl">
-            No summary available.
+            {t("chat.contextPanel.noSummary")}
           </div>
         )}
 
