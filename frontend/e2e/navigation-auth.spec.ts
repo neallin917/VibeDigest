@@ -15,7 +15,7 @@ test.describe('Navigation & Auth Flows', () => {
         test('Landing Page: Navigation Links should work', async ({ page }) => {
             // Start at explicit locale to avoid redirect overhead
             await page.goto('/en');
-            await page.waitForLoadState('networkidle');
+            await expect(page.locator('h1')).toBeVisible();
 
             // 1. Test "FAQ" link
             const faqLink = page.locator('nav').getByRole('link', { name: /FAQ|常见问题/i }).filter({ visible: true }).first();
@@ -48,7 +48,7 @@ test.describe('Navigation & Auth Flows', () => {
 
         test('Logo Click: Should navigate to Landing Page', async ({ page }) => {
             await page.goto('/en/faq');
-            await page.waitForLoadState('networkidle');
+            await expect(page.locator('nav')).toBeVisible();
 
             const logo = page.locator('nav').getByRole('link', { name: /VibeDigest/i }).filter({ visible: true }).first();
             await expect(logo).toBeVisible();
@@ -80,7 +80,7 @@ test.describe('Navigation & Auth Flows', () => {
 
         test('Chat Page: Sending a message redirects to Login', async ({ page }) => {
             await page.goto('/en/chat');
-            await page.waitForLoadState('networkidle');
+            await expect(page.getByLabel(/Chat input/i)).toBeVisible();
 
             // Type a message in the chat input
             const chatInput = page.getByLabel(/Chat input/i).first();
@@ -99,7 +99,7 @@ test.describe('Navigation & Auth Flows', () => {
 
         test('Landing Page: Check "Send message" redirects to Login', async ({ page }) => {
             await page.goto('/en');
-            await page.waitForLoadState('networkidle');
+            await expect(page.locator('h1')).toBeVisible();
 
             // 1. Find the URL input
             const urlInput = page.getByLabel(/Chat input/i).first();

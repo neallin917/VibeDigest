@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupApiMocks } from './fixtures/mock-api';
+import { setupApiMocks, blockExternalImages } from './fixtures/mock-api';
 
 /**
  * Smoke tests for critical user paths.
@@ -144,6 +144,10 @@ test.describe('Login Page', () => {
 });
 
 test.describe('Navigation', () => {
+    test.beforeEach(async ({ page }) => {
+        await blockExternalImages(page);
+    });
+
     test('locale redirect works', async ({ page }) => {
         // Visit root, should redirect to /en or detect locale
         await page.goto('/');

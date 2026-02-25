@@ -1,4 +1,39 @@
-import { type Page } from '@playwright/test';
+import { type Page, type Route } from '@playwright/test';
+
+/** 1x1 transparent PNG as base64 */
+const TRANSPARENT_PIXEL = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64'
+);
+
+/**
+ * Block external image requests (YouTube thumbnails, etc.) that timeout in test environments.
+ * Returns a 1x1 transparent PNG instead.
+ *
+ * Next.js proxies external images through `/_next/image?url=<encoded-url>`,
+ * so we intercept those server-side proxy requests as well as any direct requests.
+ */
+export async function blockExternalImages(page: Page) {
+  const externalImageDomains = /i\.ytimg\.com|img\.youtube\.com|yt3\.ggpht\.com|i\.bilibili\.com/;
+
+  // Intercept Next.js image optimization proxy requests for external domains
+  await page.route(/\/_next\/image\?url=.*(?:i\.ytimg\.com|img\.youtube\.com|yt3\.ggpht\.com|i\.bilibili\.com)/, async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: TRANSPARENT_PIXEL,
+    });
+  });
+
+  // Also intercept any direct requests to external image domains
+  await page.route(externalImageDomains, async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: TRANSPARENT_PIXEL,
+    });
+  });
+}
 
 /**
  * Mocks common backend API responses for E2E stability.
@@ -109,4 +144,7 @@ export async function setupApiMocks(page: Page, options: { isAuthenticated?: boo
             body: JSON.stringify([])
         });
     });
+
+    // 5. Block external image requests (YouTube thumbnails timeout in test env)
+    await blockExternalImages(page);
 }
