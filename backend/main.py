@@ -36,6 +36,14 @@ async def startup_event():
     resolved_smart = provider_cfg.get("defaults", {}).get("smart") if provider_cfg else settings.MODEL_ALIAS_SMART
     resolved_fast = provider_cfg.get("defaults", {}).get("fast") if provider_cfg else settings.MODEL_ALIAS_FAST
 
+    # Fail-fast: require SUPABASE_JWT_SECRET in production
+    dev_bypass = os.getenv("DEV_AUTH_BYPASS", "").strip().lower() in {"1", "true", "yes"}
+    if not settings.MOCK_MODE and not dev_bypass and not settings.SUPABASE_JWT_SECRET:
+        raise RuntimeError(
+            "SUPABASE_JWT_SECRET is required when MOCK_MODE and DEV_AUTH_BYPASS are disabled. "
+            "Set it to your Supabase project's JWT secret (Settings → API → JWT Secret)."
+        )
+
     logger.info(">>> VibeDigest Backend Starting <<<")
     logger.info(f"LLM Provider:  {settings.LLM_PROVIDER}")
     logger.info(
@@ -45,6 +53,7 @@ async def startup_event():
         f"Fast Model:    {resolved_fast} (Temp: {settings.DEFAULT_TEMPERATURE})"
     )
     logger.info(f"OpenAI Base:   {settings.OPENAI_BASE_URL or 'Default'}")
+    logger.info(f"JWT Secret:    {'configured' if settings.SUPABASE_JWT_SECRET else 'MISSING'}")
     logger.info(">>> --------------------------- <<<")
 
     try:

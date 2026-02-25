@@ -100,4 +100,13 @@ describe('getProviderConfig', () => {
 
         expect(() => getProviderConfig('openrouter')).toThrow(/Missing API Key for provider: 'openrouter'/);
     });
+
+    it('throws on invalid baseURL format', () => {
+        // @ts-expect-error - writing to read-only property for test mocking
+        vi.mocked(env).OPENAI_BASE_URL = 'not-a-valid-url';
+        // @ts-expect-error - writing to read-only property for test mocking
+        vi.mocked(env).OPENAI_API_KEY = 'sk-openai-mock';
+
+        expect(() => getProviderConfig('custom')).toThrow(/Invalid base URL for provider 'custom'/);
+    });
 });
