@@ -1,5 +1,0 @@
-// This page is now handled by middleware.ts (rewrite to /[lang]/page.tsx)
-// If middleware fails or for some reason we land here, we can render nothing or a basic fallback.
-export default function RootPage() {
-  return null
-}
