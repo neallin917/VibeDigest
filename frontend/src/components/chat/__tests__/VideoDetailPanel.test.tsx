@@ -90,14 +90,14 @@ describe('VideoDetailPanel', () => {
   it('renders loading state initially', () => {
     mockSingle.mockResolvedValue({ data: null })
     render(<VideoDetailPanel taskId="task-123" />)
-    expect(screen.queryByText('Context Panel')).not.toBeInTheDocument()
+    expect(screen.queryByText('chat.contextPanel.title')).not.toBeInTheDocument()
   })
 
   it('renders task info and video player', async () => {
     render(<VideoDetailPanel taskId="task-123" />)
 
     await waitFor(() => {
-      expect(screen.getByText('Context Panel')).toBeInTheDocument()
+      expect(screen.getByText('chat.contextPanel.title')).toBeInTheDocument()
       expect(screen.getByTestId('video-player')).toBeInTheDocument()
     })
   })
@@ -218,7 +218,7 @@ describe('VideoDetailPanel', () => {
     render(<VideoDetailPanel taskId="task-123" />)
 
     await waitFor(() => {
-      expect(screen.getByText(/No summary available/i)).toBeInTheDocument()
+      expect(screen.getByText('chat.contextPanel.noSummary')).toBeInTheDocument()
     })
   })
 })
