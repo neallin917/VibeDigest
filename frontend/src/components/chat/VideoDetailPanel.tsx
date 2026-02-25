@@ -574,16 +574,11 @@ export function VideoDetailPanel({
                     key={`${section.section_type}-${sectionIndex}`}
                     className="rounded-3xl border border-white/60 dark:border-white/10 bg-white/75 dark:bg-zinc-900/60 shadow-glass backdrop-blur-2xl overflow-hidden flex flex-col"
                   >
-                    <div className="sticky top-0 z-10 bg-white/80 dark:bg-zinc-900/70 backdrop-blur-md px-5 py-4 border-b border-white/40 dark:border-white/10 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <span className="h-5 w-1 rounded-full bg-emerald-400/80 dark:bg-emerald-400/70" />
-                        <h4 className="text-[16px] font-semibold text-slate-900 dark:text-slate-100">
-                          {title}
-                        </h4>
-                      </div>
-                      <span className="shrink-0 text-[10px] font-semibold text-slate-600 dark:text-slate-400 bg-white/70 dark:bg-white/5 border border-white/50 dark:border-white/10 px-2 py-0.5 rounded-full uppercase tracking-widest">
-                        {section.section_type}
-                      </span>
+                    <div className="sticky top-0 z-10 bg-white/80 dark:bg-zinc-900/70 backdrop-blur-md px-5 py-4 border-b border-white/40 dark:border-white/10 flex items-center justify-start gap-3">
+                      <span className="h-5 w-1 rounded-full bg-emerald-400/80 dark:bg-emerald-400/70" />
+                      <h4 className="text-[16px] font-semibold text-slate-900 dark:text-slate-100">
+                        {title}
+                      </h4>
                     </div>
                     
                     <div className="p-5 pt-4">
