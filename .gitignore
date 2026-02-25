@@ -114,3 +114,23 @@ logs/security/
 
 # Data directory (content operations, media files, etc.)
 data/
+
+# Coverage & Test Artifacts
+htmlcov/
+.coverage
+coverage.xml
+coverage.json
+frontend/coverage/
+
+# Build Artifacts
+*.tsbuildinfo
+tsc_output.txt
+
+# Sensitive / Credentials
+yt-cookies.txt
+*.cookies.txt
+
+# Legacy / Stale Directories
+temp_backup/
+video/
+static/
