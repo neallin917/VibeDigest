@@ -57,7 +57,7 @@ export function I18nProvider({ children, locale: initialLocale }: { children: Re
   useEffect(() => {
     try {
       document.documentElement.lang = locale
-      document.documentElement.dir = locale === "ar" ? "rtl" : "ltr"
+      document.documentElement.dir = "ltr"
     } catch {
       // ignore
     }

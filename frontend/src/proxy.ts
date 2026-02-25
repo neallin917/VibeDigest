@@ -5,7 +5,7 @@ import { createServerClient } from '@supabase/ssr'
 import { env } from '@/env'
 import { updateSession } from '@/lib/supabase/proxy'
 
-const SUPPORTED_LOCALES = ["en", "zh", "es", "ar", "fr", "ru", "pt", "hi", "ja", "ko"]
+const SUPPORTED_LOCALES = ["en", "zh", "ja"]
 const DEFAULT_LOCALE = "en"
 
 const PROTECTED_ROUTES = ['/history', '/settings']
