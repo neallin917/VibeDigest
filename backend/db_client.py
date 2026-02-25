@@ -6,6 +6,8 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 import json
 import jwt
+from jwt import PyJWKClient
+from jwt.exceptions import PyJWKClientConnectionError, PyJWKClientError
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -22,11 +24,22 @@ PRO_LIMIT = 100
 class DBClient:
     def __init__(self):
         # JWT Secret for Supabase token verification (replaces supabase-py auth client)
-        self._jwt_secret = os.environ.get("SUPABASE_JWT_SECRET", "")
-        if not self._jwt_secret:
+        # Import settings lazily to avoid circular import at module level
+        from config import settings
+        self._jwt_secret = settings.SUPABASE_JWT_SECRET
+        self._supabase_url = settings.SUPABASE_URL
+        self._jwks_client: Optional[PyJWKClient] = None
+
+        # Initialize JWKS client for ES256/RS256 support
+        # Supabase exposes JWKS at /auth/v1/.well-known/jwks.json
+        if self._supabase_url:
+            jwks_url = f"{self._supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
+            self._jwks_client = PyJWKClient(jwks_url, cache_keys=True)
+
+        if not self._jwt_secret and not self._jwks_client:
             logger.warning(
-                "SUPABASE_JWT_SECRET not set. Token validation will fail. "
-                "Set it to your Supabase project's JWT secret."
+                "Neither SUPABASE_JWT_SECRET nor SUPABASE_URL set. "
+                "Token validation will fail."
             )
 
         # SQLAlchemy Engine (Single connection pool for ALL data operations)
@@ -459,24 +472,55 @@ class DBClient:
         finally:
             session.close()
 
+    def is_auth_configured(self) -> bool:
+        """Check whether JWT secret or JWKS client is available for token validation."""
+        return bool(self._jwt_secret) or bool(self._jwks_client)
+
     def validate_token(self, token: str) -> Optional[str]:
         """Validate Supabase JWT and return user_id.
 
-        Uses PyJWT to decode the token directly, eliminating the need for
-        a separate supabase-py client and its connection pool.
+        Supports both HS256 (legacy symmetric) and ES256/RS256 (asymmetric via JWKS).
+        Detects algorithm from token header and routes to the appropriate verification path.
         """
-        if not self._jwt_secret:
-            logger.error("JWT secret not configured, cannot validate token")
-            return None
+        if token.startswith("Bearer "):
+            token = token.split(" ")[1]
+
+        # Log token preview for debugging (first 20 chars only)
+        token_preview = token[:20] + "..." if len(token) > 20 else token
+        logger.debug(f"Validating token: {token_preview}")
+
+        # Detect algorithm from token header
         try:
-            if token.startswith("Bearer "):
-                token = token.split(" ")[1]
-            payload = jwt.decode(
-                token,
-                self._jwt_secret,
-                algorithms=["HS256"],
-                audience="authenticated",
-            )
+            header = jwt.get_unverified_header(token)
+            alg = header.get("alg", "HS256")
+        except jwt.DecodeError:
+            logger.error("Failed to decode token header")
+            return None
+
+        try:
+            if alg == "HS256" and self._jwt_secret:
+                # Legacy HS256 path (symmetric HMAC)
+                payload = jwt.decode(
+                    token,
+                    self._jwt_secret,
+                    algorithms=["HS256"],
+                    audience="authenticated",
+                )
+            elif self._jwks_client:
+                # ES256/RS256 path via JWKS (asymmetric)
+                signing_key = self._jwks_client.get_signing_key_from_jwt(token)
+                payload = jwt.decode(
+                    token,
+                    signing_key.key,
+                    algorithms=["ES256", "RS256"],
+                    audience="authenticated",
+                )
+            else:
+                logger.error(
+                    f"No suitable key material for token validation (alg={alg})"
+                )
+                return None
+
             user_id = payload.get("sub")
             if user_id:
                 return str(user_id)
@@ -484,6 +528,9 @@ class DBClient:
             return None
         except jwt.ExpiredSignatureError:
             logger.warning("Token has expired")
+            return None
+        except (PyJWKClientConnectionError, PyJWKClientError) as e:
+            logger.error(f"JWKS key fetch failed: {e}")
             return None
         except jwt.InvalidTokenError as e:
             logger.error(f"Token validation failed: {e}")

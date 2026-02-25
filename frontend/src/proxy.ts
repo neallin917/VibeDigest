@@ -3,6 +3,7 @@ import { match } from '@formatjs/intl-localematcher'
 import Negotiator from 'negotiator'
 import { createServerClient } from '@supabase/ssr'
 import { env } from '@/env'
+import { updateSession } from '@/lib/supabase/proxy'
 
 const SUPPORTED_LOCALES = ["en", "zh", "es", "ar", "fr", "ru", "pt", "hi", "ja", "ko"]
 const DEFAULT_LOCALE = "en"
@@ -23,14 +24,22 @@ function getLocale(request: NextRequest): string {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // Static assets: skip entirely (no auth needed)
   if (
     pathname.startsWith('/_next') ||
-    pathname.startsWith('/api') ||
     pathname.startsWith('/static') ||
     pathname.includes('.') ||
     pathname === '/favicon.ico'
   ) {
     return NextResponse.next()
+  }
+
+  // 1. Initialize session and refresh cookies
+  let { response, user } = await updateSession(request)
+
+  // API routes: session cookies are already refreshed in 'response'
+  if (pathname.startsWith('/api')) {
+    return response
   }
 
   const pathParts = pathname.split('/')
@@ -44,7 +53,10 @@ export async function proxy(request: NextRequest) {
     const detectedLocale = getLocale(request)
     const newUrl = new URL(`/${detectedLocale}${pathname}`, request.url)
     request.nextUrl.searchParams.forEach((v, k) => newUrl.searchParams.set(k, v))
-    return NextResponse.redirect(newUrl)
+    const redirectResponse = NextResponse.redirect(newUrl)
+    // Copy session cookies from updateSession response
+    response.cookies.getAll().forEach(c => redirectResponse.cookies.set(c.name, c.value, c))
+    return redirectResponse
   }
 
   const isProtectedRoute = PROTECTED_ROUTES.some(route => pathWithoutLocale.startsWith(route))
@@ -56,32 +68,19 @@ export async function proxy(request: NextRequest) {
     // NOTE: request.cookies.get returns an object { name, value }, we need .value
     const hasBypassCookie = request.cookies.get('VIBEDIGEST_E2E_AUTH_BYPASS')?.value === 'true'
     
-    // Create Supabase client to check actual session
-    const supabase = createServerClient(
-      env.NEXT_PUBLIC_SUPABASE_URL,
-      env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          getAll() { return request.cookies.getAll() },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          },
-        },
-      }
-    )
-
-    const { data: { user } } = await supabase.auth.getUser()
-
     // If no user AND no bypass cookie, block access
     if (!user && !hasBypassCookie) {
       const loginUrl = new URL(`/${locale}/login`, request.url)
-      return NextResponse.redirect(loginUrl)
+      const redirectResponse = NextResponse.redirect(loginUrl)
+      // Copy session cookies from updateSession response
+      response.cookies.getAll().forEach(c => redirectResponse.cookies.set(c.name, c.value, c))
+      return redirectResponse
     }
   }
 
-  return NextResponse.next()
+  return response
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }

@@ -4,7 +4,7 @@ import { env } from '@/env';
 import { extractUrl, findLastUrlInMessages } from '../utils';
 import type { ToolContext } from '../types';
 
-const API_BASE_URL = env.BACKEND_API_URL || 'http://127.0.0.1:8000';
+const API_BASE_URL = env.BACKEND_API_URL || 'http://127.0.0.1:16081';
 
 export const createTaskSchema = z.object({
     video_url: z
@@ -68,6 +68,14 @@ export function createCreateTaskTool(ctx: ToolContext) {
                 return { error: 'Authentication required' };
             }
 
+            if (!ctx.accessToken) {
+                return {
+                    error: 'SESSION_EXPIRED',
+                    user_action: 'sign_in_required',
+                    message: 'Your session has expired. Please sign in again.',
+                };
+            }
+
             try {
                 const response = await fetch(`${API_BASE_URL}/api/process-video`, {
                     method: 'POST',
@@ -79,6 +87,20 @@ export function createCreateTaskTool(ctx: ToolContext) {
                 });
                 const data = await response.json();
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        return {
+                            error: 'Authentication failed',
+                            user_action: 'sign_in_required',
+                            status: response.status,
+                        };
+                    }
+                    if (response.status === 503) {
+                        return {
+                            error: 'Service configuration error',
+                            details: 'The server is temporarily misconfigured. Please try again later.',
+                            status: response.status,
+                        };
+                    }
                     return {
                         error: 'Failed to create task',
                         details: data.detail || 'Unknown error',

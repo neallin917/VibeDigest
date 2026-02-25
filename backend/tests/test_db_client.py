@@ -20,7 +20,9 @@ def db_client_instance(mock_engine, mock_session):
         patch.dict(os.environ, {
             "DATABASE_URL": "postgresql://test:test@localhost/test",
             "SUPABASE_JWT_SECRET": "test-jwt-secret",
-        })
+        }),
+        patch("config.settings.SUPABASE_JWT_SECRET", "test-jwt-secret"),
+        patch("config.settings.SUPABASE_URL", ""),
     ):
         client = DBClient()
         # Ensure session factory returns our mock session
@@ -101,15 +103,274 @@ def test_get_task_outputs(db_client_instance, mock_session):
     assert len(results) == 2
 
 def test_validate_token_success(db_client_instance):
-    with patch('db_client.jwt.decode', return_value={"sub": "u1"}):
+    with (
+        patch('db_client.jwt.get_unverified_header', return_value={"alg": "HS256"}),
+        patch('db_client.jwt.decode', return_value={"sub": "u1"}),
+    ):
         user_id = db_client_instance.validate_token("Bearer token")
         assert user_id == "u1"
 
 def test_validate_token_failure(db_client_instance):
     import jwt as pyjwt
-    with patch('db_client.jwt.decode', side_effect=pyjwt.InvalidTokenError("bad")):
+    with (
+        patch('db_client.jwt.get_unverified_header', return_value={"alg": "HS256"}),
+        patch('db_client.jwt.decode', side_effect=pyjwt.InvalidTokenError("bad")),
+    ):
         user_id = db_client_instance.validate_token("token")
         assert user_id is None
+
+
+def test_validate_token_missing_secret(mock_engine, mock_session):
+    """When _jwt_secret is empty and no JWKS, validate_token should return None."""
+    with (
+        patch("db_client.create_engine", return_value=mock_engine),
+        patch("db_client.scoped_session", return_value=MagicMock(return_value=mock_session)),
+        patch.dict(os.environ, {"DATABASE_URL": "postgresql://test:test@localhost/test"}),
+        patch("config.settings.SUPABASE_JWT_SECRET", ""),
+        patch("config.settings.SUPABASE_URL", ""),
+    ):
+        client = DBClient()
+        assert client.is_auth_configured() is False
+        assert client.validate_token("Bearer some-token") is None
+
+
+def test_validate_token_with_real_jwt(mock_engine, mock_session):
+    """Use PyJWT to sign a real token and validate it end-to-end without mocking jwt.decode."""
+    import jwt as pyjwt
+    import time
+
+    secret = "test-real-secret-key"
+    user_id = "550e8400-e29b-41d4-a716-446655440000"
+    payload = {
+        "sub": user_id,
+        "aud": "authenticated",
+        "exp": int(time.time()) + 3600,
+        "iat": int(time.time()),
+    }
+    token = pyjwt.encode(payload, secret, algorithm="HS256")
+
+    with (
+        patch("db_client.create_engine", return_value=mock_engine),
+        patch("db_client.scoped_session", return_value=MagicMock(return_value=mock_session)),
+        patch.dict(os.environ, {"DATABASE_URL": "postgresql://test:test@localhost/test"}),
+        patch("config.settings.SUPABASE_JWT_SECRET", secret),
+        patch("config.settings.SUPABASE_URL", ""),
+    ):
+        client = DBClient()
+        assert client.is_auth_configured() is True
+        result = client.validate_token(f"Bearer {token}")
+        assert result == user_id
+
+
+def test_validate_token_expired_token(mock_engine, mock_session):
+    """An expired JWT should return None."""
+    import jwt as pyjwt
+    import time
+
+    secret = "test-secret-for-expiry"
+    payload = {
+        "sub": "some-user-id",
+        "aud": "authenticated",
+        "exp": int(time.time()) - 3600,  # expired 1 hour ago
+        "iat": int(time.time()) - 7200,
+    }
+    token = pyjwt.encode(payload, secret, algorithm="HS256")
+
+    with (
+        patch("db_client.create_engine", return_value=mock_engine),
+        patch("db_client.scoped_session", return_value=MagicMock(return_value=mock_session)),
+        patch.dict(os.environ, {"DATABASE_URL": "postgresql://test:test@localhost/test"}),
+        patch("config.settings.SUPABASE_JWT_SECRET", secret),
+        patch("config.settings.SUPABASE_URL", ""),
+    ):
+        client = DBClient()
+        assert client.validate_token(f"Bearer {token}") is None
+
+
+def test_validate_token_wrong_audience(mock_engine, mock_session):
+    """A token with wrong audience should return None."""
+    import jwt as pyjwt
+    import time
+
+    secret = "test-secret-for-audience"
+    payload = {
+        "sub": "some-user-id",
+        "aud": "wrong-audience",
+        "exp": int(time.time()) + 3600,
+        "iat": int(time.time()),
+    }
+    token = pyjwt.encode(payload, secret, algorithm="HS256")
+
+    with (
+        patch("db_client.create_engine", return_value=mock_engine),
+        patch("db_client.scoped_session", return_value=MagicMock(return_value=mock_session)),
+        patch.dict(os.environ, {"DATABASE_URL": "postgresql://test:test@localhost/test"}),
+        patch("config.settings.SUPABASE_JWT_SECRET", secret),
+        patch("config.settings.SUPABASE_URL", ""),
+    ):
+        client = DBClient()
+        assert client.validate_token(f"Bearer {token}") is None
+
+
+def test_validate_token_es256_via_jwks(mock_engine, mock_session):
+    """Validate an ES256-signed JWT using mocked JWKS client."""
+    import jwt as pyjwt
+    from cryptography.hazmat.primitives.asymmetric import ec
+    import time
+
+    # Generate an EC key pair for ES256
+    private_key = ec.generate_private_key(ec.SECP256R1())
+    public_key = private_key.public_key()
+
+    user_id = "es256-user-uuid-1234"
+    payload = {
+        "sub": user_id,
+        "aud": "authenticated",
+        "exp": int(time.time()) + 3600,
+        "iat": int(time.time()),
+    }
+    token = pyjwt.encode(payload, private_key, algorithm="ES256")
+
+    # Mock PyJWKClient to return our public key
+    mock_jwks_client = MagicMock()
+    mock_signing_key = MagicMock()
+    mock_signing_key.key = public_key
+    mock_jwks_client.get_signing_key_from_jwt.return_value = mock_signing_key
+
+    with (
+        patch("db_client.create_engine", return_value=mock_engine),
+        patch("db_client.scoped_session", return_value=MagicMock(return_value=mock_session)),
+        patch.dict(os.environ, {"DATABASE_URL": "postgresql://test:test@localhost/test"}),
+        patch("config.settings.SUPABASE_JWT_SECRET", ""),
+        patch("config.settings.SUPABASE_URL", "https://test.supabase.co"),
+        patch("db_client.PyJWKClient", return_value=mock_jwks_client),
+    ):
+        client = DBClient()
+        assert client.is_auth_configured() is True
+        result = client.validate_token(f"Bearer {token}")
+        assert result == user_id
+        mock_jwks_client.get_signing_key_from_jwt.assert_called_once_with(token)
+
+
+def test_validate_token_es256_expired(mock_engine, mock_session):
+    """An expired ES256 JWT should return None."""
+    import jwt as pyjwt
+    from cryptography.hazmat.primitives.asymmetric import ec
+    import time
+
+    private_key = ec.generate_private_key(ec.SECP256R1())
+    public_key = private_key.public_key()
+
+    payload = {
+        "sub": "some-user",
+        "aud": "authenticated",
+        "exp": int(time.time()) - 3600,
+        "iat": int(time.time()) - 7200,
+    }
+    token = pyjwt.encode(payload, private_key, algorithm="ES256")
+
+    mock_jwks_client = MagicMock()
+    mock_signing_key = MagicMock()
+    mock_signing_key.key = public_key
+    mock_jwks_client.get_signing_key_from_jwt.return_value = mock_signing_key
+
+    with (
+        patch("db_client.create_engine", return_value=mock_engine),
+        patch("db_client.scoped_session", return_value=MagicMock(return_value=mock_session)),
+        patch.dict(os.environ, {"DATABASE_URL": "postgresql://test:test@localhost/test"}),
+        patch("config.settings.SUPABASE_JWT_SECRET", ""),
+        patch("config.settings.SUPABASE_URL", "https://test.supabase.co"),
+        patch("db_client.PyJWKClient", return_value=mock_jwks_client),
+    ):
+        client = DBClient()
+        assert client.validate_token(f"Bearer {token}") is None
+
+
+def test_validate_token_hs256_fallback_when_both_configured(mock_engine, mock_session):
+    """When both JWT secret and JWKS are configured, HS256 tokens use the secret (not JWKS)."""
+    import jwt as pyjwt
+    import time
+
+    secret = "test-dual-config-secret"
+    user_id = "dual-config-user"
+    payload = {
+        "sub": user_id,
+        "aud": "authenticated",
+        "exp": int(time.time()) + 3600,
+        "iat": int(time.time()),
+    }
+    token = pyjwt.encode(payload, secret, algorithm="HS256")
+
+    mock_jwks_client = MagicMock()
+
+    with (
+        patch("db_client.create_engine", return_value=mock_engine),
+        patch("db_client.scoped_session", return_value=MagicMock(return_value=mock_session)),
+        patch.dict(os.environ, {"DATABASE_URL": "postgresql://test:test@localhost/test"}),
+        patch("config.settings.SUPABASE_JWT_SECRET", secret),
+        patch("config.settings.SUPABASE_URL", "https://test.supabase.co"),
+        patch("db_client.PyJWKClient", return_value=mock_jwks_client),
+    ):
+        client = DBClient()
+        result = client.validate_token(f"Bearer {token}")
+        assert result == user_id
+        # JWKS client should NOT have been called for HS256 tokens
+        mock_jwks_client.get_signing_key_from_jwt.assert_not_called()
+
+
+def test_validate_token_jwks_connection_error(mock_engine, mock_session):
+    """When JWKS endpoint is unreachable, validate_token returns None gracefully (no 500)."""
+    import jwt as pyjwt
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from jwt.exceptions import PyJWKClientConnectionError
+    import time
+
+    private_key = ec.generate_private_key(ec.SECP256R1())
+    payload = {
+        "sub": "some-user",
+        "aud": "authenticated",
+        "exp": int(time.time()) + 3600,
+        "iat": int(time.time()),
+    }
+    token = pyjwt.encode(payload, private_key, algorithm="ES256")
+
+    mock_jwks_client = MagicMock()
+    mock_jwks_client.get_signing_key_from_jwt.side_effect = PyJWKClientConnectionError(
+        'Fail to fetch data from the url, err: "HTTP Error 404: Not Found"'
+    )
+
+    with (
+        patch("db_client.create_engine", return_value=mock_engine),
+        patch("db_client.scoped_session", return_value=MagicMock(return_value=mock_session)),
+        patch.dict(os.environ, {"DATABASE_URL": "postgresql://test:test@localhost/test"}),
+        patch("config.settings.SUPABASE_JWT_SECRET", ""),
+        patch("config.settings.SUPABASE_URL", "https://test.supabase.co"),
+        patch("db_client.PyJWKClient", return_value=mock_jwks_client),
+    ):
+        client = DBClient()
+        # Should return None, NOT raise an exception
+        result = client.validate_token(f"Bearer {token}")
+        assert result is None
+
+
+def test_jwks_url_uses_auth_v1_path(mock_engine, mock_session):
+    """Verify JWKS client is initialized with the correct Supabase auth/v1 path."""
+    mock_jwks_constructor = MagicMock()
+
+    with (
+        patch("db_client.create_engine", return_value=mock_engine),
+        patch("db_client.scoped_session", return_value=MagicMock(return_value=mock_session)),
+        patch.dict(os.environ, {"DATABASE_URL": "postgresql://test:test@localhost/test"}),
+        patch("config.settings.SUPABASE_JWT_SECRET", ""),
+        patch("config.settings.SUPABASE_URL", "https://myproject.supabase.co"),
+        patch("db_client.PyJWKClient", mock_jwks_constructor),
+    ):
+        DBClient()
+        mock_jwks_constructor.assert_called_once_with(
+            "https://myproject.supabase.co/auth/v1/.well-known/jwks.json",
+            cache_keys=True,
+        )
+
 
 def test_check_and_consume_quota_success(db_client_instance, mock_session):
     # Mock get_profile
