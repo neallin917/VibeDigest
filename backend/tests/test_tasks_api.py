@@ -24,7 +24,8 @@ async def test_process_video_success(api_client, mock_db_client):
     """Successful task creation: task created and pipeline queued."""
     mock_db_client.create_task.return_value = {"id": "task_123"}
 
-    with patch("api.routes.tasks.run_pipeline"):
+    with patch("api.routes.tasks.run_pipeline"), \
+         patch("dependencies.increment_guest_usage"):
         response = await api_client.post("/api/process-video", data={"video_url": "https://youtube.com/watch?v=123"})
         assert response.status_code == 200
         assert response.json() == {"task_id": "task_123", "message": "Task started"}
