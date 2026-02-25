@@ -70,7 +70,7 @@ async def process_video(
         # 1.1 Mark usage if guest
         if is_guest:
             from dependencies import increment_guest_usage
-            increment_guest_usage(user_id) # user_id is the unique guest UUID
+            increment_guest_usage(user_id, db)  # user_id is the unique guest UUID
 
         # 1.2 Create Essential Placeholders
         db.create_task_output(task_id, db_user_id, kind="script")

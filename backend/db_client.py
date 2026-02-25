@@ -237,7 +237,12 @@ class DBClient:
             if guest_res is not None:
                 return int(guest_res)
 
-            # 2. Fallback to tasks table (Regular user_id)
+            # 2. Fallback to tasks table (Regular user_id — must be valid UUID)
+            try:
+                from uuid import UUID
+                UUID(identifier)  # validate UUID format
+            except (ValueError, AttributeError):
+                return 0
             query = text("SELECT COUNT(*) FROM tasks WHERE user_id = :id")
             result = conn.execute(query, {"id": identifier}).scalar()
             return int(result or 0)

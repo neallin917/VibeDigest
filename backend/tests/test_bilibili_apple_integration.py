@@ -27,23 +27,30 @@ class TestBilibiliAppleIntegration(unittest.IsolatedAsyncioTestCase):
         # Setup common mocks similar to TestWorkflow
         self.mock_db = MagicMock()
         self.mock_db.get_task_outputs.return_value = []
-        workflow.db_client = self.mock_db
 
         self.mock_supadata = AsyncMock()
-        workflow.supadata_client = self.mock_supadata
 
         self.mock_vp = AsyncMock()
-        workflow.video_processor = self.mock_vp
 
         self.mock_transcriber = AsyncMock()
-        workflow.transcriber = self.mock_transcriber
 
         self.mock_summarizer = MagicMock()
         self.mock_summarizer.classify_content = AsyncMock()
         self.mock_summarizer.summarize = AsyncMock()
         self.mock_summarizer.optimize_transcript = AsyncMock()
         self.mock_summarizer.fast_clean_transcript = MagicMock(side_effect=lambda x: x)
-        workflow.summarizer = self.mock_summarizer
+
+        # Patch getter functions instead of setting module-level attributes
+        for attr, mock in [
+            ('_get_db_client', self.mock_db),
+            ('_get_supadata_client', self.mock_supadata),
+            ('_get_video_processor', self.mock_vp),
+            ('_get_transcriber', self.mock_transcriber),
+            ('_get_summarizer', self.mock_summarizer),
+        ]:
+            p = patch(f'workflow.{attr}', return_value=mock)
+            p.start()
+            self.addCleanup(p.stop)
 
     @pytest.mark.xfail(reason="Bilibili spm_id_from stripping not implemented yet")
     def test_url_normalization_bilibili(self):
