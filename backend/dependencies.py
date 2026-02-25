@@ -90,9 +90,8 @@ async def get_current_user(
     return "00000000-0000-0000-0000-000000000001"
 
 
-def increment_guest_usage(guest_id: str):
+def increment_guest_usage(guest_id: str, db: DBClient):
     """Call this AFTER successful task creation. Persists to DB."""
     if guest_id:
-        db = get_db_client()
         db.track_guest_trial(guest_id)
         logger.info(f"Tracked guest usage for {guest_id} in DB")

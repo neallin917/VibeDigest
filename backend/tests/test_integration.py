@@ -58,9 +58,10 @@ def setup_test_data(async_client):
             ON CONFLICT (id) DO UPDATE SET usage_count = 0
         """), {"uid": TEST_USER_ID})
 
-        # Clean tasks
+        # Clean tasks and guest usage
         conn.execute(text("DELETE FROM task_outputs"))
         conn.execute(text("DELETE FROM tasks"))
+        conn.execute(text("DELETE FROM guest_usage"))
 
         conn.commit()
 
