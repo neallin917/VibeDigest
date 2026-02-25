@@ -38,11 +38,29 @@ export async function verifyAuth(): Promise<AuthResult | AuthError> {
     }
 
     const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+
+    if (!accessToken) {
+        console.error(
+            '[API/Chat] Auth: user verified but session has no access_token. ' +
+            'This typically means the session cookie is stale. ' +
+            'Ensure proxy.ts calls updateSession() for /api/* routes.'
+        );
+        return {
+            response: new Response(
+                JSON.stringify({
+                    error: 'Session expired',
+                    details: 'Your session cookie is stale. Please refresh the page and try again.',
+                }),
+                { status: 401, headers: { 'Content-Type': 'application/json' } }
+            ),
+        };
+    }
 
     return {
         supabase,
         user: authUser,
-        accessToken: session?.access_token,
+        accessToken,
     };
 }
 

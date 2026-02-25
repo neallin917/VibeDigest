@@ -429,6 +429,69 @@ describe('POST /api/chat', () => {
         }
     })
 
+    it('returns 503 when createProviderClient throws Missing API Key', async () => {
+        const { createProviderClient } = await import('@/lib/llm-config')
+        vi.mocked(createProviderClient).mockImplementationOnce(() => {
+            throw new Error("Missing API Key for provider: 'custom'. Please check environment variables (OPENAI_API_KEY or OPENROUTER_API_KEY).")
+        })
+
+        const req = new NextRequest('http://localhost/api/chat', {
+            method: 'POST',
+            body: JSON.stringify({
+                message: { content: 'Hello' },
+                threadId: 'thread-123'
+            })
+        })
+
+        const res = await POST(req)
+
+        expect(res.status).toBe(503)
+        const body = await res.json()
+        expect(body.error).toBe('Service Configuration Error')
+        expect(body.details).toContain('credentials are missing or invalid')
+    })
+
+    it('returns 502 when LLM provider is unreachable', async () => {
+        mockStreamText.mockImplementation(() => {
+            throw new Error('Failed after 3 attempts. Last error: Cannot connect to API: connect ECONNREFUSED 127.0.0.1:8045')
+        })
+
+        const req = new NextRequest('http://localhost/api/chat', {
+            method: 'POST',
+            body: JSON.stringify({
+                message: { content: 'Hello' },
+                threadId: 'thread-123'
+            })
+        })
+
+        const res = await POST(req)
+
+        expect(res.status).toBe(502)
+        const body = await res.json()
+        expect(body.error).toBe('LLM Service Unavailable')
+        expect(body.details).toContain('Cannot connect to the AI model endpoint')
+    })
+
+    it('returns 502 when LLM connection times out', async () => {
+        mockStreamText.mockImplementation(() => {
+            throw new Error('ETIMEDOUT: connection timed out to 10.0.0.1:443')
+        })
+
+        const req = new NextRequest('http://localhost/api/chat', {
+            method: 'POST',
+            body: JSON.stringify({
+                message: { content: 'Hello' },
+                threadId: 'thread-123'
+            })
+        })
+
+        const res = await POST(req)
+
+        expect(res.status).toBe(502)
+        const body = await res.json()
+        expect(body.error).toBe('LLM Service Unavailable')
+    })
+
     it('uses smart model for long follow-up with taskId', async () => {
         const originalFetch = global.fetch
         const fetchMock = vi.fn().mockResolvedValue({

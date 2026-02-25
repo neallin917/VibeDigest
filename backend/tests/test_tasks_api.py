@@ -95,6 +95,79 @@ async def test_get_task_status_not_found(api_client, mock_db_client):
     assert response.status_code == 404
 
 @pytest.mark.asyncio
+async def test_misconfigured_jwt_secret_returns_503(mock_db_client):
+    """When JWT secret is missing, backend should return 503 instead of 401."""
+    saved_overrides = dict(app.dependency_overrides)
+    try:
+        app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides[get_db_client] = lambda: mock_db_client
+
+        # Simulate missing JWT secret
+        mock_db_client.is_auth_configured.return_value = False
+
+        with patch("dependencies.settings") as mock_settings:
+            mock_settings.MOCK_MODE = False
+            with patch.dict(os.environ, {"DEV_AUTH_BYPASS": "0"}, clear=False):
+                transport = ASGITransport(app=app)
+                async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                    response = await ac.post(
+                        "/api/process-video",
+                        data={"video_url": "http://test"},
+                        headers={"Authorization": "Bearer some-token"}
+                    )
+                    assert response.status_code == 503
+                    assert "misconfigured" in response.json()["detail"].lower()
+    finally:
+        app.dependency_overrides = saved_overrides
+
+
+@pytest.mark.asyncio
+async def test_authenticated_user_can_create_task(mock_db_client, mock_video_processor):
+    """Test that a valid JWT token allows task creation (real auth path, no get_current_user override)."""
+    import jwt as pyjwt
+    import time
+
+    secret = "test-integration-secret"
+    user_id = "550e8400-e29b-41d4-a716-446655440000"
+    payload = {
+        "sub": user_id,
+        "aud": "authenticated",
+        "exp": int(time.time()) + 3600,
+        "iat": int(time.time()),
+    }
+    token = pyjwt.encode(payload, secret, algorithm="HS256")
+
+    # Configure mock db_client to validate the real token
+    mock_db_client.is_auth_configured.return_value = True
+    mock_db_client.validate_token.return_value = user_id
+    mock_db_client.create_task.return_value = {"id": "task_real_auth"}
+    mock_db_client.check_and_consume_quota.return_value = True
+
+    saved_overrides = dict(app.dependency_overrides)
+    try:
+        app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides[get_db_client] = lambda: mock_db_client
+        app.dependency_overrides[get_video_processor] = lambda: mock_video_processor
+
+        with patch("dependencies.settings") as mock_settings:
+            mock_settings.MOCK_MODE = False
+            with patch.dict(os.environ, {"DEV_AUTH_BYPASS": "0"}, clear=False), \
+                 patch("api.routes.tasks.run_pipeline"), \
+                 patch("dependencies.increment_guest_usage"):
+                transport = ASGITransport(app=app)
+                async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                    response = await ac.post(
+                        "/api/process-video",
+                        data={"video_url": "https://youtube.com/watch?v=test"},
+                        headers={"Authorization": f"Bearer {token}"}
+                    )
+                    assert response.status_code == 200
+                    assert response.json()["task_id"] == "task_real_auth"
+    finally:
+        app.dependency_overrides = saved_overrides
+
+
+@pytest.mark.asyncio
 async def test_unauthorized_access(mock_db_client):
     """Test that invalid auth token returns 401 when all bypasses are disabled."""
     saved_overrides = dict(app.dependency_overrides)

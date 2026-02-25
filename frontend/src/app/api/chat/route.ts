@@ -244,6 +244,25 @@ WRONG (NEVER USE):
             );
         }
 
+        const isConnectionErr =
+            errorMessage.includes('ECONNREFUSED') ||
+            errorMessage.includes('Cannot connect') ||
+            errorMessage.includes('ETIMEDOUT') ||
+            errorMessage.includes('ENOTFOUND') ||
+            errorMessage.includes('fetch failed');
+
+        if (isConnectionErr) {
+            console.error('[API/Chat] LLM Connection Error detected');
+            return new Response(
+                JSON.stringify({
+                    error: 'LLM Service Unavailable',
+                    details: 'Cannot connect to the AI model endpoint. Check that your LLM provider is running and OPENAI_BASE_URL is correct.',
+                    debug_details: env.NODE_ENV === 'development' ? errorMessage : undefined,
+                }),
+                { status: 502, headers: { 'Content-Type': 'application/json' } }
+            );
+        }
+
         return new Response(
             JSON.stringify({
                 error: 'Internal Server Error',

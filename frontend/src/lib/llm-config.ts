@@ -46,6 +46,13 @@ export function getProviderConfig(providerName: string): ProviderConfig {
         apiKey = env.OPENROUTER_API_KEY || '';
     }
 
+    // Fail Fast: Validate base URL format
+    try {
+        new URL(baseURL);
+    } catch {
+        throw new Error(`Invalid base URL for provider '${providerName}': '${baseURL}'. Must be a valid URL.`);
+    }
+
     // Fail Fast: Validate API Key
     if (!apiKey) {
         throw new Error(`Missing API Key for provider: '${providerName}'. Please check environment variables (OPENAI_API_KEY or OPENROUTER_API_KEY).`);

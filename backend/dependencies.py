@@ -72,6 +72,12 @@ async def get_current_user(
 
     # 1. AUTHENTICATED (Bearer token present)
     if authorization and authorization.startswith("Bearer "):
+        if not db.is_auth_configured():
+            logger.error("Authentication service misconfigured: SUPABASE_JWT_SECRET is missing")
+            raise HTTPException(
+                status_code=503,
+                detail="Authentication service misconfigured. Contact the administrator.",
+            )
         user_id = db.validate_token(authorization)
         if user_id:
             return user_id
