@@ -1,7 +1,7 @@
 
 import { createClient } from "@/lib/supabase-server"
 import type { Metadata, ResolvingMetadata } from "next"
-import { redirect } from "next/navigation"
+import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -285,7 +285,7 @@ export default async function TaskDetailPage(props: Props) {
     const { task, outputs } = await getTaskAndOutputs(id)
 
     if (!task) {
-        return <div className="p-10 text-center">Task not found</div>
+        notFound()
     }
 
     // SLUG ENFORCEMENT

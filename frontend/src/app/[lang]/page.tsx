@@ -24,6 +24,11 @@ const SEO_COPY: Record<string, { title: string; description: string }> = {
     description:
       "秒级生成 YouTube 和播客的摘要与逐字稿。用 VibeDigest 获取结构化笔记与可搜索要点。",
   },
+  ja: {
+    title: "VibeDigest - AI動画要約・文字起こしツール",
+    description:
+      "YouTube動画やポッドキャストを数秒で要約。AIによる文字起こし、構造化ノート、検索可能なハイライトを取得。",
+  },
 }
 
 export async function generateMetadata({
@@ -100,7 +105,7 @@ export default async function LandingPage({ params }: { params: Promise<{ lang: 
 
           <div className="mt-8 flex justify-center">
             <Link
-              href="/explore"
+              href={`/${lang}/explore`}
               className="group flex items-center gap-2 px-6 py-2.5 rounded-full text-sm bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 hover:border-emerald-200 dark:hover:border-primary/50 text-slate-700 dark:text-white font-medium transition-all hover:shadow-lg dark:hover:shadow-[0_0_20px_rgba(34,197,94,0.15)]"
             >
               View All
@@ -119,10 +124,10 @@ export default async function LandingPage({ params }: { params: Promise<{ lang: 
       <footer className="py-8 text-center text-slate-500 dark:text-gray-600 text-xs border-t border-slate-200 dark:border-white/5 relative z-10 bg-white/50 dark:bg-[#0A0A0A] backdrop-blur-sm">
         <p>© 2024 VibeDigest. All rights reserved.</p>
           <div className="mt-3 flex justify-center gap-5">
-            <Link href="/about" className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '关于我们' : 'About'}</Link>
-            <Link href="/faq" className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '常见问题' : 'FAQ'}</Link>
-            <Link href="/privacy" className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '隐私政策' : 'Privacy Policy'}</Link>
-            <Link href="/terms" className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '服务条款' : 'Terms of Service'}</Link>
+            <Link href={`/${lang}/about`} className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '关于我们' : lang === 'ja' ? '私たちについて' : 'About'}</Link>
+            <Link href={`/${lang}/faq`} className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '常见问题' : lang === 'ja' ? 'よくある質問' : 'FAQ'}</Link>
+            <Link href={`/${lang}/privacy`} className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '隐私政策' : lang === 'ja' ? 'プライバシーポリシー' : 'Privacy Policy'}</Link>
+            <Link href={`/${lang}/terms`} className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '服务条款' : lang === 'ja' ? '利用規約' : 'Terms of Service'}</Link>
           </div>
       </footer>
     </div>

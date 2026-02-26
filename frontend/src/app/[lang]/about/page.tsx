@@ -9,9 +9,9 @@ type Props = {
     }>
 }
 
-const CONTENT = {
+const CONTENT: Record<string, { title: string; subtitle: string; positioning: string; useCases: { title: string; description: string }[]; founder: { name: string; role: string; bio: string } }> = {
     en: {
-        title: "VibeDigest",
+        title: "About VibeDigest - AI Video Summarizer",
         subtitle: "What is VibeDigest?",
         positioning: "VibeDigest is an AI-powered content transformation platform designed to help you master knowledge from any video or audio source. We believe that in an era of information explosion, the ability to quickly extract essence from long-form content is a superpower.",
         useCases: [
@@ -39,7 +39,7 @@ const CONTENT = {
         }
     },
     zh: {
-        title: "VibeDigest",
+        title: "关于 VibeDigest - AI 视频摘要助手",
         subtitle: "什么是 VibeDigest?",
         positioning: "VibeDigest 是一个 AI 驱动的内容转化平台，旨在帮助您从任何视频或音频源中掌握知识。我们相信，在信息爆炸的时代，从长内容中快速提取精华的能力是一种「超能力」。",
         useCases: [
@@ -65,18 +65,59 @@ const CONTENT = {
             role: "VibeDigest 创始人",
             bio: "一名热爱开发和内容的开发者，热衷于构建能够弥合信息与洞察之间鸿沟的工具。VibeDigest 诞生于「在更短时间内吸收更多知识」的个人需求。"
         }
+    },
+    ja: {
+        title: "VibeDigestについて - AI動画要約ツール",
+        subtitle: "VibeDigestとは？",
+        positioning: "VibeDigestは、あらゆる動画・音声ソースから知識を効率的に習得するためのAIコンテンツ変換プラットフォームです。情報爆発の時代において、長尺コンテンツからエッセンスを素早く抽出する力は「超能力」だと私たちは信じています。",
+        useCases: [
+            {
+                title: "学術・研究",
+                description: "長い講義や研究セミナーを構造化されたノートに素早くまとめます。"
+            },
+            {
+                title: "キャリア成長",
+                description: "何時間も視聴せずに、業界ポッドキャストやウェビナーの要点を把握。"
+            },
+            {
+                title: "コンテンツ制作",
+                description: "バズ動画から重要なインサイトや引用を抽出し、研究や執筆に活用。"
+            },
+            {
+                title: "語学学習",
+                description: "AIによる文字起こしと翻訳で、外国語コンテンツを理解。"
+            }
+        ],
+        founder: {
+            name: "Neal Lin",
+            role: "VibeDigest 創設者",
+            bio: "情報とインサイトの間のギャップを埋めるツール作りに情熱を注ぐ開発者兼コンテンツ愛好家。VibeDigestは「より短い時間でより多くの知識を吸収したい」という個人的なニーズから生まれました。"
+        }
     }
+}
+
+const ABOUT_SEO: Record<string, { title: string; description: string }> = {
+    en: {
+        title: "About Us - VibeDigest AI Video Summarizer",
+        description: "Learn about VibeDigest and the story behind it. Our mission is to help users efficiently absorb knowledge from long-form video and audio content using AI.",
+    },
+    zh: {
+        title: "关于我们 - VibeDigest AI 视频摘要助手",
+        description: "了解 VibeDigest 及其背后的故事。我们的使命是利用 AI 帮助用户高效吸收长视频和音频内容中的知识。",
+    },
+    ja: {
+        title: "私たちについて - VibeDigest AI動画要約ツール",
+        description: "VibeDigestとその背景をご紹介。AIを活用して長尺動画・音声コンテンツから効率的に知識を吸収することが私たちのミッションです。",
+    },
 }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
     const params = await props.params;
     const { lang } = params
-    const isZh = lang === "zh"
+    const seo = ABOUT_SEO[lang] ?? ABOUT_SEO.en
 
-    const title = isZh ? "关于我们 - VibeDigest AI 视频摘要助手" : "About Us - VibeDigest AI Video Summarizer"
-    const description = isZh
-        ? "了解 VibeDigest 及其背后的故事。我们的使命是利用 AI 帮助用户高效吸收长视频和音频内容中的知识。"
-        : "Learn about VibeDigest and the story behind it. Our mission is to help users efficiently absorb knowledge from long-form video and audio content using AI."
+    const title = seo.title
+    const description = seo.description
     const path = "/about"
 
     return {
@@ -102,7 +143,8 @@ export default async function AboutPage(props: Props) {
     const params = await props.params;
     const { lang } = params
     const isZh = lang === "zh"
-    const content = isZh ? CONTENT.zh : CONTENT.en
+    const isJa = lang === "ja"
+    const content = CONTENT[lang] ?? CONTENT.en
 
     // Organization Schema
     const organizationSchema = {
@@ -138,7 +180,7 @@ export default async function AboutPage(props: Props) {
                 <div className="max-w-4xl mx-auto">
                     {/* Hero Section */}
                     <div className="text-center mb-24">
-                        <h1 className="text-5xl md:text-6xl font-extrabold bg-clip-text text-transparent bg-gradient-to-b from-slate-900 to-slate-600 dark:from-white dark:to-white/60 mb-8">
+                        <h1 className="text-4xl md:text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-b from-slate-900 to-slate-600 dark:from-white dark:to-white/60 mb-8">
                             {content.title}
                         </h1>
                         <h2 className="text-xl md:text-2xl font-medium text-indigo-600 dark:text-primary mb-12">
@@ -188,13 +230,13 @@ export default async function AboutPage(props: Props) {
 
                     <div className="mt-24 text-center">
                         <p className="text-slate-600 dark:text-muted-foreground mb-8">
-                            {isZh ? "准备好提升您的效率了吗？" : "Ready to boost your efficiency?"}
+                            {isZh ? "准备好提升您的效率了吗？" : isJa ? "効率を上げる準備はできましたか？" : "Ready to boost your efficiency?"}
                         </p>
                         <Link
-                            href="/login"
+                            href={`/${lang}/login`}
                             className="inline-flex items-center justify-center px-10 py-4 rounded-full bg-indigo-600 dark:bg-primary text-white dark:text-primary-foreground font-bold text-lg hover:scale-105 active:scale-95 transition-all shadow-lg shadow-indigo-500/20 dark:shadow-primary/20"
                         >
-                            {isZh ? "立即开始使用" : "Get Started Now"}
+                            {isZh ? "立即开始使用" : isJa ? "今すぐ始める" : "Get Started Now"}
                         </Link>
                     </div>
                 </div>
