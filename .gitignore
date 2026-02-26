@@ -130,6 +130,16 @@ tsc_output.txt
 yt-cookies.txt
 *.cookies.txt
 
+# Test output / results (generated)
+backend/tests/results/
+backend/tests/integration/output/
+
+# Visual regression snapshots (OS-specific binaries)
+frontend/e2e/**/*-snapshots/
+
+# Google site verification (manage via deployment, not git)
+frontend/public/google*.html
+
 # Legacy / Stale Directories
 temp_backup/
 video/
