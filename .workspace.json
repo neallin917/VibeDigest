@@ -1,5 +1,0 @@
-{
-  "workspace_id": "local",
-  "frontend_port": 3002,
-  "backend_url": "http://localhost:16081"
-}
