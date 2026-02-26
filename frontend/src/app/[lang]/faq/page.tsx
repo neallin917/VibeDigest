@@ -9,7 +9,7 @@ type Props = {
     }>
 }
 
-const FAQS = {
+const FAQS: Record<string, { question: string; answer: string }[]> = {
     en: [
         {
             question: "What is VibeDigest?",
@@ -61,36 +61,74 @@ const FAQS = {
             question: "你们支持多种语言吗？",
             answer: "当然。VibeDigest 可以转写和摘要超过 50 种语言的视频。它还包含翻译层，因此您可以用母语无障碍地消费外语内容。"
         }
+    ],
+    ja: [
+        {
+            question: "VibeDigestとは何ですか？",
+            answer: "VibeDigestは、AIを活用した動画要約・文字起こしツールです。長いYouTube動画、ポッドキャスト、インタビューを構造化された要約、インタラクティブな文字起こし、マインドマップで素早く理解できます。研究者、学生、コンテンツクリエイター向けに設計されています。"
+        },
+        {
+            question: "VibeDigestは無料で使えますか？",
+            answer: "はい、VibeDigestは無料のStarterプランを提供しており、月3本まで（1本15分以内）の動画を要約できます。ヘビーユーザー向けに、無制限の要約、長時間動画対応、Notionエクスポートなどの高度な機能を備えたPlusプランもあります。"
+        },
+        {
+            question: "どのプラットフォームに対応していますか？",
+            answer: "現在、YouTube、Apple Podcasts、Bilibili、小宇宙に対応しています。さまざまなソースからの知識を統合できるよう、対応プラットフォームを順次追加しています。"
+        },
+        {
+            question: "文字起こしと要約の精度はどうですか？",
+            answer: "OpenAIのGPT-4oやAnthropicのClaude 3.5 Sonnetなど、最先端のAIモデルを使用して高い精度を確保しています。AIは完璧ではありませんが、インタラクティブな文字起こし機能により、要約の任意の部分を元の動画と照合できます。"
+        },
+        {
+            question: "要約をエクスポートできますか？",
+            answer: "もちろんです！要約やノートをMarkdown、PDF、またはNotionに直接エクスポートできます。個人のナレッジベース（PKM）に学習内容を統合するのが簡単になります。"
+        },
+        {
+            question: "多言語に対応していますか？",
+            answer: "はい。VibeDigestは50以上の言語の動画を文字起こし・要約できます。翻訳レイヤーも搭載しているため、外国語コンテンツを母語でシームレスに消費できます。"
+        }
     ]
+}
+
+const FAQ_SEO: Record<string, { title: string; description: string; ogDescription: string }> = {
+    en: {
+        title: "Frequently Asked Questions (FAQ) - VibeDigest AI Video Summarizer",
+        description: "Answers to common questions about VibeDigest. Learn how to summarize YouTube videos with AI, pricing details, and supported platforms.",
+        ogDescription: "Common questions about VibeDigest features, pricing, and supported platforms.",
+    },
+    zh: {
+        title: "常见问题 (FAQ) - VibeDigest AI 视频摘要助手",
+        description: "关于 VibeDigest 的常见问题解答。了解如何使用 AI 快速摘要 YouTube 和 Bilibili 视频，以及我们的定价和功能详情。",
+        ogDescription: "了解 VibeDigest 的常见问题与功能支持。",
+    },
+    ja: {
+        title: "よくある質問 (FAQ) - VibeDigest AI動画要約ツール",
+        description: "VibeDigestに関するよくある質問と回答。AIによるYouTube動画の要約方法、料金プラン、対応プラットフォームについて。",
+        ogDescription: "VibeDigestの機能、料金、対応プラットフォームに関するよくある質問。",
+    },
 }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
     const params = await props.params;
     const { lang } = params
-    const isZh = lang === "zh"
+    const seo = FAQ_SEO[lang] ?? FAQ_SEO.en
     const path = "/faq"
 
     return {
-        title: isZh ? "常见问题 (FAQ) - VibeDigest AI 视频摘要助手" : "Frequently Asked Questions (FAQ) - VibeDigest AI Video Summarizer",
-        description: isZh
-            ? "关于 VibeDigest 的常见问题解答。了解如何使用 AI 快速摘要 YouTube 和 Bilibili 视频，以及我们的定价和功能详情。"
-            : "Answers to common questions about VibeDigest. Learn how to summarize YouTube videos with AI, pricing details, and supported platforms.",
+        title: seo.title,
+        description: seo.description,
         alternates: {
             canonical: buildLocalizedPath(lang, path),
             languages: buildAlternateLanguages(path),
         },
         openGraph: {
-            title: isZh ? "VibeDigest FAQ" : "VibeDigest FAQ",
-            description: isZh
-                ? "了解 VibeDigest 的常见问题与功能支持。"
-                : "Common questions about VibeDigest features, pricing, and supported platforms.",
+            title: "VibeDigest FAQ",
+            description: seo.ogDescription,
             url: buildLocalizedPath(lang, path),
         },
         twitter: {
-            title: isZh ? "VibeDigest FAQ" : "VibeDigest FAQ",
-            description: isZh
-                ? "了解 VibeDigest 的常见问题与功能支持。"
-                : "Common questions about VibeDigest features, pricing, and supported platforms.",
+            title: "VibeDigest FAQ",
+            description: seo.ogDescription,
         },
     }
 }
@@ -98,8 +136,9 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 export default async function FAQPage(props: Props) {
     const params = await props.params;
     const { lang } = params
+    const content = FAQS[lang] ?? FAQS.en
     const isZh = lang === "zh"
-    const content = isZh ? FAQS.zh : FAQS.en
+    const isJa = lang === "ja"
 
     // Schema.org FAQPage Structured Data
     const faqSchema = {
@@ -133,10 +172,10 @@ export default async function FAQPage(props: Props) {
                 <div className="max-w-3xl mx-auto">
                     <div className="text-center mb-16">
                         <h1 className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-slate-900 to-slate-600 dark:from-white dark:to-white/60 mb-6">
-                            {isZh ? "常见问题" : "Frequently Asked Questions"}
+                            {isZh ? "常见问题" : isJa ? "よくある質問" : "Frequently Asked Questions"}
                         </h1>
                         <p className="text-base text-slate-600 dark:text-muted-foreground">
-                            {isZh ? "关于 VibeDigest 您需要了解的一切" : "Everything you need to know about VibeDigest"}
+                            {isZh ? "关于 VibeDigest 您需要了解的一切" : isJa ? "VibeDigestについて知っておくべきすべて" : "Everything you need to know about VibeDigest"}
                         </p>
                     </div>
 
@@ -146,9 +185,9 @@ export default async function FAQPage(props: Props) {
                                 key={index}
                                 className="group p-6 rounded-2xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 hover:bg-white/80 dark:hover:bg-white/[0.07] transition-all duration-300 shadow-lg dark:shadow-none"
                             >
-                                <h3 className="text-lg font-semibold mb-3 text-slate-800 dark:text-white/90 group-hover:text-indigo-600 dark:group-hover:text-primary transition-colors">
+                                <h2 className="text-lg font-semibold mb-3 text-slate-800 dark:text-white/90 group-hover:text-indigo-600 dark:group-hover:text-primary transition-colors">
                                     {item.question}
-                                </h3>
+                                </h2>
                                 <p className="text-slate-600 dark:text-muted-foreground leading-relaxed text-sm">
                                     {item.answer}
                                 </p>
@@ -157,23 +196,23 @@ export default async function FAQPage(props: Props) {
                     </div>
 
                     <div className="mt-20 text-center p-8 rounded-2xl bg-gradient-to-b from-indigo-500/10 dark:from-emerald-900/10 to-transparent border border-slate-200 dark:border-white/5">
-                        <h2 className="text-xl font-bold mb-4 text-slate-900 dark:text-white">
-                            {isZh ? "还有其他问题？" : "Still have questions?"}
-                        </h2>
+                        <h3 className="text-xl font-bold mb-4 text-slate-900 dark:text-white">
+                            {isZh ? "还有其他问题？" : isJa ? "まだ質問がありますか？" : "Still have questions?"}
+                        </h3>
                         <p className="text-slate-600 dark:text-muted-foreground mb-8 text-sm">
-                            {isZh ? "我们随时为您提供帮助。发送邮件给我们。" : "We're here to help. Send us an email."}
+                            {isZh ? "我们随时为您提供帮助。发送邮件给我们。" : isJa ? "お気軽にお問い合わせください。" : "We're here to help. Send us an email."}
                         </p>
                         <Link
-                            href="/about"
+                            href={`/${lang}/about`}
                             className="inline-flex items-center justify-center px-6 py-3 rounded-full bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white font-medium hover:bg-slate-200 dark:hover:bg-white/20 transition-colors mr-4"
                         >
-                            {isZh ? "关于我们" : "About Us"}
+                            {isZh ? "关于我们" : isJa ? "私たちについて" : "About Us"}
                         </Link>
                         <a
                             href="mailto:support@vibedigest.io"
                             className="inline-flex items-center justify-center px-6 py-3 rounded-full bg-indigo-600 dark:bg-white text-white dark:text-black font-medium hover:bg-indigo-700 dark:hover:bg-gray-200 transition-colors"
                         >
-                            {isZh ? "联系支持" : "Contact Support"}
+                            {isZh ? "联系支持" : isJa ? "サポートに連絡" : "Contact Support"}
                         </a>
                     </div>
                 </div>

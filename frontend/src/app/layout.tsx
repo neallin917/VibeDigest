@@ -1,22 +1,19 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "VibeDigest",
   description: "AI-powered video summarization and chat",
 };
 
+/**
+ * Root layout — kept minimal since the real HTML shell is in [lang]/layout.tsx.
+ * Fonts, analytics, and structured data are handled by the locale-specific layout.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>{children}</body>
-    </html>
-  );
+  return children;
 }

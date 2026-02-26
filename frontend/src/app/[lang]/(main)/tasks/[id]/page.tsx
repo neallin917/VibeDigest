@@ -1,6 +1,6 @@
 
 import { createClient } from "@/lib/supabase-server";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 
 // Only need ID for this redirect page
 type Props = {
@@ -33,7 +33,7 @@ export default async function TaskRedirectPage(props: Props) {
     const task = await getTask(id);
 
     if (!task) {
-        return <div className="p-10 text-center">Task not found</div>
+        notFound()
     }
 
     const slug = generateSlug(task.video_title || "video");

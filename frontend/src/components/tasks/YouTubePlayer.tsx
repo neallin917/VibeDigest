@@ -211,6 +211,7 @@ export function YouTubePlayer({
             src={coverUrl}
             alt={title || "Video thumbnail"}
             fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 75vw, 50vw"
             className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
             unoptimized={false}
           />

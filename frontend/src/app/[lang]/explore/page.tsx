@@ -18,6 +18,11 @@ const SEO_COPY: Record<string, { title: string; description: string }> = {
         description:
             "浏览精选的 AI 视频摘要库，快速获取教程、新闻、评测等内容的核心要点。",
     },
+    ja: {
+        title: "AI動画要約を探索 | VibeDigest",
+        description:
+            "厳選されたAI動画要約ライブラリを閲覧。チュートリアル、ニュース、テクレビューなどのインサイトを発見。",
+    },
 }
 
 export async function generateMetadata({
@@ -48,7 +53,8 @@ export async function generateMetadata({
     }
 }
 
-export default function ExplorePage() {
+export default async function ExplorePage({ params }: { params: Promise<{ lang: string }> }) {
+    const { lang } = await params
     return (
         <div className="min-h-screen bg-transparent text-slate-800 dark:text-[#F5F5F5] font-sans flex flex-col">
             <LandingNav />
@@ -84,8 +90,8 @@ export default function ExplorePage() {
             <footer className="py-8 text-center text-slate-500 dark:text-gray-600 text-xs border-t border-slate-200 dark:border-white/5 relative z-10 bg-white/50 dark:bg-[#0A0A0A] backdrop-blur-sm">
                 <p>© 2024 VibeDigest. All rights reserved.</p>
                 <div className="mt-3 flex justify-center gap-5">
-                    <Link href="/privacy" className="hover:text-slate-900 dark:hover:text-white transition-colors">Privacy Policy</Link>
-                    <Link href="/terms" className="hover:text-slate-900 dark:hover:text-white transition-colors">Terms of Service</Link>
+                    <Link href={`/${lang}/privacy`} className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '隐私政策' : lang === 'ja' ? 'プライバシーポリシー' : 'Privacy Policy'}</Link>
+                    <Link href={`/${lang}/terms`} className="hover:text-slate-900 dark:hover:text-white transition-colors">{lang === 'zh' ? '服务条款' : lang === 'ja' ? '利用規約' : 'Terms of Service'}</Link>
                 </div>
             </footer>
         </div>
