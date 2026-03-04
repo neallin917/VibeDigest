@@ -5,12 +5,17 @@ This module handles sending email notifications using the Resend API.
 It is primarily used for sending user feedback to the development team.
 """
 
+import html as html_lib
 import os
+import re
 import logging
 import resend
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
 
 class Notifier:
     """
@@ -28,10 +33,19 @@ class Notifier:
 
         Loads RESEND_API_KEY, FEEDBACK_FROM_EMAIL, and FEEDBACK_TO_EMAIL
         from environment variables.
+
+        Raises:
+            ValueError: If FEEDBACK_FROM_EMAIL is set but has an invalid format.
         """
         self.api_key = os.environ.get("RESEND_API_KEY")
         self.from_email = os.environ.get("FEEDBACK_FROM_EMAIL", "onboarding@resend.dev")
         self.to_email = os.environ.get("FEEDBACK_TO_EMAIL")
+
+        if self.from_email and not EMAIL_PATTERN.match(self.from_email):
+            raise ValueError(
+                f"Invalid FEEDBACK_FROM_EMAIL: '{self.from_email}'. "
+                f"Expected format: user@domain.tld"
+            )
 
         if self.api_key:
             resend.api_key = self.api_key
@@ -55,14 +69,19 @@ class Notifier:
         try:
             subject = f"[VibeDigest Feedback] {category.upper()} from {user_id}"
 
+            safe_category = html_lib.escape(category)
+            safe_user_id = html_lib.escape(user_id)
+            safe_contact = html_lib.escape(contact_email or "Not provided")
+            safe_message = html_lib.escape(message)
+
             html_content = f"""
             <h3>New Feedback Received</h3>
-            <p><strong>Category:</strong> {category}</p>
-            <p><strong>User ID:</strong> {user_id}</p>
-            <p><strong>Contact Email:</strong> {contact_email or "Not provided"}</p>
+            <p><strong>Category:</strong> {safe_category}</p>
+            <p><strong>User ID:</strong> {safe_user_id}</p>
+            <p><strong>Contact Email:</strong> {safe_contact}</p>
             <hr>
             <h4>Message:</h4>
-            <pre style="font-family: sans-serif; white-space: pre-wrap;">{message}</pre>
+            <pre style="font-family: sans-serif; white-space: pre-wrap;">{safe_message}</pre>
             """
 
             r = resend.Emails.send({

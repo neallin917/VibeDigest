@@ -110,7 +110,7 @@ IMAGE_TEMPLATE = """
             <div class="p-2 bg-white/5 rounded-xl border border-white/10 shadow-inner">
                 <img src="{logo_path}" class="w-8 h-8 rounded-lg">
             </div>
-            <span class="text-[#F5F5F5] font-bold text-xl tracking-tight">Vibedigest.neallin.xyz</span>
+            <span class="text-[#F5F5F5] font-bold text-xl tracking-tight">vibedigest.io</span>
         </div>
 
         <!-- Title -->
@@ -136,7 +136,7 @@ IMAGE_TEMPLATE = """
         <div class="mt-16 pt-10 border-t border-white/5 flex justify-between items-end">
             <div class="flex flex-col space-y-1">
                 <span class="text-white/30 text-xs uppercase tracking-widest font-medium">Powered by AI Video Summarizer</span>
-                <span class="text-[#3ECF8E] font-bold text-xl tracking-wide">Vibedigest.neallin.xyz</span>
+                <span class="text-[#3ECF8E] font-bold text-xl tracking-wide">vibedigest.io</span>
             </div>
             <div class="flex flex-col items-end space-y-3">
                 <div class="px-5 py-2 bg-[#3ECF8E]/10 rounded-full border border-[#3ECF8E]/20">
