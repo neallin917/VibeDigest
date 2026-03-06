@@ -37,13 +37,6 @@ def _make_response(status_code: int, json_data: dict) -> httpx.Response:
     )
 
 
-def _patch_langfuse():
-    """Patch langfuse import to avoid pydantic v1 issues in Python 3.14."""
-    import sys
-    # Temporarily remove langfuse from importable modules to trigger the except branch
-    return patch.dict(sys.modules, {"langfuse": None})
-
-
 def _mock_httpx_client(mock_get_fn):
     """Create a mock httpx.AsyncClient with the given get side_effect."""
     mock_client = AsyncMock()
@@ -77,10 +70,7 @@ class TestSupadataClient429Retry:
 
         mock_client = _mock_httpx_client(mock_get)
 
-        with (
-            patch("services.supadata_client.httpx.AsyncClient", return_value=mock_client),
-            _patch_langfuse(),
-        ):
+        with patch("services.supadata_client.httpx.AsyncClient", return_value=mock_client):
             markdown, raw_json, lang = await client.get_transcript_async("https://youtube.com/watch?v=test")
 
         assert markdown is not None
@@ -98,10 +88,7 @@ class TestSupadataClient429Retry:
 
         mock_client = _mock_httpx_client(mock_get)
 
-        with (
-            patch("services.supadata_client.httpx.AsyncClient", return_value=mock_client),
-            _patch_langfuse(),
-        ):
+        with patch("services.supadata_client.httpx.AsyncClient", return_value=mock_client):
             result = await client.get_transcript_async("https://youtube.com/watch?v=test")
 
         assert result == (None, None, None)
@@ -129,10 +116,7 @@ class TestSupadataBackwardCompatibility:
 
         mock_client = _mock_httpx_client(mock_get)
 
-        with (
-            patch("services.supadata_client.httpx.AsyncClient", return_value=mock_client),
-            _patch_langfuse(),
-        ):
+        with patch("services.supadata_client.httpx.AsyncClient", return_value=mock_client):
             markdown, raw_json, lang = await client.get_transcript_async("https://youtube.com/watch?v=test")
 
         assert used_headers["x-api-key"] == "my_key"

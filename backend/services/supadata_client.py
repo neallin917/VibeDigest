@@ -99,219 +99,196 @@ class SupadataClient:
     async def get_transcript_async(
         self, video_url: str
     ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-        """
-        Async version to fetch transcript.
-        Uses Langfuse span tracking when available (inherits context from propagate_attributes).
-        """
-        from contextlib import nullcontext
+        """Async version to fetch transcript."""
+        if not self.rotator:
+            logger.warning("Supadata API key not configured. Skipping.")
+            return None, None, None
 
-        # Langfuse V3: Create a span for this external API call
-        try:
-            from langfuse import get_client
+        url = f"{self.BASE_URL}/transcript"
+        params = {"url": video_url, "text": "false", "mode": "auto"}
 
-            langfuse = get_client()
-            observation_ctx = (
-                langfuse.start_as_current_observation(
-                    as_type="span",
-                    name="Supadata Transcript",
-                    input={"video_url": video_url},
-                )
-                if langfuse
-                else nullcontext()
-            )
-        except Exception:
-            observation_ctx = nullcontext()
+        max_attempts = len(self.rotator._keys)
 
-        with observation_ctx:
-            if not self.rotator:
-                logger.warning("Supadata API key not configured. Skipping.")
-                return None, None, None
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            for attempt in range(max_attempts):
+                try:
+                    current_key = self.rotator.get_key()
+                except RuntimeError:
+                    logger.warning("All Supadata API keys are rate-limited.")
+                    return None, None, None
 
-            url = f"{self.BASE_URL}/transcript"
-            params = {"url": video_url, "text": "false", "mode": "auto"}
+                try:
+                    logger.info(f"Calling Supadata API for: {video_url} (attempt {attempt + 1}/{max_attempts})")
+                    resp = await client.get(
+                        url, headers=self._get_headers(key=current_key), params=params
+                    )
 
-            max_attempts = len(self.rotator._keys)
+                    if resp.status_code == 429:
+                        logger.warning(
+                            "Supadata API key rate-limited (429). Rotating key."
+                        )
+                        self.rotator.report_rate_limited(current_key)
+                        continue
 
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                for attempt in range(max_attempts):
-                    try:
-                        current_key = self.rotator.get_key()
-                    except RuntimeError:
-                        logger.warning("All Supadata API keys are rate-limited.")
+                    if resp.status_code not in (200, 201, 202):
+                        logger.warning(
+                            f"Supadata API error {resp.status_code}: {resp.text}"
+                        )
                         return None, None, None
 
-                    try:
-                        logger.info(f"Calling Supadata API for: {video_url} (attempt {attempt + 1}/{max_attempts})")
-                        resp = await client.get(
-                            url, headers=self._get_headers(key=current_key), params=params
+                    data = resp.json()
+                    logger.info(f"Supadata raw response keys: {list(data.keys())}")
+
+                    # Check if it's a Job ID (async processing) or direct result
+                    if "jobId" in data:
+                        job_id = data["jobId"]
+                        logger.info(f"Supadata returned Job ID {job_id}, polling...")
+                        data = await self._poll_job(client, job_id)
+                        if not data:
+                            return None, None, None
+
+                    content = data.get("content")
+                    if not content or not isinstance(content, list):
+                        logger.warning(
+                            "Supadata returned invalid content format (expected list of segments)."
+                        )
+                        return None, None, None
+
+                    detected_lang = data.get("lang", "unknown")
+
+                    # Convert to OpenAI-compatible segments
+                    openai_segments = []
+                    for seg in content:
+                        offset_ms = seg.get("offset", 0)
+                        duration_ms = seg.get("duration", 0)
+                        text = seg.get("text", "")
+                        start_s = offset_ms / 1000.0
+                        end_s = (offset_ms + duration_ms) / 1000.0
+                        openai_segments.append(
+                            {"start": start_s, "end": end_s, "text": text}
                         )
 
-                        if resp.status_code == 429:
-                            logger.warning(
-                                "Supadata API key rate-limited (429). Rotating key."
-                            )
-                            self.rotator.report_rate_limited(current_key)
-                            continue
+                    # Merge small segments into sentence-like chunks
+                    merged_segments = []
+                    current_chunk = {"start": 0.0, "end": 0.0, "text": ""}
+                    current_parts: List[str] = []
 
-                        if resp.status_code not in (200, 201, 202):
-                            logger.warning(
-                                f"Supadata API error {resp.status_code}: {resp.text}"
-                            )
-                            return None, None, None
+                    is_cjk = detected_lang in [
+                        "zh", "zh-CN", "zh-TW",
+                        "ja", "ja-JP",
+                        "ko", "ko-KR",
+                        "chinese", "japanese", "korean",
+                    ]
 
-                        data = resp.json()
-                        logger.info(f"Supadata raw response keys: {list(data.keys())}")
+                    for i, seg in enumerate(openai_segments):
+                        text = seg["text"]
+                        start = seg["start"]
+                        end = seg["end"]
 
-                        # Check if it's a Job ID (async processing) or direct result
-                        if "jobId" in data:
-                            job_id = data["jobId"]
-                            logger.info(f"Supadata returned Job ID {job_id}, polling...")
-                            data = await self._poll_job(client, job_id)
-                            if not data:
-                                return None, None, None
+                        if is_cjk:
+                            text = text.replace(" ", "")
 
-                        content = data.get("content")
-                        if not content or not isinstance(content, list):
-                            logger.warning(
-                                "Supadata returned invalid content format (expected list of segments)."
-                            )
-                            return None, None, None
+                        if not current_parts:
+                            current_chunk["start"] = start
 
-                        detected_lang = data.get("lang", "unknown")
+                        current_parts.append(text)
+                        current_chunk["end"] = end
 
-                        # Convert to OpenAI-compatible segments
-                        openai_segments = []
-                        for seg in content:
-                            offset_ms = seg.get("offset", 0)
-                            duration_ms = seg.get("duration", 0)
-                            text = seg.get("text", "")
-                            start_s = offset_ms / 1000.0
-                            end_s = (offset_ms + duration_ms) / 1000.0
-                            openai_segments.append(
-                                {"start": start_s, "end": end_s, "text": text}
-                            )
+                        join_char = "" if is_cjk else " "
+                        if not is_cjk:
+                            current_parts = [p.strip() for p in current_parts]
 
-                        # Merge small segments into sentence-like chunks
-                        merged_segments = []
-                        current_chunk = {"start": 0.0, "end": 0.0, "text": ""}
-                        current_parts: List[str] = []
+                        joined_text = join_char.join(current_parts).strip()
+                        duration = end - current_chunk["start"]
 
-                        is_cjk = detected_lang in [
-                            "zh", "zh-CN", "zh-TW",
-                            "ja", "ja-JP",
-                            "ko", "ko-KR",
-                            "chinese", "japanese", "korean",
-                        ]
+                        is_punctuation = (
+                            text.strip() and text.strip()[-1] in ".!?。！？"
+                        )
+                        is_long_duration = duration > 5.0
+                        is_long_text = len(joined_text) > 50
 
-                        for i, seg in enumerate(openai_segments):
-                            text = seg["text"]
-                            start = seg["start"]
-                            end = seg["end"]
-
-                            if is_cjk:
-                                text = text.replace(" ", "")
-
-                            if not current_parts:
-                                current_chunk["start"] = start
-
-                            current_parts.append(text)
-                            current_chunk["end"] = end
-
-                            join_char = "" if is_cjk else " "
-                            if not is_cjk:
-                                current_parts = [p.strip() for p in current_parts]
-
-                            joined_text = join_char.join(current_parts).strip()
-                            duration = end - current_chunk["start"]
-
-                            is_punctuation = (
-                                text.strip() and text.strip()[-1] in ".!?。！？"
-                            )
-                            is_long_duration = duration > 5.0
-                            is_long_text = len(joined_text) > 50
-
-                            if (
-                                is_punctuation
-                                or (is_long_duration and len(joined_text) > 20)
-                                or is_long_text
-                            ):
-                                merged_segments.append(
-                                    {
-                                        "start": current_chunk["start"],
-                                        "end": end,
-                                        "text": joined_text,
-                                    }
-                                )
-                                current_parts = []
-                                current_chunk = {"start": 0.0, "end": 0.0, "text": ""}
-
-                        # Flush remaining
-                        if current_parts:
-                            join_char = "" if is_cjk else " "
-                            if not is_cjk:
-                                current_parts = [p.strip() for p in current_parts]
+                        if (
+                            is_punctuation
+                            or (is_long_duration and len(joined_text) > 20)
+                            or is_long_text
+                        ):
                             merged_segments.append(
                                 {
                                     "start": current_chunk["start"],
-                                    "end": current_chunk["end"],
-                                    "text": join_char.join(current_parts).strip(),
+                                    "end": end,
+                                    "text": joined_text,
                                 }
                             )
+                            current_parts = []
+                            current_chunk = {"start": 0.0, "end": 0.0, "text": ""}
 
-                        final_segments = []
-                        for s in merged_segments:
-                            final_segments.append(
-                                {
-                                    "start": s["start"],
-                                    "end": s["end"],
-                                    "duration": s["end"] - s["start"],
-                                    "text": s["text"],
-                                }
-                            )
-
-                        raw_payload = {
-                            "version": 1,
-                            "model": "supadata-auto",
-                            "language": detected_lang,
-                            "segments": final_segments,
-                        }
-                        raw_json = json.dumps(raw_payload, ensure_ascii=False)
-
-                        from .transcriber import format_markdown_from_raw_segments
-
-                        markdown_text = format_markdown_from_raw_segments(
-                            final_segments, detected_language=detected_lang
+                    # Flush remaining
+                    if current_parts:
+                        join_char = "" if is_cjk else " "
+                        if not is_cjk:
+                            current_parts = [p.strip() for p in current_parts]
+                        merged_segments.append(
+                            {
+                                "start": current_chunk["start"],
+                                "end": current_chunk["end"],
+                                "text": join_char.join(current_parts).strip(),
+                            }
                         )
 
-                        # Validation: Check for known demo/mock content
-                        if (
-                            "Adaptive Learning Framework" in markdown_text
-                            or "ALF" in markdown_text
-                        ):
-                            logger.warning(
-                                "Supadata returned generic demo/mock content (Adaptive Learning Framework). Treating as failure to force fallback."
-                            )
-                            return None, None, None
-
-                        # Log content preview for debugging
-                        preview = (
-                            markdown_text[:200]
-                            if len(markdown_text) > 200
-                            else markdown_text
-                        )
-                        logger.info(
-                            f"Supadata transcript preview ({len(final_segments)} segments, lang={detected_lang}): {preview}"
+                    final_segments = []
+                    for s in merged_segments:
+                        final_segments.append(
+                            {
+                                "start": s["start"],
+                                "end": s["end"],
+                                "duration": s["end"] - s["start"],
+                                "text": s["text"],
+                            }
                         )
 
-                        return markdown_text, raw_json, detected_lang
+                    raw_payload = {
+                        "version": 1,
+                        "model": "supadata-auto",
+                        "language": detected_lang,
+                        "segments": final_segments,
+                    }
+                    raw_json = json.dumps(raw_payload, ensure_ascii=False)
 
-                    except Exception as e:
-                        logger.error(f"Supadata request failed: {e}")
+                    from .transcriber import format_markdown_from_raw_segments
+
+                    markdown_text = format_markdown_from_raw_segments(
+                        final_segments, detected_language=detected_lang
+                    )
+
+                    # Validation: Check for known demo/mock content
+                    if (
+                        "Adaptive Learning Framework" in markdown_text
+                        or "ALF" in markdown_text
+                    ):
+                        logger.warning(
+                            "Supadata returned generic demo/mock content (Adaptive Learning Framework). Treating as failure to force fallback."
+                        )
                         return None, None, None
 
-                # All attempts exhausted (all keys returned 429)
-                logger.warning("All Supadata API keys exhausted after retries.")
-                return None, None, None
+                    # Log content preview for debugging
+                    preview = (
+                        markdown_text[:200]
+                        if len(markdown_text) > 200
+                        else markdown_text
+                    )
+                    logger.info(
+                        f"Supadata transcript preview ({len(final_segments)} segments, lang={detected_lang}): {preview}"
+                    )
+
+                    return markdown_text, raw_json, detected_lang
+
+                except Exception as e:
+                    logger.error(f"Supadata request failed: {e}")
+                    return None, None, None
+
+            # All attempts exhausted (all keys returned 429)
+            logger.warning("All Supadata API keys exhausted after retries.")
+            return None, None, None
 
     async def _poll_job(
         self, client: httpx.AsyncClient, job_id: str, max_retries: int = 150

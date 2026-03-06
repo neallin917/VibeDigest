@@ -10,23 +10,7 @@ from langchain_core.outputs import ChatGenerationChunk
 
 logger = logging.getLogger(__name__)
 
-# Langfuse v3: Use langfuse.openai wrapper for automatic tracing
-try:
-    from langfuse.openai import OpenAI as LangfuseOpenAI
-    from langfuse.openai import AsyncOpenAI as LangfuseAsyncOpenAI
-
-    HAS_LANGFUSE = True
-except (ImportError, Exception) as e:
-    logger.warning(
-        f"Langfuse Initialization Failed (Falling back to standard OpenAI): {e}"
-    )
-    HAS_LANGFUSE = False
-    try:
-        from openai import OpenAI as LangfuseOpenAI
-        from openai import AsyncOpenAI as LangfuseAsyncOpenAI
-    except ImportError:
-        LangfuseOpenAI = None
-        LangfuseAsyncOpenAI = None
+from openai import OpenAI, AsyncOpenAI
 
 
 class RateLimitAwareChatLiteLLM(ChatLiteLLM):
@@ -114,10 +98,7 @@ class RateLimitAwareChatLiteLLM(ChatLiteLLM):
 
 
 def get_openai_client(base_url: Optional[str] = None) -> Any:
-    """
-    Factory to get an OpenAI client (Synchronous).
-    Uses Langfuse-wrapped client if available for automatic tracing.
-    """
+    """Factory to get an OpenAI client (Synchronous)."""
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         logger.warning("OPENAI_API_KEY not set in environment.")
@@ -126,15 +107,12 @@ def get_openai_client(base_url: Optional[str] = None) -> Any:
     final_base_url = base_url or os.getenv("OPENAI_BASE_URL")
 
     if final_base_url:
-        return LangfuseOpenAI(api_key=api_key, base_url=final_base_url)
-    return LangfuseOpenAI(api_key=api_key)
+        return OpenAI(api_key=api_key, base_url=final_base_url)
+    return OpenAI(api_key=api_key)
 
 
 def get_async_openai_client(base_url: Optional[str] = None) -> Any:
-    """
-    Factory to get an Async OpenAI client.
-    Uses Langfuse-wrapped client if available for automatic tracing.
-    """
+    """Factory to get an Async OpenAI client."""
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         logger.warning("OPENAI_API_KEY not set in environment.")
@@ -143,8 +121,8 @@ def get_async_openai_client(base_url: Optional[str] = None) -> Any:
     final_base_url = base_url or os.getenv("OPENAI_BASE_URL")
 
     if final_base_url:
-        return LangfuseAsyncOpenAI(api_key=api_key, base_url=final_base_url)
-    return LangfuseAsyncOpenAI(api_key=api_key)
+        return AsyncOpenAI(api_key=api_key, base_url=final_base_url)
+    return AsyncOpenAI(api_key=api_key)
 
 
 def get_async_audio_client(base_url: Optional[str] = None) -> Any:
@@ -177,8 +155,8 @@ def get_async_audio_client(base_url: Optional[str] = None) -> Any:
         final_base_url = os.getenv("OPENAI_BASE_URL")
 
     if final_base_url:
-        return LangfuseAsyncOpenAI(api_key=api_key, base_url=final_base_url)
-    return LangfuseAsyncOpenAI(api_key=api_key)
+        return AsyncOpenAI(api_key=api_key, base_url=final_base_url)
+    return AsyncOpenAI(api_key=api_key)
 
 
 # Factory for LangChain Chat Models

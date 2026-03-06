@@ -18,15 +18,9 @@ async def test_run_pipeline_success(mock_db_client):
     with (
         patch("services.background_tasks.get_db_client", return_value=mock_db_client),
         patch("services.background_tasks.workflow_app") as mock_workflow,
-        patch("services.background_tasks.get_langfuse_client") as mock_lf,
-        patch("services.background_tasks.propagate_langfuse_attributes") as mock_prop
     ):
-        
+
         mock_workflow.ainvoke = AsyncMock()
-        
-        # Setup context managers
-        mock_lf.start_as_current_observation.return_value.__enter__.return_value = None
-        mock_prop.return_value.__enter__.return_value = None
 
         await run_pipeline("task_1", "http://vid", "u1")
 
