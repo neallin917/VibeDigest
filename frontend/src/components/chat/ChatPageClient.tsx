@@ -59,8 +59,14 @@ function ChatPageContent() {
     // Track newly created thread IDs to skip loading
     const newThreadIdsRef = useRef<Set<string>>(new Set())
     const hasBootstrappedRef = useRef(false)
+    // Flag to prevent main useEffect from re-running when user-initiated navigation
+    // changes URL params. This relies on React 18+ automatic batching: setState calls
+    // within the same event handler are batched, so the useEffect won't fire between
+    // setActiveThreadId() and safeReplace() in handleSelectThread/handleNewChat/handleSelectTask.
+    const isUserNavigatingRef = useRef(false)
     const latestSearchParamsRef = useRef(searchParamsString)
-    // 🆕 Track navigation history for cycle detection
+    // [Safety net] Navigation history for cycle detection — fallback defense-in-depth.
+    // Primary protection is isUserNavigatingRef above; this catches unexpected edge cases.
     const navigationHistoryRef = useRef<Array<{ url: string; timestamp: number }>>([])
     const resolvedActiveThreadId = queryThreadId || activeThreadId
     const resolvedActiveTaskId = queryTaskId ?? activeTaskId
@@ -78,7 +84,7 @@ function ChatPageContent() {
         const currentSearch = latestSearchParamsRef.current
         if (nextSearch === currentSearch) return false
 
-        // 🆕 Cycle detection: Check if we're oscillating between URLs
+        // [Safety net] Cycle detection: block oscillating URL navigations (defense-in-depth)
         const now = Date.now()
         const recentHistory = navigationHistoryRef.current.filter(
             (entry) => now - entry.timestamp < 2000 // 2 second window
@@ -192,6 +198,13 @@ function ChatPageContent() {
 
     // Keep local state synchronized with URL params and ensure a thread exists.
     useEffect(() => {
+        // Skip if a user-initiated navigation (handleSelectThread/handleNewChat/handleSelectTask)
+        // already handled state + URL updates — avoids duplicate fetches and race conditions.
+        if (isUserNavigatingRef.current) {
+            isUserNavigatingRef.current = false
+            return
+        }
+
         let cancelled = false
 
         const initialize = async () => {
@@ -279,6 +292,9 @@ function ChatPageContent() {
 
     // Handle New Chat
     const handleNewChat = useCallback(() => {
+        // Prevent main useEffect from re-running due to URL param changes
+        isUserNavigatingRef.current = true
+
         const newId = uuidv4()
 
         // Mark as new thread to skip loading
@@ -298,8 +314,14 @@ function ChatPageContent() {
 
     // Handle Thread Selection (from sidebar)
     const handleSelectThread = useCallback(async (threadId: string) => {
+        // Prevent main useEffect from re-running due to URL param changes
+        isUserNavigatingRef.current = true
+
         // Remove from new threads set (in case it was added but now has messages)
         newThreadIdsRef.current.delete(threadId)
+
+        // Immediately update activeThreadId so UI responds right away
+        setActiveThreadId(threadId)
 
         // Restore task association from the thread's persisted task_id
         const restoredTaskId = await fetchThreadTaskId(threadId)
@@ -322,20 +344,20 @@ function ChatPageContent() {
                 const dbMessages: DBMessage[] = await res.json()
                 const uiMessages = dbMessages.map(mapDBMessageToUIMessage)
                 setInitialMessages(uiMessages)
-                setActiveThreadId(threadId)
             } else {
                 setInitialMessages([])
-                setActiveThreadId(threadId)
             }
         } catch (e) {
             console.error("Failed to load thread messages", e)
             setInitialMessages([])
-            setActiveThreadId(threadId)
         }
     }, [getCurrentParams, safeReplace])
 
     // Handle Task Selection (from Sidebar or Workspace)
     const handleSelectTask = useCallback(async (taskId: string | null) => {
+        // Prevent main useEffect from re-running due to URL param changes
+        isUserNavigatingRef.current = true
+
         const params = getCurrentParams()
 
         if (!taskId) {
