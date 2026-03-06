@@ -1,47 +1,13 @@
 import asyncio
 import json
 import logging
-import importlib
 from typing import Any, cast
-from contextlib import nullcontext
 
 from workflow import app as workflow_app, VideoProcessingState
 from .transcriber import format_markdown_from_raw_segments
 from dependencies import get_db_client, get_summarizer
 
 logger = logging.getLogger(__name__)
-
-def get_langfuse_client(*args: Any, **kwargs: Any) -> Any:
-    try:
-        langfuse = importlib.import_module("langfuse")
-        return langfuse.get_client(*args, **kwargs)
-    except Exception:
-        return None
-
-
-def propagate_langfuse_attributes(
-    *,
-    user_id: str | None = None,
-    session_id: str | None = None,
-    metadata: dict[str, str] | None = None,
-    version: str | None = None,
-    tags: list[str] | None = None,
-    trace_name: str | None = None,
-    as_baggage: bool = False,
-):
-    try:
-        langfuse = importlib.import_module("langfuse")
-        return cast(Any, langfuse.propagate_attributes)(
-            user_id=user_id,
-            session_id=session_id,
-            metadata=metadata,
-            version=version,
-            tags=tags,
-            trace_name=trace_name,
-            as_baggage=as_baggage,
-        )
-    except Exception:
-        return nullcontext()
 
 # Concurrency Control
 MAX_CONCURRENT_JOBS = 4
@@ -51,7 +17,6 @@ async def run_pipeline(task_id: str, video_url: str, user_id: str):
     """
     Main orchestration pipeline.
     Wrapped in a Semaphore to limit concurrency.
-    Uses Langfuse propagate_attributes for automatic trace context propagation.
     """
     db_client = get_db_client()
 
@@ -60,42 +25,27 @@ async def run_pipeline(task_id: str, video_url: str, user_id: str):
             f"Task {task_id} acquiring execution slot... (Active: {MAX_CONCURRENT_JOBS - processing_limiter._value})"
         )
 
-        langfuse = get_langfuse_client()
-        observation_ctx = (
-            langfuse.start_as_current_observation(
-                as_type="span",
-                name="Video Processing Pipeline",
-                input={"video_url": video_url},
-            )
-            if langfuse
-            else nullcontext()
+        logger.info(
+            f"[Pipeline Start] Task={task_id}, URL={video_url}"
         )
 
-        with observation_ctx:
-            with propagate_langfuse_attributes(
-                session_id=str(task_id), user_id=str(user_id), tags=["pipeline"]
-            ):
-                logger.info(
-                    f"[Pipeline Start] Task={task_id}, URL={video_url}"
-                )
+        try:
+            # Initialize input state
+            initial_state: VideoProcessingState = {
+                "task_id": task_id,
+                "user_id": user_id,
+                "video_url": video_url,
+                "errors": [],
+                "cache_hit": False,
+                "is_youtube": False,
+            }
 
-                try:
-                    # Initialize input state
-                    initial_state: VideoProcessingState = {
-                        "task_id": task_id,
-                        "user_id": user_id,
-                        "video_url": video_url,
-                        "errors": [],
-                        "cache_hit": False,
-                        "is_youtube": False,
-                    }
+            # Invoke Graph
+            await workflow_app.ainvoke(cast(Any, initial_state))
 
-                    # Invoke Graph
-                    await workflow_app.ainvoke(cast(Any, initial_state))
-
-                except Exception as e:
-                    logger.error(f"Pipeline crashed: {e}")
-                    db_client.update_task_status(task_id, status="error", error=str(e))
+        except Exception as e:
+            logger.error(f"Pipeline crashed: {e}")
+            db_client.update_task_status(task_id, status="error", error=str(e))
 
 
 async def handle_retry_output(output_id: str, user_id: str):

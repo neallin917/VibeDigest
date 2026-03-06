@@ -56,15 +56,6 @@ async def startup_event():
     logger.info(f"JWT Secret:    {'configured' if settings.SUPABASE_JWT_SECRET else 'MISSING'}")
     logger.info(">>> --------------------------- <<<")
 
-    try:
-        from langfuse import get_client
-
-        lf = get_client()
-        if lf:
-            lf.flush()
-    except Exception:
-        pass
-
 # CORS Configuration
 # Default to production and localhost
 DEFAULT_ORIGINS = [
