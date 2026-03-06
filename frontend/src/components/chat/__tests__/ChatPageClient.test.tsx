@@ -19,6 +19,10 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/en/chat'
 }))
 
+vi.mock('@/lib/thread-utils', () => ({
+  fetchThreadTaskId: vi.fn(async () => null)
+}))
+
 vi.mock('@/components/layout/AppSidebarContext', () => ({
   AppSidebarProvider: ({ children }: { children: any }) => <>{children}</>
 }))
@@ -35,6 +39,8 @@ vi.mock('../ChatWorkspace', () => ({
       data-task-id={props.activeTaskId || ''}
     >
       <button onClick={() => props.onSelectTask('task-b')}>Select Task B</button>
+      <button onClick={() => props.onSelectThread?.('thread-b')}>Select Thread B</button>
+      <button onClick={() => props.onSelectThread?.('thread-c')}>Select Thread C</button>
       <button onClick={() => props.onChatStarted?.(props.activeThreadId || 'thread-a')}>Chat Started</button>
     </div>
   )
@@ -191,5 +197,68 @@ describe('ChatPageClient', () => {
       expect(fetchMock).toHaveBeenCalledWith('/api/chat/threads')
     })
     expect(replaceMock).not.toHaveBeenCalled()
+  })
+
+  it('loads messages only once when selecting a thread from sidebar', async () => {
+    // Start with no task/threadId — generates ephemeral thread
+    currentSearchParams = new URLSearchParams()
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = input.toString()
+      if (url === '/api/chat/threads') return jsonResponse([
+        { id: 'thread-a', title: 'Thread A', updated_at: '2026-02-06T00:00:00Z' },
+        { id: 'thread-b', title: 'Thread B', updated_at: '2026-02-06T00:00:00Z' },
+      ])
+      if (url.startsWith('/api/chat/threads/') && url.endsWith('/messages')) return jsonResponse([])
+      // Note: fetchThreadTaskId is module-mocked (see top of file), so /api/threads/<id> won't reach here
+      throw new Error(`Unexpected fetch URL: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<ChatPageClient />)
+    await waitFor(() => expect(screen.getByTestId('workspace')).toBeInTheDocument())
+
+    // Clear all calls from initial bootstrap
+    fetchMock.mockClear()
+
+    // Simulate user clicking thread-b via workspace mock
+    fireEvent.click(screen.getByText('Select Thread B'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('workspace')).toHaveAttribute('data-thread-id', 'thread-b')
+    })
+
+    // Key assertion: messages API for thread-b should be called only ONCE (not twice)
+    const messageFetches = fetchMock.mock.calls.filter(
+      ([url]) => url.toString() === '/api/chat/threads/thread-b/messages'
+    )
+    expect(messageFetches).toHaveLength(1)
+  })
+
+  it('lands on last selected thread when rapidly switching', async () => {
+    currentSearchParams = new URLSearchParams()
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = input.toString()
+      if (url === '/api/chat/threads') return jsonResponse([
+        { id: 'thread-a', title: 'Thread A', updated_at: '2026-02-06T00:00:00Z' },
+        { id: 'thread-b', title: 'Thread B', updated_at: '2026-02-06T00:00:00Z' },
+        { id: 'thread-c', title: 'Thread C', updated_at: '2026-02-06T00:00:00Z' },
+      ])
+      if (url.startsWith('/api/chat/threads/') && url.endsWith('/messages')) return jsonResponse([])
+      // Note: fetchThreadTaskId is module-mocked (see top of file), so /api/threads/<id> won't reach here
+      throw new Error(`Unexpected fetch URL: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<ChatPageClient />)
+    await waitFor(() => expect(screen.getByTestId('workspace')).toBeInTheDocument())
+
+    // Rapidly switch: thread-b then thread-c
+    fireEvent.click(screen.getByText('Select Thread B'))
+    fireEvent.click(screen.getByText('Select Thread C'))
+
+    // Should end up on thread-c (the last one selected)
+    await waitFor(() => {
+      expect(screen.getByTestId('workspace')).toHaveAttribute('data-thread-id', 'thread-c')
+    })
   })
 })
