@@ -27,7 +27,7 @@ import {
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase'
 import { useI18n } from '@/components/i18n/I18nProvider'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 // ============================================================================
 // Type Definitions
@@ -69,6 +69,25 @@ interface GetTaskStatusToolProps extends BaseToolPartProps<TaskStatusInput, Task
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
+const TERMINAL_STATUSES = new Set(['completed', 'failed'])
+
+const POLL_INTERVAL_MS = 5_000
+
+/** Map a DB row (or Realtime payload) to TaskStatusOutput */
+function mapRowToTask(row: Record<string, unknown>, fallbackTaskId: string): TaskStatusOutput {
+  return {
+    taskId: typeof row.id === 'string' ? row.id : fallbackTaskId,
+    status: row.status === 'pending' || row.status === 'processing' || row.status === 'completed' || row.status === 'failed'
+      ? row.status
+      : 'pending',
+    progress: typeof row.progress === 'number' ? row.progress : 0,
+    video_title: typeof row.video_title === 'string' ? row.video_title : undefined,
+    thumbnail_url: typeof row.thumbnail_url === 'string' ? row.thumbnail_url : undefined,
+    video_url: typeof row.video_url === 'string' ? row.video_url : undefined,
+    error_message: typeof row.error_message === 'string' ? row.error_message : undefined,
+  }
+}
+
 export function GetTaskStatusTool({
   state,
   input,
@@ -78,64 +97,104 @@ export function GetTaskStatusTool({
 }: GetTaskStatusToolProps) {
   const { t } = useI18n()
   const [liveTask, setLiveTask] = useState<TaskStatusOutput | null>(null)
+  const [recovered, setRecovered] = useState(false)
   const supabase = useMemo(() => createClient(), [])
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  useEffect(() => {
-    if (!output?.taskId || output?.error) return
+  /** Fetch the task from Supabase and update liveTask state.
+   *  Returns the status string (or null on failure) so callers can
+   *  decide whether to stop polling. */
+  const fetchTask = useCallback(async (taskId: string, isActive: { current: boolean }) => {
+    const { data } = await supabase
+      .from('tasks')
+      .select('id,status,progress,video_title,thumbnail_url,video_url,error_message,updated_at')
+      .eq('id', taskId)
+      .single()
 
-    let isActive = true
-
-    const fetchTask = async () => {
-      const { data } = await supabase
-        .from('tasks')
-        .select('id,status,progress,video_title,thumbnail_url,video_url,error_message,updated_at')
-        .eq('id', output.taskId)
-        .single()
-
-      if (data && isActive) {
-        setLiveTask({
-          taskId: data.id,
-          status: data.status,
-          progress: data.progress || 0,
-          video_title: data.video_title || undefined,
-          thumbnail_url: data.thumbnail_url || undefined,
-          video_url: data.video_url || undefined,
-          error_message: data.error_message || undefined
-        })
-      }
+    if (data && isActive.current) {
+      const mapped = mapRowToTask(data as Record<string, unknown>, taskId)
+      setLiveTask(mapped)
+      return mapped.status
     }
+    return null
+  }, [supabase])
 
-    fetchTask()
+  // ---- Error Recovery (Bug 1) ----
+  // When output carries an error but also a taskId, the task might simply
+  // not have been visible yet due to replication lag.  We retry once after 1s.
+  useEffect(() => {
+    if (!output?.error || !output?.taskId) return
+    const isActive = { current: true }
 
+    const timer = setTimeout(async () => {
+      const status = await fetchTask(output.taskId, isActive)
+      if (status && isActive.current) {
+        setRecovered(true)
+      }
+    }, 1_000)
+
+    return () => {
+      isActive.current = false
+      clearTimeout(timer)
+    }
+  }, [output?.error, output?.taskId, fetchTask])
+
+  // ---- Normal subscription + Polling fallback (Bug 2) ----
+  useEffect(() => {
+    const taskId = output?.taskId
+    // Skip if there is an error AND we haven't recovered yet
+    if (!taskId || (output?.error && !recovered)) return
+
+    const isActive = { current: true }
+
+    // Initial fetch
+    fetchTask(taskId, isActive)
+
+    // Realtime subscription
     const channel = supabase
-      .channel(`task_status_${output.taskId}`)
+      .channel(`task_status_${taskId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'tasks',
-        filter: `id=eq.${output.taskId}`
+        filter: `id=eq.${taskId}`
       }, (payload) => {
         const next = payload.new
-        if (!isRecord(next) || !isActive) return
-        setLiveTask({
-          taskId: typeof next.id === 'string' ? next.id : output.taskId,
-          status: next.status === 'pending' || next.status === 'processing' || next.status === 'completed' || next.status === 'failed'
-            ? next.status
-            : output.status,
-          progress: typeof next.progress === 'number' ? next.progress : 0,
-          video_title: typeof next.video_title === 'string' ? next.video_title : undefined,
-          thumbnail_url: typeof next.thumbnail_url === 'string' ? next.thumbnail_url : undefined,
-          video_url: typeof next.video_url === 'string' ? next.video_url : undefined,
-          error_message: typeof next.error_message === 'string' ? next.error_message : undefined
-        })
+        if (!isRecord(next) || !isActive.current) return
+        const mapped = mapRowToTask(next, taskId)
+        setLiveTask(mapped)
+        // Clear polling when terminal
+        if (TERMINAL_STATUSES.has(mapped.status) && pollRef.current) {
+          clearInterval(pollRef.current)
+          pollRef.current = null
+        }
       })
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn(`[Realtime] Channel ${taskId} status: ${status}`)
+        }
+      })
+
+    // Polling fallback – guards against silent Realtime disconnects
+    pollRef.current = setInterval(async () => {
+      const currentStatus = await fetchTask(taskId, isActive)
+      if (currentStatus && TERMINAL_STATUSES.has(currentStatus)) {
+        if (pollRef.current) {
+          clearInterval(pollRef.current)
+          pollRef.current = null
+        }
+      }
+    }, POLL_INTERVAL_MS)
 
     return () => {
-      isActive = false
+      isActive.current = false
       supabase.removeChannel(channel)
+      if (pollRef.current) {
+        clearInterval(pollRef.current)
+        pollRef.current = null
+      }
     }
-  }, [output?.taskId, output?.error, output?.status, supabase])
+  }, [output?.taskId, output?.error, output?.status, recovered, supabase, fetchTask])
 
   switch (state) {
     case 'input-streaming':
@@ -151,7 +210,7 @@ export function GetTaskStatusTool({
       )
 
     case 'output-available':
-      if (output?.error) {
+      if (output?.error && !recovered) {
         return (
           <div className="flex items-center gap-2 my-2 text-sm text-red-500">
             <AlertCircle className="w-4 h-4" />
