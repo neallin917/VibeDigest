@@ -77,6 +77,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from utils.timing_middleware import TimingMiddleware
+app.add_middleware(TimingMiddleware)
+
 # Project Paths
 PROJECT_ROOT = Path(__file__).parent.parent
 TEMP_DIR = PROJECT_ROOT / "temp"

@@ -1,0 +1,117 @@
+{
+  "timestamp": "2026-03-06T09:26:08.409Z",
+  "git_sha": "5903057",
+  "total_js_kb": 2898.4,
+  "shared_framework_kb": 512.9,
+  "chunk_count": 44,
+  "page_routes": 21,
+  "routes": {
+    "/@auth/(.)login": {
+      "server_file": "app/@auth/(.)login/page.js"
+    },
+    "/[lang]/(main)/policies/refund": {
+      "server_file": "app/[lang]/(main)/policies/refund/page.js"
+    },
+    "/[lang]/(main)/policies/terms": {
+      "server_file": "app/[lang]/(main)/policies/terms/page.js"
+    },
+    "/[lang]/(main)/settings": {
+      "server_file": "app/[lang]/(main)/settings/page.js"
+    },
+    "/[lang]/(main)/settings/pricing": {
+      "server_file": "app/[lang]/(main)/settings/pricing/page.js"
+    },
+    "/[lang]/(main)/tasks/[id]/[slug]": {
+      "server_file": "app/[lang]/(main)/tasks/[id]/[slug]/page.js"
+    },
+    "/[lang]/(main)/tasks/[id]": {
+      "server_file": "app/[lang]/(main)/tasks/[id]/page.js"
+    },
+    "/[lang]/@auth/(.)login": {
+      "server_file": "app/[lang]/@auth/(.)login/page.js"
+    },
+    "/[lang]/about": {
+      "server_file": "app/[lang]/about/page.js"
+    },
+    "/[lang]/auth/callback/route": {
+      "server_file": "app/[lang]/auth/callback/route.js"
+    },
+    "/[lang]/chat": {
+      "server_file": "app/[lang]/chat/page.js"
+    },
+    "/[lang]/explore": {
+      "server_file": "app/[lang]/explore/page.js"
+    },
+    "/[lang]/faq": {
+      "server_file": "app/[lang]/faq/page.js"
+    },
+    "/[lang]/login": {
+      "server_file": "app/[lang]/login/page.js"
+    },
+    "/[lang]": {
+      "server_file": "app/[lang]/page.js"
+    },
+    "/[lang]/privacy": {
+      "server_file": "app/[lang]/privacy/page.js"
+    },
+    "/[lang]/terms": {
+      "server_file": "app/[lang]/terms/page.js"
+    },
+    "/_global-error": {
+      "server_file": "app/_global-error/page.js"
+    },
+    "/_not-found": {
+      "server_file": "app/_not-found/page.js"
+    },
+    "/auth/callback/route": {
+      "server_file": "app/auth/callback/route.js"
+    },
+    "/": {
+      "server_file": "app/page.js"
+    }
+  },
+  "top_chunks": [
+    {
+      "name": "40a76b5d51b3e66c.js",
+      "size_kb": 470.5
+    },
+    {
+      "name": "67856f2964896b1b.js",
+      "size_kb": 470.5
+    },
+    {
+      "name": "ab88dbe792eec141.js",
+      "size_kb": 362
+    },
+    {
+      "name": "e60a714d7d801ed4.js",
+      "size_kb": 218.6
+    },
+    {
+      "name": "255afb128ddc6b8d.js",
+      "size_kb": 125.9
+    },
+    {
+      "name": "6eaafcf49a81a4f0.js",
+      "size_kb": 125.9
+    },
+    {
+      "name": "a6dad97d9634a72d.js",
+      "size_kb": 110
+    },
+    {
+      "name": "3f72a1aac83d6f04.js",
+      "size_kb": 108.8
+    },
+    {
+      "name": "bfe93e161037a01b.js",
+      "size_kb": 54.4
+    },
+    {
+      "name": "14076f5b0536bfa1.js",
+      "size_kb": 51.9
+    }
+  ],
+  "status": "pass",
+  "regressions": []
+}

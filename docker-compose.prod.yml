@@ -62,7 +62,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Router - Online users access via this domain
-      - "traefik.http.routers.transcriber.rule=Host(`transcriber.neallin.xyz`)"
+      - "traefik.http.routers.transcriber.rule=Host(`vibedigest.io`)"
       - "traefik.http.routers.transcriber.entrypoints=web"
       # Service
       - "traefik.http.services.transcriber.loadbalancer.server.port=8000"
