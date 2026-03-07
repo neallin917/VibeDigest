@@ -22,32 +22,54 @@ export function createGetTaskStatusTool(ctx: ToolContext) {
                 .eq('id', taskId)
                 .single();
 
-            if (data) {
-                if (data.user_id !== ctx.user?.id && !data.is_demo) {
+            // Helper: build response from a DB row
+            const buildResponse = (row: typeof data) => {
+                if (!row) return null;
+                if (row.user_id !== ctx.user?.id && !row.is_demo) {
                     return { error: 'Access denied', taskId };
                 }
-                const normalizedTaskUrl = extractUrl(data.video_url || '');
+                const normalizedTaskUrl = extractUrl(row.video_url || '');
                 const canUsePreview = Boolean(
                     ctx.previewCache && normalizedTaskUrl && ctx.previewCache.url === normalizedTaskUrl
                 );
                 const previewTitle = canUsePreview ? ctx.previewCache?.title : undefined;
                 const previewThumbnail = canUsePreview ? ctx.previewCache?.thumbnail : undefined;
                 const normalizedTitle =
-                    data.video_title && data.video_title !== 'Unknown'
-                        ? data.video_title
+                    row.video_title && row.video_title !== 'Unknown'
+                        ? row.video_title
                         : previewTitle;
 
                 return {
-                    taskId: data.id,
-                    status: data.status,
-                    progress: data.progress,
+                    taskId: row.id,
+                    status: row.status,
+                    progress: row.progress,
                     video_title: normalizedTitle,
-                    thumbnail_url: data.thumbnail_url || previewThumbnail,
-                    video_url: data.video_url,
-                    error_message: data.error_message,
-                    created_at: data.created_at,
-                    updated_at: data.updated_at,
+                    thumbnail_url: row.thumbnail_url || previewThumbnail,
+                    video_url: row.video_url,
+                    error_message: row.error_message,
+                    created_at: row.created_at,
+                    updated_at: row.updated_at,
                 };
+            };
+
+            if (data) {
+                const response = buildResponse(data);
+                if (response) return response;
+            }
+
+            // 1b. Retry after 500ms (handles race with create_task write propagation)
+            if (!data) {
+                await new Promise(r => setTimeout(r, 500));
+                const { data: retryData } = await ctx.supabase
+                    .from('tasks')
+                    .select('*')
+                    .eq('id', taskId)
+                    .single();
+
+                if (retryData) {
+                    const response = buildResponse(retryData);
+                    if (response) return response;
+                }
             }
 
             // 2. Fallback: Try Backend API

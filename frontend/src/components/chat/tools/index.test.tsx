@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import {
   GetTaskStatusTool,
@@ -45,7 +45,7 @@ vi.mock('@/lib/supabase', () => ({
 describe('Chat Tools', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    
+
     mockChannel.mockReturnValue({
       on: mockOn,
       subscribe: mockSubscribe
@@ -290,6 +290,149 @@ describe('Chat Tools', () => {
             />
         )
         expect(screen.getByText('chat.tools.outputs.retrieved')).toBeInTheDocument()
+    })
+  })
+
+  describe('GetTaskStatusTool – error recovery (Bug 1)', () => {
+    it('should recover from "Task not found" error when task appears in DB later', async () => {
+      // First call (recovery attempt) returns the task
+      mockSingle.mockResolvedValue({
+        data: {
+          id: 'task-recover',
+          status: 'processing',
+          progress: 20,
+          video_title: 'Recovered Video',
+          thumbnail_url: null,
+          video_url: null,
+          error_message: null,
+        }
+      })
+
+      render(
+        <GetTaskStatusTool
+          toolCallId="recover-1"
+          state="output-available"
+          output={{
+            taskId: 'task-recover',
+            status: 'failed',
+            error: 'Task not found',
+          }}
+        />
+      )
+
+      // Should eventually recover and show the task card instead of the error
+      await waitFor(() => {
+        expect(screen.getByText('Recovered Video')).toBeInTheDocument()
+      }, { timeout: 3000 })
+
+      // Error text should no longer be visible
+      expect(screen.queryByText('Task not found')).not.toBeInTheDocument()
+    })
+
+    it('should show error for genuinely missing task (no taskId)', () => {
+      render(
+        <GetTaskStatusTool
+          toolCallId="no-id"
+          state="output-available"
+          output={{
+            taskId: '',
+            status: 'failed',
+            error: 'Task not found',
+          }}
+        />
+      )
+      // With no valid taskId, recovery should not be attempted
+      expect(screen.getByText('Task not found')).toBeInTheDocument()
+    })
+  })
+
+  describe('GetTaskStatusTool – polling fallback (Bug 2)', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('should poll periodically as fallback when realtime is active', async () => {
+      // Initial fetch returns processing
+      let pollCount = 0
+      mockSingle.mockImplementation(() => {
+        pollCount++
+        return Promise.resolve({
+          data: {
+            id: 'task-poll',
+            status: 'processing',
+            progress: pollCount * 20,
+            video_title: 'Polling Video',
+          }
+        })
+      })
+
+      render(
+        <GetTaskStatusTool
+          toolCallId="poll-1"
+          state="output-available"
+          output={{ taskId: 'task-poll', status: 'pending' }}
+        />
+      )
+
+      // Flush initial fetch
+      await vi.advanceTimersByTimeAsync(100)
+
+      const initialCallCount = mockSingle.mock.calls.length
+
+      // Advance time by 15s to trigger multiple polling intervals (5s each)
+      await vi.advanceTimersByTimeAsync(15000)
+
+      // Should have additional poll calls beyond the initial fetch
+      expect(mockSingle.mock.calls.length).toBeGreaterThan(initialCallCount)
+    })
+
+    it('should stop polling when task reaches terminal state', async () => {
+      let callCount = 0
+      mockSingle.mockImplementation(() => {
+        callCount++
+        // After second call, return completed
+        if (callCount >= 2) {
+          return Promise.resolve({
+            data: {
+              id: 'task-done',
+              status: 'completed',
+              progress: 100,
+              video_title: 'Done Video',
+            }
+          })
+        }
+        return Promise.resolve({
+          data: {
+            id: 'task-done',
+            status: 'processing',
+            progress: 50,
+            video_title: 'Done Video',
+          }
+        })
+      })
+
+      render(
+        <GetTaskStatusTool
+          toolCallId="poll-done"
+          state="output-available"
+          output={{ taskId: 'task-done', status: 'pending' }}
+        />
+      )
+
+      // Flush initial fetch + one poll cycle to get completed
+      await vi.advanceTimersByTimeAsync(6000)
+
+      const callsAfterCompleted = mockSingle.mock.calls.length
+
+      // Advance time significantly – polling should have stopped
+      await vi.advanceTimersByTimeAsync(30000)
+
+      // No additional calls should have been made
+      expect(mockSingle.mock.calls.length).toBe(callsAfterCompleted)
     })
   })
 
