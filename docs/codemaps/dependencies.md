@@ -144,7 +144,6 @@ from utils.text_utils import *
 | `supabase` | Database client | Latest |
 | `httpx` | Async HTTP client | Latest |
 | `pydantic` | Data validation | v2 |
-| `langfuse` | LLM observability | v3 |
 | `sentry-sdk` | Error tracking | Latest |
 | `coinbase-commerce` | Crypto payments | Latest |
 

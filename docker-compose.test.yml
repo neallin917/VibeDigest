@@ -21,7 +21,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Test Router (Different Subdomain)
-      - "traefik.http.routers.transcriber-test.rule=Host(`test-transcriber.neallin.xyz`)"
+      - "traefik.http.routers.transcriber-test.rule=Host(`test.vibedigest.io`)"
       - "traefik.http.routers.transcriber-test.entrypoints=web"
       - "traefik.http.services.transcriber-test.loadbalancer.server.port=8000"
 

@@ -32,4 +32,3 @@ testcontainers[postgres]>=3.7.1
 langchain-community>=0.3.0
 litellm>=1.0.0
 pyyaml>=6.0.1
-langfuse>=2.0.0

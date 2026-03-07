@@ -3,6 +3,7 @@
 .PHONY: start-backend start-frontend start-dev start-prod
 .PHONY: test-backend test-frontend
 .PHONY: stop restart-dev rebuild-dev restart-prod deploy
+.PHONY: perf perf-frontend perf-check perf-update-baseline
 
 # --- Configuration ---
 # 提取端口 (macOS 兼容)
@@ -144,3 +145,25 @@ clean:
 	find . -name "coverage.json" -not -path "*/node_modules/*" -delete 2>/dev/null; true
 	rm -rf backend/temp/* backend/downloads/*
 	@echo "Clean complete."
+
+# --- Performance Monitoring ---
+perf: perf-frontend
+	@echo "Performance check complete. See .perf/ for reports."
+
+perf-frontend:
+	@mkdir -p .perf
+	@echo "Building frontend and analyzing bundle sizes..."
+	cd frontend && npm run build > /dev/null 2>&1
+	node scripts/parse-build-output.js > .perf/frontend.json
+	@echo "Results: .perf/frontend.json"
+	@node -e "const d=require('./.perf/frontend.json'); console.log('  Total JS: '+d.total_js_kb+' KB ('+d.chunk_count+' chunks)')"
+
+perf-check:
+	@echo "Comparing against baselines..."
+	@node scripts/perf-check.js
+
+perf-update-baseline:
+	@mkdir -p .perf/baselines
+	@test -f .perf/frontend.json || (echo "Error: Run 'make perf-frontend' first." && exit 1)
+	@cp .perf/frontend.json .perf/baselines/frontend.baseline.json
+	@echo "Baseline updated from latest perf run."

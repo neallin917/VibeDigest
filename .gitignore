@@ -140,6 +140,11 @@ frontend/e2e/**/*-snapshots/
 # Google site verification (manage via deployment, not git)
 frontend/public/google*.html
 
+# Performance reports (generated, gitignored)
+.perf/*.json
+# But keep baselines (committed)
+!.perf/baselines/
+
 # Legacy / Stale Directories
 temp_backup/
 video/
