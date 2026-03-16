@@ -70,7 +70,7 @@ def _is_rate_limit_error(exc: Exception) -> bool:
         import litellm
         if isinstance(exc, litellm.RateLimitError):
             return True
-    except (ImportError, AttributeError):
+    except (ImportError, AttributeError, TypeError):
         pass
 
     # Regex fallback: covers "rate limit", "429", "too many requests", etc.
