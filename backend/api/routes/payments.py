@@ -1,3 +1,4 @@
+import asyncio
 import httpx
 import logging
 from fastapi import APIRouter, Depends, Form, HTTPException
@@ -75,39 +76,59 @@ async def create_checkout_session(
     if not price:
         raise HTTPException(status_code=400, detail="Invalid Product ID")
 
-    try:
-        # Create Creem Checkout Session via REST API
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{CREEM_API_BASE}/v1/checkouts",
-                headers={
-                    "x-api-key": CREEM_API_KEY,
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "product_id": price_id,
-                    "success_url": settings.FRONTEND_URL
-                    + "/settings/pricing?success=true",
-                    "metadata": {"user_id": user_id},
-                },
-                timeout=30.0,
-            )
+    # Fail fast if Creem is not configured — avoids opaque 401 from the API
+    if not CREEM_API_KEY:
+        raise HTTPException(status_code=503, detail="Payment service not configured")
 
-            if response.status_code != 200:
-                error_detail = response.text
+    try:
+        # Create Creem Checkout Session via REST API, with 1 retry on transient errors
+        max_attempts = 2
+        response = None
+        for attempt in range(max_attempts):
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        f"{CREEM_API_BASE}/v1/checkouts",
+                        headers={
+                            "x-api-key": CREEM_API_KEY,
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "product_id": price_id,
+                            "success_url": settings.FRONTEND_URL
+                            + "/settings/pricing?success=true",
+                            "metadata": {"user_id": user_id},
+                        },
+                        timeout=30.0,
+                    )
+                break  # 请求成功，跳出重试循环
+            except httpx.RequestError as e:
+                if attempt < max_attempts - 1:
+                    logger.warning(f"Creem API request failed, retrying: {e}")
+                    await asyncio.sleep(2)
+                    continue
                 logger.error(
-                    f"Creem checkout creation failed: {response.status_code} - {error_detail}"
+                    f"Creem API request failed after {max_attempts} attempts: {e}"
                 )
                 raise HTTPException(
-                    status_code=500, detail=f"Checkout creation failed: {error_detail}"
+                    status_code=503, detail="Payment service temporarily unavailable"
                 )
 
-            checkout_data = response.json()
-            checkout_url = checkout_data.get("checkout_url")
-            checkout_id = checkout_data.get("id")
+        if response.status_code != 200:
+            error_detail = response.text
+            logger.error(
+                f"Creem checkout creation failed: {response.status_code} - {error_detail}"
+            )
+            raise HTTPException(
+                status_code=500, detail=f"Checkout creation failed: {error_detail}"
+            )
 
-            if not checkout_url:
-                raise HTTPException(status_code=500, detail="No checkout URL returned")
+        checkout_data = response.json()
+        checkout_url = checkout_data.get("checkout_url")
+        checkout_id = checkout_data.get("id")
+
+        if not checkout_url:
+            raise HTTPException(status_code=500, detail="No checkout URL returned")
 
         # Create payment order for tracking
         amount_est = price.amount
@@ -117,11 +138,8 @@ async def create_checkout_session(
 
         return {"url": checkout_url}
 
-    except httpx.RequestError as e:
-        logger.error(f"Creem API request failed: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Payment service unavailable: {str(e)}"
-        )
+    except HTTPException:
+        raise  # 不 re-wrap 已明确定义的 HTTP 错误
     except Exception as e:
         logger.error(f"Creem session creation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

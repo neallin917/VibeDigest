@@ -39,9 +39,11 @@ async def preview_video(
             "author": info.get("author", "Unknown"),
             "url": normalized_url,
         }
+    except HTTPException:
+        raise  # 不 re-wrap 已经是 HTTPException 的错误（如 "Invalid video URL"）
     except Exception as e:
-        logger.error(f"Preview video failed: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.warning(f"Preview video failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/process-video")
 async def process_video(

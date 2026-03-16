@@ -44,8 +44,13 @@ async def run_pipeline(task_id: str, video_url: str, user_id: str):
             await workflow_app.ainvoke(cast(Any, initial_state))
 
         except Exception as e:
-            logger.error(f"Pipeline crashed: {e}")
-            db_client.update_task_status(task_id, status="error", error=str(e))
+            logger.error(f"Pipeline crashed: {e}", exc_info=True)
+            try:
+                db_client.update_task_status(task_id, status="error", error=str(e)[:500])
+            except Exception as status_err:
+                logger.error(
+                    f"Failed to update task {task_id} status after crash: {status_err}"
+                )
 
 
 async def handle_retry_output(output_id: str, user_id: str):
