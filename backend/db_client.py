@@ -3,6 +3,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import sessionmaker, scoped_session
 import json
 import jwt
@@ -245,10 +246,15 @@ class DBClient:
             return 0
         with self.engine.connect() as conn:
             # 1. Check guest_usage table first (X-Guest-Id)
-            guest_query = text("SELECT usage_count FROM guest_usage WHERE guest_id = :id")
-            guest_res = conn.execute(guest_query, {"id": identifier}).scalar()
-            if guest_res is not None:
-                return int(guest_res)
+            try:
+                guest_query = text("SELECT usage_count FROM guest_usage WHERE guest_id = :id")
+                guest_res = conn.execute(guest_query, {"id": identifier}).scalar()
+                if guest_res is not None:
+                    return int(guest_res)
+            except (ProgrammingError, OperationalError):
+                logger.warning(
+                    "[db] guest_usage table not found — run migration 16_guest_usage.sql"
+                )
 
             # 2. Fallback to tasks table (Regular user_id — must be valid UUID)
             try:
@@ -264,16 +270,22 @@ class DBClient:
         """Mark a guest trial as used in the guest_usage table."""
         if not self.engine:
             return
-        with self.engine.connect() as conn:
-            query = text("""
-                INSERT INTO guest_usage (guest_id, usage_count)
-                VALUES (:id, 1)
-                ON CONFLICT (guest_id) DO UPDATE SET 
-                    usage_count = guest_usage.usage_count + 1,
-                    updated_at = now();
-            """)
-            conn.execute(query, {"id": guest_id})
-            conn.commit()
+        try:
+            with self.engine.connect() as conn:
+                query = text("""
+                    INSERT INTO guest_usage (guest_id, usage_count)
+                    VALUES (:id, 1)
+                    ON CONFLICT (guest_id) DO UPDATE SET
+                        usage_count = guest_usage.usage_count + 1,
+                        updated_at = now();
+                """)
+                conn.execute(query, {"id": guest_id})
+                conn.commit()
+        except (ProgrammingError, OperationalError):
+            logger.warning(
+                "[db] guest_usage table not found — cannot track guest trial for %s",
+                guest_id,
+            )
 
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Fetch a task by ID."""

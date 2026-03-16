@@ -18,13 +18,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from api.routes import system, tasks, webhooks, payments, models
 
-if settings.SENTRY_DSN:
-    import sentry_sdk
-    sentry_sdk.init(
-        dsn=settings.SENTRY_DSN,
-        traces_sample_rate=1.0,
-        profiles_sample_rate=1.0,
-    )
+# Skip Sentry initialisation during pytest runs to avoid polluting the project
+# with test noise and to keep unit tests hermetic.
+if settings.SENTRY_DSN and not os.getenv("PYTEST_CURRENT_TEST"):
+    from utils.sentry_config import init_sentry
+    init_sentry(settings.SENTRY_DSN)
 
 app = FastAPI(title="VibeDigest API (v2)", version="2.0.0")
 

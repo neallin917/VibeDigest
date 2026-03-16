@@ -12,11 +12,94 @@ logger = logging.getLogger(__name__)
 
 from openai import OpenAI, AsyncOpenAI
 
+# ---------------------------------------------------------------------------
+# Placeholder API key values that are acceptable in CI / mock mode.
+# These should trigger a warning but NOT a hard failure so that unit tests
+# which mock LLM calls continue to work without real credentials.
+# ---------------------------------------------------------------------------
+_PLACEHOLDER_KEY_PATTERNS: tuple[str, ...] = (
+    "dummy-key",
+    "sk-no-key-required",
+    "sk-dummy",
+    "fake",
+    "test-key",
+    "placeholder",
+)
+
+
+def _resolve_api_key(provider: str) -> Optional[str]:
+    """
+    Resolve the API key for a given provider and validate it at call-time.
+
+    Returns the key string, or ``None`` if no key is configured.
+
+    Side-effects:
+        - Raises ``ValueError`` when no key is present at all (hard fail-fast).
+        - Logs a WARNING when a placeholder key is detected (soft warning so
+          CI mock tests are not broken).
+    """
+    if provider == "openrouter":
+        key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
+    else:
+        key = os.getenv("OPENAI_API_KEY")
+
+    if not key:
+        raise ValueError(
+            f"No API key configured for provider '{provider}'. "
+            "Set OPENAI_API_KEY (or OPENROUTER_API_KEY for OpenRouter) in the environment."
+        )
+
+    lower_key = key.lower()
+    if any(pattern in lower_key for pattern in _PLACEHOLDER_KEY_PATTERNS):
+        logger.warning(
+            f"[openai_client] Placeholder API key detected for provider '{provider}'. "
+            "LLM calls will fail unless MOCK_MODE is active or the model is mocked."
+        )
+
+    return key
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    """
+    Return True when *exc* represents a rate-limit / too-many-requests condition.
+
+    Checks both the litellm exception hierarchy (preferred) and a regex fallback
+    against the string representation for compatibility with older litellm versions.
+    """
+    try:
+        import litellm
+        if isinstance(exc, litellm.RateLimitError):
+            return True
+    except (ImportError, AttributeError):
+        pass
+
+    # Regex fallback: covers "rate limit", "429", "too many requests", etc.
+    return bool(re.search(r"rate.?limit|429|too many requests", str(exc), re.IGNORECASE))
+
+
+def _compute_wait_seconds(exc: Exception, attempt: int) -> float:
+    """
+    Determine how long to wait before the next retry.
+
+    Uses the explicit wait duration from the API response when available,
+    otherwise falls back to exponential backoff capped at 30 s.
+    """
+    explicit_match = re.search(r"wait (\d+)s", str(exc), re.IGNORECASE)
+    if explicit_match:
+        return float(explicit_match.group(1)) + 2  # +2 s buffer
+
+    # Exponential backoff: 2, 4, 8, 16, 30 (capped)
+    return min(2 ** attempt, 30)
+
 
 class RateLimitAwareChatLiteLLM(ChatLiteLLM):
     """
-    Custom wrapper around ChatLiteLLM that parses 'Please wait X seconds'
-    error messages and automatically retries after sleeping.
+    Custom wrapper around ChatLiteLLM that detects rate-limit errors and
+    automatically retries with the appropriate wait time.
+
+    Detection strategy (in order):
+    1. ``litellm.RateLimitError`` isinstance check (accurate, version-dependent)
+    2. Regex match on the exception message (broad fallback)
     """
 
     async def _astream(
@@ -26,14 +109,12 @@ class RateLimitAwareChatLiteLLM(ChatLiteLLM):
         run_manager: Optional[Any] = None,
         **kwargs: Any,
     ) -> AsyncIterator[ChatGenerationChunk]:
-        # Retry loop parameters
         max_retries = 3
         current_attempt = 0
 
         while True:
             yielded_any = False
             try:
-                # Call parent method
                 async for chunk in super()._astream(
                     messages, stop, run_manager, **kwargs
                 ):
@@ -41,25 +122,21 @@ class RateLimitAwareChatLiteLLM(ChatLiteLLM):
                     yielded_any = True
                 return
             except Exception as e:
+                # Never retry mid-stream — partial output would be inconsistent.
                 if yielded_any:
                     raise e
 
                 current_attempt += 1
-                error_str = str(e)
 
-                # Check for rate limit message
-                wait_match = re.search(r"wait (\d+)s", error_str, re.IGNORECASE)
-
-                if wait_match and current_attempt <= max_retries:
-                    wait_seconds = int(wait_match.group(1)) + 2  # Add 2s buffer
+                if _is_rate_limit_error(e) and current_attempt <= max_retries:
+                    wait_seconds = _compute_wait_seconds(e, current_attempt)
                     logger.warning(
-                        f"Rate limit hit. API requested wait: {wait_seconds}s. "
-                        f"Retrying ({current_attempt}/{max_retries})..."
+                        f"Rate limit hit (stream). Waiting {wait_seconds:.1f}s. "
+                        f"Retrying ({current_attempt}/{max_retries})…"
                     )
                     await asyncio.sleep(wait_seconds)
                     continue
 
-                # If no match or retries exhausted, re-raise
                 raise e
 
     async def _agenerate(
@@ -69,31 +146,24 @@ class RateLimitAwareChatLiteLLM(ChatLiteLLM):
         run_manager: Optional[Any] = None,
         **kwargs: Any,
     ) -> Any:
-        # Retry loop parameters
         max_retries = 3
         current_attempt = 0
 
         while True:
             try:
-                # Call parent method
                 return await super()._agenerate(messages, stop, run_manager, **kwargs)
             except Exception as e:
                 current_attempt += 1
-                error_str = str(e)
 
-                # Check for rate limit message
-                wait_match = re.search(r"wait (\d+)s", error_str, re.IGNORECASE)
-
-                if wait_match and current_attempt <= max_retries:
-                    wait_seconds = int(wait_match.group(1)) + 2  # Add 2s buffer
+                if _is_rate_limit_error(e) and current_attempt <= max_retries:
+                    wait_seconds = _compute_wait_seconds(e, current_attempt)
                     logger.warning(
-                        f"Rate limit hit. API requested wait: {wait_seconds}s. "
-                        f"Retrying ({current_attempt}/{max_retries})..."
+                        f"Rate limit hit (generate). Waiting {wait_seconds:.1f}s. "
+                        f"Retrying ({current_attempt}/{max_retries})…"
                     )
                     await asyncio.sleep(wait_seconds)
                     continue
 
-                # If no match or retries exhausted, re-raise
                 raise e
 
 
@@ -168,6 +238,12 @@ def create_chat_model(
     Unified factory for all providers.
     """
     import litellm
+
+    # Validate API key at model-creation time so failures are caught early
+    # (fail-fast) rather than at first LLM call mid-pipeline.
+    # Skip validation in MOCK_MODE to keep CI tests hermetic.
+    if not settings.MOCK_MODE:
+        _resolve_api_key(settings.LLM_PROVIDER)
 
     # Resolve temperature if not provided
     if temperature is None:
