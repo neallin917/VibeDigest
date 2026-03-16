@@ -2,6 +2,8 @@ import sys
 import asyncio
 from pathlib import Path
 
+import pytest
+
 # Setup path
 sys.path.append(str(Path(__file__).parent.parent))
 
@@ -9,6 +11,8 @@ from utils.env_loader import load_env  # noqa: E402
 load_env()
 
 from services.transcript_guard import TranscriptGuard  # noqa: E402
+
+pytestmark = pytest.mark.integration
 
 async def test_guard_scenarios():
     guard = TranscriptGuard()

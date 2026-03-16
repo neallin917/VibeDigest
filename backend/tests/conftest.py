@@ -30,23 +30,6 @@ def pytest_configure(config):
     )
 
 
-def pytest_collection_modifyitems(config, items):
-    """
-    Keep CI deterministic: network tests are skipped by default in CI.
-    Set RUN_NETWORK_TESTS=1 to opt in.
-    """
-    if _is_truthy(os.getenv("RUN_NETWORK_TESTS")):
-        return
-    if not _is_truthy(os.getenv("CI")):
-        return
-
-    skip_network = pytest.mark.skip(
-        reason="Skipping network tests in CI. Set RUN_NETWORK_TESTS=1 to enable."
-    )
-    for item in items:
-        if "network" in item.keywords:
-            item.add_marker(skip_network)
-
 
 @pytest.fixture(scope="session")
 def anyio_backend():
@@ -303,14 +286,25 @@ async def api_client(mock_db_client, mock_video_processor, mock_coinbase_client,
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list) -> None:
-    """Auto-mark tests so they don't need manual @pytest.mark decorators.
+    """Auto-mark tests and apply CI network-skip logic.
 
     Rules:
     - Files inside tests/integration/ → @pytest.mark.integration
     - Files whose name contains "manual" → @pytest.mark.integration
+    - In CI, tests marked @pytest.mark.network are skipped unless RUN_NETWORK_TESTS=1
     """
     integration_mark = pytest.mark.integration
     for item in items:
         path_parts = Path(item.fspath).parts
         if "integration" in path_parts or "manual" in Path(item.fspath).stem:
             item.add_marker(integration_mark, append=False)
+
+    # Keep CI deterministic: skip network tests by default in CI.
+    # Set RUN_NETWORK_TESTS=1 to opt in.
+    if not _is_truthy(os.getenv("RUN_NETWORK_TESTS")) and _is_truthy(os.getenv("CI")):
+        skip_network = pytest.mark.skip(
+            reason="Skipping network tests in CI. Set RUN_NETWORK_TESTS=1 to enable."
+        )
+        for item in items:
+            if "network" in item.keywords:
+                item.add_marker(skip_network)
