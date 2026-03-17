@@ -3,7 +3,7 @@ import json
 import os
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
-from utils.openai_client import create_chat_model
+from utils.llm_router import create_chat_model
 from utils.llm_router import resolve_model_for_intent
 from utils.text_utils import extract_pure_text, count_words_or_units, extract_first_json_object
 

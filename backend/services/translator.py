@@ -22,7 +22,7 @@ class Translator:
 
         if api_key or settings.LLM_PROVIDER != 'openai':
              logger.info("Translator initialized via create_chat_model")
-             from utils.openai_client import create_chat_model
+             from utils.llm_router import create_chat_model
 
              model_name = resolve_model_for_intent("translation") or settings.OPENAI_TRANSLATION_MODEL
              self.llm = create_chat_model(

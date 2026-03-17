@@ -8,10 +8,14 @@ from utils.openai_client import create_chat_model, ainvoke_structured_json
 INTENT_TO_TIER = {
     "chat": "smart",
     "comprehension": "smart",
-    "summary": "fast",
+    "summary": "smart",              # FIX: was "fast", but OPENAI_SUMMARY_MODELS uses smart tier
     "translation": "fast",
     "guard": "fast",
     "helper": "fast",
+    "transcript_optimize": "fast",   # summarizer sub-task: transcript optimization
+    "paragraph": "fast",             # summarizer sub-task: paragraph formatting
+    "json_repair": "fast",           # summarizer sub-task: JSON repair
+    "classifier": "fast",            # summarizer sub-task: content classification
 }
 
 

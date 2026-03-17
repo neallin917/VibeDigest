@@ -22,7 +22,7 @@ from prompts import (
 from services.summarizer.models import ContentClassification
 from services.summarizer.config import supports_structured_output, get_llm
 from utils.text_utils import extract_first_json_object
-from utils.openai_client import ainvoke_structured_json
+from utils.llm_router import ainvoke_structured_json
 from utils.trace_utils import build_trace_config
 
 logger = logging.getLogger(__name__)

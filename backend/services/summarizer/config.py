@@ -67,7 +67,7 @@ def get_llm(
     Returns:
         A LangChain chat model instance
     """
-    from utils.openai_client import create_chat_model
+    from utils.llm_router import create_chat_model
 
     tokens = max_tokens or settings.DEFAULT_MAX_TOKENS
     return create_chat_model(
@@ -87,6 +87,7 @@ class SummarizerConfig:
 
     def __init__(self):
         from config import settings
+        from utils.llm_router import resolve_model_for_intent
 
         # Resolve API key based on active provider so that OpenRouter works without OPENAI_API_KEY.
         if settings.LLM_PROVIDER == "openrouter":
@@ -116,16 +117,23 @@ class SummarizerConfig:
             ] + settings.OPENAI_SUMMARY_MODELS
             default_summary_chain = [m for m in default_summary_chain if m]
         else:
-            default_summary_chain = list(settings.OPENAI_SUMMARY_MODELS)
+            summary_default = resolve_model_for_intent("summary")
+            default_summary_chain = (
+                [summary_default] if summary_default else list(settings.OPENAI_SUMMARY_MODELS)
+            )
             if explicit_fallback_model:
                 default_summary_chain.insert(1, explicit_fallback_model)
 
         self.summary_models = dedupe_models(default_summary_chain)
         self.transcript_model = (
-            os.getenv("OPENAI_TRANSCRIPT_MODEL") or settings.OPENAI_HELPER_MODEL
+            os.getenv("OPENAI_TRANSCRIPT_MODEL")
+            or resolve_model_for_intent("transcript_optimize")
+            or settings.OPENAI_HELPER_MODEL
         )
         self.paragraph_model = (
-            os.getenv("OPENAI_PARAGRAPH_MODEL") or settings.OPENAI_HELPER_MODEL
+            os.getenv("OPENAI_PARAGRAPH_MODEL")
+            or resolve_model_for_intent("paragraph")
+            or settings.OPENAI_HELPER_MODEL
         )
 
         # Token and character limits
@@ -175,11 +183,15 @@ class SummarizerConfig:
 
         # Additional models
         self.json_repair_model = (
-            os.getenv("OPENAI_JSON_REPAIR_MODEL") or ""
-        ).strip() or settings.OPENAI_HELPER_MODEL
+            (os.getenv("OPENAI_JSON_REPAIR_MODEL") or "").strip()
+            or resolve_model_for_intent("json_repair")
+            or settings.OPENAI_HELPER_MODEL
+        )
         self.classifier_model = (
-            os.getenv("OPENAI_CLASSIFIER_MODEL") or ""
-        ).strip() or settings.OPENAI_HELPER_MODEL
+            (os.getenv("OPENAI_CLASSIFIER_MODEL") or "").strip()
+            or resolve_model_for_intent("classifier")
+            or settings.OPENAI_HELPER_MODEL
+        )
 
         # Matching threshold
         self.summary_match_threshold = float(

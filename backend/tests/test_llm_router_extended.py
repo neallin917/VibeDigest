@@ -47,7 +47,8 @@ class TestResolveModelForIntent:
 
         assert result == "gpt-4o"
 
-    def test_fast_tier_intent(self):
+    def test_summary_intent_resolves_to_smart_tier(self):
+        """Regression test: summary was incorrectly mapped to 'fast', now fixed to 'smart'."""
         mock_registry = MagicMock()
         mock_registry.get_provider.return_value = {
             "defaults": {"smart": "gpt-4o", "fast": "gpt-4o-mini"}
@@ -59,7 +60,36 @@ class TestResolveModelForIntent:
             from utils.llm_router import resolve_model_for_intent
             result = resolve_model_for_intent("summary")
 
-        assert result == "gpt-4o-mini"
+        assert result == "gpt-4o"  # smart tier, not fast
+
+    def test_new_summarizer_intents_resolve_to_fast_tier(self):
+        """New summarizer sub-task intents should all resolve to the fast tier."""
+        mock_registry = MagicMock()
+        mock_registry.get_provider.return_value = {
+            "defaults": {"smart": "gpt-4o", "fast": "gpt-4o-mini"}
+        }
+        mock_settings = SimpleNamespace(LLM_PROVIDER="openai")
+
+        new_intents = ["transcript_optimize", "paragraph", "json_repair", "classifier"]
+
+        with patch("utils.llm_router.get_model_registry", return_value=mock_registry), \
+             patch("utils.llm_router.settings", mock_settings):
+            from utils.llm_router import resolve_model_for_intent
+            for intent in new_intents:
+                result = resolve_model_for_intent(intent)
+                assert result == "gpt-4o-mini", (
+                    f"Intent '{intent}' expected fast-tier model 'gpt-4o-mini', got '{result}'"
+                )
+
+    def test_reexport_create_chat_model(self):
+        """create_chat_model must be importable directly from utils.llm_router."""
+        from utils.llm_router import create_chat_model  # noqa: F401
+        assert callable(create_chat_model)
+
+    def test_reexport_ainvoke_structured_json(self):
+        """ainvoke_structured_json must be importable directly from utils.llm_router."""
+        from utils.llm_router import ainvoke_structured_json  # noqa: F401
+        assert callable(ainvoke_structured_json)
 
     def test_explicit_provider_overrides_settings(self):
         mock_registry = MagicMock()

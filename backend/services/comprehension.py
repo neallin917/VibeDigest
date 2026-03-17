@@ -8,7 +8,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 from prompts import COMPREHENSION_BRIEF_SYSTEM, COMPREHENSION_BRIEF_USER
 from utils.text_utils import get_language_name, extract_first_json_object, parse_bool_env
-from utils.openai_client import ainvoke_structured_json
+from utils.llm_router import ainvoke_structured_json
 from utils.trace_utils import build_trace_config
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ class ComprehensionAgent:
         self.use_response_format_json = parse_bool_env("OPENAI_USE_RESPONSE_FORMAT_JSON", True)
 
     def _get_llm(self, model_name: str, max_tokens: Optional[int] = None):
-        from utils.openai_client import create_chat_model
+        from utils.llm_router import create_chat_model
 
         # Use centralized default if max_tokens not provided
         tokens = max_tokens or settings.DEFAULT_MAX_TOKENS
