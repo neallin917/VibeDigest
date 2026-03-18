@@ -5,7 +5,7 @@ AI-Video-Transcriber 每日运营日报
 - DAU (chat_threads.user_id 昨日去重)
 - Task 生成数 (tasks.created_at)
 - Thread 生成数 (chat_threads.created_at)
-- 任务失败数 (tasks.status = 'failed')
+- 任务失败数 (tasks.status = 'error')
 
 运行方式：
   # 仅输出 JSON（供 OpenClaw cron agent 读取）
@@ -75,10 +75,10 @@ def fetch_metrics(sb: Client, start: str, end: str) -> dict:
         .execute()
     new_thread_count = new_threads.count or 0
 
-    # 5. 任务失败数（status = 'failed'，昨日创建或更新的）
+    # 5. 任务失败数（status = 'error'，昨日创建或更新的）
     failed_tasks = sb.table("tasks")\
         .select("id", count="exact")\
-        .eq("status", "failed")\
+        .eq("status", "error")\
         .gte("updated_at", start)\
         .lte("updated_at", end)\
         .eq("is_demo", False)\
