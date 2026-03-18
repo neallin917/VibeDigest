@@ -1,0 +1,34 @@
+name: Daily Ops Report
+
+on:
+  # 已禁用自动触发：改由 OpenClaw devops-automator agent 每天 09:00 (CST) 执行
+  # schedule:
+  #   - cron: '0 1 * * *'
+  # 保留手动触发，方便测试
+  workflow_dispatch:
+
+jobs:
+  send-daily-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install supabase httpx
+
+      - name: Run daily report
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          FEISHU_WEBHOOK_URL:   ${{ secrets.FEISHU_WEBHOOK_URL }}
+        run: |
+          python scripts/daily_report.py
